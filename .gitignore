@@ -1,0 +1,12 @@
+/bin/
+/dist/
+/.agent/
+/.agents/
+/.claude/
+/.codex/
+/.aws/
+/reports/
+/recon/
+*.test
+coverage.out
+.DS_Store
