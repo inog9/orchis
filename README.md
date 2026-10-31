@@ -90,6 +90,7 @@ test accounts. Specialist skills can be invoked by their own names.
 | `pentest-report` | Client report and internal validation ledger |
 | `gog-gmail` | Gmail command guidance for the authorized test inbox |
 | `totp-cli` | Authenticator TOTP codes for an authorized account's 2FA challenge |
+| `pentest-phone-verification` | Phone confirmation and SMS 2FA using the authorized Textbee-connected test phone |
 
 ## Tools used by the skills
 
@@ -104,6 +105,7 @@ by the chosen workflow separately:
   token when the website requires authenticator-based 2FA. The skill checks the
   installed command help before use; `init` does not install or enroll tokens.
 - Agent delegation support for phases that require subagents.
+- Textbee MCP with the authorized test phone when SMS verification is required.
 
 No mailbox is assumed or authenticated by `init`; supply the engagement's inbox
 before using account-creation or verification flows. Initialization itself does
