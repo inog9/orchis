@@ -89,6 +89,7 @@ test accounts. Specialist skills can be invoked by their own names.
 | `pentest-evidence` | Evidence capture, verdicts, and scoring |
 | `pentest-report` | Client report and internal validation ledger |
 | `gog-gmail` | Gmail command guidance for the authorized test inbox |
+| `totp-cli` | Authenticator TOTP codes for an authorized account's 2FA challenge |
 
 ## Tools used by the skills
 
@@ -99,6 +100,9 @@ by the chosen workflow separately:
 - Burp or Caido with its configured proxy/replay integration for HTTP evidence.
 - jxscout for JavaScript analysis when required.
 - gog CLI with an explicitly authorized Gmail account for email verification.
+- [totp-cli](https://github.com/yitsushi/totp-cli) with the relevant authorized
+  token when the website requires authenticator-based 2FA. The skill checks the
+  installed command help before use; `init` does not install or enroll tokens.
 - Agent delegation support for phases that require subagents.
 
 No mailbox is assumed or authenticated by `init`; supply the engagement's inbox

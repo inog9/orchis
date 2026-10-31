@@ -49,7 +49,7 @@ func TestBundledInstallPreservesEveryFileAndReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Skills) != 11 || len(plan.Targets) != 3 {
+	if len(plan.Skills) != 12 || len(plan.Targets) != 3 {
 		t.Fatalf("unexpected bundle: %d skills, %d targets", len(plan.Skills), len(plan.Targets))
 	}
 	if err := plan.Apply(); err != nil {

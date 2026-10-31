@@ -6,7 +6,7 @@ import (
 	"io/fs"
 )
 
-//go:embed pentest pentest-* gog-gmail
+//go:embed pentest pentest-* gog-gmail totp-cli
 var bundled embed.FS
 
 // Skills returns the embedded skills and their supporting references.
