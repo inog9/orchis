@@ -1,0 +1,14 @@
+id: e2e-exposed-env
+info:
+  name: E2E exposed .env file
+  author: orchis-e2e
+  severity: high
+  description: Marker template used only by the end-to-end test.
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.env"
+    matchers:
+      - type: word
+        words:
+          - "E2E_SECRET_MARKER"

@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<nmaprun scanner="nmap" args="nmap -sT -oX - 127.0.0.1" version="7.98">
+<host><status state="up"/><address addr="127.0.0.1" addrtype="ipv4"/>
+<ports>
+<port protocol="tcp" portid="22"><state state="open"/><service name="ssh" product="OpenSSH" version="9.6"/></port>
+<port protocol="tcp" portid="80"><state state="open"/><service name="http"/></port>
+<port protocol="tcp" portid="23"><state state="closed"/><service name="telnet"/></port>
+<port protocol="udp" portid="53"><state state="open|filtered"/></port>
+</ports></host>
+</nmaprun>

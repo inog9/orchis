@@ -1,0 +1,15 @@
+/bin/
+node_modules/
+/web/dist/
+/e2e/shots/
+/spikes/**/.work/
+*.test
+.env
+.env.*
+!.env.example
+/dist/
+*.key
+
+/work/
+
+__pycache__/

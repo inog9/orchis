@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+rule_files: [/etc/prometheus/alerts.yml]
+scrape_configs:
+  - job_name: orchis
+    authorization:
+      type: Bearer
+      credentials_file: /run/secrets/metrics_token
+    static_configs:
+      - targets: [server:9101]
+        labels: {component: server}
+      - targets: [nmap:9101]
+        labels: {component: nmap}
+      - targets: [nuclei:9101]
+        labels: {component: nuclei}
+      - targets: [ai-worker:9101]
+        labels: {component: ai-worker}

@@ -1,0 +1,19 @@
+{
+ admin off
+ auto_https disable_redirects
+}
+{$ORCHIS_SITE:localhost} {
+ tls internal
+ encode zstd gzip
+ request_body {
+  max_size 17MB
+ }
+ header {
+  Strict-Transport-Security "max-age=31536000"
+  X-Content-Type-Options nosniff
+  X-Frame-Options DENY
+  Referrer-Policy no-referrer
+  -Server
+ }
+ reverse_proxy server:8090
+}

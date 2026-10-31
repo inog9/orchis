@@ -1,0 +1,32 @@
+# Jalankan server pada network ai_internal yang sama. Jangan gunakan host networking di produksi.
+services:
+  ai-worker:
+    image: orchis-ai:dev
+    read_only: true
+    user: '65532:65532'
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 256m
+    cpus: 1
+    environment:
+      ORCHIS_SERVER_URL: ${ORCHIS_AI_SERVER_URL:-http://server:8090}
+      ORCHIS_AI_WORKER_TOKEN: ${ORCHIS_AI_WORKER_TOKEN:?set a random worker token of at least 32 characters}
+      ORCHIS_AI_PROXY: http://ai-egress:8080
+    networks: [ai_internal]
+  ai-egress:
+    image: orchis-ai:dev
+    entrypoint: [/usr/local/bin/ai-proxy]
+    read_only: true
+    user: '65532:65532'
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 32
+    mem_limit: 64m
+    cpus: 0.5
+    networks: [ai_internal,ai_egress]
+networks:
+  ai_internal:
+    name: orchis-ai-internal
+    internal: true
+  ai_egress: {}

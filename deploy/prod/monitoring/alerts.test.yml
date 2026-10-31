@@ -1,0 +1,22 @@
+rule_files: [alerts.yml]
+evaluation_interval: 15s
+tests:
+  - interval: 15s
+    input_series:
+      - series: 'orchis_queue_ready_messages{queue="orchis.dead"}'
+        values: '2+0x10'
+      - series: 'orchis_backup_last_success'
+        values: '0+0x10'
+      - series: 'orchis_backup_status_known'
+        values: '1+0x10'
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: OrchisDeadLetters
+        exp_alerts:
+          - exp_labels: {severity: warning, queue: orchis.dead}
+            exp_annotations: {summary: 'Dead-letter queue needs investigation'}
+      - eval_time: 2m
+        alertname: OrchisBackupFailed
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations: {summary: 'Last backup attempt failed'}

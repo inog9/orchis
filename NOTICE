@@ -1,0 +1,14 @@
+ORCHIS third-party notices
+
+The production scanner image includes selected directories from ProjectDiscovery
+nuclei-templates v10.5.1 (http/exposures, http/cves, http/misconfiguration).
+Copyright (c) 2025 ProjectDiscovery, Inc. MIT License.
+Source: https://github.com/projectdiscovery/nuclei-templates/tree/v10.5.1
+The complete upstream LICENSE.md is retained alongside templates in the image.
+Pinned archive hashes and directory manifest: deploy/prod/scanner-manifest.json.
+Other image packages retain their upstream license notices in their distributions.
+
+Backup encryption uses filippo.io/age v1.3.2 and filippo.io/hpke v0.4.0, under
+BSD-3-Clause licenses. Complete notices: docs/licenses/age.LICENSE and
+docs/licenses/hpke.LICENSE, also shipped in /licenses in the server image.
+Source: https://github.com/FiloSottile/age and https://github.com/FiloSottile/hpke

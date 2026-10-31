@@ -1,0 +1,21 @@
+/* DIHASILKAN dari design/orchis.pen oleh scripts/extract-tokens.mjs. Jangan diubah manual. */
+:root {
+  --bg: #0A0B0D;
+  --ink: #ECEEF1;
+  --ink-2: #A3A8B1;
+  --ink-3: #8C919A;
+  --line: #7A7F88;
+  --ring: #1D2024;
+  --bronze: #C19A5B;
+  --error: #FF8A8A;
+  --font-display: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter Variable", Inter, system-ui, sans-serif;
+  --tile: #1E2227;
+  --input-bg: #121417;
+  --input-line: #6E737B;
+  --panel: #0F1114;
+  --success: #6FCF97;
+  --warn: #E8B86A;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}

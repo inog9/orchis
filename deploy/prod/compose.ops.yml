@@ -1,0 +1,56 @@
+# Optional internal monitoring: COMPOSE_PROFILES=ops, no Prometheus host port.
+services:
+  prometheus:
+    image: prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2
+    profiles: [ops]
+    restart: unless-stopped
+    user: '65534:65534'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.path=/prometheus', '--storage.tsdb.retention.time=7d', '--storage.tsdb.retention.size=512MB', '--log.format=json']
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ${ORCHIS_STATE}/metrics_token:/run/secrets/metrics_token:ro
+      - prometheusdata:/prometheus
+    networks: [backend, ai, ops]
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 64
+  grafana:
+    image: grafana/grafana:13.3.0@sha256:488984b716c0862639f91a698adbe2862677a5a07bad42da5f03f3030883b205
+    profiles: [ops]
+    restart: unless-stopped
+    user: '472:472'
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      GOMAXPROCS: '2'
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/grafana_password
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_AUTH_ANONYMOUS_ENABLED: 'false'
+      GF_ANALYTICS_REPORTING_ENABLED: 'false'
+      GF_ANALYTICS_CHECK_FOR_UPDATES: 'false'
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: 'false'
+      GF_PLUGINS_PREINSTALL_DISABLED: 'true'
+      GF_LOG_MODE: console
+      GF_LOG_CONSOLE_FORMAT: json
+    volumes:
+      - ${ORCHIS_STATE}/grafana_password:/run/secrets/grafana_password:ro
+      - ./monitoring/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/dashboard.json:/etc/grafana/dashboards/orchis.json:ro
+      - grafanadata:/var/lib/grafana
+    tmpfs: ['/tmp:size=16m,mode=1777']
+    ports: ['127.0.0.1:${ORCHIS_GRAFANA_PORT:-3000}:3000']
+    networks: [ops, ops-ui]
+    mem_limit: 512m
+    cpus: 0.5
+    pids_limit: 256
+networks:
+  ops: {internal: true}
+  ops-ui: {}
+volumes:
+  prometheusdata:
+  grafanadata:

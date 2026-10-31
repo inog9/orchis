@@ -1,0 +1,43 @@
+groups:
+  - name: orchis-basics
+    rules:
+      - alert: OrchisMetricsUnavailable
+        expr: up{job="orchis"} == 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Internal metrics endpoint unavailable'}
+      - alert: OrchisWorkerHeartbeatStale
+        expr: (time() - orchis_worker_last_success_timestamp_seconds{component!="server"}) > 60
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Worker no longer authenticates successfully'}
+      - alert: OrchisDeadLetters
+        expr: orchis_queue_ready_messages{queue="orchis.dead"} > 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Dead-letter queue needs investigation'}
+      - alert: OrchisStuckJobs
+        expr: orchis_jobs_stuck > 0
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: 'Expired lease or overdue queued work'}
+      - alert: OrchisBackupFailed
+        expr: orchis_backup_last_success == 0 and orchis_backup_status_known == 1
+        for: 1m
+        labels: {severity: critical}
+        annotations: {summary: 'Last backup attempt failed'}
+      - alert: OrchisBackupUnproven
+        expr: orchis_backup_status_known == 0
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: 'No backup status recorded on this installation'}
+      - alert: OrchisBackupDiskLow
+        expr: (orchis_backup_disk_free_bytes / orchis_backup_disk_total_bytes) < 0.1
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: 'Backup filesystem has less than ten percent free'}
+      - alert: OrchisCollectorUnavailable
+        expr: orchis_metrics_database_up == 0 or orchis_metrics_queue_up == 0
+        for: 1m
+        labels: {severity: warning}
+        annotations: {summary: 'Database or queue metric collection failed; last gauges may be stale'}

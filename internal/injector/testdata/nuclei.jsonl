@@ -1,0 +1,4 @@
+{"template-id":"exposed-env","info":{"name":"Exposed .env file","severity":"high","description":"The .env file is world readable.","reference":["https://example.test/a"],"tags":["exposure","config"]},"type":"http","matched-at":"http://127.0.0.1:8081/.env","request":"GET /.env HTTP/1.1\r\nAuthorization: Bearer SECRET","response":"DB_PASSWORD=hunter2"}
+{"template-id":"tech-detect","info":{"name":"Tech","severity":"unknown"},"type":"http","matched-at":"http://127.0.0.1:8081/","matcher-name":"nginx"}
+not json at all
+{"no-template-id":true}

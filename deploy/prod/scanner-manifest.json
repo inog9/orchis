@@ -1,0 +1,11 @@
+{
+  "nuclei_version": "3.11.1",
+  "nuclei_linux_amd64_zip_sha256": "ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6",
+  "templates_version": "10.5.1",
+  "templates_zip_sha256": "00184ad496302cd1dd3cf4b0b1c3aa45d6b35057f7bdf17e932318185ba0ac50",
+  "source": "https://github.com/projectdiscovery/nuclei-templates/tree/v10.5.1",
+  "directories": ["http/exposures", "http/cves", "http/misconfiguration"],
+  "profiles": {"default": ["http/exposures", "http/cves", "http/misconfiguration"], "exposure": ["http/exposures"], "cves": ["http/cves"], "misconfig": ["http/misconfiguration"]},
+  "file_manifest": "SHA256SUMS",
+  "license_file": "LICENSE.md"
+}
