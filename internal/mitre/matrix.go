@@ -2,10 +2,12 @@ package mitre
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"regexp"
+	"sort"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -25,7 +27,9 @@ type Cell struct {
 	ID        string     `json:"id"`
 	Name      string     `json:"name"`
 	Mapped    bool       `json:"mapped"`    // ada aksi platform yang melatih teknik ini
-	Exercised bool       `json:"exercised"` // aksi itu pernah berhasil dijalankan
+	Exercised bool       `json:"exercised"` // aksi itu pernah berhasil dijalankan sungguhan (eksekusi nyata, bukan data demo)
+	Simulated bool       `json:"simulated"` // hanya dirujuk data demo/sintetis; TIDAK pernah dihitung sebagai exercised
+	Platforms []string   `json:"platforms"`
 	Runs      int        `json:"runs"`
 	LastRunAt *time.Time `json:"last_run_at"`
 	Subs      []Cell     `json:"subs,omitempty"`
@@ -43,14 +47,16 @@ type Matrix struct {
 	Total     int      `json:"total"`     // teknik induk
 	Mapped    int      `json:"mapped"`    // teknik (induk) yang bisa dilatih
 	Exercised int      `json:"exercised"` // teknik (induk) yang pernah dilatih
+	Simulated int      `json:"simulated"` // teknik (induk) yang hanya muncul di data demo
+	Platforms []string `json:"platforms"` // semua platform yang muncul pada teknik aktif (untuk filter)
 	Imported  bool     `json:"imported"`
 	LastRun   *Run     `json:"last_run"`
 }
 
 func (s *Service) lastRun(ctx context.Context) (*Run, error) {
 	var r Run
-	err := s.DB.Pool.QueryRow(ctx, `SELECT id, status, source_version, techniques, tactics, error, started_at, finished_at FROM mitre_import_runs ORDER BY started_at DESC LIMIT 1`).
-		Scan(&r.ID, &r.Status, &r.Version, &r.Techniques, &r.Tactics, &r.Error, &r.StartedAt, &r.FinishedAt)
+	err := s.DB.Pool.QueryRow(ctx, `SELECT id, status, source_version, techniques, tactics, subtechniques, deprecated, source_sha256, error, started_at, finished_at FROM mitre_import_runs ORDER BY started_at DESC LIMIT 1`).
+		Scan(&r.ID, &r.Status, &r.Version, &r.Techniques, &r.Tactics, &r.Subs, &r.Deprecated, &r.SHA256, &r.Error, &r.StartedAt, &r.FinishedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -114,6 +120,24 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 			return err
 		}
 
+		simulated := map[string]bool{}
+		sr, err := tx.Query(ctx, `SELECT DISTINCT details->>'mitre_technique' FROM findings WHERE tenant_id=$1 AND is_demo AND details ? 'mitre_technique'`, p.TenantID)
+		if err != nil {
+			return err
+		}
+		for sr.Next() {
+			var id string
+			if err := sr.Scan(&id); err != nil {
+				sr.Close()
+				return err
+			}
+			simulated[id] = true
+		}
+		sr.Close()
+		if err := sr.Err(); err != nil {
+			return err
+		}
+
 		cols, err := tx.Query(ctx, `SELECT id, name, shortname FROM mitre_tactics ORDER BY sort_order, id`)
 		if err != nil {
 			return err
@@ -134,12 +158,13 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 			return err
 		}
 		m.Imported = len(m.Tactics) > 0
-		tr, err := tx.Query(ctx, `SELECT id, name, parent_id, tactic_ids FROM mitre_techniques WHERE NOT is_deprecated ORDER BY id`)
+		tr, err := tx.Query(ctx, `SELECT id, name, parent_id, tactic_ids, platforms FROM mitre_techniques WHERE NOT is_deprecated ORDER BY id`)
 		if err != nil {
 			return err
 		}
 		defer tr.Close()
 		subs := map[string][]Cell{}
+		allPlatforms := map[string]bool{}
 		type parent struct {
 			cell    Cell
 			tactics []string
@@ -148,11 +173,14 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 		for tr.Next() {
 			var id, name string
 			var par *string
-			var tactics []string
-			if err := tr.Scan(&id, &name, &par, &tactics); err != nil {
+			var tactics, platforms []string
+			if err := tr.Scan(&id, &name, &par, &tactics, &platforms); err != nil {
 				return err
 			}
-			c := Cell{ID: id, Name: name}
+			c := Cell{ID: id, Name: name, Platforms: platforms, Simulated: simulated[id] && stats[id] == nil}
+			for _, pl := range platforms {
+				allPlatforms[pl] = true
+			}
 			if st := stats[id]; st != nil {
 				c.Mapped, c.Runs, c.LastRunAt, c.Exercised = st.mapped, st.runs, st.last, st.runs > 0
 			}
@@ -171,6 +199,7 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 			for _, sc := range c.Subs {
 				c.Mapped = c.Mapped || sc.Mapped
 				c.Exercised = c.Exercised || sc.Exercised
+				c.Simulated = c.Simulated || sc.Simulated
 				c.Runs += sc.Runs
 				if sc.LastRunAt != nil && (c.LastRunAt == nil || sc.LastRunAt.After(*c.LastRunAt)) {
 					c.LastRunAt = sc.LastRunAt
@@ -183,28 +212,50 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 			if c.Exercised {
 				m.Exercised++
 			}
+			if c.Simulated {
+				m.Simulated++
+			}
 			for _, t := range pr.tactics {
 				if i, ok := idx[t]; ok {
 					m.Tactics[i].Techniques = append(m.Tactics[i].Techniques, c)
 				}
 			}
 		}
+		m.Platforms = make([]string, 0, len(allPlatforms))
+		for pl := range allPlatforms {
+			m.Platforms = append(m.Platforms, pl)
+		}
+		sort.Strings(m.Platforms)
 		return nil
 	})
 	return m, err
 }
 
+// Mapping: satu aksi platform yang dipetakan ke teknik beserta alasannya.
+type Mapping struct {
+	Action string `json:"action"`
+	Reason string `json:"reason"`
+	Basis  string `json:"basis"`         // direct | estimate
+	Via    string `json:"via,omitempty"` // id sub-teknik bila pemetaan ada di sub-teknik
+}
+
 type Detail struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Platforms   []string   `json:"platforms"`
-	Tactics     []string   `json:"tactics"`
-	URL         string     `json:"url"`
-	Actions     []string   `json:"actions"` // nama aksi platform yang melatih teknik ini
-	Runs        int        `json:"runs"`
-	LastRunAt   *time.Time `json:"last_run_at"`
-	Subs        []Cell     `json:"subs"`
+	ID                string       `json:"id"`
+	Name              string       `json:"name"`
+	Description       string       `json:"description"`
+	Platforms         []string     `json:"platforms"`
+	Tactics           []string     `json:"tactics"`
+	URL               string       `json:"url"`
+	Actions           []string     `json:"actions"` // nama aksi platform yang melatih teknik ini
+	Mappings          []Mapping    `json:"mappings"`
+	Mitigations       []Mitigation `json:"mitigations"`
+	Parent            *string      `json:"parent"`
+	Deprecated        bool         `json:"deprecated"`
+	Simulated         bool         `json:"simulated"`
+	SimulatedFindings int          `json:"simulated_findings"`
+	Runs              int          `json:"runs"`
+	LastRunAt         *time.Time   `json:"last_run_at"`
+	Subs              []Cell       `json:"subs"`
 }
 
 var idRe = regexp.MustCompile(`^T[0-9]{4}(\.[0-9]{3})?$`)
@@ -213,22 +264,53 @@ func (s *Service) Technique(ctx context.Context, p *auth.Principal, id string) (
 	if !idRe.MatchString(id) {
 		return nil, httpx.NotFound("Technique")
 	}
-	d := &Detail{Actions: []string{}, Subs: []Cell{}}
+	d := &Detail{Actions: []string{}, Subs: []Cell{}, Mappings: []Mapping{}, Mitigations: []Mitigation{}}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
+		var url *string
+		var mits []byte
 		err := tx.QueryRow(ctx, `SELECT t.id, t.name, COALESCE(t.description,''), t.platforms,
-  COALESCE((SELECT array_agg(x.name ORDER BY x.sort_order) FROM mitre_tactics x WHERE x.id = ANY(t.tactic_ids)), '{}')
-FROM mitre_techniques t WHERE t.id=$1`, id).Scan(&d.ID, &d.Name, &d.Description, &d.Platforms, &d.Tactics)
+  COALESCE((SELECT array_agg(x.name ORDER BY x.sort_order) FROM mitre_tactics x WHERE x.id = ANY(t.tactic_ids)), '{}'),
+  t.url, t.mitigations, t.parent_id, t.is_deprecated
+FROM mitre_techniques t WHERE t.id=$1`, id).Scan(&d.ID, &d.Name, &d.Description, &d.Platforms, &d.Tactics, &url, &mits, &d.Parent, &d.Deprecated)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Technique")
 		}
 		if err != nil {
 			return err
 		}
-		path := d.ID
-		if i := indexDot(d.ID); i > 0 {
-			path = d.ID[:i] + "/" + d.ID[i+1:]
+		if err := json.Unmarshal(mits, &d.Mitigations); err != nil {
+			return err
 		}
-		d.URL = "https://attack.mitre.org/techniques/" + path + "/"
+		if url != nil {
+			d.URL = *url
+		} else {
+			path := d.ID
+			if i := indexDot(d.ID); i > 0 {
+				path = d.ID[:i] + "/" + d.ID[i+1:]
+			}
+			d.URL = "https://attack.mitre.org/techniques/" + path + "/"
+		}
+		mrows, err := tx.Query(ctx, `SELECT c.name, ct.reason, ct.basis, CASE WHEN ct.technique_id=$2 THEN '' ELSE ct.technique_id END
+FROM contract_techniques ct JOIN contracts c ON c.tenant_id=ct.tenant_id AND c.id=ct.contract_id
+WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id FROM mitre_techniques WHERE parent_id=$2)) ORDER BY 1, 4`, p.TenantID, id)
+		if err != nil {
+			return err
+		}
+		for mrows.Next() {
+			var mp Mapping
+			if err := mrows.Scan(&mp.Action, &mp.Reason, &mp.Basis, &mp.Via); err != nil {
+				mrows.Close()
+				return err
+			}
+			d.Mappings = append(d.Mappings, mp)
+		}
+		mrows.Close()
+		if err := mrows.Err(); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx, `SELECT count(*) FROM findings WHERE tenant_id=$1 AND is_demo AND details->>'mitre_technique' = $2`, p.TenantID, id).Scan(&d.SimulatedFindings); err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx, `SELECT DISTINCT c.name FROM contract_techniques ct JOIN contracts c ON c.tenant_id=ct.tenant_id AND c.id=ct.contract_id
 WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id FROM mitre_techniques WHERE parent_id=$2)) ORDER BY 1`, p.TenantID, id)
 		if err != nil {
@@ -246,10 +328,27 @@ WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id F
 		if err := rows.Err(); err != nil {
 			return err
 		}
+		srows, err := tx.Query(ctx, `SELECT id, name, platforms FROM mitre_techniques WHERE parent_id=$1 AND NOT is_deprecated ORDER BY id`, id)
+		if err != nil {
+			return err
+		}
+		for srows.Next() {
+			c := Cell{}
+			if err := srows.Scan(&c.ID, &c.Name, &c.Platforms); err != nil {
+				srows.Close()
+				return err
+			}
+			d.Subs = append(d.Subs, c)
+		}
+		srows.Close()
+		if err := srows.Err(); err != nil {
+			return err
+		}
 		return tx.QueryRow(ctx, `
 SELECT count(*), max(e.ended_at) FROM executions e JOIN contract_techniques ct ON ct.tenant_id=e.tenant_id AND ct.contract_id=e.contract_id
 WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id FROM mitre_techniques WHERE parent_id=$2))`, p.TenantID, id).Scan(&d.Runs, &d.LastRunAt)
 	})
+	d.Simulated = d.SimulatedFindings > 0 && d.Runs == 0
 	return d, err
 }
 

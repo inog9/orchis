@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -20,6 +21,7 @@ import (
 	"orchis-go/internal/config"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/demo"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/indexer"
 	"orchis-go/internal/mitre"
@@ -107,6 +109,36 @@ func main() {
 		}); err != nil {
 			fatal(err)
 		}
+	case "demo-seed", "demo-purge", "demo-status":
+		// server demo-seed|demo-purge|demo-status: data dummy bertanda is_demo (lihat internal/demo). Seed dari DEMO_SEED (bawaan 1).
+		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
+			svc := &demo.Service{DB: d}
+			var st *demo.Status
+			var err error
+			switch cmd {
+			case "demo-seed":
+				seed := 1
+				if v := os.Getenv("DEMO_SEED"); v != "" {
+					if seed, err = strconv.Atoi(v); err != nil {
+						return fmt.Errorf("DEMO_SEED harus bilangan bulat: %w", err)
+					}
+				}
+				if err = svc.Seed(ctx, tenant, seed, nil, "", "cli"); err != nil {
+					return err
+				}
+				st, err = svc.Status(ctx, tenant)
+			case "demo-purge":
+				st, err = svc.Purge(ctx, tenant, nil, "", "cli")
+			default:
+				st, err = svc.Status(ctx, tenant)
+			}
+			if err != nil {
+				return err
+			}
+			return json.NewEncoder(os.Stdout).Encode(st)
+		}); err != nil {
+			fatal(err)
+		}
 	case "reindex":
 		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
 			if cfg.ESURL == "" {
@@ -126,7 +158,7 @@ func main() {
 			fatal(err)
 		}
 	default:
-		fatal(fmt.Errorf("perintah tidak dikenal %q (gunakan: serve | migrate | injector-token | reindex)", cmd))
+		fatal(fmt.Errorf("perintah tidak dikenal %q (gunakan: serve | migrate | injector-token | reindex | demo-seed | demo-purge | demo-status)", cmd))
 	}
 }
 
@@ -187,8 +219,9 @@ func serve(ctx context.Context, cfg *config.Config) error {
 			src = mitre.DefaultSource
 		}
 		opts.MitreSource = src
+		opts.MitreSHA256 = cfg.MitreSHA256
 		host, _ := os.Hostname()
-		sched, err := (&mitre.Importer{DB: d, Tenant: tenant, Source: src}).Schedule(ctx, fmt.Sprintf("%s-%d", host, os.Getpid()))
+		sched, err := (&mitre.Importer{DB: d, Tenant: tenant, Source: src, ExpectedSHA256: cfg.MitreSHA256}).Schedule(ctx, fmt.Sprintf("%s-%d", host, os.Getpid()))
 		if err != nil {
 			return fmt.Errorf("menjadwalkan impor MITRE: %w", err)
 		}

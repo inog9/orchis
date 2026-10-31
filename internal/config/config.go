@@ -37,6 +37,8 @@ type Config struct {
 	AllowLoopbackTargets bool
 	// MitreSource: URL bundel STIX ATT&CK. Kosong = bawaan (MITRE); "off" = impor dimatikan (mis. lingkungan tanpa internet).
 	MitreSource string
+	// MitreSHA256: hash bundel ATT&CK yang dipatok (lihat deploy/mitre/manifest.json); bundel dengan hash lain ditolak.
+	MitreSHA256 string
 	// AgentReleaseDir: direktori rilis agent (hasil `agentrelease`); kosong = pemasangan agent dinonaktifkan.
 	AgentReleaseDir string
 }
@@ -62,6 +64,7 @@ func Load() (*Config, error) {
 		},
 	}
 	c.MitreSource = env("ORCHIS_MITRE_URL", "default")
+	c.MitreSHA256 = strings.ToLower(strings.TrimSpace(os.Getenv("ORCHIS_MITRE_SHA256")))
 	c.AgentReleaseDir = os.Getenv("ORCHIS_AGENT_RELEASE_DIR")
 	var err error
 	if c.AllowLoopbackTargets, err = strconv.ParseBool(env("ORCHIS_ALLOW_LOOPBACK_TARGETS", "false")); err != nil {
@@ -90,6 +93,9 @@ func Load() (*Config, error) {
 	if c.Production {
 		if !c.CookieSecure || c.AllowLoopbackTargets || os.Getenv("ORCHIS_AI_TEST_URL") != "" {
 			return nil, fmt.Errorf("production requires secure cookies, scope enforcement and no test provider")
+		}
+		if c.MitreSource != "off" && c.MitreSHA256 == "" {
+			return nil, fmt.Errorf("production requires a pinned ATT&CK bundle: set ORCHIS_MITRE_URL to the frozen bundle with ORCHIS_MITRE_SHA256, or ORCHIS_MITRE_URL=off")
 		}
 		configured := false
 		for _, key := range []string{"ORCHIS_DATABASE_URL", "ORCHIS_MIGRATE_URL"} {

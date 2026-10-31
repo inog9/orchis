@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"orchis-go/internal/demo"
 	"orchis-go/internal/mitre"
 )
 
@@ -55,14 +57,18 @@ func TestMitreImportIsAtomicIdempotentAndLinksContracts(t *testing.T) {
 	if n := count(`SELECT count(*) FROM mitre_techniques`); n != 12 {
 		t.Fatalf("12 teknik (revoked tidak ikut, deprecated ikut dengan penanda): %d", n)
 	}
-	if n := count(`SELECT count(*) FROM contract_techniques`); n != 2 {
-		t.Fatalf("dua kontrak bawaan tertaut ke T1046 dan T1595.002: %d", n)
+	// Fixture memuat T1046, T1595.002 dan T1082 (T1049 tidak ada), jadi hanya tiga tautan bawaan yang terbentuk.
+	if n := count(`SELECT count(*) FROM contract_techniques`); n != 3 {
+		t.Fatalf("tiga tautan bawaan (T1046, T1595.002, T1082): %d", n)
+	}
+	if n := count(`SELECT count(*) FROM contract_techniques WHERE reason='' OR basis<>'direct'`); n != 0 {
+		t.Fatalf("setiap tautan wajib beralasan dan berbasis langsung: %d tidak", n)
 	}
 	// ulangi: tidak menggandakan apa pun
 	if _, err := im.Import(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if count(`SELECT count(*) FROM mitre_techniques`) != 12 || count(`SELECT count(*) FROM mitre_tactics`) != 4 || count(`SELECT count(*) FROM contract_techniques`) != 2 {
+	if count(`SELECT count(*) FROM mitre_techniques`) != 12 || count(`SELECT count(*) FROM mitre_tactics`) != 4 || count(`SELECT count(*) FROM contract_techniques`) != 3 {
 		t.Fatal("impor ulang harus idempoten")
 	}
 	// sumber rusak: gagal, dicatat, dan data lama utuh
@@ -165,17 +171,18 @@ type matrixJSON struct {
 	Tactics []struct {
 		ID, Name   string
 		Techniques []struct {
-			ID                string
-			Mapped, Exercised bool
-			Runs              int
-			Subs              []struct {
+			ID                           string
+			Mapped, Exercised, Simulated bool
+			Runs                         int
+			Subs                         []struct {
 				ID                string
 				Mapped, Exercised bool
 			}
 		}
 	}
-	Total, Mapped, Exercised int
-	Imported                 bool
+	Total, Mapped, Exercised, Simulated int
+	Platforms                           []string
+	Imported                            bool
 }
 
 func (c *chainFixture) matrix(t *testing.T, cookie string) matrixJSON {
@@ -201,8 +208,8 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	if !m.Imported || len(m.Tactics) != 4 || m.Tactics[0].Name != "Reconnaissance" || m.Tactics[3].Name != "Discovery" {
 		t.Fatalf("kolom: %+v", m)
 	}
-	// T1595 (induk) dapat dilatih lewat sub-teknik T1595.002 milik Nuclei; T1046 lewat Nmap; belum ada yang dijalankan
-	if m.Mapped != 2 || m.Exercised != 0 {
+	// T1595 (induk) dapat dilatih lewat sub-teknik T1595.002 milik Nuclei; T1046 lewat Nmap; T1082 lewat agent.system_info
+	if m.Mapped != 3 || m.Exercised != 0 {
 		t.Fatalf("sebelum dijalankan: mapped=%d exercised=%d", m.Mapped, m.Exercised)
 	}
 	// jalankan nmap sukses: T1046 menjadi 'exercised'
@@ -296,4 +303,115 @@ func (c *chainFixture) runNuclei(t *testing.T) string {
 	var e execJSON
 	c.a.do("POST", "/api/v1/atomic-tests/"+tst.ID+"/run", nil, c.analyst).JSON(&e)
 	return e.ID
+}
+
+// Bundel Enterprise ATT&CK penuh yang dibekukan: dimuat dari berkas lokal dengan hash dipatok (jalur produksi).
+func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
+	m, ds, err := mitre.Verify("../../deploy/mitre")
+	if err != nil {
+		t.Skipf("bundel beku belum ada (make mitre-update): %v", err)
+	}
+	c := newChainFixture(t)
+	ctx := context.Background()
+	im := &mitre.Importer{DB: c.a.env.App, Tenant: c.a.env.TenantA, Source: filepath.Join("../../deploy/mitre", m.File), ExpectedSHA256: m.SHA256}
+	run, err := im.Import(ctx)
+	if err != nil || run.Status != "succeeded" || run.SHA256 == nil || *run.SHA256 != m.SHA256 {
+		t.Fatalf("impor bundel beku: %+v %v", run, err)
+	}
+	count := func(q string) int {
+		var n int
+		if err := c.a.env.Owner.QueryRow(ctx, q).Scan(&n); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	want := ds.Count()
+	if n := count(`SELECT count(*) FROM mitre_tactics`); n != want.Tactics {
+		t.Fatalf("taktik di DB %d, bundel %d", n, want.Tactics)
+	}
+	if n := count(`SELECT count(*) FROM mitre_techniques WHERE parent_id IS NULL AND NOT is_deprecated`); n != want.Parents {
+		t.Fatalf("teknik induk aktif di DB %d, bundel %d", n, want.Parents)
+	}
+	if n := count(`SELECT count(*) FROM mitre_techniques WHERE parent_id IS NOT NULL AND NOT is_deprecated`); n != want.Subs {
+		t.Fatalf("sub-teknik aktif di DB %d, bundel %d", n, want.Subs)
+	}
+	if n := count(`SELECT count(*) FROM mitre_techniques WHERE is_deprecated`); n != want.Deprecated {
+		t.Fatalf("deprecated di DB %d, bundel %d", n, want.Deprecated)
+	}
+	// Idempoten: impor ulang tidak mengubah jumlah apa pun.
+	before := count(`SELECT count(*) FROM mitre_techniques`)
+	if _, err := im.Import(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if after := count(`SELECT count(*) FROM mitre_techniques`); after != before {
+		t.Fatalf("impor ulang mengubah jumlah teknik: %d -> %d", before, after)
+	}
+	// Hash salah ditolak SEBELUM menyentuh data, dan data lama utuh.
+	bad := &mitre.Importer{DB: c.a.env.App, Tenant: c.a.env.TenantA, Source: im.Source, ExpectedSHA256: "00" + m.SHA256[2:]}
+	if _, err := bad.Import(ctx); err == nil {
+		t.Fatal("hash salah harus ditolak")
+	}
+	if after := count(`SELECT count(*) FROM mitre_techniques`); after != before {
+		t.Fatal("impor yang ditolak mengubah data")
+	}
+
+	mx := c.matrix(t, c.viewer)
+	if !mx.Imported || len(mx.Tactics) != want.Tactics || mx.Total != want.Parents {
+		t.Fatalf("matriks: taktik=%d total=%d", len(mx.Tactics), mx.Total)
+	}
+	if len(mx.Platforms) < 5 {
+		t.Fatalf("daftar platform untuk filter kosong/terlalu kecil: %v", mx.Platforms)
+	}
+	// Tingkat 1 (mapped): empat aksi bawaan; tingkat 2 (trained) belum ada eksekusi nyata; tingkat 3 (simulated) belum ada demo.
+	if mx.Mapped != 4 || mx.Exercised != 0 || mx.Simulated != 0 {
+		t.Fatalf("sebelum demo: mapped=%d exercised=%d simulated=%d", mx.Mapped, mx.Exercised, mx.Simulated)
+	}
+
+	// Data demo menambah tingkat "simulated" (T1190 dirujuk temuan demo) tanpa pernah menjadi mapped/trained.
+	if err := (&demo.Service{DB: c.a.env.App}).Seed(ctx, c.a.env.TenantA, 1, nil, "", "t"); err != nil {
+		t.Fatal(err)
+	}
+	mx = c.matrix(t, c.viewer)
+	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 4 {
+		t.Fatalf("setelah demo: mapped=%d exercised=%d simulated=%d (demo tidak boleh jadi trained/mapped)", mx.Mapped, mx.Exercised, mx.Simulated)
+	}
+	var t1190 *struct {
+		ID                           string
+		Mapped, Exercised, Simulated bool
+		Runs                         int
+		Subs                         []struct {
+			ID                string
+			Mapped, Exercised bool
+		}
+	}
+	for ti := range mx.Tactics {
+		for i := range mx.Tactics[ti].Techniques {
+			if mx.Tactics[ti].Techniques[i].ID == "T1190" {
+				t1190 = &mx.Tactics[ti].Techniques[i]
+			}
+		}
+	}
+	if t1190 == nil || !t1190.Simulated || t1190.Mapped || t1190.Exercised {
+		t.Fatalf("T1190 harus simulated saja: %+v", t1190)
+	}
+
+	// Detail teknik: tautan sumber, mitigasi, sub-teknik, dan pemetaan beralasan.
+	var det struct {
+		ID, URL     string
+		Mitigations []struct{ ID, Name string }
+		Mappings    []struct{ Action, Reason, Basis, Via string }
+		Subs        []struct{ ID string }
+	}
+	r := c.a.do("GET", "/api/v1/mitre/techniques/T1046", nil, c.viewer)
+	r.JSON(&det)
+	if r.Status != 200 || det.ID != "T1046" || det.URL != "https://attack.mitre.org/techniques/T1046" || len(det.Mitigations) == 0 ||
+		len(det.Mappings) != 1 || det.Mappings[0].Reason == "" || det.Mappings[0].Basis != "direct" {
+		t.Fatalf("detail T1046: %d %s", r.Status, r.Body)
+	}
+	det.Subs, det.Mappings = nil, nil
+	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.viewer)
+	r.JSON(&det)
+	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) != 1 || det.Mappings[0].Via != "T1595.002" {
+		t.Fatalf("detail T1595 harus memuat 3 sub-teknik dan pemetaan via T1595.002: %d %s", r.Status, r.Body)
+	}
 }

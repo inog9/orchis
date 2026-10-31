@@ -118,6 +118,7 @@ await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).c
 await p.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
 const simUrl = p.url();
 await p.getByRole('heading', { name: 'E2E kill chain', exact: true, level: 1 }).waitFor();
+await p.locator('.page__sub').filter({ hasText: /OP-\d{4}/ }).waitFor({ timeout: 15000 }).catch(() => {});
 ok(/OP-\d{4}/.test(await p.locator('.page__sub').innerText()), 'simulasi punya kode OP-nnnn');
 await p.locator('.page__title-row .status').filter({ hasText: /Finished/ }).waitFor({ timeout: 240000 });
 ok(true, 'simulasi berjalan sampai Finished lewat RabbitMQ dan dua container injector');

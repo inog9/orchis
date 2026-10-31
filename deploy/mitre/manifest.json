@@ -1,0 +1,15 @@
+{
+  "matrix": "enterprise",
+  "version": "20.0",
+  "file": "enterprise-attack-20.0.json",
+  "sha256": "81113ba98afa2928f3dcff62022539f7ce30c315c32e14422f11ff95ce534352",
+  "bytes": 55271014,
+  "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-20.0.json",
+  "counts": {
+    "tactics": 15,
+    "techniques": 227,
+    "subtechniques": 479,
+    "deprecated": 12,
+    "revoked_skipped": 149
+  }
+}

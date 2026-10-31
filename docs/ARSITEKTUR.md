@@ -1847,3 +1847,49 @@ Galat setelahnya ditahan untuk roll-forward. Tes meniru kegagalan promosi setela
 DB commit, penolakan kunci baru berbeda, rollback ciphertext rusak, queued job dan
 isolasi tenant. Flow12 memakai hanya credential palsu/disabled lalu menguji restore
 master/ciphertext tanpa memanggil provider.
+
+## 34. Data demo bertanda (T2)
+
+ADR 108: data dummy hanya dibuat oleh CLI `server demo-seed` (tidak ada endpoint seed) dan setiap
+barisnya bertanda `is_demo=true` pada tabelnya sendiri (organizations, assets, agents, findings,
+assessments, reports, tags, scenarios, alerts, audit_log; migrasi 00016/00017). Seed deterministik
+(`DEMO_SEED`): ID diturunkan UUIDv5 dari tenant+seed+jalur, seed sama tidak menggandakan, seed
+berbeda tanpa purge ditolak. Alamat hanya rentang dokumentasi RFC 5737 (203.0.113.0/24) atau
+`*.example.invalid`, jadi tidak pernah menjadi sasaran scan nyata. Injector dan user sengaja tidak
+dibuat demo: injector adalah identitas pekerja nyata dan user membawa kredensial.
+
+ADR 109: purge transaksional dan fail-closed. Satu transaksi menghapus hanya baris `is_demo`
+sesuai urutan kunci asing. Bila data NYATA bergantung pada data demo lewat cascade (agent/temuan
+nyata pada aset demo, bukti eksekusi, target skenario nyata, simulasi nyata pada skenario demo),
+seluruh purge dibatalkan. Jejak `demo.purge` permanen (bukan demo) tetap ada. Snapshot laporan demo
+membawa `is_demo` dan `label`; HTML/PDF memuat banner DEMO, CSV punya kolom `synthetic`.
+
+## 35. ATT&CK beku dan cakupan tiga tingkat (T3)
+
+ADR 110: bundel Enterprise ATT&CK dibekukan di `deploy/mitre` (versi 20.0, 15 taktik, 227 teknik
+induk, 479 sub-teknik, 12 deprecated, 149 revoked dilewati; dicocokkan dengan OpenAEV: 718 =
+227+479+12). Manifest (versi, SHA-256, hitungan) ikut repo; bundel 55 MB tidak (diambil dengan
+`make mitre-update VERSION=...`, diverifikasi dengan `make mitre-verify`). Di produksi sumber
+apa pun selain `off` wajib `ORCHIS_MITRE_SHA256`; bundel dengan hash lain ditolak sebelum
+menyentuh database. `make mitre-update` menampilkan diff (baru/berubah/deprecated/hilang) dan
+tidak menyentuh database: teknik yang hilang ditandai deprecated oleh importer (tidak dihapus)
+dan laporan lama tidak berubah karena MITRE dibekukan di snapshot.
+
+ADR 111: urutan kolom matriks mengikuti objek `x-mitre-matrix` di bundel, bukan daftar di kode.
+Daftar lama tidak mengenal taktik TA0112 `defense-impairment` (ATT&CK 19+), yang membuat kolom
+salah tempat; daftar cadangan kini hanya dipakai bila bundel tanpa matriks. Parser juga memuat
+tautan sumber dan mitigasi resmi (relasi `mitigates`), membuang sitasi inline, dan melewati
+objek revoked. `detection` dan `data_sources` tidak disimpan: kosong di v20 (diganti detection
+strategies).
+
+ADR 112: pemetaan aksi->teknik beralasan dan konservatif (`DefaultLinks`): nmap->T1046,
+nuclei->T1595.002, agent.system_info->T1082, agent.listening_ports->T1049, masing-masing dengan
+alasan tertulis dan basis `direct`. Nuclei sengaja TIDAK dipetakan ke T1190: ia mendeteksi,
+bukan mengeksploitasi. `LinkContracts` menyelaraskan database dengan daftar ini (tautan bawaan
+yang dihapus dari daftar ikut dihapus).
+
+ADR 113: tiga tingkat cakupan yang jujur. mapped = ada aksi untuk teknik itu; trained = ada
+eksekusi NYATA yang sukses; simulated = hanya dirujuk data demo. Simulated tidak pernah menjadi
+trained atau mapped. Di laporan, temuan bertipe kerentanan dikaitkan ke T1190 sebagai
+"estimate" beralasan (bukan bukti eksploitasi); temuan port/layanan/teks tidak dipetakan. Nama teknik,
+basis, dan alasan dibekukan di snapshot sehingga tidak berubah saat ATT&CK diperbarui.

@@ -7,6 +7,7 @@ import { useAlertAction, useAlerts, useLogout, useMe, useSettings, useSimulation
 import { AlertItem, alertTarget } from '../pages/NotificationsPage';
 import { CommandPalette, useCommandPalette } from './CommandPalette';
 import { can } from '../api/types';
+import { DemoBanner } from './DemoBanner';
 import { Wordmark } from './Wordmark';
 
 export function NavDock() {
@@ -175,7 +176,7 @@ export function Shell({ children }: { children?: ReactNode }) {
         <WorkspaceMenu />
       </header>
       <NavDock />
-      <main className="content" id="main" tabIndex={-1}><PageAccess><PageGuide /><Suspense fallback={<div className="page" role="status" aria-label="Loading page"><span className="skeleton" /></div>}>{children ?? <Outlet />}</Suspense></PageAccess></main>
+      <main className="content" id="main" tabIndex={-1}><DemoBanner /><PageAccess><PageGuide /><Suspense fallback={<div className="page" role="status" aria-label="Loading page"><span className="skeleton" /></div>}>{children ?? <Outlet />}</Suspense></PageAccess></main>
       {paletteOpen && <CommandPalette onClose={() => setPalette(false)} />}
     </div>
   );

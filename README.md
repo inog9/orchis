@@ -2,7 +2,7 @@
 
 ORCHIS versi ringan: platform validasi keamanan (breach & attack simulation) dengan backend Go.
 
-Status: Fase 0–7, Fase 8a (responsif/aksesibilitas), Fase 9, audit UX Fase 9.5, dan implementasi lokal Fase 10 tersedia. Fase 9 menambahkan organisasi, beberapa instance agent per mesin, assessment organisasi dengan aset yang dilewati secara eksplisit, katalog aksi berversi, kondisi/mapper per aset, laporan organisasi beku (PDF/HTML/JSON/CSV), dan Home berbasis organisasi. Penjadwalan ditunda; AI nyata belum diaktifkan; sisa pengerasan produksi Fase 8 tetap tercatat. Rencana: [docs/RENCANA.md](docs/RENCANA.md). Arsitektur, keputusan, dan batasan: [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
+Status: Fase 0–7, Fase 8a (responsif/aksesibilitas), Fase 9, audit UX Fase 9.5, dan implementasi lokal Fase 10 tersedia. Fase 9 menambahkan organisasi, beberapa instance agent per mesin, assessment organisasi dengan aset yang dilewati secara eksplisit, katalog aksi berversi, kondisi/mapper per aset, laporan organisasi beku (PDF/HTML/JSON/CSV), dan Home berbasis organisasi. Penjadwalan ditunda; AI nyata belum diaktifkan; sisa pengerasan produksi Fase 8 tetap tercatat. Arsitektur, keputusan, dan batasan: [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
 
 ## Mulai dari tugas, bukan istilah internal (Fase 9.5)
 
@@ -18,7 +18,7 @@ Reproduksi audit pada database disposable: `E2E_SCRIPT=flow9.mjs E2E_UX_ROUND=re
 
 **Organisations → organisasi → AI assistance** menyediakan consent, model/key provider, budget, pratinjau data dan riwayat. DeepSeek mengusulkan check allowlist yang memerlukan approval manusia. OpenAI menyusun saran remediasi sebagai suplemen PDF/HTML/JSON/CSV, dengan prompt/version tercatat. Model tidak mengubah snapshot laporan asli atau menjalankan shell.
 
-AI mati default; seluruh bukti integrasi memakai API palsu lokal. Model ID, harga akun dan provider nyata belum diuji. Kredensial write-only dienkripsi, payload laporan memakai alias dan metadata teknis terbatas. Target scan tetap dijaga pada Run/Claim/injector. Panduan, API dan keterbatasan: [docs/FASE10-HASIL.md](docs/FASE10-HASIL.md), ADR 082–091.
+AI mati default; seluruh bukti integrasi memakai API palsu lokal. Model ID, harga akun dan provider nyata belum diuji. Kredensial write-only dienkripsi, payload laporan memakai alias dan metadata teknis terbatas. Target scan tetap dijaga pada Run/Claim/injector. Panduan, API dan keterbatasan: [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md), ADR 082–091.
 
 ```sh
 make ai-image
@@ -93,7 +93,7 @@ MinIO harus dikonfigurasi untuk PDF. HTML/JSON/CSV tetap tersedia bila rendering
 
 ## Tes
 `make check` (termasuk pemeriksaan responsif 1280/834 px dan aksesibilitas axe-core pada semua halaman) menjalankan tes backend (PostgreSQL, RabbitMQ, Elasticsearch, MinIO, dan scanner asli di container), tes frontend, dan tes end-to-end di Chromium (termasuk container injector). Butuh `make dev-up-full`, `make injector-image`, dan dependensi renderer PDF di atas. `E2E_SCRIPT=flow8.mjs ./e2e/run.sh` menguji alur organisasi hingga PDF, kondisi/mapper, dan axe di 1280/834 px.
-Verifikasi audit UX: 119 tes frontend, sembilan flow E2E; `flow9.mjs` mencatat 283 lulus/0 gagal; flow7 mencakup 116 pemeriksaan di dua viewport. Uji mutasi Fase 9 (3) dan UX (4) terdeteksi/dipulihkan, renderer nol HTTP. Bukti lengkap dan keterbatasan ada di `result.txt`.
+Verifikasi audit UX: 119 tes frontend, sembilan flow E2E; `flow9.mjs` mencatat 283 lulus/0 gagal; flow7 mencakup 116 pemeriksaan di dua viewport. Uji mutasi Fase 9 (3) dan UX (4) terdeteksi/dipulihkan, renderer nol HTTP. Bukti lengkap dan keterbatasan ada di laporan audit.
 Tes end-to-end memerlukan `npx playwright install chromium` di folder `e2e/`.
 
 Uji mutasi yang dapat diulang (memakai salinan terisolasi di `work/`, tidak merusak checkout aktif):

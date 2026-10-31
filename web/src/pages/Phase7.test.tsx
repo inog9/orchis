@@ -263,11 +263,11 @@ describe('MitrePage', () => {
     route(admin, (u) => (u.endsWith('/mitre/matrix') ? json(matrix()) : undefined));
     const user = userEvent.setup();
     mount(<MitrePage />, '/mitre');
-    expect(await screen.findByRole('button', { name: /T1046 .*: exercised/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /T1595 .*can be exercised, not yet run/ })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /T1046 .*trained: an action was run successfully/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /T1595 .*mapped: an action can exercise it, not yet run/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /T1082 .*not covered/ })).toBeInTheDocument();
-    expect(within(screen.getByRole('list', { name: 'Coverage' })).getByText('Exercised').parentElement).toHaveTextContent('1');
-    await user.click(screen.getByLabelText(/Only techniques we can exercise/));
+    expect(within(screen.getByRole('list', { name: 'Coverage' })).getByText('Trained').parentElement).toHaveTextContent('1');
+    await user.click(screen.getByLabelText(/Only mapped techniques/));
     expect(screen.queryByRole('button', { name: /T1082/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /T1046/ })).toBeInTheDocument();
   });
@@ -284,6 +284,50 @@ describe('MitrePage', () => {
     expect(within(panel).getByText(/Nmap TCP connect scan/)).toBeInTheDocument();
     expect(within(panel).getByRole('link', { name: /View on MITRE/ })).toHaveAttribute('href', 'https://attack.mitre.org/techniques/T1046/');
     expect(within(panel).getByRole('link', { name: /View on MITRE/ })).toHaveAttribute('rel', 'noopener noreferrer');
+  });
+  it('tiga tingkat cakupan: simulated hanya dari data demo dan dijelaskan', async () => {
+    route(admin, (u) => (u.endsWith('/mitre/matrix') ? json(matrix({ simulated: 1, tactics: [{ id: 'TA0001', name: 'Initial Access', shortname: 'initial-access', techniques: [cell('T1190', 'Exploit Public-Facing Application', { simulated: true })] }] })) : undefined));
+    mount(<MitrePage />, '/mitre');
+    expect(await screen.findByRole('button', { name: /T1190 .*simulated: appears only in demo data/ })).toBeInTheDocument();
+    expect(within(screen.getByRole('list', { name: 'Coverage' })).getByText('Simulated').parentElement).toHaveTextContent('1');
+    expect(screen.getByText(/never counts as trained/)).toBeInTheDocument();
+  });
+  it('mencari dan menyaring per platform (induk tetap tampil bila sub-tekniknya cocok)', async () => {
+    route(admin, (u) => (u.endsWith('/mitre/matrix') ? json(matrix({ platforms: ['Linux', 'Windows'], tactics: [{ id: 'TA0007', name: 'Discovery', shortname: 'discovery', techniques: [
+      cell('T1046', 'Network Service Discovery', { platforms: ['Linux', 'Windows'] }),
+      cell('T1082', 'System Information Discovery', { platforms: ['Windows'] }),
+      cell('T1595', 'Active Scanning', { platforms: ['PRE'], subs: [cell('T1595.002', 'Vulnerability Scanning', { platforms: ['Linux'] })] })] }] })) : undefined));
+    const user = userEvent.setup();
+    mount(<MitrePage />, '/mitre');
+    await screen.findByRole('button', { name: /T1046/ });
+    await user.selectOptions(screen.getByLabelText('Platform'), 'Linux');
+    expect(screen.queryByRole('button', { name: /T1082/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /T1046/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /T1595 /})).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText('Platform'), '');
+    await user.type(screen.getByLabelText('Search'), 'system info');
+    expect(screen.getByRole('button', { name: /T1082/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /T1046/ })).not.toBeInTheDocument();
+  });
+  it('detail memuat pemetaan beralasan, sub-teknik, mitigasi dan catatan demo', async () => {
+    route(admin, (u) => {
+      if (u.endsWith('/mitre/matrix')) return json(matrix());
+      if (u.endsWith('/mitre/techniques/T1046')) return json({ id: 'T1046', name: 'Network Service Discovery', description: 'Adversaries may scan.', platforms: ['Linux'], tactics: ['Discovery'], url: 'https://attack.mitre.org/techniques/T1046', actions: [], runs: 0, last_run_at: null,
+        mappings: [{ action: 'Nmap TCP connect scan', reason: 'A TCP connect scan enumerates open ports.', basis: 'direct' }], subs: [{ id: 'T1046.001', name: 'Child', mapped: false, exercised: false, runs: 0, last_run_at: null }],
+        mitigations: Array.from({ length: 8 }, (_, i) => ({ id: `M10${i}0`, name: `Mitigation ${i}`, description: 'Do the thing.' })), simulated: true, simulated_findings: 2 });
+      return undefined;
+    });
+    const user = userEvent.setup();
+    mount(<MitrePage />, '/mitre');
+    await user.click(await screen.findByRole('button', { name: /T1046/ }));
+    const panel = await screen.findByRole('region', { name: 'Technique details' });
+    expect(await within(panel).findByText('A TCP connect scan enumerates open ports.')).toBeInTheDocument();
+    expect(within(panel).getByText('direct')).toBeInTheDocument();
+    expect(within(panel).getByRole('button', { name: 'T1046.001' })).toBeInTheDocument();
+    expect(within(panel).getByText(/2 demo findings reference this technique/)).toBeInTheDocument();
+    expect(within(panel).getAllByText(/^Mitigation \d$/)).toHaveLength(6);
+    await user.click(within(panel).getByRole('button', { name: 'Show all 8' }));
+    expect(within(panel).getAllByText(/^Mitigation \d$/)).toHaveLength(8);
   });
   it('belum diimpor: menjelaskan keadaan (kosong, berjalan, gagal)', async () => {
     const empty = { imported: false, total: 0, mapped: 0, exercised: 0, tactics: [] };

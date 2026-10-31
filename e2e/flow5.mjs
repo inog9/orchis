@@ -271,12 +271,13 @@ await p.goto(BASE + '/mitre');
 await p.getByRole('region', { name: 'ATT&CK matrix' }).waitFor({ timeout: 60000 });
 const cols = await p.getByRole('region', { name: 'ATT&CK matrix' }).getByRole('heading', { level: 2 }).allTextContents();
 ok(cols.map((c) => c.replace(/\d+$/, '')).join('|') === 'Reconnaissance|Initial Access|Execution|Discovery', 'kolom matriks mengikuti urutan taktik ATT&CK: ' + cols.join(', '));
-ok(await p.getByRole('button', { name: /T1046 .*can be exercised, not yet run/ }).isVisible(), 'T1046 (Nmap) dapat dilatih tetapi belum dijalankan');
-ok(await p.getByRole('button', { name: /T1082 .*not covered/ }).isVisible(), 'teknik tanpa aksi: Not covered');
+ok(await p.getByRole('button', { name: /T1046 .*mapped: an action can exercise it, not yet run/ }).isVisible(), 'T1046 (Nmap) dipetakan tetapi belum dijalankan');
+ok(await p.getByRole('button', { name: /T1082 .*mapped: an action can exercise it/ }).isVisible(), 'T1082 dipetakan ke aksi agent.system_info');
+ok(await p.getByRole('button', { name: /T1083 .*not covered/ }).isVisible(), 'teknik tanpa aksi: Not covered');
 ok((await p.getByRole('button', { name: /T1000|T1001/ }).count()) === 0, 'teknik revoked/deprecated tidak tampil');
-await p.getByLabel(/Only techniques we can exercise/).check();
-ok((await p.getByRole('region', { name: 'ATT&CK matrix' }).getByRole('button').count()) === 2, 'filter hanya yang bisa dilatih: 2 teknik (T1046, T1595)');
-await p.getByText('Only techniques we can exercise').click(); // klik labelnya: kotak centang kustom menutupi input
+await p.getByLabel(/Only mapped techniques/).check();
+ok((await p.getByRole('region', { name: 'ATT&CK matrix' }).getByRole('button').count()) === 3, 'filter hanya yang dipetakan: 3 teknik (T1046, T1595, T1082)');
+await p.getByText('Only mapped techniques').click(); // klik labelnya: kotak centang kustom menutupi input
 
 // jalankan nmap sukses lewat "injector" simulasi: T1046 menjadi Exercised
 const asset = await (await api('POST', '/api/v1/assets', { category: 'host', name: 'e2e-host', testing_authorized: true, addresses: [{ kind: 'ip', value: '127.0.0.1' }] })).json();
@@ -285,8 +286,8 @@ const run1 = await (await api('POST', `/api/v1/atomic-tests/${tst.id}/run`)).jso
 await inj(rotated, `executions/${run1.id}/claim`);
 ok((await inj(rotated, `executions/${run1.id}/result`, { exit_code: 0, findings: [] })).status === 204, 'scan nmap (simulasi) selesai sukses');
 await p.reload();
-await p.getByRole('button', { name: /T1046 .*: exercised/ }).waitFor();
-ok(/Exercised\s*1/.test((await p.getByRole('list', { name: 'Coverage' }).innerText()).replace(/\n+/g, ' ')), 'ringkasan cakupan: 1 teknik dilatih');
+await p.getByRole('button', { name: /T1046 .*trained: an action was run successfully/ }).waitFor();
+ok(/Trained\s*1/.test((await p.getByRole('list', { name: 'Coverage' }).innerText()).replace(/\n+/g, ' ')), 'ringkasan cakupan: 1 teknik dilatih');
 await p.getByRole('button', { name: /T1046/ }).click();
 const panel = p.getByRole('region', { name: 'Technique details' });
 await panel.getByText('Nmap TCP connect scan', { exact: false }).waitFor();

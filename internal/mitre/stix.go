@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -23,6 +24,13 @@ type Tactic struct {
 	Order     int
 }
 
+// Mitigation: satu mitigasi resmi ATT&CK (M####) beserta penjelasannya untuk satu teknik.
+type Mitigation struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
 type Technique struct {
 	ID          string // T1046, T1021.002
 	StixID      string
@@ -31,14 +39,43 @@ type Technique struct {
 	ParentID    string
 	TacticIDs   []string
 	Platforms   []string
+	URL         string
+	Mitigations []Mitigation
 	Deprecated  bool
 }
 
+// Dataset: isi bundel yang berlaku. Objek revoked tidak dimuat; yang deprecated dimuat dengan penanda.
+// Counts mencatat apa yang dibaca dari bundel agar bisa dicocokkan dengan manifest (lihat deploy/mitre).
 type Dataset struct {
 	Version    string
 	Tactics    []Tactic
 	Techniques []Technique
+	Revoked    int    // teknik yang di-revoke (tidak dimuat)
+	SHA256     string // hash seluruh bundel (diisi ParseVerified)
 }
+
+// Count merangkum jumlah teknik induk/sub-teknik aktif dan yang deprecated.
+type Count struct{ Tactics, Parents, Subs, Deprecated int }
+
+func (d *Dataset) Count() Count {
+	c := Count{Tactics: len(d.Tactics)}
+	for _, t := range d.Techniques {
+		switch {
+		case t.Deprecated:
+			c.Deprecated++
+		case t.ParentID != "":
+			c.Subs++
+		default:
+			c.Parents++
+		}
+	}
+	return c
+}
+
+var citationRe = regexp.MustCompile(`\s*\(Citation: [^)]*\)`)
+
+// cleanText membuang sitasi inline "(Citation: ...)" yang tidak berguna tanpa daftar rujukan.
+func cleanText(s string) string { return strings.TrimSpace(citationRe.ReplaceAllString(s, "")) }
 
 type stixObject struct {
 	Type         string   `json:"type"`
@@ -49,16 +86,30 @@ type stixObject struct {
 	Deprecated   bool     `json:"x_mitre_deprecated"`
 	IsSub        bool     `json:"x_mitre_is_subtechnique"`
 	Platforms    []string `json:"x_mitre_platforms"`
+	TacticRefs   []string `json:"tactic_refs"`
+	RelType      string   `json:"relationship_type"`
+	SourceRef    string   `json:"source_ref"`
+	TargetRef    string   `json:"target_ref"`
 	Shortname    string   `json:"x_mitre_shortname"`
 	Version      string   `json:"x_mitre_version"`
 	ExternalRefs []struct {
 		Source string `json:"source_name"`
 		ID     string `json:"external_id"`
+		URL    string `json:"url"`
 	} `json:"external_references"`
 	KillChain []struct {
 		Name  string `json:"kill_chain_name"`
 		Phase string `json:"phase_name"`
 	} `json:"kill_chain_phases"`
+}
+
+func (o *stixObject) attackURL() string {
+	for _, r := range o.ExternalRefs {
+		if r.Source == "mitre-attack" && strings.HasPrefix(r.URL, "https://attack.mitre.org/") {
+			return r.URL
+		}
+	}
+	return ""
 }
 
 func (o *stixObject) attackID() string {
@@ -72,7 +123,7 @@ func (o *stixObject) attackID() string {
 
 // kanonik: urutan kolom matriks Enterprise; yang tidak dikenal ditaruh di belakang menurut abjad.
 var tacticOrder = []string{"reconnaissance", "resource-development", "initial-access", "execution", "persistence", "privilege-escalation",
-	"stealth", "defense-evasion", "credential-access", "discovery", "lateral-movement", "collection", "command-and-control", "exfiltration", "impact"}
+	"stealth", "defense-evasion", "defense-impairment", "credential-access", "discovery", "lateral-movement", "collection", "command-and-control", "exfiltration", "impact"}
 
 func clip(s string, n int) string {
 	if r := []rune(s); len(r) > n {
@@ -108,6 +159,9 @@ func Parse(r io.Reader) (*Dataset, error) {
 		shortToID := map[string]string{}
 		var techs []stixObject
 		var tactics []stixObject
+		var matrixOrder []string // urutan kolom resmi dari objek x-mitre-matrix
+		coas := map[string]stixObject{}
+		var mitigates []stixObject
 		for dec.More() {
 			var o stixObject
 			if err := dec.Decode(&o); err != nil {
@@ -120,8 +174,22 @@ func Parse(r io.Reader) (*Dataset, error) {
 					shortToID[o.Shortname] = o.attackID()
 				}
 			case "attack-pattern":
-				if o.attackID() != "" && !o.Revoked {
+				if o.Revoked {
+					ds.Revoked++
+				} else if o.attackID() != "" {
 					techs = append(techs, o)
+				}
+			case "x-mitre-matrix":
+				if matrixOrder == nil {
+					matrixOrder = o.TacticRefs
+				}
+			case "course-of-action":
+				if !o.Revoked && !o.Deprecated && o.attackID() != "" {
+					coas[o.ID] = o
+				}
+			case "relationship":
+				if o.RelType == "mitigates" && !o.Revoked {
+					mitigates = append(mitigates, o)
 				}
 			case "x-mitre-collection":
 				if ds.Version == "" {
@@ -143,7 +211,16 @@ func Parse(r io.Reader) (*Dataset, error) {
 			}
 			return len(tacticOrder)
 		}
+		matrixPos := map[string]int{}
+		for i, ref := range matrixOrder {
+			matrixPos[ref] = i
+		}
 		sort.SliceStable(tactics, func(i, j int) bool {
+			if mi, ok := matrixPos[tactics[i].ID]; ok {
+				if mj, ok2 := matrixPos[tactics[j].ID]; ok2 {
+					return mi < mj
+				}
+			}
 			a, b := pos(tactics[i].Shortname), pos(tactics[j].Shortname)
 			if a != b {
 				return a < b
@@ -153,6 +230,12 @@ func Parse(r io.Reader) (*Dataset, error) {
 		for i, t := range tactics {
 			ds.Tactics = append(ds.Tactics, Tactic{ID: t.attackID(), StixID: t.ID, Name: t.Name, Shortname: t.Shortname, Order: i})
 		}
+		mitByTech := map[string][]Mitigation{}
+		for _, r := range mitigates {
+			if c, ok := coas[r.SourceRef]; ok {
+				mitByTech[r.TargetRef] = append(mitByTech[r.TargetRef], Mitigation{ID: c.attackID(), Name: clip(c.Name, 120), Description: clip(cleanText(r.Description), 600)})
+			}
+		}
 		seen := map[string]bool{}
 		for _, t := range techs {
 			id := t.attackID()
@@ -160,7 +243,14 @@ func Parse(r io.Reader) (*Dataset, error) {
 				continue
 			}
 			seen[id] = true
-			x := Technique{ID: id, StixID: t.ID, Name: clip(t.Name, 200), Description: clip(t.Description, maxDescription), Platforms: t.Platforms, Deprecated: t.Deprecated}
+			x := Technique{ID: id, StixID: t.ID, Name: clip(t.Name, 200), Description: clip(cleanText(t.Description), maxDescription), Platforms: t.Platforms,
+				URL: t.attackURL(), Deprecated: t.Deprecated}
+			ms := mitByTech[t.ID]
+			sort.SliceStable(ms, func(i, j int) bool { return ms[i].ID < ms[j].ID })
+			x.Mitigations = ms
+			if x.Mitigations == nil {
+				x.Mitigations = []Mitigation{}
+			}
 			if x.Platforms == nil {
 				x.Platforms = []string{}
 			}

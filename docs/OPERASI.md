@@ -467,3 +467,31 @@ bisnis menyimpan master saat ini, dan backup sebelum rotasi menyimpan master lam
 Simpan salinan kunci/arsip sesuai retensi organisasi. Jangan mengganti file master
 secara langsung ketika ciphertext belum direenkripsi. Kunci master AI berbeda dari
 kunci enkripsi backup maupun kunci tanda tangan agent.
+
+## Data demo
+
+Data dummy bertanda `is_demo` untuk review dan demonstrasi. Seed hanya lewat CLI (tidak ada endpoint seed):
+
+```bash
+DEMO_SEED=1 ./bin/server demo-seed     # isi (atau make demo-seed)
+./bin/server demo-status               # hitungan per objek dan seed
+./bin/server demo-purge                # hapus hanya data demo (atau tombol di banner UI, perlu settings.manage)
+```
+
+Purge gagal tertutup bila data nyata bergantung pada data demo (misalnya temuan nyata pada aset demo);
+tidak ada penghapusan sebagian. Seed berbeda tanpa purge ditolak. Data demo berlabel di UI, PDF/HTML,
+CSV (kolom `synthetic`) dan JSON; tidak pernah dihitung sebagai cakupan "trained" di MITRE.
+
+## ATT&CK (MITRE) beku
+
+Bundel Enterprise ATT&CK dibekukan di `deploy/mitre` (manifest ikut repo, bundel tidak):
+
+```bash
+make mitre-update VERSION=20.0   # unduh, validasi, tampilkan diff, tulis bundel + manifest
+make mitre-verify                # periksa hash, versi, dan hitungan terhadap manifest
+```
+
+Untuk memakainya di server: arahkan `ORCHIS_MITRE_URL` ke berkas bundel dan `ORCHIS_MITRE_SHA256` ke hash di
+`manifest.json`. Di produksi `ORCHIS_MITRE_URL=off` (bawaan `ops.py`) atau berkas beku dengan hash wajib;
+unduhan HTTP tanpa hash ditolak saat start. Impor satu transaksi, idempoten; teknik yang hilang dari sumber
+ditandai deprecated, bukan dihapus.

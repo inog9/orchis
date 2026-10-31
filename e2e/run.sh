@@ -7,7 +7,7 @@ set -u
 cd "$(dirname "$0")/.."
 PORT="${E2E_PORT:-18090}"
 PSQL="docker compose -f deploy/compose.yml exec -T pg psql -U orchis -d postgres -q"
-SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs access-audit.mjs}"
+SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs flow13.mjs flow14.mjs access-audit.mjs}"
 # Gunakan vhost khusus bila injector instalasi lain memakai broker yang sama.
 AMQP_URL="${E2E_AMQP_URL:-amqp://orchis:orchis@127.0.0.1:15672/}"
 status=0
@@ -36,6 +36,15 @@ run_one() (
     fix=$!
     mitre_url="http://127.0.0.1:18082/bundle.json"
     infra_env=(ORCHIS_ALLOW_LOOPBACK_TARGETS=true)
+  fi
+  if [ "$script" = "flow14.mjs" ]; then
+    # T3: bundel ATT&CK Enterprise penuh yang dibekukan (berkas lokal + hash dari manifest); dilewati bila belum diambil.
+    local mfile msha
+    mfile="$(python3 -c "import json;print(json.load(open('deploy/mitre/manifest.json'))['file'])")"
+    msha="$(python3 -c "import json;print(json.load(open('deploy/mitre/manifest.json'))['sha256'])")"
+    [ -f "deploy/mitre/$mfile" ] || { echo "SKIP flow14: bundel beku belum ada (make mitre-update VERSION=...)"; return 0; }
+    mitre_url="$PWD/deploy/mitre/$mfile"
+    infra_env=(ORCHIS_MITRE_SHA256="$msha")
   fi
   if [ "$script" = "flow6.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ]; then
     # Fase 4: rilis agent sungguhan (linux/amd64) bertanda tangan: 1.0.0, 1.1.0 (kunci sama), dan 1.2.0 yang ditandatangani kunci LAIN.

@@ -86,6 +86,9 @@ func TestReportSnapshotIsFrozenRedactedAndTenantScoped(t *testing.T) {
 	if !strings.Contains(string(original.Body), "T1046") {
 		t.Fatal("missing frozen MITRE mapping")
 	}
+	if compact := strings.ReplaceAll(string(original.Body), " ", ""); !strings.Contains(compact, `"basis":"estimate"`) || !strings.Contains(compact, `"id":"T1190"`) {
+		t.Fatal("vulnerability finding must carry a frozen ATT&CK estimate (T1190)")
+	}
 	htmlExport := f.a.do("GET", "/api/v1/reports/"+id+"/export/html", nil, f.viewer)
 	if htmlExport.Status != 200 || !strings.Contains(string(htmlExport.Body), "T1046") {
 		t.Fatal("print report omitted MITRE mapping")

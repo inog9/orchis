@@ -273,13 +273,14 @@ export type PersonRow = { id: string; first_name: string; last_name: string; ema
 export type TeamRow = { id: string; name: string; description: string | null; kind: 'internal' | 'external'; member_count: number; created_at: string; version: number };
 export type TeamDetail = TeamRow & { members: { id: string; name: string; email: string | null }[] };
 
-export type MitreCell = { id: string; name: string; mapped: boolean; exercised: boolean; runs: number; last_run_at: string | null; subs?: MitreCell[] };
+export type MitreCell = { id: string; name: string; mapped: boolean; exercised: boolean; simulated?: boolean; platforms?: string[]; runs: number; last_run_at: string | null; subs?: MitreCell[] };
 export type MitreMatrix = {
   tactics: { id: string; name: string; shortname: string; techniques: MitreCell[] }[];
-  total: number; mapped: number; exercised: number; imported: boolean;
-  last_run: { id: string; status: 'running' | 'succeeded' | 'failed'; source_version: string | null; techniques: number | null; tactics: number | null; error: string | null; started_at: string; finished_at: string | null } | null;
+  total: number; mapped: number; exercised: number; simulated?: number; platforms?: string[]; imported: boolean;
+  last_run: { id: string; status: 'running' | 'succeeded' | 'failed'; source_version: string | null; techniques: number | null; tactics: number | null; subtechniques?: number | null; deprecated?: number | null; source_sha256?: string | null; error: string | null; started_at: string; finished_at: string | null } | null;
 };
-export type MitreDetail = { id: string; name: string; description: string; platforms: string[]; tactics: string[]; url: string; actions: string[]; runs: number; last_run_at: string | null; subs: MitreCell[] };
+export type MitreMapping = { action: string; reason: string; basis: 'direct' | 'estimate'; via?: string };
+export type MitreDetail = { id: string; name: string; description: string; platforms: string[]; tactics: string[]; url: string; actions: string[]; runs: number; last_run_at: string | null; subs: MitreCell[]; mappings?: MitreMapping[]; mitigations?: { id: string; name: string; description: string }[]; parent?: string | null; deprecated?: boolean; simulated?: boolean; simulated_findings?: number };
 
 export type AlertRow = { id: string; kind: string; severity: 'info' | 'warning' | 'critical'; title: string; body: string | null; resource_type: string | null; resource_id: string | null; created_at: string; read: boolean };
 export type AlertList = { items: AlertRow[]; unread: number };

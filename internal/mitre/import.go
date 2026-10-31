@@ -2,11 +2,16 @@ package mitre
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -26,17 +31,36 @@ const (
 	staleAfter  = 15 * time.Minute
 )
 
-// DefaultLinks menautkan kontrak bawaan ke teknik ATT&CK yang dilatihnya.
-var DefaultLinks = map[string][]string{
-	"nmap.tcp_connect": {"T1046"},
-	"nuclei.scan":      {"T1595.002"},
+// Link menautkan satu kontrak bawaan ke satu teknik ATT&CK beserta alasannya.
+// Hanya perilaku yang BENAR-BENAR dilakukan aksi itu yang dipetakan (basis "direct"); jangan menandai cakupan berlebihan.
+type Link struct {
+	Contract  string
+	Technique string
+	Basis     string // direct | estimate
+	Reason    string
+}
+
+// DefaultLinks adalah sumber kebenaran pemetaan aksi->teknik; LinkContracts menyelaraskan database dengannya
+// (tautan lama yang tidak ada lagi di sini dihapus, sehingga koreksi pemetaan ikut berlaku).
+//
+// Sengaja TIDAK dipetakan: nuclei.scan -> T1190 (Exploit Public-Facing Application). Nuclei mendeteksi kerentanan,
+// tidak mengeksploitasinya, jadi menautkannya akan melebih-lebihkan cakupan. T1190 hanya muncul sebagai perkiraan
+// pada temuan kerentanan di laporan (lihat internal/reporting).
+var DefaultLinks = []Link{
+	{"nmap.tcp_connect", "T1046", "direct", "A TCP connect scan enumerates open ports and, optionally, service versions on a remote host. That is the discovery behaviour of Network Service Discovery."},
+	{"nuclei.scan", "T1595.002", "direct", "Nuclei sends template-based probes to a target to find known vulnerabilities, which is Active Scanning: Vulnerability Scanning."},
+	{"agent.system_info", "T1082", "direct", "The agent reads hostname, OS, architecture, kernel and memory from the endpoint, which is System Information Discovery."},
+	{"agent.listening_ports", "T1049", "direct", "The agent lists listening sockets from /proc/net/tcp*, which is System Network Connections Discovery."},
 }
 
 type Importer struct {
 	DB     *db.DB
 	Tenant uuid.UUID
+	// Source: URL http(s) atau jalur berkas lokal (bundel beku di deploy/mitre). Berkas lokal adalah jalur produksi.
 	Source string
-	HTTP   *http.Client
+	// ExpectedSHA256: bila diisi, bundel yang hash-nya berbeda ditolak sebelum menyentuh database.
+	ExpectedSHA256 string
+	HTTP           *http.Client
 }
 
 func (im *Importer) client() *http.Client {
@@ -52,6 +76,9 @@ type Run struct {
 	Version    *string    `json:"source_version"`
 	Techniques *int       `json:"techniques"`
 	Tactics    *int       `json:"tactics"`
+	Subs       *int       `json:"subtechniques"`
+	Deprecated *int       `json:"deprecated"`
+	SHA256     *string    `json:"source_sha256"`
 	Error      *string    `json:"error"`
 	StartedAt  time.Time  `json:"started_at"`
 	FinishedAt *time.Time `json:"finished_at"`
@@ -120,23 +147,31 @@ ON CONFLICT (id) DO UPDATE SET stix_id=EXCLUDED.stix_id, name=EXCLUDED.name, sho
 		if t.ParentID != "" {
 			parent = &t.ParentID
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO mitre_techniques (id, stix_id, name, description, parent_id, tactic_ids, platforms, is_deprecated, source_version, updated_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,now())
+		mits, err := json.Marshal(t.Mitigations)
+		if err != nil {
+			return fail(err)
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO mitre_techniques (id, stix_id, name, description, parent_id, tactic_ids, platforms, is_deprecated, source_version, url, mitigations, updated_at)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NULLIF($10,''),$11,now())
 ON CONFLICT (id) DO UPDATE SET stix_id=EXCLUDED.stix_id, name=EXCLUDED.name, description=EXCLUDED.description, parent_id=EXCLUDED.parent_id,
-  tactic_ids=EXCLUDED.tactic_ids, platforms=EXCLUDED.platforms, is_deprecated=EXCLUDED.is_deprecated, source_version=EXCLUDED.source_version, updated_at=now()`,
-			t.ID, t.StixID, t.Name, t.Description, parent, t.TacticIDs, t.Platforms, t.Deprecated, nullable(ds.Version)); err != nil {
+  tactic_ids=EXCLUDED.tactic_ids, platforms=EXCLUDED.platforms, is_deprecated=EXCLUDED.is_deprecated, source_version=EXCLUDED.source_version,
+  url=EXCLUDED.url, mitigations=EXCLUDED.mitigations, updated_at=now()`,
+			t.ID, t.StixID, t.Name, t.Description, parent, t.TacticIDs, t.Platforms, t.Deprecated, nullable(ds.Version), t.URL, mits); err != nil {
 			return fail(err)
 		}
 	}
 	if _, err := tx.Exec(ctx, `UPDATE mitre_techniques SET is_deprecated=true, updated_at=now() WHERE NOT (id = ANY($1)) AND NOT is_deprecated`, keep); err != nil {
 		return fail(err)
 	}
+	cnt := ds.Count()
 	nt, nc := len(ds.Techniques), len(ds.Tactics)
-	run.Status, run.Techniques, run.Tactics = "succeeded", &nt, &nc
+	run.Status, run.Techniques, run.Tactics, run.Subs, run.Deprecated = "succeeded", &nt, &nc, &cnt.Subs, &cnt.Deprecated
+	run.SHA256 = nullable(ds.SHA256)
 	if ds.Version != "" {
 		run.Version = &ds.Version
 	}
-	if _, err := tx.Exec(ctx, `UPDATE mitre_import_runs SET status='succeeded', techniques=$2, tactics=$3, source_version=$4, finished_at=now() WHERE id=$1`, run.ID, nt, nc, nullable(ds.Version)); err != nil {
+	if _, err := tx.Exec(ctx, `UPDATE mitre_import_runs SET status='succeeded', techniques=$2, tactics=$3, source_version=$4, subtechniques=$5, deprecated=$6, source_sha256=$7, finished_at=now() WHERE id=$1`,
+		run.ID, nt, nc, nullable(ds.Version), cnt.Subs, cnt.Deprecated, nullable(ds.SHA256)); err != nil {
 		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -156,31 +191,68 @@ func nullable(s string) *string {
 }
 
 func (im *Importer) fetch(ctx context.Context) (*Dataset, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, im.Source, nil)
+	var body io.ReadCloser
+	if strings.HasPrefix(im.Source, "http://") || strings.HasPrefix(im.Source, "https://") {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, im.Source, nil)
+		if err != nil {
+			return nil, err
+		}
+		resp, err := im.client().Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("unduhan gagal: %w", err)
+		}
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			return nil, fmt.Errorf("sumber menjawab %d", resp.StatusCode)
+		}
+		body = resp.Body
+	} else {
+		f, err := os.Open(strings.TrimPrefix(im.Source, "file://"))
+		if err != nil {
+			return nil, fmt.Errorf("bundel lokal tidak bisa dibuka: %w", err)
+		}
+		body = f
+	}
+	defer body.Close()
+	return ParseVerified(io.LimitReader(body, maxDownload), im.ExpectedSHA256)
+}
+
+// ParseVerified mem-parse bundel sambil menghitung SHA-256 seluruh isinya. Bila expected diisi dan hash berbeda,
+// hasil ditolak: bundel yang dibekukan tidak boleh berubah diam-diam.
+func ParseVerified(r io.Reader, expected string) (*Dataset, error) {
+	h := sha256.New()
+	ds, err := Parse(io.TeeReader(r, h))
 	if err != nil {
 		return nil, err
 	}
-	resp, err := im.client().Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("unduhan gagal: %w", err)
+	if _, err := io.Copy(io.Discard, io.TeeReader(r, h)); err != nil { // sisa berkas setelah objek JSON terakhir
+		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("sumber menjawab %d", resp.StatusCode)
+	ds.SHA256 = hex.EncodeToString(h.Sum(nil))
+	if expected != "" && !strings.EqualFold(expected, ds.SHA256) {
+		return nil, fmt.Errorf("hash bundel tidak cocok (diharapkan %s, dapat %s)", expected, ds.SHA256)
 	}
-	return Parse(io.LimitReader(resp.Body, maxDownload))
+	return ds, nil
 }
 
-// LinkContracts menautkan kontrak bawaan ke teknik yang ada. Aman dijalankan berulang dan sebelum teknik diimpor (dilewati diam-diam).
+// LinkContracts menyelaraskan tautan kontrak bawaan->teknik dengan DefaultLinks (menambah, memperbarui alasan, dan
+// menghapus tautan bawaan yang sudah tidak ada). Aman dijalankan berulang dan sebelum teknik diimpor (dilewati diam-diam).
 func (im *Importer) LinkContracts(ctx context.Context) error {
 	return im.DB.InTenant(ctx, im.Tenant, func(tx pgx.Tx) error {
-		for key, techs := range DefaultLinks {
-			for _, tid := range techs {
-				if _, err := tx.Exec(ctx, `INSERT INTO contract_techniques (tenant_id, contract_id, technique_id)
-SELECT c.tenant_id, c.id, t.id FROM contracts c, mitre_techniques t WHERE c.tenant_id=$1 AND c.key=$2 AND t.id=$3
-ON CONFLICT DO NOTHING`, im.Tenant, key, tid); err != nil {
-					return err
-				}
+		want := map[string][]string{}
+		for _, l := range DefaultLinks {
+			want[l.Contract] = append(want[l.Contract], l.Technique)
+			if _, err := tx.Exec(ctx, `INSERT INTO contract_techniques (tenant_id, contract_id, technique_id, reason, basis)
+SELECT c.tenant_id, c.id, t.id, $4, $5 FROM contracts c, mitre_techniques t WHERE c.tenant_id=$1 AND c.key=$2 AND t.id=$3
+ON CONFLICT (tenant_id, contract_id, technique_id) DO UPDATE SET reason=EXCLUDED.reason, basis=EXCLUDED.basis`,
+				im.Tenant, l.Contract, l.Technique, l.Reason, l.Basis); err != nil {
+				return err
+			}
+		}
+		for key, techs := range want {
+			if _, err := tx.Exec(ctx, `DELETE FROM contract_techniques ct USING contracts c
+WHERE ct.tenant_id=$1 AND c.tenant_id=ct.tenant_id AND c.id=ct.contract_id AND c.key=$2 AND NOT (ct.technique_id = ANY($3))`, im.Tenant, key, techs); err != nil {
+				return err
 			}
 		}
 		return nil

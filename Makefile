@@ -1,7 +1,7 @@
 RELEASE_KEY ?= dist/release.key
 RELEASE_DIR ?= dist/agent
 
-.PHONY: agent-release dev-up dev-up-full dev-down build test web-test e2e check injector-image
+.PHONY: mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check injector-image
 
 dev-up:      ## Jalankan PostgreSQL pengembangan
 	docker compose -f deploy/compose.yml up -d pg
@@ -36,6 +36,21 @@ e2e: build   ## Tes end-to-end di browser (database baru per putaran)
 	python3 e2e/cleanup-test.py
 	./e2e/run.sh
 	node e2e/ai-egress.mjs
+
+demo-seed:   ## Isi data dummy bertanda is_demo (DEMO_SEED=n, bawaan 1); butuh server dev berjalan
+	go run ./cmd/server demo-seed
+
+demo-purge:  ## Hapus HANYA data dummy (is_demo); batal bila data nyata bergantung padanya
+	go run ./cmd/server demo-purge
+
+demo-status: ## Tampilkan jumlah data dummy dan seed yang dipakai
+	go run ./cmd/server demo-status
+
+mitre-update: ## Bekukan bundel ATT&CK Enterprise: make mitre-update VERSION=20.0 (menampilkan diff)
+	go run ./cmd/mitre-update -version $(VERSION)
+
+mitre-verify: ## Periksa bundel beku di deploy/mitre terhadap manifest (hash, versi, hitungan)
+	go run ./cmd/mitre-update -verify
 
 check: test web-test e2e
 

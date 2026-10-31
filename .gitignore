@@ -13,3 +13,6 @@ node_modules/
 /work/
 
 __pycache__/
+
+# Bundel ATT&CK beku (55 MB): hash dipatok di deploy/mitre/manifest.json; ambil dengan make mitre-update.
+/deploy/mitre/enterprise-attack-*.json

@@ -27,13 +27,35 @@ type Service struct {
 	RendererURL   string
 	RendererToken string
 }
+
+// FindingTechnique: teknik ATT&CK yang dikaitkan ke satu temuan, dibekukan bersama snapshot (nama ikut dibekukan,
+// jadi tidak berubah bila ATT&CK diperbarui). Basis "estimate" berarti perkiraan, bukan bukti bahwa teknik itu terjadi.
+type FindingTechnique struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Basis  string `json:"basis"`
+	Reason string `json:"reason"`
+}
+
+// EstimatedTechniques memetakan temuan ke teknik secara konservatif. Hanya kerentanan yang dikaitkan (T1190,
+// Exploit Public-Facing Application) dan hanya sebagai perkiraan: temuan port/layanan/teks tidak dipetakan,
+// karena itu hasil pemindaian (discovery), bukan celah yang bisa dieksploitasi.
+func EstimatedTechniques(f Finding) []FindingTechnique {
+	if f.Type != "vulnerability" {
+		return nil
+	}
+	return []FindingTechnique{{ID: "T1190", Name: "Exploit Public-Facing Application", Basis: "estimate",
+		Reason: "A vulnerability found on a reachable service could be abused this way. This is an estimate from the finding type; it does not show that the vulnerability was exploited."}}
+}
+
 type Finding struct {
-	ID       string         `json:"id"`
-	Type     string         `json:"type"`
-	Value    string         `json:"value"`
-	Title    string         `json:"title"`
-	Severity string         `json:"severity"`
-	Evidence map[string]any `json:"evidence"`
+	MITRE    []FindingTechnique `json:"mitre,omitempty"`
+	ID       string             `json:"id"`
+	Type     string             `json:"type"`
+	Value    string             `json:"value"`
+	Title    string             `json:"title"`
+	Severity string             `json:"severity"`
+	Evidence map[string]any     `json:"evidence"`
 }
 type Method struct {
 	MITRE     []string        `json:"mitre"`
@@ -55,6 +77,8 @@ type Asset struct {
 	Methods    []Method  `json:"methods"`
 }
 type Snapshot struct {
+	IsDemo       bool           `json:"is_demo,omitempty"`
+	Label        string         `json:"label,omitempty"`
 	Organization string         `json:"organization"`
 	AssessmentID uuid.UUID      `json:"assessment_id"`
 	Profile      string         `json:"profile"`
@@ -176,6 +200,7 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					f.Value = Redact(f.Value, 1000)
 					f.Title = Redact(f.Title, 500)
 					f.Evidence = SafeEvidence(details)
+					f.MITRE = EstimatedTechniques(f)
 					a.Findings = append(a.Findings, f)
 					if f.Type == "vulnerability" {
 						snap.BySeverity[f.Severity]++

@@ -18,3 +18,13 @@ it('does not count a finished asset without methods as fully tested',async()=>{
  mount([{id:'empty',name:'No methods',status:'finished',methods:[],skip_reason:'',findings:[]}]);
  expect(await screen.findByText('1 assets in scope · 0 fully tested · 0 skipped · 1 incomplete')).toBeInTheDocument();expect(screen.queryByText('Methodology and execution')).toBeNull();
 });
+
+it('renders a finding that has no evidence object without crashing',async()=>{
+ mount([{id:'a',name:'Asset A',status:'skipped',methods:[],skip_reason:'No scan',findings:[{id:'f',type:'text',value:'v',title:'Finding without evidence',severity:'low'}]}]);
+ expect(await screen.findByText('Finding without evidence')).toBeInTheDocument();
+});
+
+it('shows a MITRE technique on a finding as an estimate',async()=>{
+ mount([{id:'a',name:'Asset A',status:'finished',methods:[],skip_reason:'',findings:[{id:'f',type:'vulnerability',value:'v',title:'Exposed panel',severity:'high',evidence:{},mitre:[{id:'T1190',name:'Exploit Public-Facing Application',basis:'estimate',reason:'Estimate only.'}]}]}]);
+ expect(await screen.findByText(/MITRE ATT&CK \(estimate\): T1190 Exploit Public-Facing Application\. Estimate only\./)).toBeInTheDocument();
+});

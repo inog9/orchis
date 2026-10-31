@@ -21,6 +21,7 @@ import (
 	"orchis-go/internal/auth"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/demo"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/groups"
 	"orchis-go/internal/home"
@@ -47,7 +48,8 @@ type Options struct {
 	Version         string
 	Checks          []settings.Check
 	AgentRelease    string // direktori rilis agent (manifest.json + biner); kosong = tidak ada rilis
-	MitreSource     string // sumber STIX; kosong = impor manual dinonaktifkan
+	MitreSource     string // sumber STIX (URL atau berkas beku); kosong = impor manual dinonaktifkan
+	MitreSHA256     string // hash bundel yang dipatok; kosong = tidak diperiksa (hanya pengembangan)
 
 	// Eksekusi. Guard menentukan sasaran yang boleh dipindai; Search/Store boleh nil.
 	Guard         contract.Guard
@@ -75,6 +77,7 @@ func New(o Options) http.Handler {
 	(&auditview.Handler{DB: o.DB}).Register(mux)
 	(&ai.Handlers{Svc: AIService(o)}).Register(mux)
 	(&organizations.Handlers{Svc: OrganizationService(o)}).Register(mux)
+	(&demo.Handlers{Svc: &demo.Service{DB: o.DB}}).Register(mux)
 	(&reporting.Handlers{Svc: ReportService(o)}).Register(mux)
 	(&assets.Handlers{Svc: &assets.Service{DB: o.DB}}).Register(mux)
 	(&groups.Handlers{Svc: &groups.Service{DB: o.DB}}).Register(mux)
@@ -152,7 +155,7 @@ func SimulationService(o Options) *simulation.Service {
 func mitreService(o Options) *mitre.Service {
 	svc := &mitre.Service{DB: o.DB}
 	if o.MitreSource != "" {
-		svc.Importer = &mitre.Importer{DB: o.DB, Tenant: o.Tenant, Source: o.MitreSource}
+		svc.Importer = &mitre.Importer{DB: o.DB, Tenant: o.Tenant, Source: o.MitreSource, ExpectedSHA256: o.MitreSHA256}
 	}
 	return svc
 }
