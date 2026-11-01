@@ -81,6 +81,8 @@ test accounts. Specialist skills can be invoked by their own names.
 | `pentest` | Shared rules, workflow, and checklist |
 | `pentest-exploration` | Initial exploration, test-account setup, and triage |
 | `pentest-recon` | Routes, API inventory, JavaScript, and business flows |
+| `pentest-js-analysis` | Step-by-step jsluice analysis with bundled Tree-sitter source/sink queries |
+| `pentest-dependency-confusion` | Dependency-confusion discovery from collected JS/source maps, independent npxconfuse coverage and optional exposed manifests |
 | `pentest-auth` | Authentication and account lifecycle |
 | `pentest-authz` | Object, function, and tenant authorization |
 | `pentest-injection` | Injection and unsafe parsing |
@@ -100,7 +102,15 @@ by the chosen workflow separately:
 - Interceptor CLI and the `interceptor-browser` skill for browser work.
 - Burp or Caido with its configured proxy/replay integration for HTTP evidence.
 - jxscout for JavaScript analysis when required.
+- jsluice and Python 3.9+ for offline JavaScript analysis. `init` includes the
+  query collection under `<agent-folder>/skills/pentest-js-analysis/tree-sitter-query/`
+  and the runner under that skill's `scripts/` directory. The original root-level
+  `tree-sitter-query` collection now lives inside this skill so no separate copy
+  is needed after installation.
 - gog CLI with an explicitly authorized Gmail account for email verification.
+- npxconfuse, when available, for registry-name checks alongside independent
+  collected-JS analysis in `pentest-dependency-confusion`. No repository,
+  package installation or exposed manifest is required for that workflow.
 - [totp-cli](https://github.com/yitsushi/totp-cli) with the relevant authorized
   token when the website requires authenticator-based 2FA. The skill checks the
   installed command help before use; `init` does not install or enroll tokens.
@@ -117,6 +127,7 @@ not start a pentest or make requests to a target.
 go test ./...
 go test -race ./...
 go vet ./...
+python3 -m unittest discover -s tests -v
 go build -trimpath -ldflags "-s -w -X main.version=v0.1.0" \
   -o ./bin/pentest-harnes ./cmd/pentest-harnes
 ```
