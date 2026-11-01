@@ -168,5 +168,126 @@
       "properties": {},
       "order": []
     }
+  },
+  {
+    "key": "osquery.inventory",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "System inventory (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Operating system, kernel, CPU, memory and uptime of the endpoint. Read-only.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.packages",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Installed packages (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "service",
+      "text"
+    ],
+    "timeout_seconds": 120,
+    "description": "Names and versions of installed software packages (deb and rpm). No vulnerability data is invented: versions are listed, not judged.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.users",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Local accounts (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Local user accounts, their shell and group memberships. Password hashes and SSH keys are never read.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.network",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Listening ports (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "open_port"
+    ],
+    "timeout_seconds": 60,
+    "description": "TCP/UDP ports listening on the endpoint and the name of the owning program. Command lines are never read.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.hardening",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Hardening settings (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "A few kernel security settings and disk encryption status. Read-only.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.firewall",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Firewall rules (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Number of iptables rules. Needs administrator rights; nftables rules are not checked.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
   }
 ]

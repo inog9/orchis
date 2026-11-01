@@ -37,6 +37,7 @@ type ContractView struct {
 }
 
 type ExecutionSummary struct {
+	IsDemo       bool       `json:"is_demo"`
 	ID           uuid.UUID  `json:"id"`
 	State        string     `json:"state"`
 	Outcome      *string    `json:"outcome"`

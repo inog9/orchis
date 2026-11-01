@@ -16,3 +16,6 @@ __pycache__/
 
 # Bundel ATT&CK beku (55 MB): hash dipatok di deploy/mitre/manifest.json; ambil dengan make mitre-update.
 /deploy/mitre/enterprise-attack-*.json
+
+# Artefak osquery (54 MB): hash dipatok di internal/osquery/catalog.json; ambil dengan make osquery-fetch.
+/deploy/osquery/

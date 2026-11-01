@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/google/uuid"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"orchis-go/internal/ai"
 	"orchis-go/internal/contract"
@@ -12,6 +14,7 @@ import (
 	"orchis-go/internal/server"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -344,5 +347,43 @@ func TestAIAdviceWithoutActionsDoesNotClaimChecksWereQueued(t *testing.T) {
 	r = f.a.do("POST", "/api/v1/ai/jobs/"+j.ID.String()+"/approve", map[string]int{"version": j.Version}, f.analyst)
 	if r.Status != 409 {
 		t.Fatal("advice-only job allowed dispatch")
+	}
+}
+
+func TestAIAdvisoryPDFUsesConfiguredRemoteRenderer(t *testing.T) {
+	const token = "local-renderer-fixture-token-32-characters"
+	var calls atomic.Int32
+	renderer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		if r.Method != "POST" || r.Header.Get("Authorization") != "Bearer "+token {
+			t.Error("missing renderer authentication")
+			w.WriteHeader(401)
+			return
+		}
+		body, err := io.ReadAll(r.Body)
+		if err != nil || !bytes.Contains(body, []byte("AI advisory supplement")) {
+			t.Error("missing AI print HTML")
+			w.WriteHeader(400)
+			return
+		}
+		w.Header().Set("Content-Type", "application/pdf")
+		_, _ = w.Write([]byte("%PDF-1.4\nLOCAL transport fixture; not a rendered document"))
+	}))
+	defer renderer.Close()
+	t.Setenv("ORCHIS_RENDERER_URL", renderer.URL)
+	t.Setenv("ORCHIS_RENDERER_TOKEN", token)
+	t.Setenv("ORCHIS_REPORT_RENDER_SCRIPT", "/missing-renderer-local-script-must-not-run.mjs")
+	f, org, report, pol := aiFixture(t)
+	if r := f.a.do("PUT", "/api/v1/organizations/"+org.String()+"/ai", pol, f.admin); r.Status != 200 {
+		t.Fatalf("policy: %d", r.Status)
+	}
+	job := aiRequest(t, f, org, report, "remote-pdf")
+	claim := aiClaim(t, f)
+	if r := f.a.do("POST", "/api/v1/ai-worker/jobs/"+job.ID.String()+"/complete", ai.Completion{Token: claim.Token, Output: aiOutput(), UsageTokens: 100}, "", "Authorization", "Bearer "+aiWorkerToken); r.Status != 204 {
+		t.Fatalf("fixture completion: %d", r.Status)
+	}
+	response := f.a.do("GET", "/api/v1/ai/jobs/"+job.ID.String()+"/export/pdf", nil, f.analyst)
+	if response.Status != 200 || !bytes.HasPrefix(response.Body, []byte("%PDF-")) || calls.Load() != 1 {
+		t.Fatalf("remote AI renderer not used: status=%d calls=%d", response.Status, calls.Load())
 	}
 }

@@ -111,6 +111,7 @@ export type Contract = {
 };
 
 export type ExecutionSummary = {
+ is_demo?: boolean;
   id: string;
   state: 'ready' | 'running' | 'ended';
   outcome: 'success' | 'error' | 'canceled' | 'timeout' | 'skipped' | null;
@@ -196,7 +197,7 @@ export type ChainStep = {
   trigger: Trigger | null;
   is_enabled: boolean;
 };
-export type ChainEdge = { parent: string; child: string; condition?: Record<string, unknown>; branch?: 'match' | 'else' | 'failure'; mapper?: { source: 'open_ports' | 'web_urls'; destination: 'ports' | 'target' } };
+export type ChainEdge = { parent: string; child: string; condition?: Record<string, unknown>; branch?: 'match' | 'else' | 'failure'; mapper?: { source: 'open_ports' | 'web_urls' | 'installed_software'; destination: 'ports' | 'target' | 'tags' } };
 export type ScenarioTarget = { kind: 'asset' | 'group'; id: string; name: string; authorized?: boolean };
 export type Scenario = {
   id: string;
@@ -217,6 +218,7 @@ export type ScenarioDetail = Scenario & { targets: ScenarioTarget[]; steps: Chai
 
 export type StepStatus = 'waiting' | 'queued' | 'running' | 'done' | 'failed' | 'skipped' | 'blocked' | 'canceled';
 export type Simulation = {
+ is_demo?: boolean;
   id: string;
   number: number;
   code: string;
@@ -258,10 +260,11 @@ export type UserRow = { id: string; email: string; display_name: string; role: s
 export type RoleRow = { key: string; name: string; description: string | null; permissions: string[]; is_system: boolean; users: number };
 export type ResetLink = { token: string; expires_at: string };
 export type CreatedUser = { user: UserRow; reset_link: ResetLink };
-export type ApiToken = { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null };
+export type ApiToken = { is_demo?: boolean; revoked_at?: string | null; id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null };
 export type NewApiToken = ApiToken & { secret: string };
 
 export type IntegrationRow = {
+ is_demo?: boolean;
   id: string; kind: 'injector' | 'collector' | 'executor'; key: string; name: string; description: string | null; is_builtin: boolean; enabled: boolean;
   status: 'online' | 'offline' | 'disabled'; software_version: string | null; last_heartbeat_at: string | null; has_token: boolean;
   logs: { at: string; level: string; message: string }[];
@@ -273,14 +276,14 @@ export type PersonRow = { id: string; first_name: string; last_name: string; ema
 export type TeamRow = { id: string; name: string; description: string | null; kind: 'internal' | 'external'; member_count: number; created_at: string; version: number };
 export type TeamDetail = TeamRow & { members: { id: string; name: string; email: string | null }[] };
 
-export type MitreCell = { id: string; name: string; mapped: boolean; exercised: boolean; simulated?: boolean; platforms?: string[]; runs: number; last_run_at: string | null; subs?: MitreCell[] };
+export type MitreCell = { id: string; name: string; mapped: boolean; exercised: boolean; simulated?: boolean; simulated_runs?: number; platforms?: string[]; simulated_findings?: number; runs: number; last_run_at: string | null; subs?: MitreCell[] };
 export type MitreMatrix = {
   tactics: { id: string; name: string; shortname: string; techniques: MitreCell[] }[];
   total: number; mapped: number; exercised: number; simulated?: number; platforms?: string[]; imported: boolean;
   last_run: { id: string; status: 'running' | 'succeeded' | 'failed'; source_version: string | null; techniques: number | null; tactics: number | null; subtechniques?: number | null; deprecated?: number | null; source_sha256?: string | null; error: string | null; started_at: string; finished_at: string | null } | null;
 };
 export type MitreMapping = { action: string; reason: string; basis: 'direct' | 'estimate'; via?: string };
-export type MitreDetail = { id: string; name: string; description: string; platforms: string[]; tactics: string[]; url: string; actions: string[]; runs: number; last_run_at: string | null; subs: MitreCell[]; mappings?: MitreMapping[]; mitigations?: { id: string; name: string; description: string }[]; parent?: string | null; deprecated?: boolean; simulated?: boolean; simulated_findings?: number };
+export type MitreDetail = { id: string; name: string; description: string; platforms: string[]; tactics: string[]; url: string; actions: string[]; runs: number; last_run_at: string | null; subs: MitreCell[]; mappings?: MitreMapping[]; mitigations?: { id: string; name: string; description: string }[]; parent?: string | null; deprecated?: boolean; simulated?: boolean; simulated_runs?: number; simulated_findings?: number };
 
 export type AlertRow = { id: string; kind: string; severity: 'info' | 'warning' | 'critical'; title: string; body: string | null; resource_type: string | null; resource_id: string | null; created_at: string; read: boolean };
 export type AlertList = { items: AlertRow[]; unread: number };
@@ -293,3 +296,25 @@ export type AgentRow = {
 };
 export type EnrollmentToken = { id: string; token: string; os: AgentRow['os']; arch: AgentRow['arch']; mode: AgentRow['mode']; expires_at: string; version: string; sha256: string; file_name: string };
 export type EnrollmentStatus = { used: boolean; expired: boolean; agent_id: string | null; agent: AgentRow | null };
+
+// ---------- T4: data endpoint dari osquery ----------
+export type EndpointRuleMeta = { rule: string; type: string; severity: string; title: string; explain: string };
+export type EndpointQueryMeta = {
+  key: string; pack?: string; title: string; description: string; category: string; tables: string[]; columns: string[]; os: string[];
+  sensitivity: 'low' | 'medium' | 'high'; load: string; needs_root: boolean; default_enabled: boolean; timeout_seconds: number; max_rows: number;
+  mitre: { id: string; reason: string }[]; attributes: string[]; findings: EndpointRuleMeta[]; report_section: string;
+  example: Record<string, string>[]; example_findings: { rule: string; type: string; severity: string; title: string }[]; example_attributes: Record<string, unknown>;
+};
+export type EndpointPackQuery = { name: string; key?: string; description: string; status: 'runnable' | 'sensitive' | 'not_reviewed' | 'other_os' | 'unverified'; reason: string; tables: string[] };
+export type EndpointPack = { name: string; description: string; file: string; sha256: string; platform: string; tables_read: string[]; queries: EndpointPackQuery[] };
+export type EndpointConsent = { version: string; sha256: string; text: string };
+export type EndpointCatalog = { consent: EndpointConsent; osquery_version: string; license: string; proven_os: string[]; queries: EndpointQueryMeta[]; packs: EndpointPack[] };
+export type OrgOsquerySetting = { key: string; enabled: boolean; explicit: boolean; updated_at: string | null; consent_version?: string | null; consent_sha256?: string | null; consented_by?: string | null; consented_at?: string | null };
+export type EndpointDataset = {
+  key: string; title: string; status: 'ok' | 'skipped' | 'failed' | 'never'; reason: string; collected_at: string | null; last_attempt_at: string | null;
+  osquery_version: string; attributes: Record<string, unknown>; rows: Record<string, string>[]; truncated: boolean; enabled: boolean; synthetic: boolean;
+};
+export type EndpointAssetData = {
+  asset_id: string; version: number; read_only: boolean; organization_id: string | null; has_agent: boolean; items: EndpointDataset[];
+  findings: { id: string; type: string; severity: string; title: string; value: string; query: string }[];
+};

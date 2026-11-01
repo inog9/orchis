@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"orchis-go/internal/osquery"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -23,6 +24,9 @@ const (
 	// Aksi yang berjalan DI endpoint oleh agent (hanya-baca, tanpa parameter, tanpa menyentuh jaringan).
 	KeyAgentPorts = "agent.listening_ports"
 	KeyAgentInfo  = "agent.system_info"
+
+	// Aksi osquery (hanya-baca, tanpa parameter): query bernama dari katalog beku internal/osquery. Dijalankan agent di endpoint.
+	AdapterOsquery = "osquery"
 )
 
 // Def adalah satu kontrak yang disemai ke tabel contracts.
@@ -49,6 +53,7 @@ func init() {
 	if err := json.Unmarshal(catalogJSON, &Defs); err != nil {
 		panic(err)
 	}
+	addPackContracts()
 	for _, d := range Defs {
 		if err := d.ValidateDefinition(); err != nil {
 			panic(err)
@@ -155,7 +160,7 @@ func normalizeDefinition(def *Def, raw json.RawMessage) (json.RawMessage, error)
 			return nil, err
 		}
 		return json.Marshal(p)
-	case "agent.listening_ports", "agent.system_info":
+	case "agent.listening_ports", "agent.system_info", AdapterOsquery:
 		// Tanpa parameter: terima hanya objek kosong, supaya tidak ada jalur untuk menyelipkan perintah ke agent.
 		var none struct{}
 		if err := strict(raw, &none); err != nil {
@@ -282,4 +287,30 @@ func NucleiArgs(raw json.RawMessage, target, templatesDir string) ([]string, err
 		args = append(args, "-t", templatesDir)
 	}
 	return args, nil
+}
+
+// addPackContracts membuat satu kontrak tanpa parameter untuk setiap query pack resmi yang dibekukan, dari bentuk kontrak
+// osquery.inventory. Kunci kontrak = kunci query: server tidak pernah mengirim SQL, hanya kunci ini.
+func addPackContracts() {
+	var base *Def
+	for i := range Defs {
+		if Defs[i].Key == "osquery.inventory" {
+			base = &Defs[i]
+		}
+	}
+	if base == nil {
+		panic("contract: osquery.inventory tidak ada")
+	}
+	for _, q := range osquery.Queries {
+		if q.Pack == "" {
+			continue
+		}
+		d := *base
+		d.Key, d.Name, d.Description, d.Version = q.Key, q.Title+" ("+q.Pack+" pack)", q.Description, 1
+		if d.Description == "" {
+			d.Description = "Read-only check from the official osquery " + q.Pack + " pack."
+		}
+		d.Category, d.TimeoutSeconds = "Endpoint", q.TimeoutSeconds
+		Defs = append(Defs, d)
+	}
 }

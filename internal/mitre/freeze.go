@@ -49,6 +49,9 @@ func LoadManifest(dir string) (*Manifest, error) {
 	if err := json.Unmarshal(raw, &m); err != nil {
 		return nil, fmt.Errorf("manifest rusak: %w", err)
 	}
+	if err := m.validate(); err != nil {
+		return nil, err
+	}
 	return &m, nil
 }
 
@@ -68,15 +71,19 @@ func Verify(dir string) (*Manifest, *Dataset, error) {
 		return m, nil, fmt.Errorf("bundel beku belum ada (%w); jalankan: make mitre-update VERSION=%s", err, m.Version)
 	}
 	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return m, nil, err
+	}
+	if !info.Mode().IsRegular() || info.Size() != m.Bytes {
+		return m, nil, fmt.Errorf("ukuran bundel tidak sama dengan manifest: %d", m.Bytes)
+	}
 	ds, err := ParseVerified(f, m.SHA256)
 	if err != nil {
 		return m, nil, err
 	}
-	if ds.Version != m.Version {
-		return m, ds, fmt.Errorf("versi bundel %q tidak sama dengan manifest %q", ds.Version, m.Version)
-	}
-	if got := m.counts(ds); got != m.Counts {
-		return m, ds, fmt.Errorf("hitungan bundel %+v tidak sama dengan manifest %+v", got, m.Counts)
+	if err := m.checkDataset(ds); err != nil {
+		return m, ds, err
 	}
 	return m, ds, nil
 }
@@ -129,7 +136,7 @@ func Compare(old, cur *Dataset) Diff {
 // sebelumnya, lalu tulis bundel + manifest. Tidak menyentuh database, jadi laporan lama (snapshot beku) tidak terpengaruh;
 // teknik yang hilang dari sumber akan ditandai deprecated oleh importer, bukan dihapus.
 func Update(ctx context.Context, dir, version, from string, w io.Writer) (*Manifest, Diff, error) {
-	if version == "" || strings.ContainsAny(version, "/\\ ") {
+	if !frozenVersion.MatchString(version) {
 		return nil, Diff{}, errors.New("VERSION wajib diisi (mis. 20.0)")
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -183,6 +190,9 @@ func Update(ctx context.Context, dir, version, from string, w io.Writer) (*Manif
 	}
 	m := &Manifest{Matrix: "enterprise", Version: version, File: "enterprise-attack-" + version + ".json", SHA256: ds.SHA256, Bytes: n, SourceURL: url}
 	m.Counts = m.counts(ds)
+	if err := m.validate(); err != nil {
+		return nil, Diff{}, err
+	}
 
 	var diff Diff
 	prev, perr := LoadManifest(dir)
@@ -200,6 +210,9 @@ func Update(ctx context.Context, dir, version, from string, w io.Writer) (*Manif
 				}
 			}
 		}
+	}
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+		return nil, Diff{}, err
 	}
 	if err := os.Rename(tmp.Name(), filepath.Join(dir, m.File)); err != nil {
 		return nil, Diff{}, err

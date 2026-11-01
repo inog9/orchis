@@ -20,6 +20,7 @@ import (
 
 	"orchis-go/internal/db"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/osquery"
 )
 
 // DefaultSource = bundel resmi ATT&CK Enterprise (STIX 2.1) dari MITRE.
@@ -51,6 +52,15 @@ var DefaultLinks = []Link{
 	{"nuclei.scan", "T1595.002", "direct", "Nuclei sends template-based probes to a target to find known vulnerabilities, which is Active Scanning: Vulnerability Scanning."},
 	{"agent.system_info", "T1082", "direct", "The agent reads hostname, OS, architecture, kernel and memory from the endpoint, which is System Information Discovery."},
 	{"agent.listening_ports", "T1049", "direct", "The agent lists listening sockets from /proc/net/tcp*, which is System Network Connections Discovery."},
+}
+
+func init() {
+	// Aksi osquery: pemetaan dan alasannya berasal dari katalog beku internal/osquery (satu sumber kebenaran).
+	for _, q := range osquery.Queries {
+		for _, m := range q.Mitre {
+			DefaultLinks = append(DefaultLinks, Link{Contract: q.Key, Technique: m.ID, Basis: "direct", Reason: m.Reason})
+		}
+	}
 }
 
 type Importer struct {

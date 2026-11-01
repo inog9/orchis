@@ -30,6 +30,7 @@ type Service struct {
 }
 
 type Simulation struct {
+	IsDemo       bool       `json:"is_demo"`
 	ID           uuid.UUID  `json:"id"`
 	Number       int64      `json:"number"`
 	Code         string     `json:"code"` // OP-0142
@@ -85,7 +86,7 @@ func terminalStatus(s string) bool {
 
 func code(n int64) string { return fmt.Sprintf("OP-%04d", n) }
 
-const simCols = `s.id, s.number, s.name, s.status, s.scenario_id, sc.name, s.safe_mode, s.timeout_seconds, s.cancel_reason, s.started_at, s.ended_at, s.created_at,
+const simCols = `s.is_demo, s.id, s.number, s.name, s.status, s.scenario_id, sc.name, s.safe_mode, s.timeout_seconds, s.cancel_reason, s.started_at, s.ended_at, s.created_at,
  (SELECT count(*) FROM simulation_targets t WHERE t.tenant_id=s.tenant_id AND t.simulation_id=s.id),
  (SELECT count(*) FROM simulation_steps t WHERE t.tenant_id=s.tenant_id AND t.simulation_id=s.id),
  (SELECT count(DISTINCT o.finding_id) FROM finding_occurrences o WHERE o.tenant_id=s.tenant_id AND o.simulation_id=s.id)`
@@ -93,7 +94,7 @@ const simFrom = `FROM simulations s LEFT JOIN scenarios sc ON sc.tenant_id=s.ten
 
 func scanSim(row pgx.Row) (Simulation, error) {
 	var s Simulation
-	err := row.Scan(&s.ID, &s.Number, &s.Name, &s.Status, &s.ScenarioID, &s.ScenarioName, &s.SafeMode, &s.TimeoutSecs, &s.CancelReason, &s.StartedAt, &s.EndedAt, &s.CreatedAt,
+	err := row.Scan(&s.IsDemo, &s.ID, &s.Number, &s.Name, &s.Status, &s.ScenarioID, &s.ScenarioName, &s.SafeMode, &s.TimeoutSecs, &s.CancelReason, &s.StartedAt, &s.EndedAt, &s.CreatedAt,
 		&s.TargetCount, &s.StepCount, &s.FindingCount)
 	s.Code = code(s.Number)
 	return s, err
@@ -232,7 +233,7 @@ WHERE st.tenant_id=$1 AND st.scenario_id=$2`, p.TenantID, scenarioID)
 			for _, t := range targets {
 				if needsAgent {
 					var has bool
-					if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND status<>'revoked')`, p.TenantID, t.ID).Scan(&has); err != nil {
+					if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked')`, p.TenantID, t.ID).Scan(&has); err != nil {
 						return err
 					}
 					if !has {
@@ -490,12 +491,16 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*De
 func (s *Service) transition(ctx context.Context, p *auth.Principal, id uuid.UUID, from []string, to, action, ip, reqID string, extra func(ctx context.Context, tx pgx.Tx) error) (*Detail, error) {
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var cur string
-		err := tx.QueryRow(ctx, `SELECT status FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, id).Scan(&cur)
+		var synthetic bool
+		err := tx.QueryRow(ctx, `SELECT status,is_demo FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, id).Scan(&cur, &synthetic)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Simulation")
 		}
 		if err != nil {
 			return err
+		}
+		if synthetic {
+			return httpx.Conflict("This is inert synthetic history. Launch a new scenario against authorized local fixtures to execute checks.")
 		}
 		ok := false
 		for _, f := range from {
@@ -612,7 +617,7 @@ WHERE tenant_id=$1 AND simulation_id=$2 AND state IN ('ready','running') RETURNI
 func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) (advanced, timedOut int, err error) {
 	var running, expired []uuid.UUID
 	err = s.DB.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id, (started_at + make_interval(secs => timeout_seconds) < now()) FROM simulations WHERE tenant_id=$1 AND status IN ('running','paused')`, tenant)
+		rows, err := tx.Query(ctx, `SELECT id, (started_at + make_interval(secs => timeout_seconds) < now()) FROM simulations WHERE tenant_id=$1 AND NOT is_demo AND status IN ('running','paused')`, tenant)
 		if err != nil {
 			return err
 		}

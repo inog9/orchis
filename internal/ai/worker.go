@@ -23,7 +23,7 @@ type Claim struct {
 func (s *Service) Claim(ctx context.Context) (*Claim, error) {
 	// Tidak mengulang panggilan provider setelah lease hilang: biaya/hasil panggilan lama mungkin tidak diketahui.
 	if e := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
-		_, e := tx.Exec(ctx, `UPDATE ai_jobs SET status='failed',error='Worker lease expired. Review provider usage before requesting again.',claim_hash=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND status='running' AND lease_until<now()`, s.Tenant)
+		_, e := tx.Exec(ctx, `UPDATE ai_jobs SET status='failed',error='Worker lease expired. Review provider usage before requesting again.',claim_hash=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND NOT is_demo AND status='running' AND lease_until<now()`, s.Tenant)
 		return e
 	}); e != nil {
 		return nil, e
@@ -31,7 +31,7 @@ func (s *Service) Claim(ctx context.Context) (*Claim, error) {
 	var claim *Claim
 	e := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
 		var org uuid.UUID
-		e := tx.QueryRow(ctx, `SELECT p.organization_id FROM ai_policies p WHERE p.tenant_id=$1 AND p.enabled AND EXISTS(SELECT 1 FROM ai_jobs j WHERE j.tenant_id=p.tenant_id AND j.organization_id=p.organization_id AND j.status='queued' AND j.policy_version=p.version) AND NOT EXISTS(SELECT 1 FROM ai_jobs j WHERE j.tenant_id=p.tenant_id AND j.organization_id=p.organization_id AND (j.status='running' OR (j.status IN('review','completed','failed') AND j.updated_at>now()-interval '10 seconds'))) ORDER BY p.organization_id FOR UPDATE OF p SKIP LOCKED LIMIT 1`, s.Tenant).Scan(&org)
+		e := tx.QueryRow(ctx, `SELECT p.organization_id FROM ai_policies p WHERE p.tenant_id=$1 AND p.enabled AND NOT p.is_demo AND EXISTS(SELECT 1 FROM ai_jobs j WHERE j.tenant_id=p.tenant_id AND j.organization_id=p.organization_id AND NOT j.is_demo AND j.status='queued' AND j.policy_version=p.version) AND NOT EXISTS(SELECT 1 FROM ai_jobs j WHERE j.tenant_id=p.tenant_id AND j.organization_id=p.organization_id AND (j.status='running' OR (j.status IN('review','completed','failed') AND j.updated_at>now()-interval '10 seconds'))) ORDER BY p.organization_id FOR UPDATE OF p SKIP LOCKED LIMIT 1`, s.Tenant).Scan(&org)
 		if errors.Is(e, pgx.ErrNoRows) {
 			return nil
 		}
@@ -46,7 +46,7 @@ func (s *Service) Claim(ctx context.Context) (*Claim, error) {
 		if busy {
 			return nil
 		}
-		j, e := scanJob(tx.QueryRow(ctx, `SELECT `+jobCols+` FROM ai_jobs WHERE tenant_id=$1 AND organization_id=$2 AND status='queued' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1`, s.Tenant, org))
+		j, e := scanJob(tx.QueryRow(ctx, `SELECT `+jobCols+` FROM ai_jobs WHERE tenant_id=$1 AND organization_id=$2 AND NOT is_demo AND status='queued' ORDER BY id FOR UPDATE SKIP LOCKED LIMIT 1`, s.Tenant, org))
 		if e != nil {
 			return e
 		}

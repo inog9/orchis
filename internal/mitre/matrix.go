@@ -24,15 +24,17 @@ type Service struct {
 }
 
 type Cell struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Mapped    bool       `json:"mapped"`    // ada aksi platform yang melatih teknik ini
-	Exercised bool       `json:"exercised"` // aksi itu pernah berhasil dijalankan sungguhan (eksekusi nyata, bukan data demo)
-	Simulated bool       `json:"simulated"` // hanya dirujuk data demo/sintetis; TIDAK pernah dihitung sebagai exercised
-	Platforms []string   `json:"platforms"`
-	Runs      int        `json:"runs"`
-	LastRunAt *time.Time `json:"last_run_at"`
-	Subs      []Cell     `json:"subs,omitempty"`
+	ID                string     `json:"id"`
+	Name              string     `json:"name"`
+	Mapped            bool       `json:"mapped"`    // ada aksi platform yang melatih teknik ini
+	Exercised         bool       `json:"exercised"` // aksi itu pernah berhasil dijalankan sungguhan (eksekusi nyata, bukan data demo)
+	Simulated         bool       `json:"simulated"` // bukti sintetis tetap terpisah, dapat beririsan dengan mapped/exercised
+	SimulatedRuns     int        `json:"simulated_runs"`
+	SimulatedFindings int        `json:"simulated_findings"`
+	Platforms         []string   `json:"platforms"`
+	Runs              int        `json:"runs"`
+	LastRunAt         *time.Time `json:"last_run_at"`
+	Subs              []Cell     `json:"subs,omitempty"`
 }
 
 type Column struct {
@@ -47,7 +49,7 @@ type Matrix struct {
 	Total     int      `json:"total"`     // teknik induk
 	Mapped    int      `json:"mapped"`    // teknik (induk) yang bisa dilatih
 	Exercised int      `json:"exercised"` // teknik (induk) yang pernah dilatih
-	Simulated int      `json:"simulated"` // teknik (induk) yang hanya muncul di data demo
+	Simulated int      `json:"simulated"` // teknik induk dengan bukti sintetis, tidak menambah exercised
 	Platforms []string `json:"platforms"` // semua platform yang muncul pada teknik aktif (untuk filter)
 	Imported  bool     `json:"imported"`
 	LastRun   *Run     `json:"last_run"`
@@ -72,69 +74,8 @@ func (s *Service) Matrix(ctx context.Context, p *auth.Principal) (*Matrix, error
 	}
 	m.LastRun = last
 	err = s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		// teknik yang dipetakan ke aksi, dan jumlah/waktu eksekusi sukses per teknik
-		type stat struct {
-			mapped bool
-			runs   int
-			last   *time.Time
-		}
-		stats := map[string]*stat{}
-		mr, err := tx.Query(ctx, `SELECT technique_id FROM contract_techniques WHERE tenant_id=$1`, p.TenantID)
+		stats, err := loadCoverage(ctx, tx, p.TenantID)
 		if err != nil {
-			return err
-		}
-		for mr.Next() {
-			var id string
-			if err := mr.Scan(&id); err != nil {
-				mr.Close()
-				return err
-			}
-			stats[id] = &stat{mapped: true}
-		}
-		mr.Close()
-		if err := mr.Err(); err != nil {
-			return err
-		}
-		er, err := tx.Query(ctx, `
-SELECT ct.technique_id, count(*), max(e.ended_at) FROM executions e
-JOIN contract_techniques ct ON ct.tenant_id=e.tenant_id AND ct.contract_id=e.contract_id
-WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.TenantID)
-		if err != nil {
-			return err
-		}
-		for er.Next() {
-			var id string
-			var n int
-			var at *time.Time
-			if err := er.Scan(&id, &n, &at); err != nil {
-				er.Close()
-				return err
-			}
-			if stats[id] == nil {
-				stats[id] = &stat{mapped: true}
-			}
-			stats[id].runs, stats[id].last = n, at
-		}
-		er.Close()
-		if err := er.Err(); err != nil {
-			return err
-		}
-
-		simulated := map[string]bool{}
-		sr, err := tx.Query(ctx, `SELECT DISTINCT details->>'mitre_technique' FROM findings WHERE tenant_id=$1 AND is_demo AND details ? 'mitre_technique'`, p.TenantID)
-		if err != nil {
-			return err
-		}
-		for sr.Next() {
-			var id string
-			if err := sr.Scan(&id); err != nil {
-				sr.Close()
-				return err
-			}
-			simulated[id] = true
-		}
-		sr.Close()
-		if err := sr.Err(); err != nil {
 			return err
 		}
 
@@ -177,12 +118,10 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 			if err := tr.Scan(&id, &name, &par, &tactics, &platforms); err != nil {
 				return err
 			}
-			c := Cell{ID: id, Name: name, Platforms: platforms, Simulated: simulated[id] && stats[id] == nil}
+			c := Cell{ID: id, Name: name, Platforms: platforms}
+			applyCoverage(&c, stats[id])
 			for _, pl := range platforms {
 				allPlatforms[pl] = true
-			}
-			if st := stats[id]; st != nil {
-				c.Mapped, c.Runs, c.LastRunAt, c.Exercised = st.mapped, st.runs, st.last, st.runs > 0
 			}
 			if par != nil {
 				subs[*par] = append(subs[*par], c)
@@ -196,15 +135,6 @@ WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' GROUP BY 1`, p.
 		for _, pr := range parents {
 			c := pr.cell
 			c.Subs = subs[c.ID]
-			for _, sc := range c.Subs {
-				c.Mapped = c.Mapped || sc.Mapped
-				c.Exercised = c.Exercised || sc.Exercised
-				c.Simulated = c.Simulated || sc.Simulated
-				c.Runs += sc.Runs
-				if sc.LastRunAt != nil && (c.LastRunAt == nil || sc.LastRunAt.After(*c.LastRunAt)) {
-					c.LastRunAt = sc.LastRunAt
-				}
-			}
 			m.Total++
 			if c.Mapped {
 				m.Mapped++
@@ -252,6 +182,7 @@ type Detail struct {
 	Parent            *string      `json:"parent"`
 	Deprecated        bool         `json:"deprecated"`
 	Simulated         bool         `json:"simulated"`
+	SimulatedRuns     int          `json:"simulated_runs"`
 	SimulatedFindings int          `json:"simulated_findings"`
 	Runs              int          `json:"runs"`
 	LastRunAt         *time.Time   `json:"last_run_at"`
@@ -308,8 +239,14 @@ WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id F
 		if err := mrows.Err(); err != nil {
 			return err
 		}
-		if err := tx.QueryRow(ctx, `SELECT count(*) FROM findings WHERE tenant_id=$1 AND is_demo AND details->>'mitre_technique' = $2`, p.TenantID, id).Scan(&d.SimulatedFindings); err != nil {
+		stats, err := loadCoverage(ctx, tx, p.TenantID)
+		if err != nil {
 			return err
+		}
+		if st := stats[id]; st != nil {
+			d.Runs, d.LastRunAt = st.Runs, st.LastRunAt
+			d.SimulatedRuns, d.SimulatedFindings = st.SimulatedRuns, st.SimulatedFindings
+			d.Simulated = st.SimulatedRuns > 0 || st.SimulatedFindings > 0
 		}
 		rows, err := tx.Query(ctx, `SELECT DISTINCT c.name FROM contract_techniques ct JOIN contracts c ON c.tenant_id=ct.tenant_id AND c.id=ct.contract_id
 WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id FROM mitre_techniques WHERE parent_id=$2)) ORDER BY 1`, p.TenantID, id)
@@ -338,17 +275,15 @@ WHERE ct.tenant_id=$1 AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id F
 				srows.Close()
 				return err
 			}
+			applyCoverage(&c, stats[c.ID])
 			d.Subs = append(d.Subs, c)
 		}
 		srows.Close()
 		if err := srows.Err(); err != nil {
 			return err
 		}
-		return tx.QueryRow(ctx, `
-SELECT count(*), max(e.ended_at) FROM executions e JOIN contract_techniques ct ON ct.tenant_id=e.tenant_id AND ct.contract_id=e.contract_id
-WHERE e.tenant_id=$1 AND e.state='ended' AND e.outcome='success' AND (ct.technique_id=$2 OR ct.technique_id IN (SELECT id FROM mitre_techniques WHERE parent_id=$2))`, p.TenantID, id).Scan(&d.Runs, &d.LastRunAt)
+		return nil
 	})
-	d.Simulated = d.SimulatedFindings > 0 && d.Runs == 0
 	return d, err
 }
 

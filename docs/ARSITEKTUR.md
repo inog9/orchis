@@ -1893,3 +1893,367 @@ eksekusi NYATA yang sukses; simulated = hanya dirujuk data demo. Simulated tidak
 trained atau mapped. Di laporan, temuan bertipe kerentanan dikaitkan ke T1190 sebagai
 "estimate" beralasan (bukan bukti eksploitasi); temuan port/layanan/teks tidak dipetakan. Nama teknik,
 basis, dan alasan dibekukan di snapshot sehingga tidak berubah saat ATT&CK diperbarui.
+
+## 36. Data endpoint dari osquery (T4)
+
+ADR 114: osquery dijalankan agent SEKALI JALAN (`osqueryd -S --json --ephemeral`, tanpa daemon, ekstensi, peristiwa, atau
+watchdog), dari katalog query BERNAMA yang dibekukan di `internal/osquery/catalog.json`. Teks SQL hanya ada di biner agent/server;
+server hanya mengirim kunci kontrak (`osquery.inventory|packages|users|network|hardening|firewall`), parameter selalu `{}`.
+Setiap query lolos pemeriksaan statis saat start dan tepat sebelum dijalankan: hanya SELECT tunggal, tabel yang dibaca (diurai dari
+FROM/JOIN/koma/subquery) sama dengan yang dideklarasikan dan ada di daftar izin; tabel terlarang (riwayat peramban, kunci SSH,
+environment/berkas terbuka proses, isi file, hash kata sandi, dst.) dan kolom terlarang (`cmdline`, `environ`, ...) menang atas
+daftar izin. Query yang butuh hak admin atau OS lain dilewati dengan alasan tertulis, bukan gagal diam-diam.
+
+ADR 115: pemasangan osquery di direktori agent sendiri (mode pengguna). Artefak dipatok dua kali: SHA-256 dan ukuran di katalog (kode
+agent) dan tanda tangan Ed25519 dengan kunci rilis agent atas pesan berdomain terpisah (`orchis-agent-tool`, mengikat nama, versi,
+platform, hash). `cmd/agenttool` hanya mau menandatangani artefak yang hash-nya dipatok; server menyajikan `<rilis>/tools/` ke agent
+terautentikasi; agent menolak hash, ukuran, tanda tangan, atau versi yang berbeda, hanya mengekstrak satu berkas bernama pasti (bukan
+symlink, batas ukuran), uji asap `--version`, lalu memasang secara atomik. Lisensi osquery Apache-2.0 OR GPL-2.0-only; dipakai di bawah
+Apache-2.0 (lihat NOTICE). Hanya linux/amd64 yang dipatok dan terbukti; macOS/Windows belum.
+
+ADR 116: hasil dari agent TIDAK TEPERCAYA. `Result.Datasets` disanitasi server terhadap skema query (kolom di luar skema dibuang, sel
+dipotong dan diredaksi, baris dibatasi, status/query dicocokkan) lalu dipetakan oleh aturan DEKLARATIF beku (data, bukan kode) menjadi
+atribut aset dan temuan (tipe `text|service|open_port` sesuai kontrak; tidak ada kerentanan/CVE yang dikarang). Temuan dari klaim agent
+di luar aturan tidak diterima. Disimpan hanya hasil TERAKHIR per aset+query (`endpoint_datasets`); percobaan yang dilewati atau gagal
+mencatat status dan alasan tanpa menimpa data baik terakhir.
+
+ADR 117: opt-in per organisasi (`osquery_org_settings`). Bawaan: sensitivitas rendah aktif, sedang/tinggi perlu persetujuan admin
+(`settings.manage`, diaudit dengan tabel yang dibaca). Ditegakkan di `Runtime.Claim`: query yang tidak disetujui diselesaikan server
+sebagai berhasil-dilewati ("not approved for this organisation"), agent tidak pernah mendapat tugasnya. Mencabut persetujuan
+mengeluarkan datanya dari laporan BARU (data lama di snapshot beku tetap).
+
+ADR 118: laporan memuat "Endpoint posture" (per aset dan ringkasan): atribut daftar putih (tanpa nama host, tanpa daftar paket/akun
+mentah), temuan dihitung ulang dari data lewat aturan yang sama, dan perbandingan port Nmap (dari luar) vs osquery (dari dalam):
+terlihat keduanya, hanya scan, hanya dalam. Selisih dijelaskan sebagai petunjuk, bukan bukti. Data demo osquery sintetis (is_demo,
+bukan eksekusi nyata, tidak dihitung di MITRE).
+
+ADR 123: pack osquery resmi (`vuln-management`, `it-compliance`, `incident-response`, `hardware-monitoring`, `ossec-rootkit`)
+dibekukan dari tarball yang DIPATOK (hash dicek terhadap katalog) oleh `cmd/osquery-packs` menjadi `internal/osquery/packs.json`
+(versi, hash tarball, hash tiap berkas .conf). Tidak diunduh saat runtime. Setiap query diklasifikasi: `runnable` (tabel ada di
+daftar izin, lolos validasi yang sama dengan query bawaan, dicoba pada osquery asli sehingga kolom dan contohnya nyata),
+`sensitive` (tabel/kolom terlarang: dilewati, "data sensitif"), `not_reviewed` (tabel belum ditinjau), `other_os` (macOS/Windows,
+belum terbukti), `unverified` (tidak menghasilkan sampel saat dibekukan, kolom tak dapat dipastikan). Hasil jujurnya: dari 5 pack
+hanya 18 query yang berjalan di Linux; `ossec-rootkit` seluruhnya membaca berkas (tabel `file`) sehingga tidak ada yang berjalan.
+Daftar izin bertambah enam tabel metadata sistem (`kernel_modules`, `mounts`, `etc_hosts`, `time`, `pci_devices`, `usb_devices`)
+lewat tinjauan kode; daftar tabel terlarang tetap menang atas pack apa pun. Hanya `;` penutup di akhir SQL pack yang dibuang.
+
+ADR 124: query pack yang `runnable` menjadi `Query` katalog biasa (kunci `osquery.pack.<pack>.<nama>`, sensitivitas sedang) dan
+mendapat kontrak tanpa parameter yang dibuat saat start dari katalog beku (`addPackContracts`). Karena itu seluruh jalur yang ada
+berlaku tanpa cabang khusus: server hanya mengirim kunci, hasil disanitasi terhadap skema, persetujuan dicek saat klaim, data
+terakhir per aset+query. Opt-in per pack: `PUT /api/v1/organizations/{id}/osquery-packs/{pack}` (settings.manage) mengubah
+SELURUH query pack yang dapat berjalan dalam satu transaksi dan menulis audit berisi versi osquery, hash pack, kunci query dan
+tabel yang dibaca. UI menampilkan tabel sebelum admin menyetujui dan memuat daftar query yang dilewati beserta alasannya. Tanpa
+persetujuan, eksekusi ditutup sebagai berhasil-dilewati dengan alasan (bukan galat). Demo tidak mengarang data pack.
+
+ADR 125: hasil osquery dapat dipakai chain tanpa argumen mentah. Kondisi: field `installed_software` (nama paket dari temuan osquery
+tipe `service` bernilai `osquery:package:<nama>`; temuan lain tidak pernah dihitung). Mapper: `installed_software -> tags` hanya
+untuk langkah Nuclei dan hanya lewat tabel beku `SoftwareTags` (nginx -> nginx, apache2/httpd -> apache); nama paket dari endpoint
+tidak pernah menjadi argumen, hasilnya melewati normalisasi kontrak, dan tanpa paket yang dikenal langkah diblokir dengan alasan.
+Pasangan sumber/tujuan mapper divalidasi eksplisit.
+
+Batas yang diakui: tidak ada pencocokan CVE (versi
+paket dicatat, tidak dinilai); `iptables` tidak melihat nftables (temuan menyatakannya); Linux tidak punya tabel patch di osquery;
+agent lama (sebelum rilis ini) tidak mengenal aksi osquery dan melaporkan galat: naikkan versi agent (`make agent-release`).
+
+
+## 37. Penghapusan artefak demo yang dapat dipulihkan
+
+ADR 119: transaksi database tidak dapat mengikutsertakan MinIO dan Elasticsearch secara atomik.
+Purge mengunci induk demo sebelum memeriksa referensi nyata, lalu menghapus baris bisnis dan
+mencatat niat penghapusan pada `demo_cleanup_tasks` dalam transaksi tenant yang sama. Baris tugas
+mengandung hanya kunci PDF turunan server atau ID finding demo. Setelah commit, penghapusan
+idempoten memakai kunci objek tepat dan filter Elasticsearch tenant+ID, bukan penghapusan bucket
+atau index. Worker mengambil batch dengan `FOR UPDATE SKIP LOCKED`, mencoba kembali setelah
+restart, dan membiarkan tugas terlihat bila backend tidak tersedia atau hasil penghapusan parsial.
+`cleanup_pending` dan metrik `orchis_demo_cleanup_pending` membedakan data bisnis yang sudah hilang
+dari artefak yang belum dibersihkan. Seed baru ditolak sampai tugas lama habis, termasuk seed sama,
+agar retry tidak menghapus artefak baru yang memakai ID deterministik sama. Audit tindakan operator
+yang nyata tetap disimpan; hitungan baseline bisnis tidak menyatakan audit operasional ikut hilang.
+
+Klaim render dikunci sebelum purge; PDF yang sedang dirender harus selesai terlebih dahulu.
+Indexer memegang key-share pada finding selama put ke Elasticsearch sehingga put yang sudah
+berjalan selesai sebelum delete database dan cleanup index. Tes konkurensi memakai penguncian
+PostgreSQL nyata, bukan hanya mock. Report demo sukses dimulai `queued` dan baru `ready` sesudah
+renderer normal menyimpan PDF nyata; retry render mempertahankan snapshot sintetis yang sama.
+
+Tinjauan PDF menemukan gaya kolom scope tanpa pembungkusan ikut diterapkan pada tabel endpoint.
+Tabel endpoint kini memakai kelas sendiri; pengujian geometri cetak memastikan teks OS/kernel
+berada di dalam sel pada lebar A4. Penanda DEMO/SYNTHETIC tetap bagian snapshot dan ekspor.
+
+
+## 38. Identitas dan relasi demo tanpa kredensial aktif
+
+ADR 120: fixture demo meliputi peran contoh admin/analyst/viewer beserta pengguna disabled
+(tanpa password), token API dicabut/kedaluwarsa, link reset terpakai/kedaluwarsa, peserta/tim,
+grup dinamis, saved tests, preset dan tiga contoh status injector. Semua induk memakai `is_demo`;
+baris penghubung dimiliki induknya dan dihapus dalam transaksi yang sama. Peran, preset dan
+status integrasi bawaan tidak diganti oleh contoh. Grup contoh memakai aturan platform+tag demo,
+sedangkan keanggotaan grup bawaan dihitung ulang seperti perubahan aset normal. Alert pertama
+ditandai dibaca oleh operator seed, sisanya belum dibaca.
+
+Pertahanan autentikasi menolak penanda demo pada login, session, API token, reset dan agent,
+termasuk jika status atau hash kemudian diubah. Token profil contoh tampil sebagai revoked,
+synthetic dan tidak dapat dipakai. Status injector contoh dibekukan sebagai ilustrasi, tanpa
+kredensial worker dan tanpa tombol pengelolaan; penerbitan token dan autentikasi menolaknya.
+Home hanya menghitung injector nyata, dan metrik heartbeat mengecualikan agent demo.
+
+Alamat demo dengan izin scan hanya `127.0.0.1`; hostname `.example.invalid` tidak diotorisasi.
+Migrasi mencabut izin alamat nonlokal pada seed lama. Ini tidak mengubah guard loopback Run,
+Claim atau injector: eksekusi nyata ke fixture tetap memerlukan konfigurasi dan otorisasi biasa.
+Purge mengunci induk tambahan dan menolak referensi nyata ke peran, tim, orang, grup, atau
+pengguna demo. Tidak ada akun demo yang dibuat saat startup produksi normal.
+
+
+## 39. Riwayat simulasi sintetis dan snapshot demo yang konsisten
+
+ADR 121: data demo mempunyai riwayat simulasi bertanda `is_demo`, dengan tujuh status
+simulasi serta contoh langkah done/failed/skipped/blocked/canceled/waiting. Skenario perimeter
+memakai kondisi AND/OR/DEPEND_ON, cabang match/else/failure dan mapper web URL; semua graf dan
+parameter divalidasi memakai katalog yang sama. Target beku hanya loopback, keputusan per
+langkah disimpan dengan alasan dan provenance sintetis. Ini adalah ilustrasi, bukan bukti
+scanner atau agent pernah berjalan. Database membatasi eksekusi demo ke status akhir dan
+melarang kunci raw output; engine/timer/kontrol resume serta Claim juga memisahkannya dari
+pekerjaan nyata. Tidak ada dispatch/outbox dari seed. UI menandai riwayat dan menyembunyikan
+kontrol eksekusi; penghitung live tidak memasukkan ilustrasi. MITRE trained dan detail runs
+hanya menghitung eksekusi tanpa penanda demo.
+
+Snapshot demo disusun dari objek laporan bertipe. Jumlah severity dihitung dari kerentanan
+yang benar-benar disertakan dalam snapshot, dengan ID temuan stabil, bukti daftar putih,
+CVE contoh dan pemetaan MITRE berlabel perkiraan. Per versi/organisasi: tiga aset dengan
+metodologi sintetis lengkap, satu gagal parsial, enam dilewati dengan alasan. Aset dilewati
+tidak memperoleh daftar temuan scan saat ini. Perbandingan memakai `reporting.Compare` yang
+sama dengan laporan nyata, diberi awalan sintetis, dan mengecualikan aset gagal/dilewati.
+Perubahan daftar temuan, bukan pengali statistik, menghasilkan contoh tren. Metadata first/
+last seen dan occurrence count direkonsiliasi dari riwayat sintetis bila tidak bercampur dengan
+observasi nyata. Snapshot yang sudah ada tidak ditulis ulang saat seed diulang.
+
+Versi format fixture dicatat pada demo_seed_state. Seed lama ditolak dengan petunjuk purge
+sebelum format baru dimuat; migrasi tidak mengubah isi snapshot beku. Purge mengunci simulasi/
+eksekusi, melindungi referensi nyata, lalu menghapus keputusan, occurrence dan riwayat miliknya
+sesuai urutan FK. Uji mutasi mencakup dispatch, klasifikasi trained, total snapshot dan batasan
+antrean sintetis. Semua mutasi dijalankan di salinan sumber disposable.
+
+
+Pemeriksaan referensi purge juga mencakup eksekusi nyata milik saved test demo setelah target
+test dipindahkan ke aset nyata. Kepemilikan riwayat diuji melalui `atomic_test_id`, bukan hanya
+target aset saat ini; perubahan target tidak boleh membuka penghapusan cascade riwayat nyata.
+
+
+## 40. Fixture AI dari API palsu lokal dan hasil saved test sintetis
+
+ADR 122: seeder membuka listener IPv4 loopback miliknya sendiri, memanggilnya melalui client
+provider DeepSeek/OpenAI yang sama, lalu memvalidasi output dengan validator biasa. Listener
+ditutup sebelum seed kembali. Transport tambahan menolak origin selain listener tersebut,
+termasuk origin loopback lain; pengujian bypass memakai listener lokal kedua, tidak pernah
+provider nyata. Tidak ada key provider, master key, atau URL dari konfigurasi deployment yang
+digunakan untuk menghasilkan fixture. Hanya laporan demo yang diminimalkan menjadi alias dan
+metadata teknis. Output adalah placeholder berlabel, bukan saran keamanan hasil model nyata.
+
+Per organisasi dibuat policy sintetis disabled tanpa ciphertext kredensial, dengan provenance
+consent contoh; empat job review/completed/rejected/canceled; dan dua versi template per tujuan
+pada tenant. Versi template ditambahkan setelah versi yang sudah ada tanpa menimpanya, sedangkan
+ID fixture deterministik. Prompt yang benar-benar dikirim ke API palsu dibekukan bersama versi
+dan referensi template. `rejected` adalah keadaan fixture review; operasi approval/cancel nyata
+yang sudah ada tidak diubah menjadi workflow baru. Job/policy demo read-only di API/UI; worker,
+approval dan batasan database mencegah job sintetis masuk queued/running/approved. Tampilan
+usage menyatakan sintetis tanpa billing. JSON/CSV mempunyai penanda eksplisit; HTML/PDF memiliki
+label DEMO/SYNTHETIC. Snapshot laporan sumber tidak berubah.
+
+Tiga saved test juga memperoleh contoh hasil terminal success/error/skipped, tanpa dispatch,
+raw object atau proses scanner. Penanda ikut API execution dan ditampilkan pada detail hasil.
+Purge menghapus job/actions/template/policy demo sebelum induknya dan menolak referensi AI nyata.
+Format fixture naik ke 3; format lama harus dipurge eksplisit agar snapshot tidak ditulis ulang.
+
+Ekspor PDF suplemen AI kini menerima reporting.Service yang dikonfigurasi server, sehingga
+memakai renderer internal terautentikasi pada deployment, sama dengan laporan organisasi.
+Fallback script lokal tetap untuk handler dev mandiri. Tes HTTP memakai renderer lokal palsu
+untuk membuktikan transport/auth; E2E terpisah merender PDF Chromium sungguhan untuk tinjauan
+visual. Ini tidak membuktikan kualitas saran, biaya atau ketersediaan provider AI nyata.
+
+## 41. Agent demo tidak menerima pekerjaan endpoint baru
+
+ADR 123: penanda `agents.is_demo` diperiksa saat memilih pelaksana, selain saat
+memeriksa kredensial. Saved test dan prapemeriksaan peluncuran scenario menolak
+aset yang hanya mempunyai agent sintetis. Engine mengulang pemilihan ini ketika
+meluncurkan langkah anak; hilangnya agent nyata menghasilkan kegagalan eksplisit
+per aset, sehingga chain tidak menunggu pelaksana yang tidak dapat mengautentikasi.
+`has_agent` pada data endpoint menunjukkan agent yang dapat menerima pekerjaan,
+bukan keberadaan baris inventaris sintetis. Inventaris dan dataset demo tetap dapat
+dilihat dengan penandanya. Agent nyata pada aset yang sama tetap dapat dipilih.
+
+Tes PostgreSQL mencakup penolakan sebelum antre, kontrol positif agent nyata, dan
+perubahan penanda sebelum langkah anak. Empat mutasi terisolasi menghapus filter
+pada inventaris, saved test, prapemeriksaan, dan engine secara bergantian; tidak
+mengubah proses agent atau data instalasi review.
+
+
+## 42. Distribusi bundel MITRE yang dipatok
+
+ADR 124: `mitre-fetch` memulihkan tepat pin pada manifest yang sudah ditinjau; ia
+tidak pernah menerima hash baru atau menulis manifest. `mitre-update` tetap merupakan
+operasi pemelihara untuk membekukan versi baru dan meninjau diff. Validasi mencakup
+nama berkas, matriks Enterprise, versi, SHA-256, ukuran dan hitungan dataset; unduhan
+ditulis sementara dan baru mengganti cache setelah seluruh pemeriksaan lulus.
+Cache yang valid tidak menimbulkan permintaan jaringan. Pengalihan unduhan build
+dibatasi ke HTTPS; runtime produksi hanya menerima path lokal absolut dan hash valid.
+
+Image server membawa bundel dan manifest read-only, dapat dibaca UID 10001, serta
+salinan lisensi/disclaimer MITRE. Build dapat memakai cache offline yang diverifikasi.
+Setup produksi baru mengisi pin otomatis; instalasi lama memerlukan `prod-mitre-config`
+eksplisit dan restart project terpilih. Pembaruan ini tidak mengganti kredensial.
+Probe HTTPS membandingkan versi/hash dan hierarki lengkap dari API dengan manifest;
+data parsial atau impor gagal menggagalkan probe. Snapshot laporan tetap independen.
+
+Sumber Enterprise 20.0 memuat 15 taktik, 227 teknik induk aktif, 479 sub-teknik aktif,
+12 deprecated dan 149 revoked yang dilewati. Parser memakai urutan matriks sumber,
+bukan asumsi14taktik. Skema menyimpan teknik, taktik, platform, relasi induk dan
+mitigasi; kelompok/perangkat lunak dan matriks Mobile/ICS belum dimodelkan.
+
+
+Verifikasi image memeriksa izin seluruh induk path, isi manifest, hash/ukuran bundel
+dan salinan lisensi sebelum smoke memulai layanan. Izin direktori dan berkas diatur
+terpisah pada builder: direktori 0555, JSON 0444. `COPY --chmod=0444` sengaja tidak
+digunakan karena juga membuat direktori tujuan dan induknya tidak dapat ditelusuri
+UID 10001. Smoke memeriksa impor pada source serta restore, sebelum menilai hasil scan.
+
+
+## 43. Bukti cakupan MITRE yang dapat beririsan
+
+ADR 125: mapped, trained dan simulated merupakan sifat yang terpisah. Pemetaan
+aksi tidak menghapus penanda demo; eksekusi nyata yang kemudian berhasil juga
+tidak menyamarkan bukti sintetis yang sudah ada. API matriks dan detail memakai
+agregasi yang sama, termasuk `simulated_runs` serta `simulated_findings`.
+Hanya eksekusi non-demo yang berakhir sukses dapat menambah trained dan last run.
+Eksekusi demo sukses serta referensi teknik pada temuan demo disajikan terpisah;
+keduanya tidak membuktikan perilaku keamanan nyata. Run gagal tidak ikut dihitung.
+
+Agregasi teknik induk menghitung ID eksekusi dan temuan yang unik, sehingga satu
+run dengan dua pemetaan sub-teknik tidak menjadi dua run pada induknya. Detail
+sub-teknik memakai data cakupan yang sama. Seluruh agregasi dibatasi tenant,
+di atas RLS transaksi yang sudah ada. Temuan non-demo tidak menjadi referensi demo.
+Pemetaan perilaku scanner tetap konservatif: Nuclei mendeteksi kerentanan sebagai
+T1595.002, sedangkan T1190 pada temuan adalah perkiraan dan tidak menandai eksploitasi.
+
+Warna sel mengutamakan trained/mapped, sedangkan badge Demo selalu terlihat bila
+ada bukti sintetis. Legenda menjelaskan bahwa hitungan dapat beririsan. Matriks
+memiliki batas tinggi dan gulir internal; pemilihan teknik membawa fokus ke panel
+detail, termasuk setelah perubahan ukuran layar. Escape menutupnya dan mengembalikan
+fokus ke teknik semula. Judul, tombol tutup, dan deskripsi diuji secara geometris
+pada 1280 dan 834 px; konten panel tidak boleh menyusut demi batas tinggi.
+
+Regresi PostgreSQL mencakup tenant lain, kontrol data non-demo, kegagalan yang
+dikecualikan dan pemetaan ganda. E2E menjalankan satu Nmap sungguhan ke fixture
+loopback setelah seed, lalu memastikan trained bertambah satu sementara hitungan
+sintetis tetap. Ini menguji pencatatan perilaku scan, bukan keberhasilan eksploitasi.
+Mutasi menghapus pemisahan sumber, filter sukses, deduplikasi dan penanda irisan;
+seluruhnya harus terdeteksi sebelum sumber dipulihkan.
+
+## 44. Batas data endpoint sebelum penyimpanan
+
+ADR 126: hasil osquery menggunakan dataset query bernama sebagai satu-satunya
+sumber bukti. Kanal `output`, log bebas, dan temuan yang dikirim agent dibuang.
+Server hanya membuat temuan melalui aturan pemetaan katalog yang dibekukan,
+termasuk bila tipe temuan kiriman agent kebetulan diizinkan kontrak. Diagnostik
+kegagalan dan alasan dataset disunting sebelum disimpan atau menjadi alert.
+
+Penyelesaian mengambil kunci baris eksekusi dan memeriksa identitas executor serta
+status running sebelum mengakses object store. Hasil duplikat, dibatalkan, atau
+ID yang tidak dikenal tidak membuat objek. Hasil scanner tetap mengikuti aturan
+keluaran mentah yang sudah ada; hasil osquery tidak mempunyai objek keluaran bebas.
+Dataset tersanitasi disimpan terpisah pada tabel endpoint, bukan pada kanal ini.
+
+Sanitasi menolak kolom di luar skema, menyunting kredensial sebelum pemotongan sel,
+dan membatasi JSON dataset akhir hingga 1 MiB dengan menghitung escaping dan
+metadata. Penanda truncated menyatakan pemotongan baris. Versi osquery hanya
+menerima bentuk versi numerik, bukan teks diagnostik. Bearer/Basic authorization,
+nilai kredensial berpetik, userinfo URL, dan blok kunci privat turut disunting.
+Redaksi merupakan pembatasan tambahan; daftar kolom tetap menjadi batas utama.
+
+Runner membatasi stdout 8 MiB dan stderr 64 KiB. Query administratif pada pengguna
+biasa dilewati dengan alasan perlu hak lebih sebelum pemasangan alat; runner
+memeriksa hak lagi sebelum eksekusi. Pengujian Linux menjalankan proses nyata
+sebagai UID 65534 untuk membuktikan jalur tersebut. Query pack selalu opt-in,
+termasuk jika katalog berikutnya menambahkan query pack bersensitivitas rendah.
+Persetujuan saat hasil diterima, versi persetujuan, dan retensi/riwayat mempunyai
+perubahan tersendiri; ADR ini tidak menyatakan ketiganya sudah selesai.
+
+
+## 45. Persetujuan endpoint pada penerimaan hasil
+
+ADR 127: Claim menyimpan organisasi, revisi keputusan query, dan versi aset dari
+server di `executions.endpoint_policy`. Kunci bersama aset dan organisasi menutup
+celah perubahan izin, termasuk pengaturan yang belum mempunyai baris. Penulisan
+setting mengambil kunci organisasi dan menaikkan revisi query setiap kali keputusan
+disimpan. Result memeriksa kembali snapshot, otorisasi aset, dan agent aktif sebelum
+menyimpan data. Pencabutan lalu persetujuan ulang tidak menghidupkan hasil lama.
+Perubahan versi aset juga membatalkan hasil yang masih berjalan; jalankan ulang
+setelah penyuntingan aset. Perubahan query lain tidak membatalkan query ini.
+
+Hasil yang tidak lagi diizinkan ditutup sebagai error dengan alasan eksplisit;
+dataset, temuan kiriman, dan outputnya dibuang. Dataset baik sebelumnya tetap utuh.
+Eksekusi lama tanpa snapshot persetujuan harus dijalankan ulang setelah upgrade.
+Snapshot menggunakan UUID historis tanpa FK organisasi agar identitas persetujuan
+tidak berubah mengikuti penghapusan/penataan organisasi. RLS eksekusi tetap berlaku.
+Tes PostgreSQL menguji cabut/setujui ulang, pindah organisasi, cabut izin aset/agent,
+hasil tanpa snapshot, perubahan query lain, dan kunci untuk setting yang belum ada.
+Persetujuan dokumen berversi dan UI mempunyai perubahan tersendiri.
+
+## 46. Upgrade maju dan kredensial awal produksi
+
+ADR 128: batas dukungan versi mengikuti matriks yang diuji dalam panduan operasi.
+Upgrade aplikasi memakai backup terenkripsi, migrasi maju, startup dan smoke;
+rollback skema/data berarti restore ke database/volume baru dengan image asal.
+Database sumber rehearsal hanya dibaca. Uji 17→26 memverifikasi kolom lama pada
+63 tabel dan restore ke17. Transformasi izin aset demo nonlokal dari migrasi22
+memiliki proyeksi ekspektasi tersendiri; tidak disamarkan sebagai keutuhan byte.
+Snapshot laporan tidak berubah. Rehearsal memeriksa login dan pembukaan laporan
+lama melalui aplikasi baru. Uji DB ini melengkapi smoke produksi lengkap, bukan
+menggantikan bukti pemulihan bucket, kunci dan PDF dari backup produksi.
+
+Validasi konfigurasi produksi juga mencakup broker, object store dan renderer,
+serta password admin awal. Default pengembangan ditolak sebelum aplikasi berjalan.
+Generator membuat state baru saja dan tidak menampilkan nilai rahasia; file privat
+berizin0600. Dua state independen dan upaya init ulang diuji. Password admin lama
+bukan input rotasi otomatis; mengubah konfigurasi awal tidak mengganti akun yang
+sudah tersimpan. Validasi panjang tidak membuktikan entropi password pilihan
+operator; generator acak tetap jalur pemasangan yang didukung.
+
+## 47. Halaman cetak dan provenance PDF
+
+ADR 129: formatter tampilan meringkas JSON parameter yang beku tanpa mengubah
+snapshot. Elemen pre tetap di-escape dan wrap; data rusak menampilkan alasan
+parameter tidak valid. Lampiran memakai margin/padding yang lebih padat. Penanda
+meta sintetis dari halaman cetak memilih footer demo pada setiap halaman PDF;
+marker AI advisory yang sudah ada tetap mempunyai caption tersendiri. Renderer
+tetap menolak akses jaringan dan JavaScript target.
+
+Fixture layout terpisah dari eksekusi: semua aset/temuan/metodologinya jelas sintetis
+dan tidak dikirim ke scanner. Tes memeriksa kecocokan severity, status, cakupan dan
+label; fixture tidak boleh membuat kesimpulan scan nyata. Re-render snapshot nyata
+menggunakan input hasil smoke lokal yang sudah dibekukan. QA PDF memeriksa teks,
+geometri halaman dan provenance, kemudian seluruh halaman ditinjau sebagai gambar.
+
+## 48. Dokumen persetujuan pengumpulan endpoint
+
+ADR 130: teks yang disetujui di-embed pada katalog osquery dan dipublikasikan juga
+di docs/ENDPOINT-CONSENT.md; tes menjaga kesamaan byte kedua salinan. Referensi
+versi dan SHA-256 harus cocok saat admin mengaktifkan query atau pack. Server
+merekam pengguna dan waktu sendiri, tidak mempercayai klaim actor/time dari client.
+Revisi setting tetap meningkat pada setiap keputusan sehingga hasil lama tidak
+menjadi sah kembali setelah pencabutan/persetujuan ulang. Dokumen lama atau tanpa
+referensi tidak memberi izin baru pada query yang memerlukan persetujuan eksplisit.
+Baseline rendah mengikuti default yang telah dinyatakan; seluruh pack tetap opt-in.
+
+Dialog menyatakan data, tujuan, akses, penyimpanan, retensi aktual dan cara berhenti
+atau menghapus. Approval tidak mengaktifkan AI. Retensi aktual belum otomatis:
+dataset terakhir disimpan sampai diganti atau dihapus, sementara temuan/laporan/audit/
+backup terpisah. Riwayat koleksi dan kedaluwarsa otomatis masih pekerjaan T4 yang
+belum dituntaskan; tidak disamarkan sebagai fitur yang sudah ada.
+
+DELETE endpoint-data dibatasi tenant, asset.write dan settings.manage, versi aset,
+serta larangan mengubah data demo. Kunci aset menyerialisasi penghapusan dengan
+penerimaan hasil. Kenaikan versi menggugurkan hasil yang sudah berjalan; hasil baru
+dari query antre/manual memerlukan penghentian izin terpisah bila harus dicegah.
+Audit mencatat jumlah dataset yang dihapus tanpa isinya. Temuan dan snapshot beku
+tetap utuh, dibuktikan melalui API dan E2E. Referensi dokumen lama, versi penghapusan,
+invalidation hasil, serta pemeriksaan kredensial diuji dengan mutasi pada salinan.

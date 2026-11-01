@@ -125,7 +125,7 @@ func Validate(steps []Step, edges []Edge, validType func(string) bool) []FieldEr
 		if e.Branch == "else" && e.Condition == nil {
 			add(f+".condition", "An else branch needs a condition.")
 		}
-		if e.Mapper != nil && (e.Mapper.Source != "open_ports" && e.Mapper.Source != "web_urls" || e.Mapper.Destination != "ports" && e.Mapper.Destination != "target") {
+		if e.Mapper != nil && !validMapper(*e.Mapper) {
 			add(f+".mapper", "Choose an allowed mapper source and destination.")
 		}
 
@@ -396,4 +396,11 @@ func (t *Trigger) matches(f Found) bool {
 		}
 	}
 	return false
+}
+
+func validMapper(m Mapper) bool {
+	if m.Source == "installed_software" {
+		return m.Destination == "tags"
+	}
+	return (m.Source == "open_ports" || m.Source == "web_urls") && (m.Destination == "ports" || m.Destination == "target")
 }

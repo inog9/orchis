@@ -42,11 +42,11 @@ export function IntegrationsPanel() {
         {q.data!.map((i) => (
           <li key={i.id} className="card">
             <div className="card__top"><strong className="card__name">{i.name}</strong>
-              <span className={`status ${i.status === 'online' ? 'status--ok' : i.status === 'disabled' ? 'status--bad' : ''}`}>{i.status === 'online' ? 'Running' : i.status === 'disabled' ? 'Disabled' : 'Offline'}</span></div>
-            <p className="card__rule">{KIND[i.kind]}{i.software_version ? ` · v${i.software_version}` : ''} · {i.last_heartbeat_at ? `last seen ${when(i.last_heartbeat_at)}` : 'never connected'}</p>
+              <span className={`status ${i.status === 'online' ? 'status--ok' : i.status === 'disabled' ? 'status--bad' : ''}`}>{i.is_demo ? 'Synthetic · ' : ''}{i.status === 'online' ? 'Running' : i.status === 'disabled' ? 'Disabled' : 'Offline'}</span></div>
+            <p className="card__rule">{KIND[i.kind]}{i.software_version ? ` · v${i.software_version}` : ''} · {i.is_demo ? 'illustrative state; no worker connected' : i.last_heartbeat_at ? `last seen ${when(i.last_heartbeat_at)}` : 'never connected'}</p>
             {i.description && <p className="muted small">{i.description}</p>}
             <ul className="loglist" aria-label={`${i.name} recent log`}>{i.logs.length === 0 ? <li className="muted small">No log lines yet.</li> : i.logs.map((l, k) => <li key={k} className={`log--${l.level}`}><time>{when(l.at)}</time> {l.message}</li>)}</ul>
-            {manage && (
+            {manage && !i.is_demo && (
               <div className="row-actions">
                 {i.kind === 'injector' && <button type="button" className="btn btn--secondary btn--sm" onClick={() => setConfirm({ kind: 'rotate', i })}><KeyRound size={14} aria-hidden="true" /> {i.has_token ? 'Rotate token' : 'Create token'}</button>}
                 {i.enabled ? <button type="button" className="btn btn--secondary btn--sm" onClick={() => setConfirm({ kind: 'disable', i })}>Disable</button>

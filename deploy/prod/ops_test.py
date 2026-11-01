@@ -27,3 +27,35 @@ class MetricsSetup(unittest.TestCase):
    record_status(args,False);old=(state/'ops-status/backup.json').stat().st_ino
    record_status(args,True);path=state/'ops-status/backup.json';data=json.loads(path.read_text())
    self.assertTrue(data['success']);self.assertNotEqual(old,path.stat().st_ino);self.assertEqual(set(data),{'success','timestamp','disk_free_bytes','disk_total_bytes'});self.assertEqual(path.stat().st_mode&0o777,0o644)
+
+@unittest.skipUnless(os.geteuid()==0,'Production setup assigns container UIDs as root')
+class GeneratedSecrets(unittest.TestCase):
+ def test_fresh_setups_have_independent_private_credentials_and_never_replace_them(self):
+  import contextlib,io,hashlib
+  with tempfile.TemporaryDirectory() as directory:
+   states=[]
+   with mock.patch('ops.subprocess.check_output',return_value=''),contextlib.redirect_stdout(io.StringIO()):
+    for name in ['first','second']:
+     state=Path(directory)/name
+     args=types.SimpleNamespace(state=state,project='orchis-test-'+name,port=18443,email='operator@example.invalid',command='init')
+     ops.init(args)
+     states.append(state)
+     before=hashlib.sha256((state/'server.json').read_bytes()).digest()
+     with self.assertRaises(SystemExit):ops.init(args)
+     self.assertEqual(before,hashlib.sha256((state/'server.json').read_bytes()).digest())
+   all_values=[]
+   for state in states:
+    server=json.loads((state/'server.json').read_text());initial=json.loads((state/'initial-admin.json').read_text())
+    self.assertEqual(server['ORCHIS_ADMIN_PASSWORD'],initial['password'])
+    self.assertGreaterEqual(len(initial['password']),32)
+    self.assertNotEqual(initial['password'],'Orchis-Dev-Pass-1')
+    for name in ['postgres_password','owner_password','app_password','maintenance_password','s3_password','renderer_token','ai-master.key','metrics_token','grafana_password','backup.key']:
+     path=state/name
+     self.assertEqual(path.stat().st_mode&0o777,0o600)
+     value=path.read_text().strip()
+     self.assertGreaterEqual(len(value),32)
+     all_values.append(value)
+    all_values.append(initial['password'])
+    self.assertEqual((state/'initial-admin.json').stat().st_mode&0o777,0o600)
+    self.assertEqual((state/'server.json').stat().st_mode&0o777,0o600)
+   self.assertEqual(len(all_values),len(set(all_values)))

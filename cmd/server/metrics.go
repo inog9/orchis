@@ -20,13 +20,14 @@ func collectMetrics(ctx context.Context, m *telemetry.Registry, d *db.DB, tenant
 		sampleCtx, cancel := context.WithTimeout(ctx, 8*time.Second)
 		err := d.InTenantRead(sampleCtx, tenant, func(tx pgx.Tx) error {
 			values := map[string]string{
+				"orchis_demo_cleanup_pending":               "SELECT count(*)::float8 FROM demo_cleanup_tasks",
 				"orchis_database_bytes":                     "SELECT pg_database_size(current_database())::float8",
 				"orchis_scan_failed_records":                "SELECT count(*)::float8 FROM executions WHERE outcome IN ('error','timeout')",
 				"orchis_jobs_stuck{kind=\"execution\"}":     "SELECT count(*)::float8 FROM executions WHERE (state='running' AND lease_until<now()) OR (state='ready' AND not_before<now()-interval '5 minutes')",
 				"orchis_jobs_stuck{kind=\"report\"}":        "SELECT count(*)::float8 FROM reports WHERE (status='rendering' AND lease_until<now()) OR (status='queued' AND created_at<now()-interval '5 minutes')",
 				"orchis_jobs_stuck{kind=\"ai\"}":            "SELECT count(*)::float8 FROM ai_jobs WHERE (status='running' AND lease_until<now()) OR (status='queued' AND created_at<now()-interval '5 minutes')",
-				"orchis_agent_heartbeat_oldest_age_seconds": "SELECT COALESCE(max(extract(epoch FROM now()-last_heartbeat_at)),0)::float8 FROM agents WHERE status!='revoked'",
-				"orchis_agents_without_heartbeat":           "SELECT count(*)::float8 FROM agents WHERE status!='revoked' AND last_heartbeat_at IS NULL",
+				"orchis_agent_heartbeat_oldest_age_seconds": "SELECT COALESCE(max(extract(epoch FROM now()-last_heartbeat_at)),0)::float8 FROM agents WHERE NOT is_demo AND status!='revoked'",
+				"orchis_agents_without_heartbeat":           "SELECT count(*)::float8 FROM agents WHERE NOT is_demo AND status!='revoked' AND last_heartbeat_at IS NULL",
 			}
 			sample := map[string]float64{}
 			for name, query := range values {

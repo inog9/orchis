@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"github.com/google/uuid"
 	"strings"
+
+	"orchis-go/internal/osquery"
 	"testing"
 )
 
@@ -100,5 +102,77 @@ func TestFindingTechniqueIsAConservativeEstimateRenderedInReport(t *testing.T) {
 	raw, _ := json.Marshal(vuln)
 	if !strings.Contains(string(raw), `"basis":"estimate"`) || !strings.Contains(string(raw), `"name":"Exploit Public-Facing Application"`) {
 		t.Fatalf("snapshot harus membekukan basis dan nama: %s", raw)
+	}
+}
+
+func TestReportShowsEndpointPostureWithPortComparison(t *testing.T) {
+	p := osquery.BuildPosture(map[string]*osquery.Dataset{
+		"osquery.inventory": {Query: "osquery.inventory", Status: osquery.StatusOK, Rows: []map[string]string{{"os_name": "Ubuntu", "os_version": "26.04", "kernel": "7.0", "uptime_seconds": "1"}}},
+		"osquery.network":   {Query: "osquery.network", Status: osquery.StatusOK, Rows: []map[string]string{{"port": "22", "address": "0.0.0.0", "protocol": "6", "process": "sshd"}, {"port": "5432", "address": "::", "protocol": "6", "process": "pg"}}},
+		"osquery.hardening": {Query: "osquery.hardening", Status: osquery.StatusOK, Rows: []map[string]string{{"item": "sysctl", "target": "kernel.randomize_va_space", "value": "0"}}},
+	}, []int{22, 80})
+	snap := Snapshot{Organization: "O", BySeverity: map[string]int{}, Assets: []Asset{{Name: "web-<b>1", Endpoint: p}, {Name: "no-agent"}}}
+	snap.EndpointSummary = summarizeEndpoint(snap.Assets)
+	if snap.EndpointSummary == nil || snap.EndpointSummary.AssetsWithData != 1 || snap.EndpointSummary.AssetsTotal != 2 || snap.EndpointSummary.BySeverity["high"] != 1 {
+		t.Fatalf("ringkasan: %+v", snap.EndpointSummary)
+	}
+	html, err := HTML(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(html)
+	for _, want := range []string{"Endpoint posture", "1 of 2 assets reported data from inside the machine", "Ubuntu 26.04, kernel 7.0", "high: Address space randomisation (ASLR) is not fully enabled",
+		"Seen by both: 22. Scan only: 80. Inside only: 5432.", "web-&lt;b&gt;1", "not proof of a problem"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("laporan tanpa %q", want)
+		}
+	}
+	if strings.Contains(out, "<b>1") {
+		t.Error("nama aset harus di-escape")
+	}
+	// Tanpa data endpoint: bagian tidak muncul.
+	plain, _ := HTML(Snapshot{Organization: "O", BySeverity: map[string]int{}, Assets: []Asset{{Name: "a"}}})
+	if strings.Contains(string(plain), "Endpoint posture") {
+		t.Error("bagian postur tidak boleh muncul tanpa data")
+	}
+	if summarizeEndpoint([]Asset{{Name: "a"}}) != nil {
+		t.Error("tanpa data tidak ada ringkasan")
+	}
+}
+
+func TestReportCapsLongEndpointFindingLists(t *testing.T) {
+	p := &osquery.Posture{Source: "osquery", Attributes: map[string]any{"os_name": "Ubuntu"}}
+	for i := 0; i < 12; i++ {
+		p.Findings = append(p.Findings, osquery.PostureFinding{Severity: "info", Title: "Port " + strings.Repeat("1", i+1) + "/tcp listens", Query: "osquery.network"})
+	}
+	snap := Snapshot{Organization: "O", BySeverity: map[string]int{}, Assets: []Asset{{Name: "a", Endpoint: p}}}
+	snap.EndpointSummary = summarizeEndpoint(snap.Assets)
+	html, err := HTML(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := string(html)
+	if strings.Count(out, "info: Port ") != 8 || !strings.Contains(out, "and 4 more") {
+		t.Fatalf("daftar harus dibatasi 8 dengan penanda sisanya: %d", strings.Count(out, "info: Port "))
+	}
+}
+
+func TestPrintCompactsParametersWithoutChangingFrozenSnapshot(t *testing.T) {
+	raw := json.RawMessage("{\n  \"ports\": [\n  \"80\",\n  \"443\"\n ]\n}")
+	snap := Snapshot{IsDemo: true, Organization: "Demo layout", Assets: []Asset{{Name: "Demo", Methods: []Method{{Action: "nmap.tcp_connect", Version: 1, Params: raw}}}}}
+	before, _ := json.Marshal(snap)
+	html, err := HTML(snap)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(html), `<pre>{&#34;ports&#34;:[&#34;80&#34;,&#34;443&#34;]}</pre>`) {
+		t.Fatal("parameters should render compactly and remain escaped")
+	}
+	if !strings.Contains(string(html), `content="demo-assessment"`) {
+		t.Fatal("synthetic report marker missing")
+	}
+	after, _ := json.Marshal(snap)
+	if string(before) != string(after) {
+		t.Fatal("rendering changed the frozen snapshot")
 	}
 }

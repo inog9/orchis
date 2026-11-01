@@ -127,7 +127,8 @@ function ActionDock({ openPalette }: { openPalette: () => void }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
-  const live = useSimulations('running', can(me,'simulation.read'));
+  const liveQuery = useSimulations('running', can(me,'simulation.read'));
+  const live = { ...liveQuery, data: liveQuery.data?.filter(s => !s.is_demo) };
   const canCreate=['organization.write','asset.write','scenario.write','people.write'].some(perm=>can(me,perm));
   const n = can(me, 'simulation.read') ? (live.data?.length ?? 0) : 0;
   const item = (label: string, to: string, perm: string) => can(me, perm) ? (

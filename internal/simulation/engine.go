@@ -154,14 +154,15 @@ WHERE o.tenant_id=$1 AND o.simulation_id=$2`, tenant, sim)
 // berulang tidak membuat eksekusi ganda (kunci baris + indeks idempotensi). Tidak berbuat apa-apa bila status bukan running.
 func (e *Engine) Advance(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID) error {
 	var status string
-	err := tx.QueryRow(ctx, `SELECT status FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenant, sim).Scan(&status)
+	var synthetic bool
+	err := tx.QueryRow(ctx, `SELECT status,is_demo FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenant, sim).Scan(&status, &synthetic)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	if status != "running" {
+	if synthetic || status != "running" {
 		return nil
 	}
 	g, err := loadGraph(ctx, tx, tenant, sim)
@@ -300,7 +301,7 @@ func (e *Engine) launchStep(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUI
 			// Aksi agent berjalan di endpoint: tujuannya agent milik aset, bukan alamat jaringan.
 			addr = "local"
 			var aid uuid.UUID
-			err := tx.QueryRow(ctx, `SELECT id FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, tenant, t.ID).Scan(&aid)
+			err := tx.QueryRow(ctx, `SELECT id FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, tenant, t.ID).Scan(&aid)
 			switch {
 			case errors.Is(err, pgx.ErrNoRows):
 				gerr = errors.New("no agent is installed on this asset")

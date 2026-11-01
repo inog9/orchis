@@ -31,7 +31,7 @@ func (x *Indexer) doc(ctx context.Context, tx pgx.Tx, id uuid.UUID) (*search.Fin
 	err := tx.QueryRow(ctx, `
 SELECT f.asset_id, a.name, f.type, f.severity, f.title, f.value, f.last_seen_at
 FROM findings f LEFT JOIN assets a ON a.tenant_id=f.tenant_id AND a.id=f.asset_id
-WHERE f.tenant_id=$1 AND f.id=$2`, x.Tenant, id).Scan(&d.AssetID, &assetName, &d.Type, &d.Severity, &d.Title, &d.Value, &d.LastSeenAt)
+WHERE f.tenant_id=$1 AND f.id=$2 FOR KEY SHARE OF f`, x.Tenant, id).Scan(&d.AssetID, &assetName, &d.Type, &d.Severity, &d.Title, &d.Value, &d.LastSeenAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -107,7 +107,7 @@ func (x *Indexer) Reindex(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	n := 0
-	err := x.DB.InTenantRead(ctx, x.Tenant, func(tx pgx.Tx) error {
+	err := x.DB.InTenant(ctx, x.Tenant, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `SELECT id FROM findings WHERE tenant_id=$1`, x.Tenant)
 		if err != nil {
 			return err

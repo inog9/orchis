@@ -29,6 +29,7 @@ type Service struct {
 	Guard       contract.Guard
 }
 type Policy struct {
+	IsDemo           bool   `json:"is_demo"`
 	Version          int    `json:"version"`
 	Enabled          bool   `json:"enabled"`
 	Planning         bool   `json:"planning"`
@@ -60,7 +61,7 @@ func defaults() Policy {
 	return Policy{MaxInputBytes: 32000, MaxOutputTokens: 2000, DailyTokens: 20000, DailyCalls: 10}
 }
 
-const policyCols = `version,enabled,planning,remediation,planning_model,remediation_model,max_input_bytes,max_output_tokens,daily_tokens,daily_calls,daily_cost_micros,input_rate_micros,output_rate_micros,secrets_enc IS NOT NULL`
+const policyCols = `is_demo,version,enabled,planning,remediation,planning_model,remediation_model,max_input_bytes,max_output_tokens,daily_tokens,daily_calls,daily_cost_micros,input_rate_micros,output_rate_micros,secrets_enc IS NOT NULL`
 
 func readPolicy(ctx context.Context, tx pgx.Tx, tenant, org uuid.UUID, lock bool) (Policy, error) {
 	p := defaults()
@@ -68,7 +69,7 @@ func readPolicy(ctx context.Context, tx pgx.Tx, tenant, org uuid.UUID, lock bool
 	if lock {
 		sql += ` FOR UPDATE`
 	}
-	e := tx.QueryRow(ctx, sql, tenant, org).Scan(&p.Version, &p.Enabled, &p.Planning, &p.Remediation, &p.PlanningModel, &p.RemediationModel, &p.MaxInputBytes, &p.MaxOutputTokens, &p.DailyTokens, &p.DailyCalls, &p.DailyCostMicros, &p.InputRateMicros, &p.OutputRateMicros, &p.HasKeys)
+	e := tx.QueryRow(ctx, sql, tenant, org).Scan(&p.IsDemo, &p.Version, &p.Enabled, &p.Planning, &p.Remediation, &p.PlanningModel, &p.RemediationModel, &p.MaxInputBytes, &p.MaxOutputTokens, &p.DailyTokens, &p.DailyCalls, &p.DailyCostMicros, &p.InputRateMicros, &p.OutputRateMicros, &p.HasKeys)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return defaults(), nil
 	}
@@ -92,7 +93,10 @@ func (s *Service) Policy(ctx context.Context, p *auth.Principal, org uuid.UUID) 
 		out, e = readPolicy(ctx, tx, p.TenantID, org, false)
 		return e
 	})
-	out.Configured = len(s.Key) == 32 && len(s.WorkerToken) >= 32
+	if out.IsDemo {
+		out.Enabled = false
+	}
+	out.Configured = !out.IsDemo && len(s.Key) == 32 && len(s.WorkerToken) >= 32
 	return out, e
 }
 func note(ctx context.Context, tx pgx.Tx, p *auth.Principal, org, id uuid.UUID, action string, detail map[string]any) error {
@@ -105,6 +109,14 @@ func note(ctx context.Context, tx pgx.Tx, p *auth.Principal, org, id uuid.UUID, 
 	return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: action, ResourceType: "ai", ResourceID: &id, Detail: detail})
 }
 func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UUID, in PolicyInput) (Policy, error) {
+	current, err := s.Policy(ctx, p, org)
+	if err != nil {
+		return Policy{}, err
+	}
+	if current.IsDemo {
+		return Policy{}, httpx.Conflict("Synthetic AI policy is read-only. No external provider can be enabled for this fixture.")
+	}
+
 	if in.MaxInputBytes < 1024 || in.MaxInputBytes > 64000 || in.MaxOutputTokens < 128 || in.MaxOutputTokens > 4096 || in.DailyTokens < 128 || in.DailyTokens > 1000000 || in.DailyCalls < 1 || in.DailyCalls > 1000 || in.DailyCostMicros < 0 || in.DailyCostMicros > 100000000 || in.InputRateMicros < 0 || in.InputRateMicros > 1000000000 || in.OutputRateMicros < 0 || in.OutputRateMicros > 1000000000 {
 		return Policy{}, httpx.BadRequest("Invalid AI limits.")
 	}
@@ -124,6 +136,9 @@ func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UU
 		old, e := readPolicy(ctx, tx, p.TenantID, org, true)
 		if e != nil {
 			return e
+		}
+		if old.IsDemo {
+			return httpx.Conflict("Synthetic AI policy is read-only.")
 		}
 		if old.Version != in.Version {
 			return httpx.Conflict("AI settings changed. Reload and review consent again.")
@@ -182,6 +197,7 @@ func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UU
 }
 
 type Job struct {
+	IsDemo             bool      `json:"is_demo"`
 	ID                 uuid.UUID `json:"id"`
 	OrganizationID     uuid.UUID `json:"organization_id"`
 	ReportID           uuid.UUID `json:"report_id"`
@@ -203,12 +219,12 @@ type Job struct {
 	References         Mapping   `json:"references"`
 }
 
-const jobCols = `id,organization_id,report_id,kind,provider,model,status,version,policy_version,prompt_version,instructions,input,output,error,reserved_tokens,reserved_cost_micros,input_bytes,created_at`
+const jobCols = `is_demo,id,organization_id,report_id,kind,provider,model,status,version,policy_version,prompt_version,instructions,input,output,error,reserved_tokens,reserved_cost_micros,input_bytes,created_at`
 
 func scanJob(row pgx.Row) (Job, error) {
 	var j Job
 	var in, out []byte
-	e := row.Scan(&j.ID, &j.OrganizationID, &j.ReportID, &j.Kind, &j.Provider, &j.Model, &j.Status, &j.Version, &j.PolicyVersion, &j.PromptVersion, &j.Instructions, &in, &out, &j.Error, &j.ReservedTokens, &j.ReservedCostMicros, &j.InputBytes, &j.CreatedAt)
+	e := row.Scan(&j.IsDemo, &j.ID, &j.OrganizationID, &j.ReportID, &j.Kind, &j.Provider, &j.Model, &j.Status, &j.Version, &j.PolicyVersion, &j.PromptVersion, &j.Instructions, &in, &out, &j.Error, &j.ReservedTokens, &j.ReservedCostMicros, &j.InputBytes, &j.CreatedAt)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return j, httpx.NotFound("AI job")
 	}
@@ -321,6 +337,9 @@ func (s *Service) Create(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 		if len(s.Key) != 32 || len(s.WorkerToken) < 32 {
 			return httpx.Conflict("AI deployment credentials are unavailable.")
 		}
+		if pol.IsDemo {
+			return httpx.Conflict("Synthetic AI policy cannot send provider requests.")
+		}
 		if !pol.Enabled || (r.Kind == "planning" && !pol.Planning) || (r.Kind == "remediation" && !pol.Remediation) {
 			return httpx.Conflict("AI is disabled for this organisation or purpose. Ask an administrator to review consent.")
 		}
@@ -380,7 +399,7 @@ func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, v
 		return j, httpx.Forbidden(authz.AtomicRun)
 	}
 	e = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
-		tag, e := tx.Exec(ctx, `UPDATE ai_jobs SET status='canceled',claim_hash=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND version=$3 AND status IN('queued','running','review','approved')`, p.TenantID, id, version)
+		tag, e := tx.Exec(ctx, `UPDATE ai_jobs SET status='canceled',claim_hash=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND version=$3 AND NOT is_demo AND status IN('queued','running','review','approved')`, p.TenantID, id, version)
 		if e != nil {
 			return e
 		}
@@ -417,6 +436,9 @@ func (s *Service) Approve(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 		j, e = scanJob(tx.QueryRow(ctx, `SELECT `+jobCols+` FROM ai_jobs WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, id))
 		if e != nil {
 			return e
+		}
+		if j.IsDemo {
+			return httpx.Conflict("Synthetic AI plans cannot dispatch checks.")
 		}
 		if j.Status == "approved" {
 			return nil

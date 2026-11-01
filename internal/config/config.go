@@ -2,11 +2,13 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"net/url"
 	"orchis-go/internal/envfile"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -35,7 +37,7 @@ type Config struct {
 	S3      S3Config
 	// AllowLoopbackTargets mengizinkan aset beralamat 127.0.0.0/8 menjadi sasaran scan. Hanya untuk pengembangan dan tes.
 	AllowLoopbackTargets bool
-	// MitreSource: URL bundel STIX ATT&CK. Kosong = bawaan (MITRE); "off" = impor dimatikan (mis. lingkungan tanpa internet).
+	// MitreSource: URL atau berkas STIX pada dev; produksi hanya path absolut berkas beku. "off" mematikan impor.
 	MitreSource string
 	// MitreSHA256: hash bundel ATT&CK yang dipatok (lihat deploy/mitre/manifest.json); bundel dengan hash lain ditolak.
 	MitreSHA256 string
@@ -94,8 +96,30 @@ func Load() (*Config, error) {
 		if !c.CookieSecure || c.AllowLoopbackTargets || os.Getenv("ORCHIS_AI_TEST_URL") != "" {
 			return nil, fmt.Errorf("production requires secure cookies, scope enforcement and no test provider")
 		}
-		if c.MitreSource != "off" && c.MitreSHA256 == "" {
-			return nil, fmt.Errorf("production requires a pinned ATT&CK bundle: set ORCHIS_MITRE_URL to the frozen bundle with ORCHIS_MITRE_SHA256, or ORCHIS_MITRE_URL=off")
+		if c.MitreSource != "off" {
+			pin, pinErr := hex.DecodeString(c.MitreSHA256)
+			if !filepath.IsAbs(c.MitreSource) || pinErr != nil || len(pin) != 32 {
+				return nil, fmt.Errorf("production requires an absolute local ATT&CK bundle path with a valid ORCHIS_MITRE_SHA256, or ORCHIS_MITRE_URL=off")
+			}
+		}
+		if c.AdminPassword != "" && len(c.AdminPassword) < 24 {
+			return nil, fmt.Errorf("production initial admin password must have at least 24 characters")
+		}
+		if c.AMQPURL != "" {
+			u, err := url.Parse(c.AMQPURL)
+			if err != nil || u.User == nil {
+				return nil, fmt.Errorf("production AMQP credentials are invalid")
+			}
+			password, ok := u.User.Password()
+			if !ok || len(password) < 24 || u.User.Username() == "guest" {
+				return nil, fmt.Errorf("production AMQP requires a non-default account and a password of at least 24 characters")
+			}
+		}
+		if c.S3.Endpoint != "" && (c.S3.AccessKey == "" || len(c.S3.SecretKey) < 24) {
+			return nil, fmt.Errorf("production object storage requires explicit credentials and a secret of at least 24 characters")
+		}
+		if os.Getenv("ORCHIS_RENDERER_URL") != "" && len(os.Getenv("ORCHIS_RENDERER_TOKEN")) < 32 {
+			return nil, fmt.Errorf("production renderer token must have at least 32 characters")
 		}
 		configured := false
 		for _, key := range []string{"ORCHIS_DATABASE_URL", "ORCHIS_MIGRATE_URL"} {

@@ -5,7 +5,7 @@ import { describeError } from '../components/ErrorNote';
 import { SimBadge, elapsed } from '../components/StatusPills';
 import { when } from '../components/RunBadges';
 
-const FILTERS = [['', 'All'], ['running', 'Running'], ['paused', 'Paused'], ['finished', 'Finished'], ['canceled', 'Canceled'], ['failed', 'Failed']] as const;
+const FILTERS = [['', 'All'], ['draft', 'Draft'], ['scheduled', 'Scheduled'], ['running', 'Running'], ['paused', 'Paused'], ['finished', 'Finished'], ['canceled', 'Canceled'], ['failed', 'Failed']] as const;
 
 export function SimulationsPage() {
   const [status, setStatus] = useState('');
@@ -34,7 +34,7 @@ export function SimulationsPage() {
           <div className="list__head sim-row" role="row"><span role="columnheader">SIMULATION</span><span role="columnheader">STATUS</span><span role="columnheader">PROGRESS</span><span role="columnheader">FINDINGS</span><span role="columnheader">STARTED</span></div>
           {items.map((s) => (
             <div key={s.id} className="asset-row sim-row" role="row">
-              <span role="cell" className="asset-row__text"><Link className="asset-row__name" to={`/simulations/${s.id}`}>{s.name}</Link><span className="muted small">{s.code} · {s.scenario_name ?? 'scenario removed'}</span></span>
+              <span role="cell" className="asset-row__text"><Link className="asset-row__name" to={`/simulations/${s.id}`}>{s.name}</Link><span className="muted small">{s.is_demo && 'Synthetic history · '}{s.code} · {s.scenario_name ?? 'scenario removed'}</span></span>
               <span role="cell"><SimBadge status={s.status} /></span>
               <span role="cell">{s.steps_done} of {s.step_count} steps</span>
               <span role="cell">{s.finding_count}</span>

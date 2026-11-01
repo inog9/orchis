@@ -18,8 +18,22 @@ func main() {
 	dir := flag.String("dir", "deploy/mitre", "direktori bundel beku")
 	version := flag.String("version", "", "versi ATT&CK, mis. 20.0")
 	from := flag.String("from", "", "berkas bundel lokal (menggantikan unduhan)")
+	fetch := flag.Bool("fetch", false, "ambil tepat bundel pada manifest tanpa mengubah pin")
 	verify := flag.Bool("verify", false, "hanya verifikasi bundel beku terhadap manifest")
 	flag.Parse()
+	if *fetch {
+		if *verify || *version != "" || *from != "" {
+			fmt.Fprintln(os.Stderr, "GAGAL: pilih fetch, verify, atau update secara terpisah")
+			os.Exit(1)
+		}
+		m, _, err := mitre.Fetch(context.Background(), *dir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "GAGAL:", err)
+			os.Exit(1)
+		}
+		fmt.Printf("OK: bundel beku ATT&CK Enterprise %s tersedia, sha256=%s\n", m.Version, m.SHA256)
+		return
+	}
 	if *verify {
 		m, ds, err := mitre.Verify(*dir)
 		if err != nil {

@@ -7,18 +7,21 @@ set -u
 cd "$(dirname "$0")/.."
 PORT="${E2E_PORT:-18090}"
 PSQL="docker compose -f deploy/compose.yml exec -T pg psql -U orchis -d postgres -q"
-SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs flow13.mjs flow14.mjs access-audit.mjs}"
+SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs flow13.mjs flow14.mjs flow15.mjs access-audit.mjs}"
 # Gunakan vhost khusus bila injector instalasi lain memakai broker yang sama.
 AMQP_URL="${E2E_AMQP_URL:-amqp://orchis:orchis@127.0.0.1:15672/}"
 status=0
 
 run_one() (
-  local script="$1" db="orchis_e2e_$(date +%s)_$RANDOM" srv="" tgt="" fix="" reldir="" render_fail="" tag="$$_$RANDOM" infra_env=()
+  local script="$1" db="orchis_e2e_$(date +%s)_$RANDOM" srv="" tgt="" fix="" reldir="" render_fail="" store_proxy="" demo_failure="" demo_port_file="" tag="$$_$RANDOM" infra_env=()
   $PSQL -c "CREATE DATABASE $db" || return 1
   cleanup() {
     [ -n "$srv" ] && kill "$srv" 2>/dev/null; wait "$srv" 2>/dev/null
     [ -n "$tgt" ] && kill "$tgt" 2>/dev/null
     [ -n "$fix" ] && kill "$fix" 2>/dev/null
+    [ -n "$store_proxy" ] && kill "$store_proxy" 2>/dev/null
+    [ -n "$demo_failure" ] && rm -f "$demo_failure"
+    [ -n "$demo_port_file" ] && rm -f "$demo_port_file"
     [ -n "$reldir" ] && rm -rf "$reldir"
     [ -n "$render_fail" ] && rm -f "$render_fail"
     docker rm -f "orchis-e2e-nmap-$tag" "orchis-e2e-nuclei-$tag" >/dev/null 2>&1
@@ -32,21 +35,22 @@ run_one() (
   local mitre_url=off
   if [ "$script" = "flow5.mjs" ] || [ "$script" = "flow7.mjs" ]; then
     # Fase 7/8: sumber ATT&CK lokal + loopback diizinkan; injector disimulasikan lewat API (tanpa container).
-    node e2e/fixture-server.mjs 18082 >/tmp/orchis-e2e-fixture.log 2>&1 &
+    local fport="${E2E_FIXTURE_PORT:-18082}"
+    node e2e/fixture-server.mjs "$fport" >/tmp/orchis-e2e-fixture-$PORT.log 2>&1 &
     fix=$!
-    mitre_url="http://127.0.0.1:18082/bundle.json"
+    mitre_url="http://127.0.0.1:$fport/bundle.json"
     infra_env=(ORCHIS_ALLOW_LOOPBACK_TARGETS=true)
   fi
   if [ "$script" = "flow14.mjs" ]; then
-    # T3: bundel ATT&CK Enterprise penuh yang dibekukan (berkas lokal + hash dari manifest); dilewati bila belum diambil.
+    # T3: bundel ATT&CK Enterprise penuh yang dibekukan (berkas lokal + hash dari manifest); wajib tersedia sebelum pemeriksaan penuh.
     local mfile msha
     mfile="$(python3 -c "import json;print(json.load(open('deploy/mitre/manifest.json'))['file'])")"
     msha="$(python3 -c "import json;print(json.load(open('deploy/mitre/manifest.json'))['sha256'])")"
-    [ -f "deploy/mitre/$mfile" ] || { echo "SKIP flow14: bundel beku belum ada (make mitre-update VERSION=...)"; return 0; }
+    [ -f "deploy/mitre/$mfile" ] || { echo "FAIL flow14: pinned bundle required (make mitre-fetch)"; return 1; }
     mitre_url="$PWD/deploy/mitre/$mfile"
-    infra_env=(ORCHIS_MITRE_SHA256="$msha")
+    infra_env=(ORCHIS_MITRE_SHA256="$msha" ORCHIS_AMQP_URL="$AMQP_URL" ORCHIS_ALLOW_LOOPBACK_TARGETS=true)
   fi
-  if [ "$script" = "flow6.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ]; then
+  if [ "$script" = "flow6.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ] || [ "$script" = "flow15.mjs" ]; then
     # Fase 4: rilis agent sungguhan (linux/amd64) bertanda tangan: 1.0.0, 1.1.0 (kunci sama), dan 1.2.0 yang ditandatangani kunci LAIN.
     reldir="$(mktemp -d)"
     for v in 1.0.0 1.1.0; do
@@ -57,13 +61,32 @@ run_one() (
     cp "$reldir/manifest.json" "$reldir/manifest-1.2.0-bad.json"
     cp "$reldir/manifest-1.0.0.json" "$reldir/manifest.json"
     export E2E_RELEASE_DIR="$reldir"
+    if [ "$script" = "flow15.mjs" ]; then
+      # T4: tandatangani artefak osquery yang dipatok dengan kunci rilis yang sama dengan agent (diambil lewat make osquery-fetch).
+      local osq="$PWD/deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz"
+      [ -f "$osq" ] || { echo "FAIL flow15: pinned osquery artifact required (make osquery-fetch)"; return 1; }
+      go run ./cmd/agenttool -file "$osq" -key "$reldir/release.key" -out "$reldir" >/dev/null || return 1
+    fi
     infra_env=(ORCHIS_AGENT_RELEASE_DIR="$reldir")
   fi
-  if [ "$script" = "flow3.mjs" ] || [ "$script" = "flow4.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ]; then
+  if [ "$script" = "flow3.mjs" ] || [ "$script" = "flow4.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ] || [ "$script" = "flow15.mjs" ]; then
     docker image inspect orchis-injector:dev >/dev/null 2>&1 || { echo "image orchis-injector:dev belum ada (jalankan: make injector-image)"; return 1; }
     infra_env+=(ORCHIS_AMQP_URL="$AMQP_URL" ORCHIS_ES_URL=http://127.0.0.1:19200
       ORCHIS_S3_ENDPOINT=127.0.0.1:19000 ORCHIS_S3_ACCESS_KEY=orchis ORCHIS_S3_SECRET_KEY=orchis-dev-secret ORCHIS_S3_BUCKET=orchis-e2e
       ORCHIS_ALLOW_LOOPBACK_TARGETS=true)
+  fi
+  if [ "$script" = "flow13.mjs" ]; then
+    # T2 artifacts are real PDFs and exact-key cleanup against local backends.
+    # No scanner/AI worker is launched for this synthetic dataset.
+    export ORCHIS_ES_URL=http://127.0.0.1:19200
+    demo_failure="$(mktemp /tmp/orchis-e2e-demo-failure-XXXXXX)"; rm -f "$demo_failure"
+    demo_port_file="$(mktemp /tmp/orchis-e2e-demo-port-XXXXXX)"
+    node e2e/demo-storage-proxy.mjs "$demo_port_file" "$demo_failure" >/tmp/orchis-e2e-demo-proxy.log 2>&1 &
+    store_proxy=$!
+    for _ in $(seq 1 40); do [ -s "$demo_port_file" ] && break; sleep 0.1; done
+    [ -s "$demo_port_file" ] || { echo "demo storage proxy did not start"; return 1; }
+    export E2E_DEMO_STORAGE_FAILURE_FILE="$demo_failure"
+    export ORCHIS_S3_ENDPOINT="127.0.0.1:$(cat "$demo_port_file")" ORCHIS_S3_ACCESS_KEY=orchis ORCHIS_S3_SECRET_KEY=orchis-dev-secret ORCHIS_S3_BUCKET=orchis-e2e
   fi
   if [ "$script" = "flow10.mjs" ]; then
     docker image inspect orchis-ai:dev >/dev/null 2>&1 || { echo "image orchis-ai:dev belum ada (jalankan make ai-image)"; return 1; }
@@ -79,7 +102,7 @@ run_one() (
   env ORCHIS_HTTP_ADDR="127.0.0.1:$PORT" ORCHIS_WEB_DIR="$PWD/web/dist" ORCHIS_ADMIN_EMAIL=admin@orchis.local ORCHIS_ADMIN_PASSWORD='Orchis-Dev-Pass-1' ORCHIS_MITRE_URL="$mitre_url" "${infra_env[@]}" ./bin/server serve >/tmp/orchis-e2e-server.log 2>&1 &
   srv=$!
   for _ in $(seq 1 40); do curl -sf "http://127.0.0.1:$PORT/api/healthz" >/dev/null && break; sleep 0.3; done
-  if [ "$script" = "flow3.mjs" ] || [ "$script" = "flow4.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ]; then
+  if [ "$script" = "flow3.mjs" ] || [ "$script" = "flow4.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ] || [ "$script" = "flow14.mjs" ] || [ "$script" = "flow15.mjs" ]; then
     local tport="${E2E_TARGET_PORT:-18081}"
     node e2e/target.mjs "$tport" >/tmp/orchis-e2e-target.log 2>&1 &
     tgt=$!

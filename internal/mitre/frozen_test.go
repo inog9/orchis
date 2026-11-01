@@ -9,6 +9,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"orchis-go/internal/osquery"
 )
 
 const frozenDir = "../../deploy/mitre"
@@ -237,8 +239,21 @@ func TestDefaultLinksAreValidReasonedAndConservative(t *testing.T) {
 			t.Errorf("%s dipetakan ke T1190: deteksi kerentanan bukan eksploitasi (cakupan berlebihan)", l.Contract)
 		}
 	}
-	if len(DefaultLinks) != 4 {
-		t.Fatalf("empat aksi bawaan harus punya pemetaan, ada %d", len(DefaultLinks))
+	want := 4
+	for _, q := range osquery.Queries {
+		want += len(q.Mitre)
+	}
+	if len(DefaultLinks) != want {
+		t.Fatalf("setiap aksi bawaan harus punya pemetaan (%d diharapkan), ada %d", want, len(DefaultLinks))
+	}
+	for _, q := range osquery.Queries {
+		linked := false
+		for _, l := range DefaultLinks {
+			linked = linked || l.Contract == q.Key
+		}
+		if !linked {
+			t.Errorf("aksi %s tanpa pemetaan MITRE", q.Key)
+		}
 	}
 }
 

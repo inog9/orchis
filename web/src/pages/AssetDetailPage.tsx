@@ -1,4 +1,5 @@
 import { AssetFindings } from '../components/AssetFindings';
+import { EndpointDataPanel } from '../components/EndpointDataPanel';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -101,6 +102,7 @@ export function AssetDetailPage() {
           <p className="muted small">Members join automatically when they match a group’s rules.</p>
         </section>
         <AssetFindings assetID={a.id} allowed={can(me,'finding.read')}/>
+        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'atomic.run')} canDelete={can(me,'asset.write') && can(me,'settings.manage')} />
       </div>
 
       {can(me, 'asset.delete') && (

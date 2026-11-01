@@ -346,7 +346,7 @@ func errBadLink() error {
 func (s *Service) CheckLink(ctx context.Context, token string) error {
 	return s.DB.InTenantRead(ctx, s.Tenant, func(tx pgx.Tx) error {
 		var ok bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM password_reset_links WHERE tenant_id=$1 AND token_hash=$2 AND used_at IS NULL AND expires_at > $3)`,
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM password_reset_links WHERE tenant_id=$1 AND token_hash=$2 AND NOT is_demo AND used_at IS NULL AND expires_at > $3)`,
 			s.Tenant, auth.HashToken(token), s.now()).Scan(&ok); err != nil {
 			return err
 		}
@@ -371,7 +371,7 @@ func (s *Service) UseLink(ctx context.Context, token, password, ip string) error
 		var email string
 		err := tx.QueryRow(ctx, `
 SELECT l.id, l.user_id, u.email::text FROM password_reset_links l JOIN users u ON u.tenant_id=l.tenant_id AND u.id=l.user_id
-WHERE l.tenant_id=$1 AND l.token_hash=$2 AND l.used_at IS NULL AND l.expires_at > $3 AND u.status='active' AND u.deleted_at IS NULL
+WHERE l.tenant_id=$1 AND l.token_hash=$2 AND NOT l.is_demo AND NOT u.is_demo AND l.used_at IS NULL AND l.expires_at > $3 AND u.status='active' AND u.deleted_at IS NULL
 FOR UPDATE OF l`, s.Tenant, auth.HashToken(token), s.now()).Scan(&linkID, &uid, &email)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errBadLink()
@@ -509,6 +509,8 @@ func (s *Service) ChangePassword(ctx context.Context, p *auth.Principal, current
 // ---------- token API ----------
 
 type Token struct {
+	IsDemo     bool       `json:"is_demo"`
+	RevokedAt  *time.Time `json:"revoked_at"`
 	ID         uuid.UUID  `json:"id"`
 	Name       string     `json:"name"`
 	Prefix     string     `json:"prefix"`
@@ -520,15 +522,15 @@ type Token struct {
 func (s *Service) Tokens(ctx context.Context, p *auth.Principal) ([]Token, error) {
 	out := []Token{}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id, name, token_prefix, created_at, last_used_at, expires_at FROM api_tokens
-WHERE tenant_id=$1 AND user_id=$2 AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()) ORDER BY created_at DESC`, p.TenantID, p.UserID)
+		rows, err := tx.Query(ctx, `SELECT id, name, token_prefix, created_at, last_used_at, expires_at, is_demo, revoked_at FROM api_tokens
+WHERE tenant_id=$1 AND user_id=$2 AND (is_demo OR (revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now()))) ORDER BY created_at DESC`, p.TenantID, p.UserID)
 		if err != nil {
 			return err
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var t Token
-			if err := rows.Scan(&t.ID, &t.Name, &t.Prefix, &t.CreatedAt, &t.LastUsedAt, &t.ExpiresAt); err != nil {
+			if err := rows.Scan(&t.ID, &t.Name, &t.Prefix, &t.CreatedAt, &t.LastUsedAt, &t.ExpiresAt, &t.IsDemo, &t.RevokedAt); err != nil {
 				return err
 			}
 			out = append(out, t)

@@ -71,6 +71,7 @@ export function AtomicTestDetailPage() {
           )}
         </div>
       </div>
+      {e?.is_demo&&<p className="notice" role="status"><strong>Demo / synthetic result.</strong> No scanner process was run. Use a new authorized local run to collect actual evidence.</p>}
       {run.isError && <div className="alert" role="alert"><strong>Couldn’t start the test</strong><span>{describeError(run.error).message}</span></div>}
       {cancel.isError && <div className="alert" role="alert"><strong>Couldn’t stop the test</strong><span>{describeError(cancel.error).message}</span></div>}
 

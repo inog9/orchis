@@ -37,6 +37,12 @@ func SignedMessage(version, goos, goarch, sha256hex string) []byte {
 	return []byte(fmt.Sprintf("orchis-agent-release\n%s\n%s/%s\n%s", version, goos, goarch, sha256hex))
 }
 
+// SignedToolMessage mengikat nama alat, versi, platform, dan hash artefak (mis. osquery). Domain "orchis-agent-tool" berbeda dari
+// rilis agent, sehingga tanda tangan satu jenis tidak bisa dipakai sebagai tanda tangan jenis lain.
+func SignedToolMessage(name, version, goos, goarch, sha256hex string) []byte {
+	return []byte(fmt.Sprintf("orchis-agent-tool\n%s\n%s\n%s/%s\n%s", name, version, goos, goarch, sha256hex))
+}
+
 // PlatformOS memetakan runtime.GOOS ke nama yang dipakai di database/API.
 func PlatformOS(goos string) (string, bool) {
 	switch goos {

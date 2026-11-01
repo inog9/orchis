@@ -89,7 +89,7 @@ export function SimulationDetailPage() {
   const s = q.data;
   const live = s.status === 'running' || s.status === 'paused';
   const pct = s.step_count === 0 ? 0 : Math.round((s.steps_done / s.step_count) * 100);
-  const canRun = can(me, 'simulation.run');
+  const canRun = can(me, 'simulation.run') && !s.is_demo;
   const TabLink = ({ k, label }: { k: string; label: string }) => (
     <button type="button" role="tab" aria-selected={tab === k} className={`tab ${tab === k ? 'is-active' : ''}`} onClick={() => setParams(k === 'overview' ? {} : { tab: k })}>{label}</button>
   );
@@ -110,6 +110,7 @@ export function SimulationDetailPage() {
           </div>
         )}
       </div>
+      {s.is_demo && <div className="notice" role="status"><strong>Demo / synthetic history.</strong> These states illustrate the interface. No checks were executed; this record cannot be resumed or dispatched.</div>}
       {act.isError && <div className="alert" role="alert"><strong>That didn’t work</strong><span>{describeError(act.error).message}</span></div>}
       {s.cancel_reason && <div className="notice" role="status"><strong>{s.status === 'failed' ? 'Stopped automatically.' : 'Stopped.'}</strong> {s.cancel_reason}</div>}
 

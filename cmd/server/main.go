@@ -112,7 +112,18 @@ func main() {
 	case "demo-seed", "demo-purge", "demo-status":
 		// server demo-seed|demo-purge|demo-status: data dummy bertanda is_demo (lihat internal/demo). Seed dari DEMO_SEED (bawaan 1).
 		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
-			svc := &demo.Service{DB: d}
+			opts := server.Options{DB: d, Tenant: tenant}
+			if cfg.S3.Endpoint != "" {
+				store, e := blob.New(blob.Options{Endpoint: cfg.S3.Endpoint, AccessKey: cfg.S3.AccessKey, SecretKey: cfg.S3.SecretKey, Bucket: cfg.S3.Bucket, TLS: cfg.S3.TLS})
+				if e != nil {
+					return e
+				}
+				opts.Store = store
+			}
+			if cfg.ESURL != "" {
+				opts.Search = search.New(cfg.ESURL)
+			}
+			svc := server.DemoService(opts)
 			var st *demo.Status
 			var err error
 			switch cmd {
@@ -227,6 +238,7 @@ func serve(ctx context.Context, cfg *config.Config) error {
 		}
 		defer sched.Stop()
 	}
+	go server.DemoService(opts).RunCleanup(ctx, tenant)
 	go server.OrganizationService(opts).RunTicker(ctx, tenant)
 	go server.ReportService(opts).Run(ctx, tenant)
 	go server.Runtime(opts).RunSweeper(ctx, 15*time.Second)

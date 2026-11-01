@@ -12,3 +12,18 @@ Backup encryption uses filippo.io/age v1.3.2 and filippo.io/hpke v0.4.0, under
 BSD-3-Clause licenses. Complete notices: docs/licenses/age.LICENSE and
 docs/licenses/hpke.LICENSE, also shipped in /licenses in the server image.
 Source: https://github.com/FiloSottile/age and https://github.com/FiloSottile/hpke
+
+osquery
+-------
+Orchis agents can install and run osquery (https://osquery.io), release 5.24.0, from a pinned and signed artifact.
+osquery is dual-licensed under Apache-2.0 OR GPL-2.0-only; Orchis uses it under Apache-2.0.
+Copyright (c) osquery contributors. osquery is a trademark of The Linux Foundation. Third-party components bundled in the
+osquery release carry their own licences; see the upstream release for details.
+
+MITRE ATT&CK
+------------
+ATT&CK data (Enterprise v20.0, pinned by hash in deploy/mitre/manifest.json) is (c) The MITRE Corporation and used under the
+ATT&CK Terms of Use (https://attack.mitre.org/resources/terms-of-use/).
+© 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation.
+The complete accompanying license and disclaimers are reproduced in docs/licenses/mitre.LICENSE (and /licenses in the server image).
+Source: https://github.com/mitre-attack/attack-stix-data/blob/master/LICENSE.txt

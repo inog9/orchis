@@ -184,12 +184,12 @@ func checkTargetExists(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, asset *
 	return nil
 }
 
-const summaryCols = `e.id, e.state, e.outcome, e.error, e.created_at, e.started_at, e.ended_at,
+const summaryCols = `e.is_demo,e.id, e.state, e.outcome, e.error, e.created_at, e.started_at, e.ended_at,
  (SELECT count(*) FROM finding_occurrences o WHERE o.tenant_id=e.tenant_id AND o.execution_id=e.id)`
 
 func scanSummary(row pgx.Row) (ExecutionSummary, error) {
 	var e ExecutionSummary
-	err := row.Scan(&e.ID, &e.State, &e.Outcome, &e.Error, &e.CreatedAt, &e.StartedAt, &e.EndedAt, &e.FindingCount)
+	err := row.Scan(&e.IsDemo, &e.ID, &e.State, &e.Outcome, &e.Error, &e.CreatedAt, &e.StartedAt, &e.EndedAt, &e.FindingCount)
 	return e, err
 }
 
@@ -406,7 +406,7 @@ WHERE t.tenant_id=$1 AND t.id=$2 AND t.deleted_at IS NULL FOR UPDATE OF t`, p.Te
 		var aid uuid.UUID
 		var live bool
 		err := tx.QueryRow(ctx, `SELECT id, COALESCE(last_heartbeat_at > now() - interval '90 seconds', false) FROM agents
-WHERE tenant_id=$1 AND asset_id=$2 AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, p.TenantID, *target).Scan(&aid, &live)
+WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, p.TenantID, *target).Scan(&aid, &live)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.Validation(httpx.FieldError{Name: "target_asset_id", Message: "This asset has no agent. Install one from Assets → Agents first."})
 		}
@@ -524,7 +524,7 @@ func (s *Service) GetExecution(ctx context.Context, p *auth.Principal, id uuid.U
 SELECT `+summaryCols+`, e.atomic_test_id, c.key, e.target_asset_id, e.target_address, e.params, e.exit_code, e.raw_output_key
 FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id
 WHERE e.tenant_id=$1 AND e.id=$2`, p.TenantID, id).
-			Scan(&d.ID, &d.State, &d.Outcome, &d.Error, &d.CreatedAt, &d.StartedAt, &d.EndedAt, &d.FindingCount,
+			Scan(&d.IsDemo, &d.ID, &d.State, &d.Outcome, &d.Error, &d.CreatedAt, &d.StartedAt, &d.EndedAt, &d.FindingCount,
 				&d.AtomicTestID, &d.ContractKey, &d.TargetAssetID, &d.TargetAddress, &d.Params, &d.ExitCode, &d.RawOutputKey)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Execution")

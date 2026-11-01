@@ -285,11 +285,14 @@ describe('MitrePage', () => {
     expect(within(panel).getByRole('link', { name: /View on MITRE/ })).toHaveAttribute('href', 'https://attack.mitre.org/techniques/T1046/');
     expect(within(panel).getByRole('link', { name: /View on MITRE/ })).toHaveAttribute('rel', 'noopener noreferrer');
   });
-  it('tiga tingkat cakupan: simulated hanya dari data demo dan dijelaskan', async () => {
-    route(admin, (u) => (u.endsWith('/mitre/matrix') ? json(matrix({ simulated: 1, tactics: [{ id: 'TA0001', name: 'Initial Access', shortname: 'initial-access', techniques: [cell('T1190', 'Exploit Public-Facing Application', { simulated: true })] }] })) : undefined));
+  it('cakupan sintetis diberi label dan tidak menambah trained', async () => {
+    route(admin, (u) => (u.endsWith('/mitre/matrix') ? json(matrix({ total: 1, mapped: 0, exercised: 0, simulated: 1, tactics: [{ id: 'TA0001', name: 'Initial Access', shortname: 'initial-access', techniques: [cell('T1190', 'Exploit Public-Facing Application', { simulated: true })] }] })) : undefined));
     mount(<MitrePage />, '/mitre');
-    expect(await screen.findByRole('button', { name: /T1190 .*simulated: appears only in demo data/ })).toBeInTheDocument();
+    const simulated = await screen.findByRole('button', { name: /T1190 .*simulated: synthetic demo evidence/ });
+    expect(simulated).toHaveClass('mcell--simulated');
+    expect(within(simulated).getByText('Demo')).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'Coverage' })).getByText('Simulated').parentElement).toHaveTextContent('1');
+    expect(within(screen.getByRole('list', { name: 'Coverage' })).getByText('Trained').parentElement).toHaveTextContent('0');
     expect(screen.getByText(/never counts as trained/)).toBeInTheDocument();
   });
   it('mencari dan menyaring per platform (induk tetap tampil bila sub-tekniknya cocok)', async () => {
@@ -314,7 +317,7 @@ describe('MitrePage', () => {
       if (u.endsWith('/mitre/matrix')) return json(matrix());
       if (u.endsWith('/mitre/techniques/T1046')) return json({ id: 'T1046', name: 'Network Service Discovery', description: 'Adversaries may scan.', platforms: ['Linux'], tactics: ['Discovery'], url: 'https://attack.mitre.org/techniques/T1046', actions: [], runs: 0, last_run_at: null,
         mappings: [{ action: 'Nmap TCP connect scan', reason: 'A TCP connect scan enumerates open ports.', basis: 'direct' }], subs: [{ id: 'T1046.001', name: 'Child', mapped: false, exercised: false, runs: 0, last_run_at: null }],
-        mitigations: Array.from({ length: 8 }, (_, i) => ({ id: `M10${i}0`, name: `Mitigation ${i}`, description: 'Do the thing.' })), simulated: true, simulated_findings: 2 });
+        mitigations: Array.from({ length: 8 }, (_, i) => ({ id: `M10${i}0`, name: `Mitigation ${i}`, description: 'Do the thing.' })), simulated: true, simulated_runs: 3, simulated_findings: 2 });
       return undefined;
     });
     const user = userEvent.setup();
@@ -324,7 +327,9 @@ describe('MitrePage', () => {
     expect(await within(panel).findByText('A TCP connect scan enumerates open ports.')).toBeInTheDocument();
     expect(within(panel).getByText('direct')).toBeInTheDocument();
     expect(within(panel).getByRole('button', { name: 'T1046.001' })).toBeInTheDocument();
-    expect(within(panel).getByText(/2 demo findings reference this technique/)).toBeInTheDocument();
+    expect(within(panel).getByText('Demo / synthetic evidence:')).toBeInTheDocument();
+    expect(within(panel).getByText(/3 illustrative successful runs and 2 finding references/)).toBeInTheDocument();
+    expect(within(panel).getByText(/These never count as trained/)).toBeInTheDocument();
     expect(within(panel).getAllByText(/^Mitigation \d$/)).toHaveLength(6);
     await user.click(within(panel).getByRole('button', { name: 'Show all 8' }));
     expect(within(panel).getAllByText(/^Mitigation \d$/)).toHaveLength(8);

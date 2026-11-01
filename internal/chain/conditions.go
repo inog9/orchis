@@ -16,6 +16,25 @@ type Condition struct {
 	Value any         `json:"value,omitempty"`
 	Args  []Condition `json:"args,omitempty"`
 }
+
+const softwarePrefix = "osquery:package:"
+
+// InstalledSoftware mengembalikan nama paket dari finding osquery (tipe service, nilai "osquery:package:<nama>"), atau "".
+// Hanya finding hasil aturan osquery yang dibekukan yang berbentuk ini; teks lain tidak pernah dianggap paket.
+func InstalledSoftware(f Found) string {
+	if f.Type != "service" || !strings.HasPrefix(f.Value, softwarePrefix) {
+		return ""
+	}
+	name := strings.ToLower(strings.TrimPrefix(f.Value, softwarePrefix))
+	if name == "" || len(name) > 100 {
+		return ""
+	}
+	return name
+}
+
+// SoftwareTags adalah tabel beku paket -> tag Nuclei. Nama paket dari endpoint tidak pernah menjadi argumen: hanya tag di tabel ini yang lolos.
+var SoftwareTags = map[string]string{"nginx": "nginx", "apache2": "apache", "httpd": "apache"}
+
 type Mapper struct {
 	Source      string `json:"source"`
 	Destination string `json:"destination"`
@@ -53,7 +72,7 @@ func (c Condition) Validate() error {
 			return fmt.Errorf("comparison does not accept nested arguments")
 		}
 		switch c.Field {
-		case "finding_count", "max_severity", "finding_types", "open_ports", "outcome":
+		case "finding_count", "max_severity", "finding_types", "open_ports", "installed_software", "outcome":
 		default:
 			return fmt.Errorf("unknown condition field")
 		}
@@ -75,7 +94,8 @@ func parentValues(status string, found []Found) map[string]any {
 	var max any
 	types := []any{}
 	ports := []any{}
-	seenType, seenPort := map[string]bool{}, map[string]bool{}
+	software := []any{}
+	seenType, seenPort, seenSoft := map[string]bool{}, map[string]bool{}, map[string]bool{}
 	for _, f := range found {
 		if !seenType[f.Type] {
 			types = append(types, f.Type)
@@ -84,6 +104,10 @@ func parentValues(status string, found []Found) map[string]any {
 		rank := float64(severityRank[f.Severity])
 		if max == nil || rank > max.(float64) {
 			max = rank
+		}
+		if name := InstalledSoftware(f); name != "" && !seenSoft[name] {
+			software = append(software, name)
+			seenSoft[name] = true
 		}
 		if f.Type == "open_port" {
 			raw := strings.TrimPrefix(strings.ToLower(f.Value), "tcp/")
@@ -94,6 +118,7 @@ func parentValues(status string, found []Found) map[string]any {
 		}
 	}
 	sort.Slice(types, func(i, j int) bool { return types[i].(string) < types[j].(string) })
+	sort.Slice(software, func(i, j int) bool { return software[i].(string) < software[j].(string) })
 	sort.Slice(ports, func(i, j int) bool { return ports[i].(float64) < ports[j].(float64) })
 	outcome := "success"
 	if status == StFailed {
@@ -101,7 +126,7 @@ func parentValues(status string, found []Found) map[string]any {
 	} else if status != StDone {
 		outcome = status
 	}
-	return map[string]any{"finding_count": float64(len(found)), "max_severity": max, "finding_types": types, "open_ports": ports, "outcome": outcome}
+	return map[string]any{"finding_count": float64(len(found)), "max_severity": max, "finding_types": types, "open_ports": ports, "installed_software": software, "outcome": outcome}
 }
 func (c Condition) Evaluate(status string, found []Found) bool {
 	if c.Validate() != nil {

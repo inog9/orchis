@@ -19,7 +19,10 @@ import (
 	"unicode"
 )
 
-type Handlers struct{ Svc *Service }
+type Handlers struct {
+	Svc     *Service
+	Reports *reporting.Service
+}
 type endpoint func(http.ResponseWriter, *http.Request, *auth.Principal)
 
 func access(perm string, f endpoint) http.HandlerFunc {
@@ -148,7 +151,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/ai/templates", access("ai.read", func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		list := []map[string]any{}
 		e := s.DB.InTenantRead(r.Context(), p.TenantID, func(tx pgx.Tx) error {
-			rows, e := tx.Query(r.Context(), `SELECT id,kind,version,instructions FROM ai_templates WHERE tenant_id=$1 ORDER BY kind,version DESC LIMIT 100`, p.TenantID)
+			rows, e := tx.Query(r.Context(), `SELECT id,kind,version,instructions,is_demo FROM ai_templates WHERE tenant_id=$1 ORDER BY kind,version DESC LIMIT 100`, p.TenantID)
 			if e != nil {
 				return e
 			}
@@ -157,10 +160,11 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 				var id uuid.UUID
 				var kind, text string
 				var v int
-				if e = rows.Scan(&id, &kind, &v, &text); e != nil {
+				var synthetic bool
+				if e = rows.Scan(&id, &kind, &v, &text, &synthetic); e != nil {
 					return e
 				}
-				list = append(list, map[string]any{"id": id, "kind": kind, "version": v, "instructions": text})
+				list = append(list, map[string]any{"id": id, "kind": kind, "version": v, "instructions": text, "is_demo": synthetic})
 			}
 			return rows.Err()
 		})
@@ -278,7 +282,11 @@ func (h *Handlers) export(w http.ResponseWriter, r *http.Request, p *auth.Princi
 			httpx.Write(w, r, e)
 			return
 		}
-		pdf, e := (&reporting.Service{Script: os.Getenv("ORCHIS_REPORT_RENDER_SCRIPT")}).RenderPDF(r.Context(), html.Bytes())
+		renderer := h.Reports
+		if renderer == nil {
+			renderer = &reporting.Service{Script: os.Getenv("ORCHIS_REPORT_RENDER_SCRIPT")}
+		}
+		pdf, e := renderer.RenderPDF(r.Context(), html.Bytes())
 		if e != nil {
 			httpx.Write(w, r, httpx.NewProblem(503, "PDF unavailable", "The AI advice is saved. HTML, JSON and CSV remain available."))
 			return
@@ -291,10 +299,10 @@ func (h *Handlers) export(w http.ResponseWriter, r *http.Request, p *auth.Princi
 	case "csv":
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		cw := csv.NewWriter(w)
-		_ = cw.Write([]string{"source_report_id", "source_asset_id", "asset_label", "source_finding_id", "finding_label", "finding_alias", "recommendation", "validation"})
+		_ = cw.Write([]string{"source_report_id", "source_asset_id", "asset_label", "source_finding_id", "finding_label", "finding_alias", "recommendation", "validation", "synthetic"})
 		for _, v := range j.Output.Remediations {
 			asset := j.References.FindingTargets[v.FindingID]
-			cells := []string{j.ReportID.String(), j.References.Assets[asset], j.References.AssetLabels[asset], j.References.Findings[v.FindingID], j.References.FindingLabels[v.FindingID], v.FindingID, v.Recommendation, v.Validation}
+			cells := []string{j.ReportID.String(), j.References.Assets[asset], j.References.AssetLabels[asset], j.References.Findings[v.FindingID], j.References.FindingLabels[v.FindingID], v.FindingID, v.Recommendation, v.Validation, fmt.Sprintf("%t", j.IsDemo)}
 			for i := range cells {
 				cells[i] = safeCell(cells[i])
 			}
@@ -313,4 +321,4 @@ func safeCell(s string) string {
 	return s
 }
 
-var adviceTemplate = template.Must(template.New("advice").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="orchis-document-type" content="ai-advice"><title>AI review</title><style>@page{size:A4;margin:18mm 16mm 22mm}body{font:14px sans-serif;max-width:800px;margin:40px auto;padding:20px;overflow-wrap:anywhere}@media print{body{margin:0;padding:0;max-width:none}}article{break-inside:avoid;border-top:1px solid;padding:16px 0}h1,h2{break-after:avoid}.provenance{break-inside:avoid}pre{font-size:12px;line-height:1.35}</style><h1>AI advisory supplement</h1><p>Unverified AI guidance. Review before applying. The original assessment snapshot is unchanged.</p><p>Source report: {{.ReportID}}</p><p>Job {{.ID}} · {{.Provider}} · {{.Model}} · prompt {{.PromptVersion}}</p><p>{{.Output.Summary}}</p>{{range .Output.Remediations}}<article><h2>{{index $.References.FindingLabels .FindingID}}</h2><p>Asset: {{index $.References.FindingTargets .FindingID}} | {{index $.References.AssetLabels (index $.References.FindingTargets .FindingID)}}</p><p>Reference: {{.FindingID}} | Source finding: {{index $.References.Findings .FindingID}}</p><p>{{.Recommendation}}</p><p>Validation: {{.Validation}}</p></article>{{end}}<section class="provenance"><h2>Recorded instructions</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{.Instructions}}</pre></section></html>`))
+var adviceTemplate = template.Must(template.New("advice").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="orchis-document-type" content="ai-advice"><title>AI review</title><style>@page{size:A4;margin:18mm 16mm 22mm}body{font:14px sans-serif;max-width:800px;margin:40px auto;padding:20px;overflow-wrap:anywhere}@media print{body{margin:0;padding:0;max-width:none}}article{break-inside:avoid;border-top:1px solid;padding:16px 0}h1,h2{break-after:avoid}.provenance{break-inside:avoid}pre{font-size:12px;line-height:1.35}</style>{{if .IsDemo}}<p class="provenance"><strong>DEMO / SYNTHETIC - local fake API output. No external AI model or check was invoked.</strong></p>{{end}}<h1>AI advisory supplement</h1><p>Unverified AI guidance. Review before applying. The original assessment snapshot is unchanged.</p><p>Source report: {{.ReportID}}</p><p>Job {{.ID}} · {{.Provider}} · {{.Model}} · prompt {{.PromptVersion}}</p><p>{{.Output.Summary}}</p>{{range .Output.Remediations}}<article><h2>{{index $.References.FindingLabels .FindingID}}</h2><p>Asset: {{index $.References.FindingTargets .FindingID}} | {{index $.References.AssetLabels (index $.References.FindingTargets .FindingID)}}</p><p>Reference: {{.FindingID}} | Source finding: {{index $.References.Findings .FindingID}}</p><p>{{.Recommendation}}</p><p>Validation: {{.Validation}}</p></article>{{end}}<section class="provenance"><h2>Recorded instructions</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{.Instructions}}</pre></section></html>`))

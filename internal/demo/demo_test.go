@@ -55,9 +55,23 @@ func TestSeedIsDeterministicIdempotentAndFullyMarked(t *testing.T) {
 	if st.Counts["organizations"] != 5 || st.Counts["assets"] != 50 || st.Counts["scenarios"] != 3 || st.Counts["alerts"] != 3 {
 		t.Fatalf("diharapkan 5 organisasi/50 aset/3 skenario/3 alert, dapat %+v", st.Counts)
 	}
+	if st.Counts["endpoint_datasets"] != 30 {
+		t.Fatalf("diharapkan 30 dataset osquery sintetis (6 query x 5 aset Linux): %d", st.Counts["endpoint_datasets"])
+	}
+	// Data osquery demo hanya di aset Linux demo, bertanda is_demo, dan bukan hasil eksekusi nyata.
+	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1 AND (NOT is_demo OR execution_id IS NOT NULL)`, env.TenantA); n != 0 {
+		t.Fatalf("%d dataset demo tidak bertanda atau terkait eksekusi", n)
+	}
+	// Laporan demo membawa postur endpoint sintetis (berlabel) dan ringkasannya.
+	if n := count(t, env, `SELECT count(*) FROM reports WHERE tenant_id=$1 AND is_demo AND snapshot->'endpoint_summary'->>'assets_with_data'='1'`, env.TenantA); n != 15 {
+		t.Fatalf("15 laporan demo harus memuat ringkasan endpoint: %d", n)
+	}
+	if n := count(t, env, `SELECT count(*) FROM reports r, jsonb_array_elements(r.snapshot->'assets') a WHERE r.tenant_id=$1 AND r.is_demo AND a->'endpoint'->>'source'='osquery (demo, synthetic)'`, env.TenantA); n != 15 {
+		t.Fatalf("setiap laporan demo harus menandai postur sebagai sintetis: %d", n)
+	}
 	// Langkah skenario memakai kontrak sungguhan dan target hanya aset demo.
-	if n := count(t, env, `SELECT count(*) FROM scenario_steps s JOIN contracts c ON c.tenant_id=s.tenant_id AND c.id=s.contract_id WHERE s.tenant_id=$1 AND c.key IN ('nmap.tcp_connect','nuclei.scan','agent.system_info','agent.listening_ports')`, env.TenantA); n != 5 {
-		t.Fatalf("diharapkan 5 langkah skenario dengan kontrak nyata, dapat %d", n)
+	if n := count(t, env, `SELECT count(*) FROM scenario_steps s JOIN contracts c ON c.tenant_id=s.tenant_id AND c.id=s.contract_id WHERE s.tenant_id=$1 AND c.key IN ('nmap.tcp_connect','nuclei.scan','agent.system_info','agent.listening_ports')`, env.TenantA); n != 7 {
+		t.Fatalf("diharapkan 7 langkah skenario dengan kontrak nyata, dapat %d", n)
 	}
 	if n := count(t, env, `SELECT count(*) FROM scenario_targets t WHERE t.tenant_id=$1 AND t.asset_id NOT IN (SELECT id FROM assets WHERE is_demo)`, env.TenantA); n != 0 {
 		t.Fatalf("%d target skenario demo menunjuk aset nyata", n)
@@ -82,7 +96,7 @@ func TestSeedIsDeterministicIdempotentAndFullyMarked(t *testing.T) {
 		t.Fatalf("tenant B tidak boleh punya data demo: %+v", other)
 	}
 	// Semua alamat memakai rentang dokumentasi/invalid, tidak pernah target nyata.
-	bad := count(t, env, `SELECT count(*) FROM asset_addresses WHERE tenant_id=$1 AND NOT (value LIKE '203.0.113.%' OR value LIKE '%.example.invalid')`, env.TenantA)
+	bad := count(t, env, `SELECT count(*) FROM asset_addresses WHERE tenant_id=$1 AND NOT (value = '127.0.0.1' OR value LIKE '%.example.invalid')`, env.TenantA)
 	if bad != 0 {
 		t.Fatalf("%d alamat demo bukan rentang dokumentasi", bad)
 	}
@@ -97,7 +111,7 @@ func TestSeedDeterministicIDsAcrossRuns(t *testing.T) {
 	env := testutil.New(t)
 	ctx := context.Background()
 	addAdmin(t, env, env.TenantA)
-	svc := &demo.Service{DB: env.App}
+	svc := &demo.Service{DB: env.App, Blob: emptyArtifacts{}, Search: emptyArtifacts{}}
 	if err := svc.Seed(ctx, env.TenantA, 3, nil, "", "t"); err != nil {
 		t.Fatal(err)
 	}
@@ -237,3 +251,31 @@ func TestPurgeFailsClosedWhenRealSimulationUsesDemoScenario(t *testing.T) {
 		t.Fatalf("purge sebagian: %d skenario demo tersisa", n)
 	}
 }
+
+func TestPurgeFailsClosedWhenRealEndpointDataSitsOnDemoAsset(t *testing.T) {
+	env := testutil.New(t)
+	ctx := context.Background()
+	addAdmin(t, env, env.TenantA)
+	svc := &demo.Service{DB: env.App}
+	if err := svc.Seed(ctx, env.TenantA, 1, nil, "", "t"); err != nil {
+		t.Fatal(err)
+	}
+	var asset uuid.UUID
+	env.Owner.QueryRow(ctx, `SELECT id FROM assets WHERE tenant_id=$1 AND is_demo AND platform='macos' LIMIT 1`, env.TenantA).Scan(&asset)
+	if _, err := env.Owner.Exec(ctx, `INSERT INTO endpoint_datasets (tenant_id, asset_id, query_key, last_status, collected_at) VALUES ($1,$2,'osquery.inventory','ok',now())`, env.TenantA, asset); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Purge(ctx, env.TenantA, nil, "", "t"); err == nil {
+		t.Fatal("purge harus ditolak saat ada data endpoint nyata pada aset demo")
+	}
+	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1`, env.TenantA); n != 31 {
+		t.Fatalf("purge sebagian: %d dataset", n)
+	}
+}
+
+// This metadata-only fixture has no external objects/documents; make that
+// explicit when testing a complete purge followed by deterministic reseeding.
+type emptyArtifacts struct{}
+
+func (emptyArtifacts) Remove(context.Context, string) error                         { return nil }
+func (emptyArtifacts) RemoveFindings(context.Context, uuid.UUID, []uuid.UUID) error { return nil }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"orchis-go/internal/osquery"
 	"testing"
 	"time"
 
@@ -437,8 +438,22 @@ func TestContractsReportInjectorStatus(t *testing.T) {
 		}
 	}
 	f.a.do("GET", "/api/v1/contracts", nil, f.viewer).JSON(&out)
-	if len(out.Items) != 4 {
-		t.Fatalf("empat kontrak diharapkan (nmap, nuclei, dua aksi agent): %+v", out)
+	keys := map[string]bool{}
+	for _, c := range out.Items {
+		keys[c.Key] = true
+	}
+	// Nmap, Nuclei, dua aksi agent lama, dan enam aksi osquery (T4).
+	want := []string{"nmap.tcp_connect", "nuclei.scan", "agent.listening_ports", "agent.system_info",
+		"osquery.inventory", "osquery.packages", "osquery.users", "osquery.network", "osquery.hardening", "osquery.firewall"}
+	// Query pack resmi yang dibekukan masing-masing punya kontrak (kunci = kunci query).
+	want = append(want, osquery.PackQueryKeys()...)
+	if len(out.Items) != len(want) {
+		t.Fatalf("%d kontrak diharapkan: %+v", len(want), out)
+	}
+	for _, k := range want {
+		if !keys[k] {
+			t.Errorf("kontrak %s hilang", k)
+		}
 	}
 	for _, c := range out.Items {
 		if c.IntegrationStatus != "offline" {

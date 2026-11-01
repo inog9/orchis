@@ -20,6 +20,7 @@ import (
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
 	"orchis-go/internal/httpx"
+	"orchis-go/internal/osquery"
 )
 
 const (
@@ -81,7 +82,7 @@ func IssueToken(ctx context.Context, d *db.DB, tenant uuid.UUID, key string) (st
 	tok := InjectorTokenPrefix + base64.RawURLEncoding.EncodeToString(buf)
 	err := d.InTenant(ctx, tenant, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE integrations SET config = config || jsonb_build_object('token_sha256', $3::text), updated_at=now()
-WHERE tenant_id=$1 AND key=$2 AND kind='injector'`, tenant, key, hashToken(tok))
+WHERE tenant_id=$1 AND key=$2 AND kind='injector' AND NOT is_demo`, tenant, key, hashToken(tok))
 		if err != nil {
 			return err
 		}
@@ -100,7 +101,7 @@ func (r *Runtime) Authenticate(ctx context.Context, token string) (*Injector, er
 	}
 	var in Injector
 	err := r.DB.InTenantRead(ctx, r.Tenant, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT id, key FROM integrations WHERE tenant_id=$1 AND kind='injector' AND enabled AND config->>'token_sha256'=$2`,
+		return tx.QueryRow(ctx, `SELECT id, key FROM integrations WHERE tenant_id=$1 AND kind='injector' AND NOT is_demo AND enabled AND config->>'token_sha256'=$2`,
 			r.Tenant, hashToken(token)).Scan(&in.ID, &in.Key)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -157,7 +158,7 @@ func (r *Runtime) Claim(ctx context.Context, in *Injector, id uuid.UUID) (*Claim
 		err := tx.QueryRow(ctx, `
 SELECT c.key, e.target_address, e.state, e.params, e.target_asset_id, c.default_timeout_seconds, e.integration_id, e.not_before, e.simulation_id, e.agent_id,e.contract_version
 FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id
-WHERE e.tenant_id=$1 AND e.id=$2 FOR UPDATE OF e`, r.Tenant, id).Scan(&ckey, &target, &state, &params, &asset, &timeout, &integ, &notBefore, &sim, &agent, &contractVersion)
+WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, id).Scan(&ckey, &target, &state, &params, &asset, &timeout, &integ, &notBefore, &sim, &agent, &contractVersion)
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (integ != in.ID || (in.AgentID != nil && (agent == nil || *agent != *in.AgentID)))) {
 			return httpx.NotFound("Execution")
 		}
@@ -207,6 +208,19 @@ WHERE e.tenant_id=$1 AND e.id=$2 FOR UPDATE OF e`, r.Tenant, id).Scan(&ckey, &ta
 			refusal = httpx.Conflict(why)
 			return nil // commit agar penolakan tercatat
 		}
+		if onAgent && osquery.IsOsquery(ckey) {
+			skipped, err := skipUnapproved(ctx, tx, r.Tenant, id, asset, ckey)
+			if err != nil {
+				return err
+			}
+			if skipped {
+				if err := r.afterEnd(ctx, tx, sim); err != nil {
+					return err
+				}
+				refusal = httpx.Conflict("Skipped: " + osquery.ReasonDisabled + ".")
+				return nil
+			}
+		}
 		lease := time.Duration(timeout)*time.Second + leaseGrace
 		if _, err := tx.Exec(ctx, `
 UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, lease_until=now()+make_interval(secs => $3),
@@ -250,6 +264,8 @@ type Result struct {
 	Output   string       `json:"output"`
 	Logs     []LogLine    `json:"logs"`
 	Findings []NewFinding `json:"findings"`
+	// Datasets: hasil query bernama osquery dari agent (tidak tepercaya; lihat processEndpointData).
+	Datasets []osquery.Dataset `json:"datasets,omitempty"`
 }
 
 // Complete menutup eksekusi running dan menyimpan finding dalam satu transaksi. Hasil kedua untuk eksekusi yang sama
@@ -268,36 +284,59 @@ func (r *Runtime) Complete(ctx context.Context, in *Injector, id uuid.UUID, res 
 	if len(res.Error) > 2000 {
 		res.Error = res.Error[:2000]
 	}
-	var rawKey *string
-	if r.Store != nil && res.Output != "" {
-		key := fmt.Sprintf("executions/%s/%s/output.txt", r.Tenant, id)
-		if err := r.Store.Put(ctx, key, []byte(res.Output), "text/plain; charset=utf-8"); err != nil {
-			slog.Error("keluaran mentah gagal disimpan ke penyimpanan objek", "execution", id, "err", err)
-			res.Logs = append(res.Logs, LogLine{Level: "warn", Message: "Raw output could not be stored."})
-		} else {
-			rawKey = &key
-		}
-	}
 	return r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
 		var asset uuid.UUID
 		var sim *uuid.UUID
 		var ckey string
 		var contractVersion int
-		var errText *string
-		if res.Error != "" {
-			errText = &res.Error
-		}
+		var policyJSON []byte
+		var agentID *uuid.UUID
 		err := tx.QueryRow(ctx, `
-UPDATE executions e SET state='ended', outcome=$4, ended_at=now(), exit_code=$5, error=$6, raw_output_key=$7,
-  lease_until=NULL, version=e.version+1, updated_at=now()
-FROM contracts c
-WHERE e.tenant_id=$1 AND e.id=$2 AND e.integration_id=$3 AND e.state='running' AND c.tenant_id=e.tenant_id AND c.id=e.contract_id
-  AND ($8::uuid IS NULL OR e.agent_id=$8)
-RETURNING e.target_asset_id, e.simulation_id, c.key,e.contract_version`, r.Tenant, id, in.ID, outcome, res.ExitCode, errText, rawKey, in.AgentID).Scan(&asset, &sim, &ckey, &contractVersion)
+SELECT e.target_asset_id, e.simulation_id, c.key, e.contract_version, e.endpoint_policy, e.agent_id
+FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id
+WHERE e.tenant_id=$1 AND e.id=$2 AND e.integration_id=$3 AND e.state='running'
+  AND ($4::uuid IS NULL OR e.agent_id=$4)
+FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &contractVersion, &policyJSON, &agentID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.Conflict("Execution is not running (already finished, canceled or timed out).")
 		}
 		if err != nil {
+			return err
+		}
+		endpointRefused := false
+		if q := osquery.Find(ckey); q != nil {
+			why, err := acceptEndpointResult(ctx, tx, r.Tenant, asset, q, policyJSON, agentID)
+			if err != nil {
+				return err
+			}
+			if why != "" {
+				endpointRefused = true
+				outcome = "error"
+				res = Result{Error: why}
+			}
+			// Dataset bernama adalah satu-satunya sumber data endpoint; kanal bebas dibuang.
+			res.Output, res.Findings, res.Logs = "", nil, nil
+			res.Error = osquery.Redact(res.Error)
+			if len(res.Error) > 2000 {
+				res.Error = res.Error[:2000]
+			}
+		}
+		var rawKey *string
+		if r.Store != nil && res.Output != "" {
+			key := fmt.Sprintf("executions/%s/%s/output.txt", r.Tenant, id)
+			if err := r.Store.Put(ctx, key, []byte(res.Output), "text/plain; charset=utf-8"); err != nil {
+				slog.Error("keluaran mentah gagal disimpan ke penyimpanan objek", "execution", id, "err", err)
+				res.Logs = append(res.Logs, LogLine{Level: "warn", Message: "Raw output could not be stored."})
+			} else {
+				rawKey = &key
+			}
+		}
+		var errText *string
+		if res.Error != "" {
+			errText = &res.Error
+		}
+		if _, err := tx.Exec(ctx, `UPDATE executions SET state='ended', outcome=$3, ended_at=now(), exit_code=$4, error=$5, raw_output_key=$6,
+lease_until=NULL, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`, r.Tenant, id, outcome, res.ExitCode, errText, rawKey); err != nil {
 			return err
 		}
 		for i, l := range res.Logs {
@@ -309,6 +348,11 @@ RETURNING e.target_asset_id, e.simulation_id, c.key,e.contract_version`, r.Tenan
 				lvl = "info"
 			}
 			if err := logLine(ctx, tx, r.Tenant, id, lvl, l.Message); err != nil {
+				return err
+			}
+		}
+		if !endpointRefused {
+			if err := processEndpointData(ctx, tx, r.Tenant, id, asset, ckey, outcome, &res); err != nil {
 				return err
 			}
 		}

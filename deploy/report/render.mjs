@@ -13,7 +13,8 @@ try {
   await page.setContent(html, { waitUntil: 'load', timeout: 15000 });
   await page.emulateMedia({ media: 'print' });
   const marker=page.locator('meta[name="orchis-document-type"]');
-  const caption=await marker.count()&&await marker.getAttribute('content')==='ai-advice'?'ORCHIS | AI advisory supplement - review required':'ORCHIS | Frozen assessment snapshot';
+  const documentType=await marker.count()?await marker.getAttribute('content'):'';
+  const caption=documentType==='ai-advice'?'ORCHIS | AI advisory supplement - review required':documentType==='demo-assessment'?'ORCHIS | DEMO / SYNTHETIC assessment - not a real scan':'ORCHIS | Frozen assessment snapshot';
   const pdf = await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true, tagged: true, displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: `<div style="width:100%;margin:0 20mm;font:9px Arial,sans-serif;color:#52606e;display:flex;justify-content:space-between"><span>${caption}</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`  });
   process.stdout.write(pdf);
 } finally { await browser.close(); }

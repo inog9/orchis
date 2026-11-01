@@ -322,7 +322,7 @@ func (s *Service) Authenticate(ctx context.Context, secret string) (*Principal, 
 		return tx.QueryRow(ctx, `SELECT g.id, g.asset_id, g.os, g.arch, g.version, i.id FROM agents g
 JOIN integrations i ON i.tenant_id=g.tenant_id AND i.key='agent' AND i.enabled
 JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id AND a.deleted_at IS NULL
-WHERE g.tenant_id=$1 AND g.secret_hash=$2 AND g.status<>'revoked'`, s.Tenant, auth.HashToken(secret)).Scan(&p.AgentID, &p.AssetID, &p.OS, &p.Arch, &p.Version, &p.IntegrationID)
+WHERE g.tenant_id=$1 AND g.secret_hash=$2 AND g.status<>'revoked' AND NOT g.is_demo`, s.Tenant, auth.HashToken(secret)).Scan(&p.AgentID, &p.AssetID, &p.OS, &p.Arch, &p.Version, &p.IntegrationID)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, httpx.Unauthorized()
@@ -497,7 +497,7 @@ func (s *Service) Sweep(ctx context.Context) (int, error) {
 	n := 0
 	err := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `UPDATE agents g SET status='offline', updated_at=now() FROM assets a
-WHERE g.tenant_id=$1 AND g.status='online' AND g.last_heartbeat_at < $2::timestamptz - interval '90 seconds' AND a.tenant_id=g.tenant_id AND a.id=g.asset_id
+WHERE g.tenant_id=$1 AND NOT g.is_demo AND g.status='online' AND g.last_heartbeat_at < $2::timestamptz - interval '90 seconds' AND a.tenant_id=g.tenant_id AND a.id=g.asset_id
 RETURNING g.id, a.name, extract(epoch from g.last_heartbeat_at)::bigint`, s.Tenant, s.now())
 		if err != nil {
 			return err

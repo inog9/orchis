@@ -24,6 +24,7 @@ import (
 	"orchis-go/internal/agentproto"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/execution"
+	"orchis-go/internal/osquery"
 )
 
 // Config disimpan di samping biner (izin 0600). Secret adalah kredensial per agent yang diterbitkan saat pendaftaran.
@@ -298,14 +299,19 @@ func (a *Agent) execute(ctx context.Context, spec *execution.ClaimSpec) {
 		}
 	}()
 	var findings []execution.NewFinding
+	var datasets []osquery.Dataset
 	var terr error
 	if def := contract.FindVersion(spec.ContractKey, spec.ContractVersion); def == nil || !def.NeedsAgent {
 		terr = fmt.Errorf("unsupported agent contract version: %s v%d", spec.ContractKey, spec.ContractVersion)
 	} else if _, terr = contract.NormalizeVersion(spec.ContractKey, spec.ContractVersion, spec.Params); terr == nil {
-		findings, terr = Task(tctx, spec.ContractKey)
+		if osquery.IsOsquery(spec.ContractKey) {
+			datasets, terr = a.runOsquery(tctx, spec.ContractKey)
+		} else {
+			findings, terr = Task(tctx, spec.ContractKey)
+		}
 	}
 	close(stop)
-	res := execution.Result{Findings: findings}
+	res := execution.Result{Findings: findings, Datasets: datasets}
 	code := 0
 	if terr != nil {
 		code = 1

@@ -27,6 +27,7 @@ type LogLine struct {
 }
 
 type Integration struct {
+	IsDemo          bool       `json:"is_demo"`
 	ID              uuid.UUID  `json:"id"`
 	Kind            string     `json:"kind"`
 	Key             string     `json:"key"`
@@ -47,21 +48,24 @@ func (s *Service) List(ctx context.Context, p *auth.Principal) ([]Integration, e
 	out := []Integration{}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-SELECT id, kind, key, name, description, is_builtin, enabled, software_version, last_heartbeat_at, (config ? 'token_sha256')
+SELECT id, kind, key, name, description, is_builtin, enabled, software_version, last_heartbeat_at, (config ? 'token_sha256'), is_demo, status
 FROM integrations WHERE tenant_id=$1 ORDER BY array_position(ARRAY['injector','collector','executor'], kind), name`, p.TenantID)
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
 			var i Integration
-			if err := rows.Scan(&i.ID, &i.Kind, &i.Key, &i.Name, &i.Description, &i.IsBuiltin, &i.Enabled, &i.SoftwareVersion, &i.LastHeartbeatAt, &i.HasToken); err != nil {
+			var storedStatus string
+			if err := rows.Scan(&i.ID, &i.Kind, &i.Key, &i.Name, &i.Description, &i.IsBuiltin, &i.Enabled, &i.SoftwareVersion, &i.LastHeartbeatAt, &i.HasToken, &i.IsDemo, &storedStatus); err != nil {
 				rows.Close()
 				return err
 			}
 			switch {
 			case !i.Enabled:
 				i.Status = "disabled"
-			case i.LastHeartbeatAt != nil && time.Since(*i.LastHeartbeatAt) < onlineWindow:
+			case i.IsDemo && storedStatus == "running":
+				i.Status = "online"
+			case !i.IsDemo && i.LastHeartbeatAt != nil && time.Since(*i.LastHeartbeatAt) < onlineWindow:
 				i.Status = "online"
 			default:
 				i.Status = "offline"
@@ -104,7 +108,7 @@ func logLine(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, level, msg st
 func (s *Service) SetEnabled(ctx context.Context, p *auth.Principal, id uuid.UUID, enabled bool, ip, reqID string) error {
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var key string
-		err := tx.QueryRow(ctx, `UPDATE integrations SET enabled=$3, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2 RETURNING key`, p.TenantID, id, enabled).Scan(&key)
+		err := tx.QueryRow(ctx, `UPDATE integrations SET enabled=$3, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2 AND NOT is_demo RETURNING key`, p.TenantID, id, enabled).Scan(&key)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Integration")
 		}
@@ -131,7 +135,7 @@ func (s *Service) RotateToken(ctx context.Context, p *auth.Principal, id uuid.UU
 	var key, kind string
 	var had bool
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		return tx.QueryRow(ctx, `SELECT key, kind, config ? 'token_sha256' FROM integrations WHERE tenant_id=$1 AND id=$2`, p.TenantID, id).Scan(&key, &kind, &had)
+		return tx.QueryRow(ctx, `SELECT key, kind, config ? 'token_sha256' FROM integrations WHERE tenant_id=$1 AND id=$2 AND NOT is_demo`, p.TenantID, id).Scan(&key, &kind, &had)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, httpx.NotFound("Integration")

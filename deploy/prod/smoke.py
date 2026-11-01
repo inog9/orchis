@@ -1,5 +1,5 @@
 """A real local scan + frozen PDF + encrypted backup + isolated restore."""
-import base64,secrets,hashlib, http.cookiejar, json, os, ssl, time, types, urllib.request, uuid
+import subprocess,sys,base64,secrets,hashlib, http.cookiejar, json, os, ssl, time, types, urllib.request, uuid
 from pathlib import Path
 from backup import backup,restore
 
@@ -30,8 +30,10 @@ def smoke(args,compose,init,up,probe):
     if args.state.exists():raise RuntimeError('Smoke requires a fresh state directory; existing installations are never overwritten')
     init(args)
     compose(args,'build','server','renderer')
+    subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'ci/check-mitre-image.py'),
+                    '--image','orchis-server:'+os.environ.get('ORCHIS_VERSION','local')],check=True,timeout=240)
     compose(args,'build','nmap')
-    up(args);api=client_for(args,compose)
+    up(args);probe(args);api=client_for(args,compose)
     org=api('POST','/organizations',{'name':'LOCAL PRODUCTION SMOKE FIXTURE','slug':'local-smoke-'+uuid.uuid4().hex[:8],'description':'Synthetic local service; findings are produced by real scanner requests.','industry':'Local fixture'})
     addresses=[{'kind':'hostname','value':'fixture'},{'kind':'url','value':'http://fixture:8081'}]
     assets=[]

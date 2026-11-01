@@ -22,6 +22,7 @@ import (
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
 	"orchis-go/internal/demo"
+	"orchis-go/internal/endpoint"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/groups"
 	"orchis-go/internal/home"
@@ -75,9 +76,10 @@ func New(o Options) http.Handler {
 	})
 	ah.Register(mux)
 	(&auditview.Handler{DB: o.DB}).Register(mux)
-	(&ai.Handlers{Svc: AIService(o)}).Register(mux)
+	(&ai.Handlers{Svc: AIService(o), Reports: ReportService(o)}).Register(mux)
 	(&organizations.Handlers{Svc: OrganizationService(o)}).Register(mux)
-	(&demo.Handlers{Svc: &demo.Service{DB: o.DB}}).Register(mux)
+	(&demo.Handlers{Svc: DemoService(o)}).Register(mux)
+	(&endpoint.Handlers{Svc: &endpoint.Service{DB: o.DB, Exec: &execution.Service{DB: o.DB, Guard: o.Guard}}}).Register(mux)
 	(&reporting.Handlers{Svc: ReportService(o)}).Register(mux)
 	(&assets.Handlers{Svc: &assets.Service{DB: o.DB}}).Register(mux)
 	(&groups.Handlers{Svc: &groups.Service{DB: o.DB}}).Register(mux)
@@ -194,4 +196,17 @@ func AIService(o Options) *ai.Service {
 		token = os.Getenv("ORCHIS_AI_WORKER_TOKEN")
 	}
 	return &ai.Service{DB: o.DB, Tenant: o.Tenant, Key: key, WorkerToken: token, Guard: o.Guard}
+}
+
+// DemoService also wires cleanup capabilities; never report external cleanup on
+// the strength of deleting database rows alone.
+func DemoService(o Options) *demo.Service {
+	s := &demo.Service{DB: o.DB}
+	if store, ok := o.Store.(demo.BlobCleaner); ok {
+		s.Blob = store
+	}
+	if search, ok := o.Search.(demo.SearchCleaner); ok {
+		s.Search = search
+	}
+	return s
 }

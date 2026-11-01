@@ -15,6 +15,8 @@ def init(args):
     if os.geteuid()!=0: raise SystemExit("prod-init needs root to assign private secret files to container users")
     if args.state.exists(): raise SystemExit("State directory exists; refusing to replace secrets")
     if not re.fullmatch(r"[a-z][a-z0-9-]{2,39}",args.project): raise SystemExit("Invalid project name")
+    from mitre_config import defaults
+    mitre=defaults(REPO)
     network_ids=subprocess.check_output(["docker","network","ls","-q"],text=True).split()
     networks=json.loads(subprocess.check_output(["docker","network","inspect",*network_ids],text=True)) if network_ids else []
     used=[ipaddress.ip_network(c["Subnet"]) for n in networks for c in (n.get("IPAM",{}).get("Config") or []) if c.get("Subnet")]
@@ -31,7 +33,7 @@ def init(args):
     (args.state/"ops-status").mkdir(mode=0o755)
     private(args.state/"grafana_password",random(),472)
     private(args.state/"rabbitmq.conf",f"default_user = orchis\ndefault_pass = {mq}\nloopback_users.guest = true\nvm_memory_high_watermark.absolute = 192MiB\nmanagement.tcp.ip = 127.0.0.1",999)
-    base={"ORCHIS_PRODUCTION":"true","ORCHIS_TENANT":"default","ORCHIS_MITRE_URL":"off","ORCHIS_COOKIE_SECURE":"true","ORCHIS_TRUSTED_PROXIES":caddy_ip+"/32"}
+    base={"ORCHIS_PRODUCTION":"true","ORCHIS_TENANT":"default","ORCHIS_COOKIE_SECURE":"true","ORCHIS_TRUSTED_PROXIES":caddy_ip+"/32",**mitre}
     url=lambda role,pw:f"postgres://{role}:{pw}@pg:5432/orchis?sslmode=disable"
     appbase={**base,"ORCHIS_DATABASE_URL":url("orchis_app",app)}
     private(args.state/"migrate.json",{**base,"ORCHIS_MIGRATE_URL":url("orchis",owner)})
@@ -127,10 +129,15 @@ def probe(args):
         assert res.status==200 and all(flag in cookie for flag in ["Secure","HttpOnly","SameSite=Lax"]),"Session cookie flags failed"
     with client.open(base+"/api/v1/auth/me",timeout=10) as res:
         assert json.load(res)["email"]==credential["email"],"HTTPS session failed"
+    if json.loads((args.state/"server.json").read_text()).get("ORCHIS_MITRE_URL") != "off":
+        from mitre_config import verify_import
+        verify_import(client,base,REPO)
+    else:
+        print("ATT&CK import explicitly disabled in this installation")
     result=compose(args,"exec","-T","renderer","node","--input-type=module",capture=True,input=(REPO/"deploy/prod/renderer-probe.mjs").read_text())
     print("HTTPS health, trusted CA, secure cookie and login: OK")
     print(result.stdout.strip())
-    print("Infrastructure probe only; assessment/backup/restore smoke remains a separate T1 gate")
+    print("Infrastructure probe only; run prod-smoke for the full assessment and encrypted restore test")
 
 @contextlib.contextmanager
 def state_lock(state):
@@ -143,11 +150,12 @@ def state_lock(state):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","metrics-init","ai-rekey"])
+    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","metrics-init","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"])
     p.add_argument("--state",type=Path,default=None)
     p.add_argument("--project")
     p.add_argument("--port",type=int)
     p.add_argument("--email",default="admin@orchis.local")
+    p.add_argument("--demo-seed",type=int,default=int(os.environ.get("DEMO_SEED","1")))
     p.add_argument("--credentials-file",type=Path)
     p.add_argument("--archive",type=Path,default=Path(os.environ["ORCHIS_BACKUP_FILE"]) if os.environ.get("ORCHIS_BACKUP_FILE") else None)
     p.add_argument("--key-file",type=Path,default=Path(os.environ["ORCHIS_BACKUP_KEY_FILE"]) if os.environ.get("ORCHIS_BACKUP_KEY_FILE") else None)
@@ -166,8 +174,14 @@ def main():
     if not 1024<=args.port<=65535:p.error("Port must be between 1024 and 65535")
     def execute():
         if args.command=="init":init(args)
+        elif args.command in {"demo-seed","demo-purge","demo-status"}:
+            if not 0<=args.demo_seed<=1000000:raise RuntimeError("DEMO_SEED must be between 0 and 1000000")
+            compose(args,"run","--rm","--no-deps","-e","DEMO_SEED="+str(args.demo_seed),"server",args.command)
         elif args.command=="probe":probe(args)
         elif args.command=="metrics-init":metrics_init(args)
+        elif args.command=="mitre-config":
+            from mitre_config import configure
+            configure(args,REPO,private)
         elif args.command=="build":
             compose(args,"build","server","renderer")
             compose(args,"build","nmap")
@@ -190,7 +204,7 @@ def main():
             from smoke import smoke
             smoke(args,compose,init,up,probe)
         else:compose(args,"ps","-a")
-    if args.command in {"up","down","build","backup-key","backup","metrics-init","ai-rekey"}:
+    if args.command in {"up","down","build","backup-key","backup","metrics-init","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"}:
         with state_lock(args.state):execute()
     else:execute()
 

@@ -9,3 +9,5 @@ e2e/shots
 .env
 .env.*
 **/*.key
+PROGRESS.md
+result-infra.txt

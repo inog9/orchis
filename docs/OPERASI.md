@@ -1,8 +1,8 @@
 # Operasi ORCHIS
 
-Status: komponen T1 telah diimplementasikan dan diuji terarah; pemeriksaan CI
-akhir masih menunggu. Deployment yang dibuktikan memakai HTTPS lokal, bukan
-DNS/ACME publik atau SLA produksi. Gerbang T1 belum dinyatakan selesai.
+Deployment telah diuji dengan fixture lokal: HTTPS, scan nyata, PDF, backup terenkripsi
+serta restore ke project terisolasi. HTTPS publik/ACME, backup off-host dan SLA produksi
+belum dibuktikan. Ikuti batasan runtime dan platform pada bagian terkait.
 
 ## Menyiapkan satu instalasi terisolasi
 
@@ -484,14 +484,284 @@ CSV (kolom `synthetic`) dan JSON; tidak pernah dihitung sebagai cakupan "trained
 
 ## ATT&CK (MITRE) beku
 
-Bundel Enterprise ATT&CK dibekukan di `deploy/mitre` (manifest ikut repo, bundel tidak):
+Manifest Enterprise ATT&CK di `deploy/mitre/manifest.json` ikut repo; bundel besar
+dapat dipulihkan tanpa mengubah pin:
 
-```bash
-make mitre-update VERSION=20.0   # unduh, validasi, tampilkan diff, tulis bundel + manifest
-make mitre-verify                # periksa hash, versi, dan hitungan terhadap manifest
+```sh
+make mitre-fetch                 # mengambil tepat versi, hash, ukuran dan hitungan manifest
+make mitre-verify                # verifikasi offline; menolak artefak atau metadata yang berubah
 ```
 
-Untuk memakainya di server: arahkan `ORCHIS_MITRE_URL` ke berkas bundel dan `ORCHIS_MITRE_SHA256` ke hash di
-`manifest.json`. Di produksi `ORCHIS_MITRE_URL=off` (bawaan `ops.py`) atau berkas beku dengan hash wajib;
-unduhan HTTP tanpa hash ditolak saat start. Impor satu transaksi, idempoten; teknik yang hilang dari sumber
-ditandai deprecated, bukan dihapus.
+`fetch` tidak mengubah manifest dan tidak mengunduh lagi bila cache sudah valid.
+Penggantian cache atomik: hash, ukuran, versi, dan hitungan harus cocok terlebih dahulu.
+Pemelihara yang memang memperbarui sumber menjalankan `make mitre-update VERSION=20.0`
+dengan versi yang ditinjau, membaca diff baru/berubah/deprecated, lalu meninjau perubahan
+manifest di Git. Laporan lama tetap memakai snapshot yang sudah dibekukan.
+
+Build image server mengambil bundel yang dipatok bila belum ada pada konteks lokal,
+memverifikasinya, dan menyalinnya ke `/opt/orchis/mitre` sebagai berkas read-only yang
+dapat dibaca UID 10001. Untuk build tanpa internet, siapkan artefak valid terlebih dahulu.
+Lisensi dan disclaimer MITRE lengkap disertakan dalam `/licenses/mitre.LICENSE`.
+`prod-init` memasang path lokal dan SHA-256 dari manifest pada konfigurasi privat;
+produksi menolak URL runtime, termasuk URL yang diberi hash. `off` masih tersedia
+sebagai keputusan eksplisit untuk menonaktifkan fitur.
+
+Instalasi lama tidak diubah otomatis. Sesudah meninjau pin dan membangun image yang cocok:
+
+```sh
+make prod-backup
+make prod-mitre-config            # ORCHIS_STATE menunjuk hanya project yang dipilih
+make prod-down
+make prod-up
+make prod-probe
+```
+
+Perintah konfigurasi mempertahankan kredensial dan izin 0600, tidak merestart container.
+Jangan restart jika pembaruan konfigurasi gagal; perbaiki dan jalankan kembali.
+Probe HTTPS memeriksa versi/hash impor dan jumlah induk/sub-teknik/taktik terhadap manifest.
+Gunakan tag image versi tetap untuk upgrade/rollback; rollback database tetap melalui restore
+backup, bukan migrasi turun. `make prod-smoke` membuktikan alur scan, PDF dan restore di
+project fixture baru, tanpa mengubah instalasi yang ada.
+
+Mapped berarti ada pemetaan aksi, trained berarti aksi nyata selesai sukses, dan
+simulated berarti ada run atau referensi temuan sintetis. Ketiganya dapat beririsan;
+badge Demo tetap terlihat pada teknik mapped/trained. Hitungan induk memakai ID
+run unik, dan angka sintetis tidak pernah ditambahkan ke trained. Panel detail dapat
+digulir; Escape kembali ke teknik yang dipilih.
+
+## Data endpoint (osquery)
+
+Agent dapat mengumpulkan data dari dalam mesin (OS, paket, akun, port listening, hardening, firewall) dengan osquery. Semua query
+bernama dan hanya-baca; teks SQL tidak pernah dikirim server. Persetujuan per organisasi: sensitivitas rendah aktif bawaan; `users` dan
+`network` perlu persetujuan admin (Organisations → Endpoint data, dialog menampilkan tabel yang dibaca; diaudit).
+
+Pemasangan: artefak osquery yang dipatok (5.24.0, linux/amd64) ditandatangani dengan kunci rilis agent dan disajikan server dari
+`<direktori rilis>/tools/`. Agent memasangnya sendiri di direktorinya saat query osquery pertama dibutuhkan.
+
+```bash
+make osquery-fetch                                # ambil artefak yang dipatok ke deploy/osquery (diverifikasi SHA-256)
+go run ./cmd/agenttool -file deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz -key <release.key> -out <direktori rilis>
+```
+
+`agenttool` menolak menandatangani berkas yang hash/ukurannya berbeda dari yang dipatok. Rilis agent harus berversi setelah T4 agar
+mengenal aksi osquery (`make agent-release`); agent lama melaporkan galat "tidak dikenal agent ini". Hanya Linux amd64 yang terbukti.
+Hasil terakhir per aset+query tersimpan di `endpoint_datasets`; tidak ada riwayat. Mencabut persetujuan menghentikan pengumpulan dan
+mengeluarkan datanya dari laporan baru.
+
+Pack resmi osquery dibekukan di `internal/osquery/packs.json` (dihasilkan `make osquery-packs OSQUERYD=<biner dari artefak yang sama>`,
+tidak diunduh saat runtime). Admin menyetujui satu pack per organisasi (Organisations → Endpoint data → Official packs); hanya query
+berstatus "Runs" yang aktif, sisanya dilewati dengan alasan tertulis (data sensitif, tabel belum ditinjau, macOS/Windows, tanpa
+sampel). `ossec-rootkit` membaca berkas dan tidak menjalankan apa pun. Persetujuan dan pencabutan tercatat di audit (`osquery.pack`)
+beserta hash pack dan tabel yang dibaca. Chain dapat memakai paket server terpasang: kondisi `installed_software` dan mapper
+`installed_software -> tags` pada langkah Nuclei (tabel tag beku; tanpa argumen mentah).
+
+
+### Menjalankan demo pada project produksi yang dipilih
+
+Tidak ada seed otomatis saat startup. Operator dapat mengaktifkan demo secara eksplisit:
+
+```bash
+python3 deploy/prod/ops.py demo-seed --state /var/lib/orchis --demo-seed 7
+python3 deploy/prod/ops.py demo-status --state /var/lib/orchis
+python3 deploy/prod/ops.py demo-purge --state /var/lib/orchis
+```
+
+Perintah memakai konfigurasi server project itu, termasuk bucket dan index yang dikonfigurasi.
+Purge menghapus baris bisnis secara transaksional lalu membersihkan PDF dan dokumen pencarian
+melalui antrean tahan restart. `has_demo=false` dengan `cleanup_pending>0` berarti baris bisnis
+sudah dihapus, tetapi pembersihan artefak belum selesai. Banner menyediakan retry dan server
+mencoba otomatis tiap lima detik. Pulihkan koneksi/konfigurasi MinIO dan Elasticsearch lalu ulangi
+purge bila diperlukan. Jangan menghapus antrean secara manual. Bila CLI tanpa backend lengkap,
+tugas tetap pending; jalankan kembali dengan konfigurasi penyimpanan dan pencarian yang benar.
+Seed berikutnya ditolak sampai cleanup selesai, untuk mencegah retry menghapus PDF seed baru.
+
+Purge menolak ketika PDF demo masih dirender atau data nyata bergantung pada induk demo.
+Selesaikan render atau lepaskan relasi nyata tersebut terlebih dahulu. Audit operator tetap
+tersimpan; hanya contoh audit sintetis yang dihapus. Report demo `queued` membutuhkan worker
+laporan dan renderer normal, sama seperti report nyata; tidak ada status sukses tanpa PDF.
+
+
+Fixture identitas demo tidak dapat dipakai untuk login: akun disabled, tanpa password, serta
+penanda demo ditolak di autentikasi. Token dan link reset contoh sudah dibatalkan/kedaluwarsa;
+token contoh di Profile berlabel synthetic dan tidak menyediakan rahasia. Tiga injector contoh
+hanya menunjukkan status ilustratif, bukan worker yang terhubung. Home dan metrik worker tetap
+memakai sumber nyata. Peserta, tim, grup, saved tests dan preset bernama Demo dapat ditinjau dari
+halaman yang sama dengan data biasa. Alamat demo yang berizin hanya loopback; hostname fiktif
+tidak diberi izin scan. Purge menolak penghapusan jika pengguna menambahkan relasi nyata ke
+induk demo; lepaskan relasi tersebut terlebih dahulu.
+
+
+Fixture demo juga menyediakan riwayat sintetis untuk tujuh status simulasi, cabang kondisi,
+serta tiga versi laporan per organisasi dengan cakupan lengkap/gagal/dilewati. Label synthetic
+berlaku untuk hasil, waktu, metodologi dan perbandingan; riwayat ini tidak pernah diterbitkan
+ke worker atau dihitung sebagai MITRE trained. Gunakan scenario baru dengan target lokal yang
+berizin untuk menguji eksekusi nyata. Format fixture saat ini versi 3; jika demo-status melaporkan
+format lama, jalankan purge dan tunggu cleanup_pending=0 sebelum seed ulang. Snapshot lama
+sengaja tidak diperbarui otomatis. Penghapusan dapat ditolak jika riwayat nyata menggunakan
+induk demo; jangan menghapus referensi atau antrean melalui SQL untuk memaksa purge.
+
+
+Demo juga mengisi AI assistance melalui API palsu yang dibuka sebentar pada loopback oleh CLI
+seed itu sendiri. Tidak perlu key AI dan tidak perlu menjalankan ai-worker untuk menghasilkan
+contoh. Policy tetap disabled, tanpa key tersimpan, dan read-only. Job review/completed/rejected/
+canceled serta template berversi dan suplemen empat format semuanya sintetis; tidak dapat
+di-approve untuk memindai. Tombol Run pada saved test tetap memakai guard otorisasi normal,
+sedangkan hasil contoh yang sudah ada tidak pernah berasal dari proses scanner. Pemutakhiran
+format fixture memerlukan purge dan cleanup selesai sebelum seed ulang.
+
+Suplemen AI PDF memakai ORCHIS_RENDERER_URL/TOKEN yang sama dengan worker laporan normal pada
+server produksi. Model/kredensial provider nyata tetap membutuhkan persetujuan terpisah dan
+belum diuji; fixture ini tidak memanggil DeepSeek/OpenAI di internet.
+
+
+Build injector pengembangan (`make injector-image`) memakai konteks khusus berisi binernya,
+seperti worker AI. Direktori bin pada konteks server produksi tetap dikecualikan; jangan
+membuka pengecualian untuk semua keluaran build atau rahasia agar build injector berhasil.
+
+### Batas keluaran osquery
+
+Server menerima data endpoint hanya melalui dataset query bernama dan aturan
+pemetaan katalog. Output mentah, log bebas, serta temuan kiriman agent pada aksi
+osquery dibuang. Diagnostik disunting; versi alat wajib berbentuk numerik.
+Setiap dataset tersanitasi dibatasi 1 MiB termasuk escaping JSON, dengan sel
+maksimal 512 karakter dan batas baris per query. `Truncated` berarti hasil parsial;
+jangan menafsirkan baris yang tidak terkumpul sebagai bukti aman. Runner membatasi
+stdout 8 MiB dan stderr 64 KiB. Query yang perlu root dilewati sebelum instalasi
+bila agent berjalan tanpa hak tersebut. Seluruh pack selalu perlu opt-in admin,
+termasuk bila ada query pack yang kelak diklasifikasikan bersensitivitas rendah.
+
+### Versi yang didukung untuk instalasi dan upgrade
+
+Batas dukungan awal mengikuti versi yang benar-benar diuji, bukan perkiraan versi
+lama yang mungkin kompatibel. Instalasi Linux amd64 memakai Docker Engine 29.1.3,
+Compose 2.40.3, dan Python 3.14.4. Build langsung memakai Go 1.26.10 atau lebih baru
+sesuai `go.mod`; frontend diuji pada Node 22.22.1, sedangkan builder image memakai
+Node 24.22.0 yang dipatok. Memakai build image tidak memerlukan Go/Node di host.
+PostgreSQL 17 wajib; PostgreSQL major lebih lama dan upgrade major in-place belum
+didukung. Broker 4.4, Elasticsearch 8.19.23, renderer Playwright 1.64.1 dan proxy
+Caddy 2.11.7 mengikuti digest Compose/Dockerfile. Jangan mengganti major di luar
+matriks ini dalam upgrade aplikasi yang sama. Windows/macOS/arm64 tetap build-only
+untuk agent sampai pengujian perangkat nyata selesai.
+
+Tentukan versi image aplikasi secara eksplisit. Skema awal yang terbukti untuk
+upgrade ini adalah 17, kemudian migrasi berurutan sampai 26. Instalasi yang lebih
+lama memerlukan rehearsal tersendiri; jangan mengasumsikan uji 17→26 mencakupnya.
+Simpan image dan backup dari versi asal. Menjalankan image lama terhadap database
+baru bukan rollback yang didukung: restore backup ke volume/database baru, jalankan
+image asal, verifikasi, lalu pindahkan endpoint secara terencana. Jangan menjalankan
+migrasi Down untuk rollback produksi.
+
+Rehearsal database lokal yang hanya membaca sumber dan membersihkan DB salinan:
+
+```sh
+go build -o bin/server-t5-upgrade ./cmd/server
+go build -o bin/backup-seal ./cmd/backup-seal
+python3 e2e/upgrade-restore.py --source-db orchis_review \
+  --out /var/lib/orchis-upgrade-proof-UNIK \
+  --password-file /jalur/privat/password-admin-saat-ini
+```
+
+Password dibaca di dalam proses, tidak diberikan lewat argv atau dicetak. Direktori
+bukti baru berizin 0700; dump dienkripsi dan dump plaintext sementara dihapus saat
+selesai, termasuk saat gagal. Simpan `backup.key` terpisah dari arsip sesuai prosedur
+backup produksi. Skrip membatasi sumber 512 MiB, mensyaratkan ruang bebas 2 GiB,
+dan memberi timeout per perintah. Ini rehearsal DB dev, bukan pengganti backup
+produksi lengkap (MinIO, kunci, rilis agent, dan sertifikat).
+
+Bukti 1 November 2026: salinan `orchis_review` skema17 berukuran13.7 MB memuat
+53 aset, 95 temuan, dan17 laporan. Enkripsi/dekripsi menghasilkan dump identik;
+restore kedua tetap skema17 dan seluruh data asli. Upgrade ke26 memverifikasi
+fingerprint SHA-256 proyeksi kolom lama pada63 tabel. Satu transformasi yang memang
+diwajibkan migrasi22 diperiksa secara eksplisit:18 aset demo nonlokal kehilangan
+otorisasi scan. Snapshot laporan dan data lain tetap identik. Login memakai password
+lama serta API Home/Organisations/Assets/Reports dan HTML laporan lama lulus pada
+salinan baru. Sumber review dan layanan yang sedang berjalan tidak diubah.
+
+### Penolakan kredensial contoh
+
+`prod-init` membuat setiap rahasia secara acak untuk satu state baru. Nilai tidak
+dicetak; kredensial admin awal dibaca dari `initial-admin.json` berizin0600 sekali
+oleh operator lalu disimpan di pengelola password. State yang sudah ada ditolak
+agar init ulang tidak mengganti rahasia. Dua setup terpisah diuji menghasilkan
+rahasia berbeda; seluruh file rahasia tetap0600. Admin yang sudah ada tidak direset
+saat restart. Password awal acak menggantikan kebutuhan password contoh yang harus
+diganti; operator tetap dapat menggantinya melalui Profile.
+
+Mode produksi menolak fallback DB dan password DB pendek, password admin awal
+kurang24 karakter, kredensial broker contoh atau akun guest, secret object storage
+kurang24 karakter, dan token renderer kurang32 karakter. Layanan opsional yang
+benar-benar tidak dikonfigurasi tidak memerlukan rahasia palsu. Error menyebut
+jenis pengaturan tanpa nilai rahasianya. Gunakan `prod-init` untuk menghasilkan
+nilai; jangan memperpanjang password contoh agar melewati batas panjang.
+
+### QA PDF kecil dan besar
+
+HTML dan PDF memakai halaman cetak yang sama. Parameter lampiran dicetak sebagai
+JSON ringkas dan tetap di-escape, sehingga array berindentasi tidak menghabiskan
+halaman sendiri. Snapshot tersimpan tidak ditulis ulang. Laporan sintetis mempunyai
+penanda demo pada halaman pertama dan footer setiap halaman, termasuk lampiran.
+
+Buat fixture QA tanpa pemindaian atau akses layanan eksternal:
+
+```sh
+go run ./e2e/report-preview -large -snapshot-out /tmp/demo-layout.json > /tmp/demo-layout.html
+node deploy/report/render.mjs < /tmp/demo-layout.html > /tmp/demo-layout.pdf
+python3 e2e/check-report-pdf.py /tmp/demo-layout.pdf /tmp/demo-layout.json
+pdftoppm -png -scale-to 1200 /tmp/demo-layout.pdf /tmp/demo-layout-page
+```
+
+Perintah Python dan PNG memerlukan Poppler (`pdftotext`, `pdftoppm`) di mesin QA;
+tidak dipasang pada host produksi atau diperlukan oleh renderer runtime. Untuk
+snapshot nyata yang sudah diekspor, berikan JSON melalui stdin ke `report-preview`
+tanpa `-large`. Jangan memasukkan snapshot/bukti privat ke Git.
+
+Uji teks memeriksa A4, batas teks, setiap nama aset/judul temuan, cakupan dari snapshot,
+footer provenance dan nomor halaman. Pemeriksaan itu melengkapi, bukan menggantikan,
+tinjauan gambar setiap halaman. Bukti T5: laporan scan lokal nyata3 aset/2 temuan
+berkurang4→3 halaman tanpa kehilangan isi; fixture sintetis12 aset/36 temuan adalah17
+halaman, dengan8 diuji,3 dilewati,1 tidak lengkap. Seluruh20 halaman final ditinjau
+sebagai PNG; tidak ditemukan clipping, tumpang tindih atau halaman kosong. Uji
+renderer juga membuktikan tidak ada permintaan HTTP gambar/CSS/JavaScript.
+
+### Persetujuan dan penghapusan data endpoint
+
+Dokumen produk [ENDPOINT-CONSENT.md](ENDPOINT-CONSENT.md), versi2026-11-01.1,
+ditampilkan sebelum admin menyetujui query atau pack pada Organisations → Endpoint
+data. Daftar tabel tetap terlihat; dokumen dalam panel dapat digulir dengan pointer
+atau keyboard. Tombol Approve menyetujui dokumen yang ditampilkan. API aktivasi
+memerlukan `consent: {version, sha256}` dari katalog saat ini. Versi/hash yang tidak
+cocok ditolak422; tidak ada izin baru yang tersimpan. Persetujuan lama yang tidak
+merekam dokumen perlu diperbarui untuk query yang memerlukan persetujuan eksplisit.
+Pemeriksaan dasar bersensitivitas rendah tetap mengikuti pengaturan bawaan; semua
+pack selalu opt-in. Persetujuan ini tidak mengaktifkan AI atau penjadwalan.
+
+Setting dan audit merekam pengguna, waktu server, versi/hash dokumen, query/pack,
+serta tabel yang dibaca. Pack juga merekam versi/hash sumbernya. Recorded collection
+approvals menampilkan identitas dan waktu; pencabutan terlihat di Audit log. Perubahan
+persetujuan membatalkan hasil yang sedang berjalan, termasuk cabut lalu setujui ulang.
+
+Retensi yang berlaku saat ini dinyatakan secara eksplisit: dataset sukses terakhir
+bertahan sampai digantikan hasil sukses lain atau dihapus; belum ada kedaluwarsa
+berdasarkan umur dan belum ada riwayat koleksi. Temuan, laporan beku, audit dan backup
+memiliki siklus terpisah. Jangan menyetujui model ini bila tidak sesuai kebijakan
+organisasi. Otomatisasi retensi/riwayat masih sisa T4, bukan klaim selesai T5.
+
+Pada Assets → detail aset → Endpoint data, admin dengan `asset.write` dan
+`settings.manage` dapat memilih Delete collected data. Dialog menjelaskan lingkupnya.
+Permintaan memerlukan versi aset saat ini; perubahan bersamaan ditolak409. Penghapusan
+diaudit, menghapus dataset terakhir saja, dan menaikkan versi aset agar hasil yang
+sudah berjalan tidak mengisi ulang data yang dihapus. Query yang masih antre atau
+permintaan manual berikutnya tetap dapat berjalan. Matikan query/pack atau cabut
+izin pengujian terlebih dahulu untuk mencegah pengumpulan ulang. Pencabutan agent
+menghentikan seluruh tindakan agent. Data demo bersifat read-only dan memakai purge
+demo terpisah; tenant lain tidak dapat menghapus data ini.
+
+Penghapusan dataset tidak menghapus temuan, snapshot laporan, audit, ataupun salinan
+backup. Verifikasi dan kelola retensi masing-masing sesuai kebijakan operator;
+jangan menganggap penghapusan tampilan endpoint sebagai penghapusan seluruh bukti.
+
+Verifikasi akhir T5 mengulang upgrade17→26 dari backup skema17 yang sudah
+dibekukan, kemudian restore ke17:63 tabel cocok (selain transformasi izin demo
+yang memang diwajibkan), login/API/laporan lama lulus. Salinan sumber lain pada
+skema24 juga lulus24→26 dan restore ke24 dengan66 tabel cocok. Rehearsal memakai
+database disposable pada PostgreSQL dev; tidak memindahkan endpoint produksi.

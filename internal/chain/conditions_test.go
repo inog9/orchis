@@ -79,3 +79,27 @@ func TestConditionCountMonotonicProperty(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInstalledSoftwareConditionAndMapperValidation(t *testing.T) {
+	found := []Found{{Type: "service", Value: "osquery:package:Nginx"}, {Type: "text", Value: "osquery:package:redis"}, {Type: "service", Value: "other:nginx"}}
+	in := Condition{Op: "IN", Field: "installed_software", Value: []any{"nginx"}}
+	if in.Validate() != nil || !in.Evaluate(StDone, found) {
+		t.Fatal("installed nginx not matched")
+	}
+	if (Condition{Op: "IN", Field: "installed_software", Value: []any{"redis"}}).Evaluate(StDone, found) {
+		t.Fatal("non-service finding counted as software")
+	}
+	if (Condition{Op: "IN", Field: "installed_software", Value: []any{"other:nginx"}}).Evaluate(StDone, found) {
+		t.Fatal("foreign value counted as software")
+	}
+	for _, m := range []Mapper{{"installed_software", "tags"}, {"open_ports", "ports"}, {"web_urls", "target"}} {
+		if !validMapper(m) {
+			t.Errorf("rejected %+v", m)
+		}
+	}
+	for _, m := range []Mapper{{"installed_software", "target"}, {"installed_software", "ports"}, {"open_ports", "tags"}, {"x", "tags"}} {
+		if validMapper(m) {
+			t.Errorf("accepted %+v", m)
+		}
+	}
+}

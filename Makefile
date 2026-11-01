@@ -1,7 +1,7 @@
 RELEASE_KEY ?= dist/release.key
 RELEASE_DIR ?= dist/agent
 
-.PHONY: mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check injector-image
+.PHONY: osquery-packs mitre-fetch prod-mitre-config osquery-fetch mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check tokens injector-image
 
 dev-up:      ## Jalankan PostgreSQL pengembangan
 	docker compose -f deploy/compose.yml up -d pg
@@ -11,7 +11,9 @@ dev-up-full: ## Jalankan PostgreSQL + RabbitMQ + Elasticsearch + MinIO (untuk Fa
 
 injector-image: ## Bangun image injector (nmap + nuclei)
 	CGO_ENABLED=0 go build -ldflags "-s -w" -o bin/injector ./cmd/injector
-	docker build -f deploy/injector/Dockerfile -t orchis-injector:dev .
+	mkdir -p work/injector-image/bin
+	cp bin/injector work/injector-image/bin/
+	docker build -f deploy/injector/Dockerfile -t orchis-injector:dev work/injector-image
 
 agent-release: ## Bangun dan tandatangani agent semua platform (VERSION=1.0.0)
 	go run ./cmd/agentrelease -version $(or $(VERSION),0.1.0) -key "$(RELEASE_KEY)" -init -out "$(RELEASE_DIR)"
@@ -37,6 +39,9 @@ e2e: build   ## Tes end-to-end di browser (database baru per putaran)
 	./e2e/run.sh
 	node e2e/ai-egress.mjs
 
+tokens:      ## Sinkronkan token desain dari design/orchis.pen
+	npm --prefix web run tokens && npm --prefix web run raven
+
 demo-seed:   ## Isi data dummy bertanda is_demo (DEMO_SEED=n, bawaan 1); butuh server dev berjalan
 	go run ./cmd/server demo-seed
 
@@ -48,6 +53,15 @@ demo-status: ## Tampilkan jumlah data dummy dan seed yang dipakai
 
 mitre-update: ## Bekukan bundel ATT&CK Enterprise: make mitre-update VERSION=20.0 (menampilkan diff)
 	go run ./cmd/mitre-update -version $(VERSION)
+
+osquery-fetch: ## Ambil artefak osquery yang dipatok ke deploy/osquery (diverifikasi SHA-256; dipakai e2e agent nyata)
+	go run ./cmd/agenttool -fetch
+
+mitre-fetch: ## Ambil tepat pin manifest; tidak mengubah versi atau hash yang ditinjau
+	go run ./cmd/mitre-update -fetch
+osquery-packs: ## Bekukan ulang pack resmi osquery dari artefak yang dipatok (butuh OSQUERYD=/jalur/osqueryd untuk sampel nyata)
+	@test -n "$(OSQUERYD)" || { echo "isi OSQUERYD=/jalur/ke/osqueryd (biner dari artefak yang sama)"; exit 1; }
+	go run ./cmd/osquery-packs -tar deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz -osqueryd "$(OSQUERYD)"
 
 mitre-verify: ## Periksa bundel beku di deploy/mitre terhadap manifest (hash, versi, hitungan)
 	go run ./cmd/mitre-update -verify
@@ -66,6 +80,8 @@ prod-init: ## Buat secret di luar checkout (root; ORCHIS_STATE opsional)
 	python3 deploy/prod/ops.py init
 prod-build: ## Bangun image server/web, renderer dan scanner
 	python3 deploy/prod/ops.py build
+prod-mitre-config: ## Terapkan pin MITRE checkout pada konfigurasi project terpilih; restart eksplisit sesudah build
+	python3 deploy/prod/ops.py mitre-config
 prod-up: ## Mulai hanya project terpilih; data yang sudah ada dipertahankan
 	python3 deploy/prod/ops.py up
 prod-down: ## Hentikan project terpilih tanpa menghapus volume

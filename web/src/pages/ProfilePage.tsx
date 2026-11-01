@@ -84,8 +84,8 @@ function Tokens() {
       {q.isPending ? <span className="skeleton" /> : q.isError ? <p role="alert">{describeError(q.error).message}</p> : q.data.length === 0 ? <p className="muted">You have no active tokens.</p> : (
         <ul className="mini-list" aria-label="API tokens">
           {q.data.map((t) => (
-            <li key={t.id}><div className="mini-list__main"><strong>{t.name}</strong><span className="muted small"><code className="mono">{t.prefix}…</code> · {t.last_used_at ? `used ${when(t.last_used_at)}` : 'never used'} · expires {when(t.expires_at)}</span></div>
-              <button type="button" className="btn btn--danger btn--sm" aria-label={`Revoke ${t.name}`} onClick={() => setRevoking({ id: t.id, name: t.name })}>Revoke</button></li>
+            <li key={t.id}><div className="mini-list__main"><strong>{t.name}</strong><span className="muted small">{t.is_demo ? 'Synthetic example · revoked · cannot authenticate' : <code className="mono">{t.prefix}…</code>} · {t.last_used_at ? `used ${when(t.last_used_at)}` : 'never used'} · expires {when(t.expires_at)}</span></div>
+              {!t.is_demo && <button type="button" className="btn btn--danger btn--sm" aria-label={`Revoke ${t.name}`} onClick={() => setRevoking({ id: t.id, name: t.name })}>Revoke</button>}</li>
           ))}
         </ul>
       )}

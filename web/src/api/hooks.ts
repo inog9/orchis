@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from './client';
-import type { AgentRow, EnrollmentStatus, EnrollmentToken, AlertList, ApiToken, CreatedUser, IntegrationRow, MitreDetail, MitreMatrix, NewApiToken, PersonRow, PlatformSettings, ResetLink, RoleRow, TagRow, TeamDetail, TeamRow, UserRow, Asset, AssetPage, AssetPatch, AtomicTest, Contract, AttackPath, ChainEdge, ChainStep, ExecutionDetail, FindingPage, HomeSummary, Scenario, ScenarioDetail, Simulation, SimulationDetail, Group, GroupDetail, ImportPreview, ImportResult, NewAsset, NewAtomicTest, Rule, RulePreview, TagRef, User } from './types';
+import type { EndpointAssetData, EndpointCatalog, EndpointConsent, OrgOsquerySetting, AgentRow, EnrollmentStatus, EnrollmentToken, AlertList, ApiToken, CreatedUser, IntegrationRow, MitreDetail, MitreMatrix, NewApiToken, PersonRow, PlatformSettings, ResetLink, RoleRow, TagRow, TeamDetail, TeamRow, UserRow, Asset, AssetPage, AssetPatch, AtomicTest, Contract, AttackPath, ChainEdge, ChainStep, ExecutionDetail, FindingPage, HomeSummary, Scenario, ScenarioDetail, Simulation, SimulationDetail, Group, GroupDetail, ImportPreview, ImportResult, NewAsset, NewAtomicTest, Rule, RulePreview, TagRef, User } from './types';
 
 export function useMe() {
   return useQuery({
@@ -525,4 +525,41 @@ export function useEnrollmentStatus(id: string | undefined) {
 export function useRevokeAgent() {
   const qc = useQueryClient();
   return useMutation({ mutationFn: (id: string) => api.post<void>(`/api/v1/agents/${id}/revoke`), onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ['agents'] }), qc.invalidateQueries({ queryKey: ['assets'] })]) });
+}
+
+// ---------- T4: data endpoint (osquery) ----------
+export function useEndpointCatalog() {
+  return useQuery({ queryKey: ['osquery-catalog'], queryFn: () => api.get<EndpointCatalog>('/api/v1/osquery/catalog'), staleTime: 5 * 60_000, retry: false });
+}
+export function useOrgOsquery(orgId: string, enabled = true) {
+  return useQuery({ queryKey: ['osquery-org', orgId], enabled, queryFn: () => api.get<{ items: OrgOsquerySetting[] }>(`/api/v1/organizations/${orgId}/osquery`), retry: false });
+}
+export function useSetOrgOsquery(orgId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { key: string; enabled: boolean; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery/${v.key}`, { enabled: v.enabled, consent: v.consent }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['osquery-org', orgId] }),
+  });
+}
+export function useSetOrgPack(orgId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (v: { pack: string; enabled: boolean; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery-packs/${v.pack}`, { enabled: v.enabled, consent: v.consent }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['osquery-org', orgId] }),
+  });
+}
+export function useAssetEndpoint(assetId: string, enabled = true) {
+  return useQuery({ queryKey: ['asset-endpoint', assetId], enabled, queryFn: () => api.get<EndpointAssetData>(`/api/v1/assets/${assetId}/endpoint-data`), retry: false, refetchInterval: 15_000 });
+}
+export function useRefreshEndpoint(assetId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (queryKey: string) => api.post<unknown>(`/api/v1/assets/${assetId}/endpoint-data/refresh`, { query_key: queryKey }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['asset-endpoint', assetId] }); window.setTimeout(() => qc.invalidateQueries({ queryKey: ['asset-endpoint', assetId] }), 4000); },
+  });
+}
+
+export function useDeleteEndpointData(assetId: string) {
+ const qc=useQueryClient();
+ return useMutation({mutationFn:(version:number)=>api.del(`/api/v1/assets/${assetId}/endpoint-data?version=${version}`),onSuccess:()=>{qc.invalidateQueries({queryKey:['asset-endpoint',assetId]});qc.invalidateQueries({queryKey:['asset',assetId]});}});
 }

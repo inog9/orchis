@@ -148,6 +148,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 		w.WriteHeader(http.StatusNoContent)
 	}))
 	mux.HandleFunc("GET "+AgentPrefix+"download", h.download)
+	mux.HandleFunc("GET "+AgentPrefix+"tool", h.guard(h.tool))
 }
 
 // download menyajikan biner rilis untuk platform milik kredensial: agent yang sedang memperbarui diri (oag_) atau pemasang yang

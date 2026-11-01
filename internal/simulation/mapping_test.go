@@ -46,3 +46,33 @@ func TestWebMapperUsesObservedParentHostAndRejectsScopeExpansion(t *testing.T) {
 		t.Fatal("accepted a host outside the frozen asset scope")
 	}
 }
+
+func TestSoftwareMapperUsesFrozenTagTableOnly(t *testing.T) {
+	s := stepRow{Key: "child", ContractKey: contract.KeyNucleiVS, Params: []byte(`{"severity":["high"]}`)}
+	edges := []chain.Edge{{Parent: "parent", Child: "child", Mapper: &chain.Mapper{Source: "installed_software", Destination: "tags"}}}
+	found := []chain.Found{
+		{Step: "parent", Type: "service", Value: "osquery:package:nginx"},
+		{Step: "parent", Type: "service", Value: "osquery:package:apache2"},
+		{Step: "parent", Type: "service", Value: "osquery:package:redis-server"},
+		{Step: "parent", Type: "service", Value: "osquery:package:evil;id"},
+		{Step: "parent", Type: "text", Value: "osquery:package:httpd"},
+		{Step: "other", Type: "service", Value: "osquery:package:httpd"},
+	}
+	mapped, _, err := mapInput(s, target{}, edges, found)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(mapped.Params), `"tags":["apache","nginx"]`) {
+		t.Fatalf("tags %s", mapped.Params)
+	}
+	if _, _, e := mapInput(s, target{}, edges, found[2:5]); e == nil {
+		t.Fatal("unsupported or non-service or raw names produced a mapping")
+	}
+	if _, _, e := mapInput(s, target{}, edges, found[5:]); e == nil {
+		t.Fatal("used software from an unrelated parent")
+	}
+	s.ContractKey = contract.KeyNmapTCP
+	if _, _, e := mapInput(s, target{}, edges, found); e == nil {
+		t.Fatal("software mapping accepted for a non-nuclei step")
+	}
+}

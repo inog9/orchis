@@ -21,11 +21,21 @@ type Options struct {
 	TLS                                    bool
 }
 
-func Open(ctx context.Context, o Options) (*Store, error) {
+// New constructs a client without requiring a live backend, so cleanup intents
+// can be committed and reported pending during a storage outage.
+func New(o Options) (*Store, error) {
 	c, err := minio.New(o.Endpoint, &minio.Options{Creds: credentials.NewStaticV4(o.AccessKey, o.SecretKey, ""), Secure: o.TLS})
 	if err != nil {
 		return nil, err
 	}
+	return &Store{c: c, bucket: o.Bucket}, nil
+}
+func Open(ctx context.Context, o Options) (*Store, error) {
+	store, err := New(o)
+	if err != nil {
+		return nil, err
+	}
+	c := store.c
 	ok, err := c.BucketExists(ctx, o.Bucket)
 	if err != nil {
 		return nil, err
@@ -35,7 +45,7 @@ func Open(ctx context.Context, o Options) (*Store, error) {
 			return nil, err
 		}
 	}
-	return &Store{c: c, bucket: o.Bucket}, nil
+	return store, nil
 }
 
 func (s *Store) Put(ctx context.Context, key string, data []byte, contentType string) error {
@@ -70,4 +80,9 @@ func (s *Store) Ping(ctx context.Context) error {
 		return fmt.Errorf("bucket %q tidak ada", s.bucket)
 	}
 	return nil
+}
+
+// Remove is idempotent; callers supply only server-derived, tenant-owned keys.
+func (s *Store) Remove(ctx context.Context, key string) error {
+	return s.c.RemoveObject(ctx, s.bucket, key, minio.RemoveObjectOptions{})
 }

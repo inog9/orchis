@@ -1,0 +1,2871 @@
+{
+ "osquery_version": "5.24.0",
+ "artifact_sha256": "3e2fbfe0d9e3cdde60cc58903d03ab3d44449c481bf1117e42351f9e4a460ade",
+ "packs": [
+  {
+   "name": "vuln-management",
+   "description": "Software and kernel inventory used for vulnerability management.",
+   "file": "vuln-management.conf",
+   "sha256": "99064b1f69c350840ba85a9b1d17a48696339c9674aca7689af582fef5efc618",
+   "platform": "",
+   "queries": [
+    {
+     "name": "apt_sources",
+     "description": "Retrieves all the APT sources to install packages from in the target Linux system.",
+     "status": "not_reviewed",
+     "reason": "Table apt_sources is not reviewed yet.",
+     "tables": [
+      "apt_sources"
+     ]
+    },
+    {
+     "name": "backdoored_python_packages",
+     "description": "Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
+     "status": "not_reviewed",
+     "reason": "Table python_packages is not reviewed yet.",
+     "tables": [
+      "python_packages"
+     ]
+    },
+    {
+     "name": "browser_plugins",
+     "description": "Retrieves the list of C/NPAPI browser plugins in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "browser_plugins",
+      "users"
+     ]
+    },
+    {
+     "name": "chrome_extensions",
+     "description": "Retrieves the list of extensions for Chrome in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (chrome_extensions).",
+     "tables": [
+      "chrome_extensions",
+      "users"
+     ]
+    },
+    {
+     "name": "deb_packages",
+     "key": "osquery.pack.vuln_management.deb_packages",
+     "description": "Retrieves all the installed DEB packages in the target Linux system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "deb_packages"
+     ]
+    },
+    {
+     "name": "firefox_addons",
+     "description": "Retrieves the list of addons for Firefox in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (firefox_addons).",
+     "tables": [
+      "firefox_addons",
+      "users"
+     ]
+    },
+    {
+     "name": "homebrew_packages",
+     "description": "Retrieves the list of brew packages installed in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "homebrew_packages"
+     ]
+    },
+    {
+     "name": "installed_applications",
+     "description": "Retrieves all the currently installed applications in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "apps"
+     ]
+    },
+    {
+     "name": "kernel_info",
+     "key": "osquery.pack.vuln_management.kernel_info",
+     "description": "Retrieves information from the current kernel in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_info"
+     ]
+    },
+    {
+     "name": "kernel_modules",
+     "key": "osquery.pack.vuln_management.kernel_modules",
+     "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_modules"
+     ]
+    },
+    {
+     "name": "kextstat",
+     "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "kernel_extensions"
+     ]
+    },
+    {
+     "name": "opera_extensions",
+     "description": "Retrieves the list of extensions for Opera in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (opera_extensions).",
+     "tables": [
+      "opera_extensions",
+      "users"
+     ]
+    },
+    {
+     "name": "os_version",
+     "key": "osquery.pack.vuln_management.os_version",
+     "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "os_version"
+     ]
+    },
+    {
+     "name": "package_receipts",
+     "description": "Retrieves all the PKG related information stored in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "package_receipts"
+     ]
+    },
+    {
+     "name": "portage_packages",
+     "description": "Retrieves all the installed packages on the target Linux system.",
+     "status": "not_reviewed",
+     "reason": "Table portage_packages is not reviewed yet.",
+     "tables": [
+      "portage_packages"
+     ]
+    },
+    {
+     "name": "rpm_packages",
+     "description": "Retrieves all the installed RPM packages in the target Linux system.",
+     "status": "unverified",
+     "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
+     "tables": [
+      "rpm_packages"
+     ]
+    },
+    {
+     "name": "safari_extensions",
+     "description": "Retrieves the list of extensions for Safari in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "safari_extensions",
+      "users"
+     ]
+    },
+    {
+     "name": "unauthenticated_sparkle_feeds",
+     "description": "Retrieves all application bundles using unauthenticated Sparkle update feeds. See (https://vulnsec.com/2016/osx-apps-vulnerabilities/) for details.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "apps",
+      "plist"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "it-compliance",
+   "description": "Basic IT compliance facts: users, mounts, time, OS and kernel.",
+   "file": "it-compliance.conf",
+   "sha256": "11ba576d9f4c827bf05e95d8c7f368304179c351fe026694061c3c0d665126e1",
+   "platform": "",
+   "queries": [
+    {
+     "name": "ad_config",
+     "description": "Retrieves the Active Directory configuration for the target machine, attached to the domain (requires sudo).",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "ad_config"
+     ]
+    },
+    {
+     "name": "alf",
+     "description": "Retrieves the configuration values for the Application Layer Firewall for OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf"
+     ]
+    },
+    {
+     "name": "alf_exceptions",
+     "description": "Retrieves the exceptions for the Application Layer Firewall in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_exceptions"
+     ]
+    },
+    {
+     "name": "alf_explicit_auths",
+     "description": "Retrieves the list of processes with explicit authorization for the Application Layer Firewall.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_explicit_auths"
+     ]
+    },
+    {
+     "name": "alf_services",
+     "description": "Retrieves the services for the Application Layer Firewall in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_services"
+     ]
+    },
+    {
+     "name": "apt_sources",
+     "description": "Retrieves all the APT sources to install packages from in the target Linux system.",
+     "status": "other_os",
+     "reason": "Only for ubuntu, not proven yet.",
+     "tables": [
+      "apt_sources"
+     ]
+    },
+    {
+     "name": "browser_plugins",
+     "description": "Retrieves the list of C/NPAPI browser plugins in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "browser_plugins",
+      "users"
+     ]
+    },
+    {
+     "name": "chrome_extensions",
+     "description": "Retrieves the list of extensions for Chrome in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (chrome_extensions).",
+     "tables": [
+      "chrome_extensions",
+      "users"
+     ]
+    },
+    {
+     "name": "deb_packages",
+     "description": "Retrieves all the installed DEB packages in the target Linux system.",
+     "status": "other_os",
+     "reason": "Only for ubuntu, not proven yet.",
+     "tables": [
+      "deb_packages"
+     ]
+    },
+    {
+     "name": "disk_encryption",
+     "key": "osquery.pack.it_compliance.disk_encryption",
+     "description": "Retrieves the current disk encryption status for the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "disk_encryption"
+     ]
+    },
+    {
+     "name": "firefox_addons",
+     "description": "Retrieves the list of addons for Firefox in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "firefox_addons",
+      "users"
+     ]
+    },
+    {
+     "name": "homebrew_packages",
+     "description": "Retrieves the list of brew packages installed in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "homebrew_packages"
+     ]
+    },
+    {
+     "name": "installed_applications",
+     "description": "Retrieves all the currently installed applications in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "apps"
+     ]
+    },
+    {
+     "name": "iptables",
+     "description": "Retrieves the current filters and chains per filter in the target system.",
+     "status": "unverified",
+     "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
+     "tables": [
+      "iptables"
+     ]
+    },
+    {
+     "name": "kernel_info",
+     "key": "osquery.pack.it_compliance.kernel_info",
+     "description": "Retrieves information from the current kernel in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_info"
+     ]
+    },
+    {
+     "name": "kernel_modules",
+     "key": "osquery.pack.it_compliance.kernel_modules",
+     "description": "Retrieves the current list of loaded kernel modules in the target Linux system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_modules"
+     ]
+    },
+    {
+     "name": "keychain_items",
+     "description": "Retrieves all the items contained in the keychain in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "keychain_items"
+     ]
+    },
+    {
+     "name": "launchd",
+     "description": "Retrieves all the daemons that will run in the start of the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "launchd"
+     ]
+    },
+    {
+     "name": "mounts",
+     "key": "osquery.pack.it_compliance.mounts",
+     "description": "Retrieves the current list of mounted drives in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "mounts"
+     ]
+    },
+    {
+     "name": "nfs_shares",
+     "description": "Retrieves the current list of Network File System mounted shares.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "nfs_shares"
+     ]
+    },
+    {
+     "name": "os_version",
+     "key": "osquery.pack.it_compliance.os_version",
+     "description": "Retrieves information from the Operative System where osquery is currently running.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "os_version"
+     ]
+    },
+    {
+     "name": "osquery_info",
+     "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
+     "status": "not_reviewed",
+     "reason": "Table osquery_info is not reviewed yet.",
+     "tables": [
+      "osquery_info",
+      "time"
+     ]
+    },
+    {
+     "name": "package_receipts",
+     "description": "Retrieves all the PKG related information stored in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "package_receipts"
+     ]
+    },
+    {
+     "name": "portage_packages",
+     "description": "Retrieves all the packages installed with portage from the target Linux system.",
+     "status": "other_os",
+     "reason": "Only for gentoo, not proven yet.",
+     "tables": [
+      "portage_use"
+     ]
+    },
+    {
+     "name": "rpm_packages",
+     "description": "Retrieves all the installed RPM packages in the target Linux system.",
+     "status": "unverified",
+     "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
+     "tables": [
+      "rpm_packages"
+     ]
+    },
+    {
+     "name": "safari_extensions",
+     "description": "Retrieves the list of extensions for Safari in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "safari_extensions",
+      "users"
+     ]
+    },
+    {
+     "name": "sip_config",
+     "description": "Retrieves the current System Integrity Protection configuration in the target system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "sip_config"
+     ]
+    },
+    {
+     "name": "usb_devices",
+     "key": "osquery.pack.it_compliance.usb_devices",
+     "description": "Retrieves the current list of USB devices in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "usb_devices"
+     ]
+    },
+    {
+     "name": "windows_drivers",
+     "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
+     "status": "other_os",
+     "reason": "Only for windows, not proven yet.",
+     "tables": [
+      "drivers"
+     ]
+    },
+    {
+     "name": "windows_patches",
+     "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
+     "status": "other_os",
+     "reason": "Only for windows, not proven yet.",
+     "tables": [
+      "patches"
+     ]
+    },
+    {
+     "name": "windows_programs",
+     "description": "Retrieves the list of products as they are installed by Windows Installer in the target Windows system.",
+     "status": "other_os",
+     "reason": "Only for windows, not proven yet.",
+     "tables": [
+      "programs"
+     ]
+    },
+    {
+     "name": "windows_shared_resources",
+     "description": "Retrieves the list of shared resources in the target Windows system.",
+     "status": "other_os",
+     "reason": "Only for windows, not proven yet.",
+     "tables": [
+      "shared_resources"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "incident-response",
+   "description": "Triage facts used during incident response.",
+   "file": "incident-response.conf",
+   "sha256": "4412cd062db2946b6aba6d9c9e04430b55220ff01b289c7c4e000b1ba35809bc",
+   "platform": "",
+   "queries": [
+    {
+     "name": "alf",
+     "description": "Retrieves the configuration values for the Application Layer Firewall for OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf"
+     ]
+    },
+    {
+     "name": "alf_exceptions",
+     "description": "Retrieves the exceptions for the Application Layer Firewall in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_exceptions"
+     ]
+    },
+    {
+     "name": "alf_explicit_auths",
+     "description": "Retrieves the list of processes with explicit authorization for the Application Layer Firewall.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_explicit_auths"
+     ]
+    },
+    {
+     "name": "alf_services",
+     "description": "Retrieves the services for the Application Layer Firewall in OSX.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "alf_services"
+     ]
+    },
+    {
+     "name": "app_schemes",
+     "description": "Retrieves the list of application scheme/protocol-based IPC handlers.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "app_schemes"
+     ]
+    },
+    {
+     "name": "arp_cache",
+     "description": "Retrieves the ARP cache values in the target system.",
+     "status": "not_reviewed",
+     "reason": "Table arp_cache is not reviewed yet.",
+     "tables": [
+      "arp_cache"
+     ]
+    },
+    {
+     "name": "crontab",
+     "description": "Retrieves all the jobs scheduled in crontab in the target system.",
+     "status": "not_reviewed",
+     "reason": "Table crontab is not reviewed yet.",
+     "tables": [
+      "crontab"
+     ]
+    },
+    {
+     "name": "disk_encryption",
+     "key": "osquery.pack.incident_response.disk_encryption",
+     "description": "Retrieves the current disk encryption status for the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "disk_encryption"
+     ]
+    },
+    {
+     "name": "etc_hosts",
+     "key": "osquery.pack.incident_response.etc_hosts",
+     "description": "Retrieves all the entries in the target system /etc/hosts file.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "etc_hosts"
+     ]
+    },
+    {
+     "name": "installed_applications",
+     "description": "Retrieves all the currently installed applications in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "apps"
+     ]
+    },
+    {
+     "name": "ip_forwarding",
+     "description": "Retrieves the current status of IP/IPv6 forwarding.",
+     "status": "unverified",
+     "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
+     "tables": [
+      "system_controls"
+     ]
+    },
+    {
+     "name": "iptables",
+     "description": "Retrieves the current filters and chains per filter in the target system.",
+     "status": "unverified",
+     "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
+     "tables": [
+      "iptables"
+     ]
+    },
+    {
+     "name": "kernel_modules",
+     "key": "osquery.pack.incident_response.kernel_modules",
+     "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_modules"
+     ]
+    },
+    {
+     "name": "kextstat",
+     "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "kernel_extensions"
+     ]
+    },
+    {
+     "name": "last",
+     "description": "Retrieves the list of the latest logins with PID, username and timestamp.",
+     "status": "not_reviewed",
+     "reason": "Table last is not reviewed yet.",
+     "tables": [
+      "last"
+     ]
+    },
+    {
+     "name": "launchd",
+     "description": "Retrieves all the daemons that will run in the start of the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "launchd"
+     ]
+    },
+    {
+     "name": "listening_ports",
+     "key": "osquery.pack.incident_response.listening_ports",
+     "description": "Retrieves all the listening ports in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "listening_ports"
+     ]
+    },
+    {
+     "name": "logged_in_users",
+     "description": "Retrieves the list of all the currently logged in users in the target system.",
+     "status": "not_reviewed",
+     "reason": "Table logged_in_users is not reviewed yet.",
+     "tables": [
+      "logged_in_users",
+      "processes"
+     ]
+    },
+    {
+     "name": "loginwindow1",
+     "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "plist"
+     ]
+    },
+    {
+     "name": "loginwindow2",
+     "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "plist"
+     ]
+    },
+    {
+     "name": "loginwindow3",
+     "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "plist",
+      "users"
+     ]
+    },
+    {
+     "name": "loginwindow4",
+     "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "plist",
+      "users"
+     ]
+    },
+    {
+     "name": "mounts",
+     "key": "osquery.pack.incident_response.mounts",
+     "description": "Retrieves the current list of mounted drives in the target system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "mounts"
+     ]
+    },
+    {
+     "name": "nfs_shares",
+     "description": "Retrieves the current list of Network File System mounted shares.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "nfs_shares"
+     ]
+    },
+    {
+     "name": "open_files",
+     "description": "Retrieves all the open files per process in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (process_open_files).",
+     "tables": [
+      "process_open_files"
+     ]
+    },
+    {
+     "name": "open_sockets",
+     "description": "Retrieves all the open sockets per process in the target system.",
+     "status": "not_reviewed",
+     "reason": "Table process_open_sockets is not reviewed yet.",
+     "tables": [
+      "process_open_sockets"
+     ]
+    },
+    {
+     "name": "process_env",
+     "description": "Retrieves all the environment variables per process in the target system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (process_envs).",
+     "tables": [
+      "process_envs"
+     ]
+    },
+    {
+     "name": "process_memory",
+     "description": "Retrieves the memory map per process in the target Linux or macOS system.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (process_memory_map).",
+     "tables": [
+      "process_memory_map"
+     ]
+    },
+    {
+     "name": "ramdisk",
+     "description": "Retrieves all the ramdisk currently mounted in the target system.",
+     "status": "not_reviewed",
+     "reason": "Table block_devices is not reviewed yet.",
+     "tables": [
+      "block_devices"
+     ]
+    },
+    {
+     "name": "recent_items",
+     "description": "Retrieves the list of recent items opened in OSX by parsing the plist per user.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "plist",
+      "users"
+     ]
+    },
+    {
+     "name": "sandboxes",
+     "description": "Lists the application bundle that owns a sandbox label.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "sandboxes"
+     ]
+    },
+    {
+     "name": "shell_history",
+     "description": "Retrieves the command history, per user, by parsing the shell history files.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (shell_history).",
+     "tables": [
+      "shell_history",
+      "users"
+     ]
+    },
+    {
+     "name": "startup_items",
+     "description": "Retrieve all the items that will load when the target OSX system starts.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "startup_items"
+     ]
+    },
+    {
+     "name": "suid_bin",
+     "description": "Retrieves all the files in the target system that are setuid enabled.",
+     "status": "not_reviewed",
+     "reason": "Table suid_bin is not reviewed yet.",
+     "tables": [
+      "suid_bin"
+     ]
+    },
+    {
+     "name": "wireless_networks",
+     "description": "Retrieves all the remembered wireless network that the target machine has connected to.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "wifi_networks"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "hardware-monitoring",
+   "description": "Hardware and device inventory.",
+   "file": "hardware-monitoring.conf",
+   "sha256": "a5bf65a6a3004eef41990630d00a0a12b86a8bf436c1d5b1c019c83a72536c76",
+   "platform": "",
+   "queries": [
+    {
+     "name": "acpi_tables",
+     "description": "General reporting and heuristics monitoring.",
+     "status": "not_reviewed",
+     "reason": "Table acpi_tables is not reviewed yet.",
+     "tables": [
+      "acpi_tables"
+     ]
+    },
+    {
+     "name": "cpuid",
+     "description": "General reporting and heuristics monitoring.",
+     "status": "not_reviewed",
+     "reason": "Table cpuid is not reviewed yet.",
+     "tables": [
+      "cpuid"
+     ]
+    },
+    {
+     "name": "darwin_kernel_system_controls",
+     "description": "Double check the information reported in kernel_info and report the kernel signature.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "system_controls"
+     ]
+    },
+    {
+     "name": "device_nodes",
+     "description": "Inventory all 'device' nodes in /dev/.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "efi_file_hashes",
+     "description": "Hash files related to EFI platform updates and EFI bootloaders on primary boot partition. This does not hash bootloaders on the EFI/boot partition.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "file",
+      "hash"
+     ]
+    },
+    {
+     "name": "fan_speeds",
+     "description": "Report current fan speeds in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "fan_speed_sensors"
+     ]
+    },
+    {
+     "name": "hardware_events",
+     "description": "Retrieves all the hardware related events in the target OSX system.",
+     "status": "not_reviewed",
+     "reason": "Table hardware_events is not reviewed yet.",
+     "tables": [
+      "hardware_events"
+     ]
+    },
+    {
+     "name": "iokit_devicetree",
+     "description": "General inventory of IOKit's devices on OS X.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "iokit_devicetree"
+     ]
+    },
+    {
+     "name": "kernel_extensions",
+     "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "kernel_extensions"
+     ]
+    },
+    {
+     "name": "kernel_info",
+     "description": "Report the booted kernel, potential arguments, and the device.",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (hash).",
+     "tables": [
+      "hash",
+      "kernel_info"
+     ]
+    },
+    {
+     "name": "kernel_modules",
+     "key": "osquery.pack.hardware_monitoring.kernel_modules",
+     "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "kernel_modules"
+     ]
+    },
+    {
+     "name": "nvram",
+     "description": "Report on crashes, alternate boots, and boot arguments.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "nvram"
+     ]
+    },
+    {
+     "name": "pci_devices",
+     "key": "osquery.pack.hardware_monitoring.pci_devices",
+     "description": "Report an inventory of PCI devices. Attaches and detaches will show up in hardware_events.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "pci_devices"
+     ]
+    },
+    {
+     "name": "smbios_tables",
+     "description": "General reporting and heuristics monitoring.",
+     "status": "not_reviewed",
+     "reason": "Table smbios_tables is not reviewed yet.",
+     "tables": [
+      "smbios_tables"
+     ]
+    },
+    {
+     "name": "temperatures",
+     "description": "Report current machine temperatures in the target OSX system.",
+     "status": "other_os",
+     "reason": "Only for darwin, not proven yet.",
+     "tables": [
+      "temperature_sensors"
+     ]
+    },
+    {
+     "name": "usb_devices",
+     "key": "osquery.pack.hardware_monitoring.usb_devices",
+     "description": "Report an inventory of USB devices. Attaches and detaches will show up in hardware_events.",
+     "status": "runnable",
+     "reason": "",
+     "tables": [
+      "usb_devices"
+     ]
+    },
+    {
+     "name": "windows_drivers",
+     "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
+     "status": "other_os",
+     "reason": "Only for windows, not proven yet.",
+     "tables": [
+      "drivers"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "ossec-rootkit",
+   "description": "Rootkit and tamper checks, based on reading system files.",
+   "file": "ossec-rootkit.conf",
+   "sha256": "fb9491ed32dad6cbdb68fbfece5e59e6cd8721a24eb87091195c2ea3a4aef585",
+   "platform": "linux",
+   "queries": [
+    {
+     "name": "55808.a_worm",
+     "description": "55808.a_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "adore_rootkit",
+     "description": "adore_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "adore_worm",
+     "description": "adore_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "ajakit_rootkit",
+     "description": "ajakit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "anonoiyng_rootkit",
+     "description": "anonoiyng_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "apa_kit",
+     "description": "apa_kit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "ark_rootkit",
+     "description": "ark_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "bash_door",
+     "description": "bash_door",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "beastkit_rootkit",
+     "description": "beastkit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "beurk_rootkit",
+     "description": "beurk_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "bmbl_rootkit",
+     "description": "bmbl_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "bobkit_rootkit",
+     "description": "bobkit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "cback_worm",
+     "description": "cback_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "enye_sec_rootkit",
+     "description": "enye_sec_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "esrk_rootkit",
+     "description": "esrk_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "fu_rootkit",
+     "description": "fu_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "hidr00tkit",
+     "description": "hidr00tkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "illogic_rootkit",
+     "description": "illogic_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "kenga3_rootkit",
+     "description": "kenga3_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "knark_installed",
+     "description": "knark_installed",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "ldp_worm",
+     "description": "ldp_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "lion_worm",
+     "description": "lion_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "loc_rookit",
+     "description": "loc_rookit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "lrk_rootkit",
+     "description": "lrk_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "madalin_rootkit",
+     "description": "madalin_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "maniac_rk",
+     "description": "maniac_rk",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "mithra`s_rootkit",
+     "description": "mithra`s_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "monkit",
+     "description": "monkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "monkit_found",
+     "description": "monkit_found",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "old_rootkits",
+     "description": "old_rootkits",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "omega_worm",
+     "description": "omega_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "optickit",
+     "description": "optickit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "override_rootkit",
+     "description": "override_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "phalanx_rootkit",
+     "description": "phalanx_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "ramen_worm",
+     "description": "ramen_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "reptile_rootkit",
+     "description": "reptile_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "rh_sharpe",
+     "description": "rh_sharpe",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "rk17",
+     "description": "rk17",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "romanian_rootkit",
+     "description": "romanian_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "rsha",
+     "description": "rsha",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "sadmind/iis_worm",
+     "description": "sadmind/iis_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "scalper_installed",
+     "description": "scalper_installed",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "shitc",
+     "description": "shitc",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "shkit_rootkit",
+     "description": "shkit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "showtee",
+     "description": "showtee",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "showtee_/_romanian_rootkit",
+     "description": "showtee_/_romanian_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "shv5_rootkit",
+     "description": "shv5_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "slapper_installed",
+     "description": "slapper_installed",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "solaris_worm",
+     "description": "solaris_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "suckit_rootkit",
+     "description": "suckit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "suspicious_file",
+     "description": "suspicious_file",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "t0rn_rootkit",
+     "description": "t0rn_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "tc2_worm",
+     "description": "tc2_worm",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "telekit_trojan",
+     "description": "telekit_trojan",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "tribe_bot",
+     "description": "tribe_bot",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "trk_rootkit",
+     "description": "trk_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "tuxkit_rootkit",
+     "description": "tuxkit_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "volc_rootkit",
+     "description": "volc_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "zarwt_rootkit",
+     "description": "zarwt_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    },
+    {
+     "name": "zk_rootkit",
+     "description": "zk_rootkit",
+     "status": "sensitive",
+     "reason": "Skipped: sensitive data (file).",
+     "tables": [
+      "file"
+     ]
+    }
+   ]
+  }
+ ],
+ "queries": [
+  {
+   "key": "osquery.pack.vuln_management.deb_packages",
+   "pack": "vuln-management",
+   "title": "deb packages",
+   "description": "Retrieves all the installed DEB packages in the target Linux system.",
+   "category": "Pack: vuln-management",
+   "sql": "select * from deb_packages",
+   "tables": [
+    "deb_packages"
+   ],
+   "columns": [
+    "admindir",
+    "arch",
+    "maintainer",
+    "name",
+    "priority",
+    "revision",
+    "section",
+    "size",
+    "source",
+    "status",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1518",
+     "reason": "Listing installed software is Software Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "admindir": "/var/lib/dpkg",
+     "arch": "amd64",
+     "maintainer": "Ubuntu Developers \u003cubuntu-devel-discuss@lists.ubuntu.com\u003e",
+     "name": "3cpio",
+     "priority": "optional",
+     "revision": "1ubuntu1",
+     "section": "utils",
+     "size": "713",
+     "source": "rust-threecpio",
+     "status": "install ok installed",
+     "version": "0.14.0-1ubuntu1"
+    },
+    {
+     "admindir": "/var/lib/dpkg",
+     "arch": "all",
+     "maintainer": "Ubuntu Developers \u003cubuntu-devel-discuss@lists.ubuntu.com\u003e",
+     "name": "adduser",
+     "priority": "important",
+     "revision": "",
+     "section": "admin",
+     "size": "437",
+     "source": "",
+     "status": "install ok installed",
+     "version": "3.153ubuntu1"
+    },
+    {
+     "admindir": "/var/lib/dpkg",
+     "arch": "amd64",
+     "maintainer": "Ubuntu Developers \u003cubuntu-devel-discuss@lists.ubuntu.com\u003e",
+     "name": "alacritty",
+     "priority": "optional",
+     "revision": "2ubuntu1",
+     "section": "x11",
+     "size": "8632",
+     "source": "rust-alacritty",
+     "status": "install ok installed",
+     "version": "0.16.1-2ubuntu1"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.vuln_management.kernel_info",
+   "pack": "vuln-management",
+   "title": "kernel info",
+   "description": "Retrieves information from the current kernel in the target system.",
+   "category": "Pack: vuln-management",
+   "sql": "select * from kernel_info",
+   "tables": [
+    "kernel_info"
+   ],
+   "columns": [
+    "arguments",
+    "device",
+    "path",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Kernel and boot details are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "arguments": "ro console=tty1 console=ttyS0",
+     "device": "LABEL=cloudimg-rootfs",
+     "path": "/vmlinuz-7.0.0-30-generic",
+     "version": "7.0.0-30-generic"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.vuln_management.kernel_modules",
+   "pack": "vuln-management",
+   "title": "kernel modules",
+   "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+   "category": "Pack: vuln-management",
+   "sql": "select * from kernel_modules",
+   "tables": [
+    "kernel_modules"
+   ],
+   "columns": [
+    "address",
+    "name",
+    "size",
+    "status",
+    "used_by"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Loaded kernel modules are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "0xffffffffc09e0000",
+     "name": "xt_nat",
+     "size": "12288",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09dd000",
+     "name": "xt_tcpudp",
+     "size": "16384",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09d5000",
+     "name": "nf_conntrack_netlink",
+     "size": "61440",
+     "status": "Live",
+     "used_by": "-"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.vuln_management.os_version",
+   "pack": "vuln-management",
+   "title": "os version",
+   "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
+   "category": "Pack: vuln-management",
+   "sql": "select * from os_version",
+   "tables": [
+    "os_version"
+   ],
+   "columns": [
+    "arch",
+    "build",
+    "codename",
+    "major",
+    "minor",
+    "name",
+    "patch",
+    "platform",
+    "platform_like",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Operating system version is System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "arch": "x86_64",
+     "build": "",
+     "codename": "resolute",
+     "major": "26",
+     "minor": "4",
+     "name": "Ubuntu",
+     "patch": "0",
+     "platform": "ubuntu",
+     "platform_like": "debian",
+     "version": "26.04.1 LTS (Resolute Raccoon)"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.disk_encryption",
+   "pack": "it-compliance",
+   "title": "disk encryption",
+   "description": "Retrieves the current disk encryption status for the target system.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from disk_encryption",
+   "tables": [
+    "disk_encryption"
+   ],
+   "columns": [
+    "encrypted",
+    "encryption_status",
+    "name",
+    "type",
+    "uuid"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Disk encryption state is System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop0",
+     "type": "",
+     "uuid": ""
+    },
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop1",
+     "type": "",
+     "uuid": ""
+    },
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop2",
+     "type": "",
+     "uuid": ""
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.kernel_info",
+   "pack": "it-compliance",
+   "title": "kernel info",
+   "description": "Retrieves information from the current kernel in the target system.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from kernel_info",
+   "tables": [
+    "kernel_info"
+   ],
+   "columns": [
+    "arguments",
+    "device",
+    "path",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Kernel and boot details are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "arguments": "ro console=tty1 console=ttyS0",
+     "device": "LABEL=cloudimg-rootfs",
+     "path": "/vmlinuz-7.0.0-30-generic",
+     "version": "7.0.0-30-generic"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.kernel_modules",
+   "pack": "it-compliance",
+   "title": "kernel modules",
+   "description": "Retrieves the current list of loaded kernel modules in the target Linux system.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from kernel_modules",
+   "tables": [
+    "kernel_modules"
+   ],
+   "columns": [
+    "address",
+    "name",
+    "size",
+    "status",
+    "used_by"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Loaded kernel modules are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "0xffffffffc09e0000",
+     "name": "xt_nat",
+     "size": "12288",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09dd000",
+     "name": "xt_tcpudp",
+     "size": "16384",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09d5000",
+     "name": "nf_conntrack_netlink",
+     "size": "61440",
+     "status": "Live",
+     "used_by": "-"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.mounts",
+   "pack": "it-compliance",
+   "title": "mounts",
+   "description": "Retrieves the current list of mounted drives in the target system.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from mounts",
+   "tables": [
+    "mounts"
+   ],
+   "columns": [
+    "blocks",
+    "blocks_available",
+    "blocks_free",
+    "blocks_size",
+    "device",
+    "device_alias",
+    "flags",
+    "inodes",
+    "inodes_free",
+    "path",
+    "type"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Mounted file systems are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "blocks": "816161",
+     "blocks_available": "815534",
+     "blocks_free": "815534",
+     "blocks_size": "4096",
+     "device": "tmpfs",
+     "device_alias": "tmpfs",
+     "flags": "rw,nosuid,nodev,size=3264644k,nr_inodes=819200,mode=755,inode64",
+     "inodes": "819200",
+     "inodes_free": "817841",
+     "path": "/run",
+     "type": "tmpfs"
+    },
+    {
+     "blocks": "81068698",
+     "blocks_available": "68313476",
+     "blocks_free": "68317572",
+     "blocks_size": "4096",
+     "device": "/dev/sda1",
+     "device_alias": "/dev/sda1",
+     "flags": "rw,relatime,discard,errors=remount-ro,commit=30",
+     "inodes": "40015360",
+     "inodes_free": "39089600",
+     "path": "/",
+     "type": "ext4"
+    },
+    {
+     "blocks": "1787966",
+     "blocks_available": "1787966",
+     "blocks_free": "1787966",
+     "blocks_size": "4096",
+     "device": "devtmpfs",
+     "device_alias": "devtmpfs",
+     "flags": "rw,nosuid,size=7151864k,nr_inodes=1787966,mode=755,inode64",
+     "inodes": "1787966",
+     "inodes_free": "1787437",
+     "path": "/dev",
+     "type": "devtmpfs"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.os_version",
+   "pack": "it-compliance",
+   "title": "os version",
+   "description": "Retrieves information from the Operative System where osquery is currently running.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from os_version",
+   "tables": [
+    "os_version"
+   ],
+   "columns": [
+    "arch",
+    "build",
+    "codename",
+    "major",
+    "minor",
+    "name",
+    "patch",
+    "platform",
+    "platform_like",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Operating system version is System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "arch": "x86_64",
+     "build": "",
+     "codename": "resolute",
+     "major": "26",
+     "minor": "4",
+     "name": "Ubuntu",
+     "patch": "0",
+     "platform": "ubuntu",
+     "platform_like": "debian",
+     "version": "26.04.1 LTS (Resolute Raccoon)"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.it_compliance.usb_devices",
+   "pack": "it-compliance",
+   "title": "usb devices",
+   "description": "Retrieves the current list of USB devices in the target system.",
+   "category": "Pack: it-compliance",
+   "sql": "select * from usb_devices",
+   "tables": [
+    "usb_devices"
+   ],
+   "columns": [
+    "class",
+    "model",
+    "model_id",
+    "protocol",
+    "removable",
+    "serial",
+    "subclass",
+    "usb_address",
+    "usb_port",
+    "vendor",
+    "vendor_id",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1120",
+     "reason": "Attached USB devices are Peripheral Device Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "class": "9",
+     "model": "1.1 root hub",
+     "model_id": "0001",
+     "protocol": "0",
+     "removable": "-1",
+     "serial": "0000:00:01.2",
+     "subclass": "0",
+     "usb_address": "1",
+     "usb_port": "1",
+     "vendor": "Linux Foundation",
+     "vendor_id": "1d6b",
+     "version": "0700"
+    },
+    {
+     "class": "0",
+     "model": "QEMU Tablet",
+     "model_id": "0001",
+     "protocol": "0",
+     "removable": "-1",
+     "serial": "28754-0000:00:01.2-1",
+     "subclass": "0",
+     "usb_address": "1",
+     "usb_port": "2",
+     "vendor": "Adomax Technology Co., Ltd",
+     "vendor_id": "0627",
+     "version": "0000"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.incident_response.disk_encryption",
+   "pack": "incident-response",
+   "title": "disk encryption",
+   "description": "Retrieves the current disk encryption status for the target system.",
+   "category": "Pack: incident-response",
+   "sql": "select * from disk_encryption",
+   "tables": [
+    "disk_encryption"
+   ],
+   "columns": [
+    "encrypted",
+    "encryption_status",
+    "name",
+    "type",
+    "uuid"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Disk encryption state is System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop0",
+     "type": "",
+     "uuid": ""
+    },
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop1",
+     "type": "",
+     "uuid": ""
+    },
+    {
+     "encrypted": "0",
+     "encryption_status": "not encrypted",
+     "name": "/dev/loop2",
+     "type": "",
+     "uuid": ""
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.incident_response.etc_hosts",
+   "pack": "incident-response",
+   "title": "etc hosts",
+   "description": "Retrieves all the entries in the target system /etc/hosts file.",
+   "category": "Pack: incident-response",
+   "sql": "select * from etc_hosts",
+   "tables": [
+    "etc_hosts"
+   ],
+   "columns": [
+    "address",
+    "hostnames"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1016",
+     "reason": "Host name entries are System Network Configuration Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "127.0.0.1",
+     "hostnames": "localhost"
+    },
+    {
+     "address": "::1",
+     "hostnames": "ip6-localhost ip6-loopback"
+    },
+    {
+     "address": "fe00::0",
+     "hostnames": "ip6-localnet"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.incident_response.kernel_modules",
+   "pack": "incident-response",
+   "title": "kernel modules",
+   "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+   "category": "Pack: incident-response",
+   "sql": "select * from kernel_modules",
+   "tables": [
+    "kernel_modules"
+   ],
+   "columns": [
+    "address",
+    "name",
+    "size",
+    "status",
+    "used_by"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Loaded kernel modules are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "0xffffffffc09e0000",
+     "name": "xt_nat",
+     "size": "12288",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09dd000",
+     "name": "xt_tcpudp",
+     "size": "16384",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09d5000",
+     "name": "nf_conntrack_netlink",
+     "size": "61440",
+     "status": "Live",
+     "used_by": "-"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.incident_response.listening_ports",
+   "pack": "incident-response",
+   "title": "listening ports",
+   "description": "Retrieves all the listening ports in the target system.",
+   "category": "Pack: incident-response",
+   "sql": "select * from listening_ports",
+   "tables": [
+    "listening_ports"
+   ],
+   "columns": [
+    "address",
+    "family",
+    "fd",
+    "net_namespace",
+    "path",
+    "pid",
+    "port",
+    "protocol",
+    "socket"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1049",
+     "reason": "Listening sockets are System Network Connections Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "127.0.0.1",
+     "family": "2",
+     "fd": "8",
+     "net_namespace": "4026531833",
+     "path": "",
+     "pid": "1344591",
+     "port": "8090",
+     "protocol": "6",
+     "socket": "29161713"
+    },
+    {
+     "address": "127.0.0.1",
+     "family": "2",
+     "fd": "15",
+     "net_namespace": "4026531833",
+     "path": "",
+     "pid": "25286",
+     "port": "40227",
+     "protocol": "6",
+     "socket": "68973"
+    },
+    {
+     "address": "127.0.0.1",
+     "family": "2",
+     "fd": "7",
+     "net_namespace": "4026531833",
+     "path": "",
+     "pid": "3743011",
+     "port": "15672",
+     "protocol": "6",
+     "socket": "14737044"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.incident_response.mounts",
+   "pack": "incident-response",
+   "title": "mounts",
+   "description": "Retrieves the current list of mounted drives in the target system.",
+   "category": "Pack: incident-response",
+   "sql": "select * from mounts",
+   "tables": [
+    "mounts"
+   ],
+   "columns": [
+    "blocks",
+    "blocks_available",
+    "blocks_free",
+    "blocks_size",
+    "device",
+    "device_alias",
+    "flags",
+    "inodes",
+    "inodes_free",
+    "path",
+    "type"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Mounted file systems are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "blocks": "816161",
+     "blocks_available": "815532",
+     "blocks_free": "815532",
+     "blocks_size": "4096",
+     "device": "tmpfs",
+     "device_alias": "tmpfs",
+     "flags": "rw,nosuid,nodev,size=3264644k,nr_inodes=819200,mode=755,inode64",
+     "inodes": "819200",
+     "inodes_free": "817838",
+     "path": "/run",
+     "type": "tmpfs"
+    },
+    {
+     "blocks": "81068698",
+     "blocks_available": "68313474",
+     "blocks_free": "68317570",
+     "blocks_size": "4096",
+     "device": "/dev/sda1",
+     "device_alias": "/dev/sda1",
+     "flags": "rw,relatime,discard,errors=remount-ro,commit=30",
+     "inodes": "40015360",
+     "inodes_free": "39089600",
+     "path": "/",
+     "type": "ext4"
+    },
+    {
+     "blocks": "1787966",
+     "blocks_available": "1787966",
+     "blocks_free": "1787966",
+     "blocks_size": "4096",
+     "device": "devtmpfs",
+     "device_alias": "devtmpfs",
+     "flags": "rw,nosuid,size=7151864k,nr_inodes=1787966,mode=755,inode64",
+     "inodes": "1787966",
+     "inodes_free": "1787437",
+     "path": "/dev",
+     "type": "devtmpfs"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.hardware_monitoring.kernel_modules",
+   "pack": "hardware-monitoring",
+   "title": "kernel modules",
+   "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
+   "category": "Pack: hardware-monitoring",
+   "sql": "select * from kernel_modules",
+   "tables": [
+    "kernel_modules"
+   ],
+   "columns": [
+    "address",
+    "name",
+    "size",
+    "status",
+    "used_by"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1082",
+     "reason": "Loaded kernel modules are System Information Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "address": "0xffffffffc09e0000",
+     "name": "xt_nat",
+     "size": "12288",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09dd000",
+     "name": "xt_tcpudp",
+     "size": "16384",
+     "status": "Live",
+     "used_by": "-"
+    },
+    {
+     "address": "0xffffffffc09d5000",
+     "name": "nf_conntrack_netlink",
+     "size": "61440",
+     "status": "Live",
+     "used_by": "-"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.hardware_monitoring.pci_devices",
+   "pack": "hardware-monitoring",
+   "title": "pci devices",
+   "description": "Report an inventory of PCI devices. Attaches and detaches will show up in hardware_events.",
+   "category": "Pack: hardware-monitoring",
+   "sql": "select * from pci_devices",
+   "tables": [
+    "pci_devices"
+   ],
+   "columns": [
+    "driver",
+    "model",
+    "model_id",
+    "pci_class",
+    "pci_class_id",
+    "pci_slot",
+    "pci_subclass",
+    "pci_subclass_id",
+    "subsystem_model",
+    "subsystem_model_id",
+    "subsystem_vendor",
+    "subsystem_vendor_id",
+    "vendor",
+    "vendor_id"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1120",
+     "reason": "Attached PCI devices are Peripheral Device Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "driver": "",
+     "model": "440FX - 82441FX PMC [Natoma]",
+     "model_id": "0x1237",
+     "pci_class": "Bridge",
+     "pci_class_id": "0x06",
+     "pci_slot": "0000:00:00.0",
+     "pci_subclass": "Host bridge",
+     "pci_subclass_id": "0x00",
+     "subsystem_model": "Qemu virtual machine",
+     "subsystem_model_id": "0x1100",
+     "subsystem_vendor": "Red Hat, Inc.",
+     "subsystem_vendor_id": "0x1af4",
+     "vendor": "Intel Corporation",
+     "vendor_id": "0x8086"
+    },
+    {
+     "driver": "",
+     "model": "82371SB PIIX3 ISA [Natoma/Triton II]",
+     "model_id": "0x7000",
+     "pci_class": "Bridge",
+     "pci_class_id": "0x06",
+     "pci_slot": "0000:00:01.0",
+     "pci_subclass": "ISA bridge",
+     "pci_subclass_id": "0x01",
+     "subsystem_model": "Qemu virtual machine",
+     "subsystem_model_id": "0x1100",
+     "subsystem_vendor": "Red Hat, Inc.",
+     "subsystem_vendor_id": "0x1af4",
+     "vendor": "Intel Corporation",
+     "vendor_id": "0x8086"
+    },
+    {
+     "driver": "ata_piix",
+     "model": "82371SB PIIX3 IDE [Natoma/Triton II]",
+     "model_id": "0x7010",
+     "pci_class": "Mass storage controller",
+     "pci_class_id": "0x01",
+     "pci_slot": "0000:00:01.1",
+     "pci_subclass": "IDE interface",
+     "pci_subclass_id": "0x01",
+     "subsystem_model": "Qemu virtual machine",
+     "subsystem_model_id": "0x1100",
+     "subsystem_vendor": "Red Hat, Inc.",
+     "subsystem_vendor_id": "0x1af4",
+     "vendor": "Intel Corporation",
+     "vendor_id": "0x8086"
+    }
+   ]
+  },
+  {
+   "key": "osquery.pack.hardware_monitoring.usb_devices",
+   "pack": "hardware-monitoring",
+   "title": "usb devices",
+   "description": "Report an inventory of USB devices. Attaches and detaches will show up in hardware_events.",
+   "category": "Pack: hardware-monitoring",
+   "sql": "select * from usb_devices",
+   "tables": [
+    "usb_devices"
+   ],
+   "columns": [
+    "class",
+    "model",
+    "model_id",
+    "protocol",
+    "removable",
+    "serial",
+    "subclass",
+    "usb_address",
+    "usb_port",
+    "vendor",
+    "vendor_id",
+    "version"
+   ],
+   "os": [
+    "linux"
+   ],
+   "sensitivity": "medium",
+   "load": "low",
+   "needs_root": false,
+   "max_rows": 1000,
+   "timeout_seconds": 60,
+   "mitre": [
+    {
+     "id": "T1120",
+     "reason": "Attached USB devices are Peripheral Device Discovery."
+    }
+   ],
+   "attributes": {
+    "first_row": null,
+    "aggregates": [
+     {
+      "key": "row_count",
+      "op": "count",
+      "cols": null,
+      "limit": 0,
+      "where": null
+     }
+    ]
+   },
+   "rules": null,
+   "example": [
+    {
+     "class": "9",
+     "model": "1.1 root hub",
+     "model_id": "0001",
+     "protocol": "0",
+     "removable": "-1",
+     "serial": "0000:00:01.2",
+     "subclass": "0",
+     "usb_address": "1",
+     "usb_port": "1",
+     "vendor": "Linux Foundation",
+     "vendor_id": "1d6b",
+     "version": "0700"
+    },
+    {
+     "class": "0",
+     "model": "QEMU Tablet",
+     "model_id": "0001",
+     "protocol": "0",
+     "removable": "-1",
+     "serial": "28754-0000:00:01.2-1",
+     "subclass": "0",
+     "usb_address": "1",
+     "usb_port": "2",
+     "vendor": "Adomax Technology Co., Ltd",
+     "vendor_id": "0627",
+     "version": "0000"
+    }
+   ]
+  }
+ ]
+}

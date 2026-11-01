@@ -190,7 +190,7 @@ ORDER BY 3 DESC, 4 DESC, 5 DESC, 6 DESC, 7 DESC, a.name LIMIT 5`, t)
 				}
 			}
 			if authz.Has(p.Permissions, authz.SimulationRead) {
-				if err := tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE status IN ('running','paused')) FROM simulations WHERE tenant_id=$1`, t).Scan(&c.Simulations, &c.Running); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE NOT is_demo AND status IN ('running','paused')) FROM simulations WHERE tenant_id=$1`, t).Scan(&c.Simulations, &c.Running); err != nil {
 					return err
 				}
 				sr, err := tx.Query(ctx, `SELECT id, number, name, status, started_at, created_at FROM simulations WHERE tenant_id=$1 ORDER BY created_at DESC, id LIMIT 5`, t)
@@ -250,7 +250,7 @@ WHERE e.tenant_id=$1 ORDER BY e.created_at DESC LIMIT 5`, t)
 			if err := rr.Err(); err != nil {
 				return err
 			}
-			ir, err := tx.Query(ctx, `SELECT key, name, enabled, last_heartbeat_at FROM integrations WHERE tenant_id=$1 AND kind='injector' ORDER BY name`, t)
+			ir, err := tx.Query(ctx, `SELECT key, name, enabled, last_heartbeat_at FROM integrations WHERE tenant_id=$1 AND kind='injector' AND NOT is_demo ORDER BY name`, t)
 			if err != nil {
 				return err
 			}

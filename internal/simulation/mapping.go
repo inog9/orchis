@@ -28,6 +28,9 @@ func mapInput(s stepRow, t target, edges []chain.Edge, found []chain.Found) (ste
 	if mapper == nil {
 		return s, t, nil
 	}
+	if mapper.Source == "installed_software" {
+		return mapSoftware(s, t, mapper, parent, found)
+	}
 	ports := map[int]bool{}
 	for _, f := range found {
 		if f.Step != parent || f.Type != "open_port" {
@@ -194,4 +197,40 @@ func mappedInputs(s stepRow, t target, edges []chain.Edge, found []chain.Found) 
 		return nil, fmt.Errorf("parent returned no web ports supported by this mapping profile")
 	}
 	return out, nil
+}
+
+// mapSoftware mengubah paket server yang dilaporkan osquery menjadi tag Nuclei lewat tabel beku; nama paket mentah tidak pernah dipakai.
+func mapSoftware(s stepRow, t target, m *chain.Mapper, parent string, found []chain.Found) (stepRow, target, error) {
+	if m.Destination != "tags" || contract.Adapter(s.ContractKey) != "nuclei" {
+		return s, t, fmt.Errorf("software mapping needs tags and the nuclei adapter")
+	}
+	set := map[string]bool{}
+	for _, f := range found {
+		if f.Step != parent {
+			continue
+		}
+		if tag, ok := chain.SoftwareTags[chain.InstalledSoftware(f)]; ok {
+			set[tag] = true
+		}
+	}
+	if len(set) == 0 {
+		return s, t, fmt.Errorf("parent reported no installed software with a supported scan tag")
+	}
+	tags := []string{}
+	for tag := range set {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	var params map[string]any
+	if e := json.Unmarshal(s.Params, &params); e != nil {
+		return s, t, e
+	}
+	params["tags"] = tags
+	raw, _ := json.Marshal(params)
+	normalized, e := contract.Normalize(s.ContractKey, raw)
+	if e != nil {
+		return s, t, e
+	}
+	s.Params = normalized
+	return s, t, nil
 }

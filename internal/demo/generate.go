@@ -3,17 +3,18 @@ package demo
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"orchis-go/internal/chain"
 	"orchis-go/internal/contract"
+	"orchis-go/internal/osquery"
+	"orchis-go/internal/reporting"
 )
 
 // demoNamespace: namespace tetap untuk UUIDv5 turunan (tenant+seed+jalur). Nilai ini arbitrer
@@ -100,13 +101,7 @@ func titleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-type findingSummary struct {
-	Evidence map[string]any `json:"evidence"`
-	Value    string         `json:"value"`
-	Title    string         `json:"title"`
-	Type     string         `json:"type"`
-	Severity string         `json:"severity"`
-}
+type findingSummary = reporting.Finding
 
 type assetInfo struct {
 	id         uuid.UUID
@@ -118,7 +113,7 @@ type assetInfo struct {
 // run cria 5 organisasi x 10 aset beragam, agent dengan status campuran, findings beragam
 // severity/tipe, dan 3 assessment+report historis per organisasi (tren) — semua ditandai is_demo.
 func (g *generator) run(ctx context.Context, tx pgx.Tx) error {
-	authorizer := g.id("authorizer") // akun semu (bukan baris users) sekadar nilai bukan-nol untuk authorized_by
+	authorizer := g.createdBy // operator seed nyata; tidak memakai referensi akun yatim
 	demoTagIDs := []uuid.UUID{g.id("tag", "sample-demo-asset"), g.id("tag", "demo-critical-path")}
 	demoTagNames := []string{"demo-sample", "demo-critical-path"}
 	for i, tid := range demoTagIDs {
@@ -128,6 +123,14 @@ func (g *generator) run(ctx context.Context, tx pgx.Tx) error {
 		}
 	}
 
+	type orgFixture struct {
+		index    int
+		id       uuid.UUID
+		name     string
+		assets   []assetInfo
+		severity map[string]int
+	}
+	orgs := []orgFixture{}
 	for oi := 0; oi < orgCount; oi++ {
 		idx := (g.seed + oi) % len(orgWords)
 		industry := industries[(g.seed+oi*3)%len(industries)]
@@ -148,7 +151,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,true) ON CONFLICT (id) DO NOTHING`,
 			assetID := g.id("org", fmt.Sprint(oi), "asset", fmt.Sprint(ai))
 			name := fmt.Sprintf("demo-%s-%02d", bp.name, oi+1)
 			crit := criticalities[(oi+ai)%len(criticalities)]
-			authorized := (oi+ai)%2 == 0
+			authorized := (oi+ai)%2 == 0 && bp.addr != "hostname"
 			internetFacing := (oi+ai)%3 == 0
 			var authorizedBy *uuid.UUID
 			var authorizedAt *time.Time
@@ -169,8 +172,8 @@ VALUES ($1,$2,$3,$4,$5,$6,NULLIF($7,''),NULLIF($8,''),$9,$10,$11,$12,$13,'manual
 			switch bp.addr {
 			case "ip":
 				addrID := g.id("org", fmt.Sprint(oi), "addr", fmt.Sprint(ai))
-				// Rentang dokumentasi RFC 5737 (TEST-NET-3): dijamin tidak pernah dipindai sungguhan.
-				value := fmt.Sprintf("203.0.113.%d", 10+(oi*10+ai)%240)
+				// Demo yang diberi izin hanya menunjuk loopback; tidak ke jaringan luar.
+				value := "127.0.0.1"
 				if _, err := tx.Exec(ctx, `INSERT INTO asset_addresses (id, tenant_id, asset_id, kind, value, is_primary)
 VALUES ($1,$2,$3,'ip',$4,true) ON CONFLICT (id) DO NOTHING`, addrID, g.tenant, assetID, value); err != nil {
 					return err
@@ -195,10 +198,19 @@ VALUES ($1,$2,$3,'hostname',$4,true) ON CONFLICT (id) DO NOTHING`, addrID, g.ten
 
 			var summaries []findingSummary
 			nFindings := 1 + ai%3
+			if ai == 1 {
+				nFindings = 3
+			}
 			for fi := 0; fi < nFindings; fi++ {
 				ftype := findingTypes[(ai+fi)%len(findingTypes)]
+				if ai == 1 && fi == 2 {
+					ftype = "open_port"
+				}
 				sev := severities[(ai+fi*2)%len(severities)]
 				value := fmt.Sprintf("demo-%s-%d-%d", ftype, ai, fi)
+				if ftype == "open_port" {
+					value = "tcp/80"
+				}
 				title := fmt.Sprintf("%s (demo)", titleCase(ftype))
 				occurrence := 1 + (ai+fi)%5
 				firstSeen := g.now.AddDate(0, 0, -(30 + (ai+fi)*11))
@@ -210,7 +222,7 @@ VALUES ($1,$2,$3,'hostname',$4,true) ON CONFLICT (id) DO NOTHING`, addrID, g.ten
 					details["mitre_technique"] = "T1190"
 					vulnSeverity[sev]++
 				case "open_port":
-					details["port"] = 1000 + ai*3 + fi
+					details["port"] = float64(80)
 					details["protocol"] = "tcp"
 				case "service":
 					details["service"] = "demo-service"
@@ -226,7 +238,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true) ON CONFLICT (id) DO NOTHING
 					findingID, g.tenant, assetID, ftype, value, hash(value), title, sev, raw, firstSeen, lastSeen, occurrence); err != nil {
 					return err
 				}
-				summaries = append(summaries, findingSummary{Evidence: map[string]any{"note": "Synthetic demo evidence"}, Value: value, Title: title, Type: ftype, Severity: sev})
+				summaries = append(summaries, findingSummary{ID: findingID.String(), MITRE: reporting.EstimatedTechniques(reporting.Finding{Type: ftype}), Evidence: reporting.SafeEvidence(details), Value: value, Title: title, Type: ftype, Severity: sev})
 			}
 			assets[ai] = assetInfo{id: assetID, name: name, skipReason: skipReason, findings: summaries}
 		}
@@ -267,11 +279,40 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'service',$9,1,$10,$11,$12,$13,$14,$15,true) ON 
 			}
 		}
 
-		if err := g.seedAssessmentsAndReports(ctx, tx, oi, orgID, orgName, assets, vulnSeverity); err != nil {
+		if err := g.seedEndpointData(ctx, tx, oi, assets[0].id); err != nil {
+			return err
+		}
+		orgs = append(orgs, orgFixture{oi, orgID, orgName, assets, vulnSeverity})
+	}
+	if err := g.seedScenarios(ctx, tx); err != nil {
+		return err
+	}
+	if err := g.seedRelated(ctx, tx); err != nil {
+		return err
+	}
+	for _, o := range orgs {
+		if err := g.seedAssessmentsAndReports(ctx, tx, o.index, o.id, o.name, o.assets, o.severity); err != nil {
 			return err
 		}
 	}
-	if err := g.seedScenarios(ctx, tx); err != nil {
+	if err := g.seedRunStates(ctx, tx); err != nil {
+		return err
+	}
+	if err := g.seedAtomicHistory(ctx, tx); err != nil {
+		return err
+	}
+	if err := g.seedAI(ctx, tx); err != nil {
+		return err
+	}
+	// Reconcile metadata only for wholly synthetic occurrences. A later real
+	// observation is never overwritten by reseeding illustrative history.
+	if _, err := tx.Exec(ctx, `UPDATE findings f SET first_seen_at=o.first_seen,last_seen_at=o.last_seen,occurrence_count=o.n FROM (
+ SELECT x.finding_id,min(x.seen_at) AS first_seen,max(x.seen_at) AS last_seen,count(*)::integer AS n
+ FROM finding_occurrences x JOIN executions e ON e.tenant_id=x.tenant_id AND e.id=x.execution_id
+ WHERE x.tenant_id=$1 AND e.is_demo GROUP BY x.finding_id) o
+ WHERE f.tenant_id=$1 AND f.is_demo AND f.id=o.finding_id AND NOT EXISTS(
+ SELECT 1 FROM finding_occurrences x JOIN executions e ON e.tenant_id=x.tenant_id AND e.id=x.execution_id
+ WHERE x.tenant_id=f.tenant_id AND x.finding_id=f.id AND NOT e.is_demo)`, g.tenant); err != nil {
 		return err
 	}
 	return g.seedAlerts(ctx, tx)
@@ -287,11 +328,14 @@ var demoScenarios = []struct {
 	steps                                  []demoStep
 }{
 	{"Demo: perimeter exposure", "Synthetic scenario: port discovery followed by a vulnerability scan. Demo only.", "high", "network", "ready",
-		[]demoStep{{"discover", "Discover open ports", "nmap.tcp_connect", "after_parents", `{"profile":"top100"}`}, {"scan", "Scan for known exposures", "nuclei.scan", "after_parents", `{"severity":["high","critical"]}`}}},
+		[]demoStep{{"discover", "Discover open ports", "nmap.tcp_connect", "after_parents", `{"profile":"web"}`},
+			{"scan", "Scan discovered web services", "nuclei.scan", "after_parents", `{"severity":["info","low","medium","high","critical"]}`},
+			{"no-web", "Else: confirm the local port profile", "nmap.tcp_connect", "after_parents", `{"profile":"web"}`},
+			{"failure", "Failure: bounded local retry", "nmap.tcp_connect", "after_parents", `{"profile":"top100"}`}}},
 	{"Demo: endpoint baseline", "Synthetic scenario: read-only endpoint checks via the agent. Demo only.", "low", "endpoint", "ready",
 		[]demoStep{{"info", "Collect system information", "agent.system_info", "after_parents", `{}`}, {"ports", "List listening ports", "agent.listening_ports", "after_parents", `{}`}}},
 	{"Demo: draft web check", "Synthetic draft scenario that is not ready to run. Demo only.", "medium", "web", "draft",
-		[]demoStep{{"web", "Check web ports", "nmap.tcp_connect", "manual", `{"profile":"web"}`}}},
+		[]demoStep{{"web", "Check web ports", "nmap.tcp_connect", "after_parents", `{"profile":"web"}`}}},
 }
 
 // seedScenarios membuat skenario demo yang memakai kontrak sungguhan (divalidasi lewat contract.Normalize);
@@ -303,7 +347,7 @@ func (g *generator) seedScenarios(ctx context.Context, tx pgx.Tx) error {
 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT (id) DO NOTHING`, scID, g.tenant, sc.name, sc.desc, sc.severity, sc.category, sc.status, g.createdBy); err != nil {
 			return err
 		}
-		var prev uuid.UUID
+		stepIDs := map[string]uuid.UUID{}
 		for i, st := range sc.steps {
 			def := contract.Find(st.contract)
 			if def == nil {
@@ -314,6 +358,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,true) ON CONFLICT (id) DO NOTHING`, scID, g.tena
 				return fmt.Errorf("demo: parameter %s: %w", st.contract, err)
 			}
 			stepID := g.id("scenario", fmt.Sprint(si), "step", st.key)
+			stepIDs[st.key] = stepID
 			tag, err := tx.Exec(ctx, `INSERT INTO scenario_steps (id, tenant_id, scenario_id, key, title, contract_id, contract_version, params, trigger_mode, position_x, position_y)
 SELECT $1,$2,$3,$4,$5,c.id,c.version,$6,$7,$8,0 FROM contracts c WHERE c.tenant_id=$2 AND c.key=$9 AND c.version=$10
 ON CONFLICT (id) DO NOTHING`, stepID, g.tenant, scID, st.key, st.title, params, st.trigger, i*240, st.contract, def.Version)
@@ -321,14 +366,26 @@ ON CONFLICT (id) DO NOTHING`, stepID, g.tenant, scID, st.key, st.title, params, 
 				return err
 			}
 			_ = tag
-			if i > 0 && st.trigger == "after_parents" {
-				if _, err := tx.Exec(ctx, `INSERT INTO scenario_step_edges (tenant_id, scenario_id, parent_step_id, child_step_id) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`,
-					g.tenant, scID, prev, stepID); err != nil {
-					return err
-				}
-			}
-			prev = stepID
+
 		}
+		edges := demoEdges(si)
+		steps := []chain.Step{}
+		for _, st := range sc.steps {
+			steps = append(steps, chain.Step{Key: st.key, Enabled: true, Mode: st.trigger})
+		}
+		if problems := chain.Validate(steps, edges, nil); len(problems) > 0 {
+			return fmt.Errorf("invalid demo graph: %v", problems)
+		}
+		for _, edge := range edges {
+			rule, err := json.Marshal(edge)
+			if err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO scenario_step_edges(tenant_id,scenario_id,parent_step_id,child_step_id,rule) VALUES($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`, g.tenant, scID, stepIDs[edge.Parent], stepIDs[edge.Child], rule); err != nil {
+				return err
+			}
+		}
+
 		// Target: aset terotorisasi pertama dari tiap organisasi (hanya aset demo).
 		targetID := g.id("scenario", fmt.Sprint(si), "target")
 		assetID := g.id("org", fmt.Sprint(si%orgCount), "asset", "0")
@@ -338,6 +395,21 @@ ON CONFLICT (id) DO NOTHING`, stepID, g.tenant, scID, st.key, st.title, params, 
 		}
 	}
 	return nil
+}
+
+func demoEdges(si int) []chain.Edge {
+	if si == 1 {
+		return []chain.Edge{{Parent: "info", Child: "ports"}}
+	}
+	if si != 0 {
+		return nil
+	}
+	condition := &chain.Condition{Op: "AND", Args: []chain.Condition{{Op: "DEPEND_ON"}, {Op: "OR", Args: []chain.Condition{{Op: "GT", Field: "finding_count", Value: float64(0)}, {Op: "IN", Field: "open_ports", Value: []any{float64(80), float64(443)}}}}}}
+	return []chain.Edge{
+		{Parent: "discover", Child: "scan", Condition: condition, Branch: "match", Mapper: &chain.Mapper{Source: "web_urls", Destination: "target"}},
+		{Parent: "discover", Child: "no-web", Condition: condition, Branch: "else"},
+		{Parent: "discover", Child: "failure", Condition: &chain.Condition{Op: "DEPEND_ON"}, Branch: "failure"},
+	}
 }
 
 func (g *generator) seedAlerts(ctx context.Context, tx pgx.Tx) error {
@@ -352,78 +424,76 @@ VALUES ($1,$2,$3,$4,$5,$6,'alert.read',$7,true) ON CONFLICT DO NOTHING`, g.id("a
 			fmt.Sprintf("demo-%d-%d", g.seed, i)); err != nil {
 			return err
 		}
+
+		if i == 0 {
+			if _, err := tx.Exec(ctx, `INSERT INTO alert_states(tenant_id,alert_id,user_id,read_at) VALUES($1,$2,$3,$4) ON CONFLICT DO NOTHING`, g.tenant, g.id("alert", fmt.Sprint(i)), g.createdBy, g.now); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-func (g *generator) seedAssessmentsAndReports(ctx context.Context, tx pgx.Tx, oi int, orgID uuid.UUID, orgName string, assets []assetInfo, vulnSeverity map[string]int) error {
-	runs := []struct {
-		offsetDays int
-		status     string
-		factor     float64
-	}{
-		{90, "ready", 1.0},
-		{30, "failed", 0.6},
-		{0, "ready", 0.3},
+func endpointSummary(total, withData int, p *osquery.Posture) map[string]any {
+	by := map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}
+	if p != nil {
+		for _, f := range p.Findings {
+			by[f.Severity]++
+		}
 	}
-	for ri, run := range runs {
-		assessID := g.id("org", fmt.Sprint(oi), "assessment", fmt.Sprint(ri))
-		createdAt := g.now.AddDate(0, 0, -run.offsetDays)
-		endedAt := createdAt.Add(25 * time.Minute)
-		name := fmt.Sprintf("%s demo run %d", orgName, ri+1)
-		idemKey := fmt.Sprintf("demo-seed-%d-org-%d-run-%d", g.seed, oi, ri)
-		reqHash := hex.EncodeToString(hash(idemKey))
-		if _, err := tx.Exec(ctx, `INSERT INTO assessments (id, tenant_id, organization_id, name, profile, idempotency_key, request_hash,
-status, created_by, created_at, ended_at, is_demo)
-VALUES ($1,$2,$3,$4,'quick',$5,$6,'finished',$7,$8,$9,true) ON CONFLICT (id) DO NOTHING`,
-			assessID, g.tenant, orgID, name, idemKey, reqHash, g.createdBy, createdAt, endedAt); err != nil {
-			return err
-		}
+	return map[string]any{"assets_total": total, "assets_with_data": withData, "by_severity": by}
+}
 
-		snapAssets := make([]map[string]any, 0, len(assets))
-		for _, a := range assets {
-			findings, _ := json.Marshal(a.findings)
-			addrs := []byte(`[]`)
-			if _, err := tx.Exec(ctx, `INSERT INTO assessment_targets (tenant_id, assessment_id, asset_id, asset_name, addresses, simulation_id, skip_reason)
-VALUES ($1,$2,$3,$4,$5,NULL,$6) ON CONFLICT DO NOTHING`, g.tenant, assessID, a.id, a.name, addrs, a.skipReason); err != nil {
-				return err
+// syntheticEndpointSets membuat hasil osquery SINTETIS yang realistis untuk satu organisasi (bukan hasil eksekusi nyata): bentuk
+// dasar dari contoh katalog, dengan variasi per organisasi supaya postur dan temuan berbeda-beda.
+func syntheticEndpointSets(oi int) map[string]*osquery.Dataset {
+	now := time.Now().UTC()
+	sets := map[string]*osquery.Dataset{}
+	for i := range osquery.Queries {
+		q := &osquery.Queries[i]
+		if q.Pack != "" {
+			continue // pack resmi bersifat opt-in; demo tidak mengarang datanya
+		}
+		rows := make([]map[string]string, 0, len(q.Example))
+		for _, r := range q.Example {
+			c := map[string]string{}
+			for k, v := range r {
+				c[k] = v
 			}
-			snapAssets = append(snapAssets, map[string]any{
-				"id": a.id, "name": a.name, "status": "skipped", "skip_reason": a.skipReason,
-				"findings": json.RawMessage(findings), "methods": []any{},
-			})
+			rows = append(rows, c)
 		}
-		bySeverity := map[string]int{}
-		for sev, n := range vulnSeverity {
-			bySeverity[sev] = int(math.Round(float64(n) * run.factor))
+		switch q.Key {
+		case "osquery.inventory":
+			rows[0]["hostname"] = fmt.Sprintf("demo-linux-%02d", oi+1)
+		case "osquery.users":
+			if oi == 1 {
+				rows = append(rows, map[string]string{"username": "backdoor", "uid": "0", "shell": "/bin/bash", "groups": "root"})
+			}
+		case "osquery.hardening":
+			if oi%3 == 0 {
+				rows = append(rows, map[string]string{"item": "sysctl", "target": "kernel.randomize_va_space", "value": "0"})
+			}
+		case "osquery.network":
+			rows = append(rows, map[string]string{"port": "5432", "address": "0.0.0.0", "protocol": "6", "process": "postgres"}, map[string]string{"port": "22", "address": "0.0.0.0", "protocol": "6", "process": "sshd"})
 		}
-		snapshot := map[string]any{
-			"is_demo":       true,
-			"label":         "DEMO / SYNTHETIC - not a real assessment. Do not use for real security decisions.",
-			"organization":  orgName,
-			"assessment_id": assessID,
-			"profile":       "quick",
-			"created_at":    createdAt,
-			"status":        "finished",
-			"risk":          "Synthetic demo data - risk not evaluated.",
-			"by_severity":   bySeverity,
-			"assets":        snapAssets,
-			"remediation":   "This is synthetic demo data; no remediation advice applies.",
-			"comparison":    "Comparison unavailable: synthetic demo data.",
-		}
-		raw, err := json.Marshal(snapshot)
+		sets[q.Key] = &osquery.Dataset{Query: q.Key, Status: osquery.StatusOK, Rows: rows, CollectedAt: now, Version: osquery.Version}
+	}
+	return sets
+}
+
+// seedEndpointData menyimpan data osquery sintetis untuk aset Linux demo (is_demo=true; bukan eksekusi nyata, tidak dihitung di MITRE).
+func (g *generator) seedEndpointData(ctx context.Context, tx pgx.Tx, oi int, asset uuid.UUID) error {
+	for key, ds := range syntheticEndpointSets(oi) {
+		q := osquery.Find(key)
+		safe, err := osquery.Sanitize(q, ds)
 		if err != nil {
 			return err
 		}
-		reportID := g.id("org", fmt.Sprint(oi), "report", fmt.Sprint(ri))
-		status, reportErr, attempts := "ready", "", 1
-		if run.status == "failed" {
-			status, reportErr, attempts = "failed", "Renderer unreachable (synthetic demo failure for trend testing).", 2
-		}
-		if _, err := tx.Exec(ctx, `INSERT INTO reports (id, tenant_id, organization_id, assessment_id, version, snapshot, status, pdf_key, error,
-attempts, created_at, updated_at, is_demo)
-VALUES ($1,$2,$3,$4,1,$5,$6,'',$7,$8,$9,$9,true) ON CONFLICT (id) DO NOTHING`,
-			reportID, g.tenant, orgID, assessID, raw, status, reportErr, attempts, endedAt); err != nil {
+		m := q.Map(safe)
+		rows, _ := json.Marshal(safe.Rows)
+		attrs, _ := json.Marshal(m.Attributes)
+		if _, err := tx.Exec(ctx, `INSERT INTO endpoint_datasets (tenant_id, asset_id, query_key, rows, attributes, truncated, collected_at, osquery_version, last_status, last_attempt_at, is_demo)
+VALUES ($1,$2,$3,$4,$5,false,$6,$7,'ok',$6,true) ON CONFLICT (tenant_id, asset_id, query_key) DO NOTHING`, g.tenant, asset, key, rows, attrs, g.now, osquery.Version); err != nil {
 			return err
 		}
 	}

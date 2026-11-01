@@ -17,7 +17,7 @@ function fetchMock({ me, status, onPurge }: { me: Me; status: DemoStatus; onPurg
     if (url.startsWith('/api/v1/auth/me')) return new Response(JSON.stringify(me));
     if (url === '/api/v1/demo/status' && method === 'GET') return new Response(JSON.stringify(current));
     if (url === '/api/v1/demo/purge' && method === 'POST') {
-      if (onPurge) return onPurge();
+      if (onPurge) { const response = await onPurge(); if (response.ok) current = await response.clone().json(); return response; }
       current = { has_demo: false, counts: {} };
       return new Response(JSON.stringify(current));
     }
@@ -135,5 +135,24 @@ describe('DemoBanner purge (settings.manage)', () => {
     expect(screen.queryByText(/leaked stack trace/)).toBeNull();
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Purge demo data' })).not.toBeDisabled();
+  });
+});
+
+
+describe('Demo artifact cleanup', () => {
+  it('shows pending cleanup after records are gone and retries without asking to delete records again', async () => {
+    const { fetch } = mount({ me: admin, status: { has_demo: false, cleanup_pending: 2, counts: {} } });
+    expect(await screen.findByText('Demo cleanup pending')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Storage or search cleanup is still pending');
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry demo cleanup' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/v1/demo/purge', expect.objectContaining({ method: 'POST' })));
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  });
+
+  it('keeps pending cleanup visible to a viewer without granting retry permission', async () => {
+    mount({ me: viewer, status: { has_demo: false, cleanup_pending: 1, counts: {} } });
+    expect(await screen.findByText('Demo cleanup pending')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });
 });

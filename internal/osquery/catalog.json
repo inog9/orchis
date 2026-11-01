@@ -1,0 +1,666 @@
+{
+  "osquery_version": "5.24.0",
+  "license": "Apache-2.0 OR GPL-2.0-only (Orchis uses it under Apache-2.0)",
+  "artifacts": {
+    "linux/amd64": {
+      "file": "osquery-5.24.0_1.linux_x86_64.tar.gz",
+      "url": "https://github.com/osquery/osquery/releases/download/5.24.0/osquery-5.24.0_1.linux_x86_64.tar.gz",
+      "sha256": "3e2fbfe0d9e3cdde60cc58903d03ab3d44449c481bf1117e42351f9e4a460ade",
+      "bytes": 54502525,
+      "binary": "opt/osquery/bin/osqueryd",
+      "max_binary_bytes": 314572800
+    }
+  },
+  "queries": [
+    {
+      "key": "osquery.inventory",
+      "title": "System inventory",
+      "description": "Operating system, kernel, CPU, memory and uptime of the endpoint. Read-only.",
+      "category": "Endpoint",
+      "sql": "SELECT s.hostname, s.cpu_brand, s.cpu_logical_cores, s.physical_memory, o.name AS os_name, o.version AS os_version, o.arch AS os_arch, k.version AS kernel, u.total_seconds AS uptime_seconds FROM system_info s, os_version o, kernel_info k, uptime u",
+      "tables": [
+        "system_info",
+        "os_version",
+        "kernel_info",
+        "uptime"
+      ],
+      "columns": [
+        "hostname",
+        "cpu_brand",
+        "cpu_logical_cores",
+        "physical_memory",
+        "os_name",
+        "os_version",
+        "os_arch",
+        "kernel",
+        "uptime_seconds"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 1,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1082",
+          "reason": "Reading the operating system, kernel and hardware details is System Information Discovery."
+        }
+      ],
+      "attributes": {
+        "first_row": {
+          "hostname": "hostname",
+          "os_name": "os_name",
+          "os_version": "os_version",
+          "os_arch": "os_arch",
+          "kernel": "kernel",
+          "cpu_brand": "cpu_brand",
+          "cpu_logical_cores": "cpu_logical_cores",
+          "physical_memory": "physical_memory",
+          "uptime_seconds": "uptime_seconds"
+        }
+      },
+      "rules": [
+        {
+          "id": "long-uptime",
+          "scope": "row",
+          "match": [
+            {
+              "col": "uptime_seconds",
+              "op": "gt",
+              "val": "7776000"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "low",
+            "title": "System has not rebooted for over 90 days",
+            "value": "osquery:long-uptime"
+          },
+          "explain": "A long uptime can mean kernel security updates are installed but not yet running."
+        }
+      ],
+      "example": [
+        {
+          "cpu_brand": "Intel Xeon Processor (Cascadelake)",
+          "cpu_logical_cores": "6",
+          "hostname": "web-01",
+          "kernel": "7.0.0-30-generic",
+          "os_arch": "x86_64",
+          "os_name": "Ubuntu",
+          "os_version": "26.04.1 LTS (Resolute Raccoon)",
+          "physical_memory": "16714969088",
+          "uptime_seconds": "366229"
+        }
+      ]
+    },
+    {
+      "key": "osquery.packages",
+      "title": "Installed packages",
+      "description": "Names and versions of installed software packages (deb and rpm). No vulnerability data is invented: versions are listed, not judged.",
+      "category": "Endpoint",
+      "sql": "SELECT name, version, 'deb' AS source FROM deb_packages UNION ALL SELECT name, version, 'rpm' AS source FROM rpm_packages",
+      "tables": [
+        "deb_packages",
+        "rpm_packages"
+      ],
+      "columns": [
+        "name",
+        "version",
+        "source"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "low",
+      "load": "medium",
+      "needs_root": false,
+      "max_rows": 5000,
+      "timeout_seconds": 60,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": [
+          {
+            "key": "package_count",
+            "op": "count"
+          },
+          {
+            "key": "packages",
+            "op": "list",
+            "cols": [
+              "name",
+              "version",
+              "source"
+            ],
+            "limit": 25
+          }
+        ]
+      },
+      "rules": [
+        {
+          "id": "server-software",
+          "scope": "row",
+          "match": [
+            {
+              "col": "name",
+              "op": "in",
+              "val": [
+                "nginx",
+                "apache2",
+                "httpd",
+                "openssh-server",
+                "mysql-server",
+                "mariadb-server",
+                "postgresql",
+                "redis-server"
+              ]
+            }
+          ],
+          "finding": {
+            "type": "service",
+            "severity": "info",
+            "title": "Server software installed: {name} {version}",
+            "value": "osquery:package:{name}"
+          },
+          "explain": "Listing server software helps choose the right follow-up checks. It is not a vulnerability."
+        }
+      ],
+      "example": [
+        {
+          "name": "openssh-server",
+          "source": "deb",
+          "version": "1:10.2p1-2ubuntu3.8"
+        },
+        {
+          "name": "3cpio",
+          "source": "deb",
+          "version": "0.14.0-1ubuntu1"
+        },
+        {
+          "name": "adduser",
+          "source": "deb",
+          "version": "3.153ubuntu1"
+        },
+        {
+          "name": "alacritty",
+          "source": "deb",
+          "version": "0.16.1-2ubuntu1"
+        }
+      ]
+    },
+    {
+      "key": "osquery.users",
+      "title": "Local accounts",
+      "description": "Local user accounts, their shell and group memberships. Password hashes and SSH keys are never read.",
+      "category": "Endpoint",
+      "sql": "SELECT u.username, u.uid, u.shell, COALESCE((SELECT group_concat(g.groupname, ',') FROM user_groups ug JOIN groups g ON g.gid = ug.gid WHERE ug.uid = u.uid), '') AS groups FROM users u",
+      "tables": [
+        "users",
+        "user_groups",
+        "groups"
+      ],
+      "columns": [
+        "username",
+        "uid",
+        "shell",
+        "groups"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "medium",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 500,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1087.001",
+          "reason": "Listing local accounts and their groups is Local Account Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": [
+          {
+            "key": "local_account_count",
+            "op": "count"
+          },
+          {
+            "key": "login_accounts",
+            "op": "list",
+            "cols": [
+              "username",
+              "uid",
+              "groups"
+            ],
+            "limit": 25,
+            "where": [
+              {
+                "col": "shell",
+                "op": "re",
+                "val": "(bash|zsh|sh|fish)$"
+              }
+            ]
+          }
+        ]
+      },
+      "rules": [
+        {
+          "id": "extra-uid0",
+          "scope": "row",
+          "match": [
+            {
+              "col": "uid",
+              "op": "eq",
+              "val": "0"
+            },
+            {
+              "col": "username",
+              "op": "ne",
+              "val": "root"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "high",
+            "title": "Account {username} has superuser (UID 0) rights",
+            "value": "osquery:uid0:{username}"
+          },
+          "explain": "Only root should have UID 0. A second UID 0 account is a common persistence trick."
+        },
+        {
+          "id": "many-admins",
+          "scope": "agg",
+          "count_where": [
+            {
+              "col": "groups",
+              "op": "has_any",
+              "val": [
+                "sudo",
+                "wheel",
+                "admin"
+              ]
+            }
+          ],
+          "count_gt": 3,
+          "finding": {
+            "type": "text",
+            "severity": "medium",
+            "title": "{count} local accounts have administrator group membership",
+            "value": "osquery:many-admins"
+          },
+          "explain": "Fewer administrator accounts mean fewer ways to take over the system."
+        }
+      ],
+      "example": [
+        {
+          "groups": "root",
+          "shell": "/bin/bash",
+          "uid": "0",
+          "username": "root"
+        },
+        {
+          "groups": "daemon",
+          "shell": "/usr/sbin/nologin",
+          "uid": "1",
+          "username": "daemon"
+        },
+        {
+          "groups": "bin",
+          "shell": "/usr/sbin/nologin",
+          "uid": "2",
+          "username": "bin"
+        },
+        {
+          "groups": "sys",
+          "shell": "/usr/sbin/nologin",
+          "uid": "3",
+          "username": "sys"
+        }
+      ]
+    },
+    {
+      "key": "osquery.network",
+      "title": "Listening ports",
+      "description": "TCP/UDP ports listening on the endpoint and the name of the owning program. Command lines are never read.",
+      "category": "Endpoint",
+      "sql": "SELECT lp.port, lp.address, lp.protocol, p.name AS process FROM listening_ports lp LEFT JOIN processes p ON p.pid = lp.pid WHERE lp.port != 0",
+      "tables": [
+        "listening_ports",
+        "processes"
+      ],
+      "columns": [
+        "port",
+        "address",
+        "protocol",
+        "process"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "medium",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 1000,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1049",
+          "reason": "Listing listening sockets is System Network Connections Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": [
+          {
+            "key": "listening_port_count",
+            "op": "count"
+          },
+          {
+            "key": "listening_ports",
+            "op": "list",
+            "cols": [
+              "port",
+              "address",
+              "process"
+            ],
+            "limit": 50
+          }
+        ]
+      },
+      "rules": [
+        {
+          "id": "listen-all-interfaces",
+          "scope": "row",
+          "match": [
+            {
+              "col": "address",
+              "op": "in",
+              "val": [
+                "0.0.0.0",
+                "::"
+              ]
+            },
+            {
+              "col": "protocol",
+              "op": "eq",
+              "val": "6"
+            }
+          ],
+          "finding": {
+            "type": "open_port",
+            "severity": "info",
+            "title": "Port {port}/tcp listens on all interfaces ({process})",
+            "value": "tcp/{port}"
+          },
+          "explain": "A service that listens on every interface can be reached from the network, not just locally."
+        }
+      ],
+      "example": [
+        {
+          "address": "0.0.0.0",
+          "port": "8080",
+          "process": "docker-proxy",
+          "protocol": "6"
+        },
+        {
+          "address": "0.0.0.0",
+          "port": "9000",
+          "process": "docker-proxy",
+          "protocol": "6"
+        },
+        {
+          "address": "0.0.0.0",
+          "port": "22",
+          "process": "sshd",
+          "protocol": "6"
+        },
+        {
+          "address": "127.0.0.1",
+          "port": "8090",
+          "process": "server",
+          "protocol": "6"
+        }
+      ]
+    },
+    {
+      "key": "osquery.hardening",
+      "title": "Hardening settings",
+      "description": "A few kernel security settings and disk encryption status. Read-only.",
+      "category": "Endpoint",
+      "sql": "SELECT 'sysctl' AS item, name AS target, current_value AS value FROM system_controls WHERE name IN ('kernel.randomize_va_space', 'net.ipv4.ip_forward', 'net.ipv4.tcp_syncookies', 'kernel.dmesg_restrict') UNION ALL SELECT 'disk' AS item, name AS target, CAST(encrypted AS TEXT) AS value FROM disk_encryption WHERE name LIKE '/dev/%' AND name NOT LIKE '/dev/loop%' AND name NOT LIKE '/dev/ram%' AND name NOT LIKE '/dev/sr%'",
+      "tables": [
+        "system_controls",
+        "disk_encryption"
+      ],
+      "columns": [
+        "item",
+        "target",
+        "value"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 100,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1082",
+          "reason": "Reading kernel and disk configuration is System Information Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": [
+          {
+            "key": "hardening_settings",
+            "op": "list",
+            "cols": [
+              "item",
+              "target",
+              "value"
+            ],
+            "limit": 50
+          }
+        ]
+      },
+      "rules": [
+        {
+          "id": "aslr-weak",
+          "scope": "row",
+          "match": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "sysctl"
+            },
+            {
+              "col": "target",
+              "op": "eq",
+              "val": "kernel.randomize_va_space"
+            },
+            {
+              "col": "value",
+              "op": "ne",
+              "val": "2"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "high",
+            "title": "Address space randomisation (ASLR) is not fully enabled",
+            "value": "osquery:aslr-weak"
+          },
+          "explain": "ASLR makes memory-corruption exploits harder. The recommended value is 2."
+        },
+        {
+          "id": "ip-forward-on",
+          "scope": "row",
+          "match": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "sysctl"
+            },
+            {
+              "col": "target",
+              "op": "eq",
+              "val": "net.ipv4.ip_forward"
+            },
+            {
+              "col": "value",
+              "op": "eq",
+              "val": "1"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "low",
+            "title": "IPv4 forwarding is enabled",
+            "value": "osquery:ip-forward-on"
+          },
+          "explain": "Forwarding is expected on routers and container hosts, but unexpected on ordinary servers."
+        },
+        {
+          "id": "syncookies-off",
+          "scope": "row",
+          "match": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "sysctl"
+            },
+            {
+              "col": "target",
+              "op": "eq",
+              "val": "net.ipv4.tcp_syncookies"
+            },
+            {
+              "col": "value",
+              "op": "eq",
+              "val": "0"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "low",
+            "title": "TCP SYN cookies are disabled",
+            "value": "osquery:syncookies-off"
+          },
+          "explain": "SYN cookies help the system survive SYN flood attacks."
+        },
+        {
+          "id": "disk-unencrypted",
+          "scope": "agg",
+          "count_where": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "disk"
+            },
+            {
+              "col": "value",
+              "op": "eq",
+              "val": "0"
+            }
+          ],
+          "count_gt": 0,
+          "finding": {
+            "type": "text",
+            "severity": "low",
+            "title": "{count} storage devices report no encryption",
+            "value": "osquery:disk-unencrypted"
+          },
+          "explain": "Unencrypted disks expose data if a disk or backup is stolen. Virtual machines often rely on host-level encryption instead."
+        }
+      ],
+      "example": [
+        {
+          "item": "sysctl",
+          "target": "net.ipv4.ip_forward",
+          "value": "1"
+        },
+        {
+          "item": "disk",
+          "target": "/dev/sda",
+          "value": "0"
+        },
+        {
+          "item": "disk",
+          "target": "/dev/sda1",
+          "value": "0"
+        },
+        {
+          "item": "sysctl",
+          "target": "kernel.dmesg_restrict",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "key": "osquery.firewall",
+      "title": "Firewall rules",
+      "description": "Number of iptables rules. Needs administrator rights; nftables rules are not checked.",
+      "category": "Endpoint",
+      "sql": "SELECT count(*) AS rules FROM iptables",
+      "tables": [
+        "iptables"
+      ],
+      "columns": [
+        "rules"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": true,
+      "max_rows": 1,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1518.001",
+          "reason": "Reading the host firewall configuration is Security Software Discovery."
+        }
+      ],
+      "attributes": {
+        "first_row": {
+          "iptables_rules": "rules"
+        }
+      },
+      "rules": [
+        {
+          "id": "no-iptables-rules",
+          "scope": "row",
+          "match": [
+            {
+              "col": "rules",
+              "op": "eq",
+              "val": "0"
+            }
+          ],
+          "finding": {
+            "type": "text",
+            "severity": "info",
+            "title": "iptables reports no rules (nftables rules are not checked)",
+            "value": "osquery:no-iptables-rules"
+          },
+          "explain": "An empty iptables list can still mean a working nftables firewall. Treat this as a prompt to verify, not as proof."
+        }
+      ],
+      "example": [
+        {
+          "rules": "0"
+        }
+      ]
+    }
+  ]
+}

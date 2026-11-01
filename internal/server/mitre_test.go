@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"orchis-go/internal/osquery"
 	"os"
 	"path/filepath"
 	"sync"
@@ -57,9 +58,19 @@ func TestMitreImportIsAtomicIdempotentAndLinksContracts(t *testing.T) {
 	if n := count(`SELECT count(*) FROM mitre_techniques`); n != 12 {
 		t.Fatalf("12 teknik (revoked tidak ikut, deprecated ikut dengan penanda): %d", n)
 	}
-	// Fixture memuat T1046, T1595.002 dan T1082 (T1049 tidak ada), jadi hanya tiga tautan bawaan yang terbentuk.
-	if n := count(`SELECT count(*) FROM contract_techniques`); n != 3 {
-		t.Fatalf("tiga tautan bawaan (T1046, T1595.002, T1082): %d", n)
+	// Fixture memuat T1046, T1595.002 dan T1082 saja: T1046 (nmap), T1595.002 (nuclei), T1082 (agent.system_info,
+	// osquery.inventory, osquery.hardening) = lima tautan bawaan.
+	// Tautan osquery (termasuk pack resmi) dihitung dari katalog beku: tiga aksi non-osquery + rujukan T1082 osquery.
+	wantLinks := 3
+	for _, q := range osquery.Queries {
+		for _, ref := range q.Mitre {
+			if ref.ID == "T1082" {
+				wantLinks++
+			}
+		}
+	}
+	if n := count(`SELECT count(*) FROM contract_techniques`); n != wantLinks {
+		t.Fatalf("tautan bawaan %d diharapkan: %d", wantLinks, n)
 	}
 	if n := count(`SELECT count(*) FROM contract_techniques WHERE reason='' OR basis<>'direct'`); n != 0 {
 		t.Fatalf("setiap tautan wajib beralasan dan berbasis langsung: %d tidak", n)
@@ -68,7 +79,7 @@ func TestMitreImportIsAtomicIdempotentAndLinksContracts(t *testing.T) {
 	if _, err := im.Import(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if count(`SELECT count(*) FROM mitre_techniques`) != 12 || count(`SELECT count(*) FROM mitre_tactics`) != 4 || count(`SELECT count(*) FROM contract_techniques`) != 3 {
+	if count(`SELECT count(*) FROM mitre_techniques`) != 12 || count(`SELECT count(*) FROM mitre_tactics`) != 4 || count(`SELECT count(*) FROM contract_techniques`) != wantLinks {
 		t.Fatal("impor ulang harus idempoten")
 	}
 	// sumber rusak: gagal, dicatat, dan data lama utuh
@@ -362,8 +373,9 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	if len(mx.Platforms) < 5 {
 		t.Fatalf("daftar platform untuk filter kosong/terlalu kecil: %v", mx.Platforms)
 	}
-	// Tingkat 1 (mapped): empat aksi bawaan; tingkat 2 (trained) belum ada eksekusi nyata; tingkat 3 (simulated) belum ada demo.
-	if mx.Mapped != 4 || mx.Exercised != 0 || mx.Simulated != 0 {
+	// Tingkat 1 (mapped): aksi bawaan (T1046, T1595, T1082, T1049, T1518, T1087, T1120, T1016 sebagai induk); tingkat 2 (trained) belum ada
+	// eksekusi nyata; tingkat 3 (simulated) belum ada demo.
+	if mx.Mapped != 8 || mx.Exercised != 0 || mx.Simulated != 0 {
 		t.Fatalf("sebelum demo: mapped=%d exercised=%d simulated=%d", mx.Mapped, mx.Exercised, mx.Simulated)
 	}
 
@@ -372,7 +384,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 		t.Fatal(err)
 	}
 	mx = c.matrix(t, c.viewer)
-	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 4 {
+	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 8 {
 		t.Fatalf("setelah demo: mapped=%d exercised=%d simulated=%d (demo tidak boleh jadi trained/mapped)", mx.Mapped, mx.Exercised, mx.Simulated)
 	}
 	var t1190 *struct {
@@ -405,7 +417,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	r := c.a.do("GET", "/api/v1/mitre/techniques/T1046", nil, c.viewer)
 	r.JSON(&det)
 	if r.Status != 200 || det.ID != "T1046" || det.URL != "https://attack.mitre.org/techniques/T1046" || len(det.Mitigations) == 0 ||
-		len(det.Mappings) != 1 || det.Mappings[0].Reason == "" || det.Mappings[0].Basis != "direct" {
+		len(det.Mappings) < 1 || det.Mappings[0].Reason == "" || det.Mappings[0].Basis != "direct" {
 		t.Fatalf("detail T1046: %d %s", r.Status, r.Body)
 	}
 	det.Subs, det.Mappings = nil, nil

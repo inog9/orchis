@@ -14,6 +14,7 @@ import (
 	"orchis-go/internal/db"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/osquery"
 	"os/exec"
 	"sort"
 	"strings"
@@ -68,27 +69,37 @@ type Method struct {
 	StartedAt *time.Time      `json:"started_at"`
 	EndedAt   *time.Time      `json:"ended_at"`
 }
+
+// EndpointSummary: ringkasan postur endpoint tingkat laporan (data dari DALAM mesin lewat agent + osquery, bukan scan).
+type EndpointSummary struct {
+	AssetsTotal    int            `json:"assets_total"`
+	AssetsWithData int            `json:"assets_with_data"`
+	BySeverity     map[string]int `json:"by_severity"`
+}
+
 type Asset struct {
-	ID         uuid.UUID `json:"id"`
-	Name       string    `json:"name"`
-	Status     string    `json:"status"`
-	SkipReason string    `json:"skip_reason"`
-	Findings   []Finding `json:"findings"`
-	Methods    []Method  `json:"methods"`
+	Endpoint   *osquery.Posture `json:"endpoint,omitempty"`
+	ID         uuid.UUID        `json:"id"`
+	Name       string           `json:"name"`
+	Status     string           `json:"status"`
+	SkipReason string           `json:"skip_reason"`
+	Findings   []Finding        `json:"findings"`
+	Methods    []Method         `json:"methods"`
 }
 type Snapshot struct {
-	IsDemo       bool           `json:"is_demo,omitempty"`
-	Label        string         `json:"label,omitempty"`
-	Organization string         `json:"organization"`
-	AssessmentID uuid.UUID      `json:"assessment_id"`
-	Profile      string         `json:"profile"`
-	CreatedAt    time.Time      `json:"created_at"`
-	Status       string         `json:"status"`
-	Risk         string         `json:"risk"`
-	BySeverity   map[string]int `json:"by_severity"`
-	Assets       []Asset        `json:"assets"`
-	Remediation  string         `json:"remediation"`
-	Comparison   string         `json:"comparison"`
+	EndpointSummary *EndpointSummary `json:"endpoint_summary,omitempty"`
+	IsDemo          bool             `json:"is_demo,omitempty"`
+	Label           string           `json:"label,omitempty"`
+	Organization    string           `json:"organization"`
+	AssessmentID    uuid.UUID        `json:"assessment_id"`
+	Profile         string           `json:"profile"`
+	CreatedAt       time.Time        `json:"created_at"`
+	Status          string           `json:"status"`
+	Risk            string           `json:"risk"`
+	BySeverity      map[string]int   `json:"by_severity"`
+	Assets          []Asset          `json:"assets"`
+	Remediation     string           `json:"remediation"`
+	Comparison      string           `json:"comparison"`
 }
 type Report struct {
 	ID             uuid.UUID `json:"id"`
@@ -219,8 +230,12 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				}
 				return a.Findings[i].ID < a.Findings[j].ID
 			})
+			if a.Endpoint, e = endpointPosture(ctx, tx, tenant, a); e != nil {
+				return e
+			}
 			snap.Assets = append(snap.Assets, a)
 		}
+		snap.EndpointSummary = summarizeEndpoint(snap.Assets)
 		snap.Risk = exposureRisk(snap)
 		var previous []byte
 		e = tx.QueryRow(ctx, `SELECT r.snapshot FROM reports r JOIN assessments a ON a.tenant_id=r.tenant_id AND a.id=r.assessment_id WHERE r.tenant_id=$1 AND r.organization_id=$2 AND a.profile=$3 AND a.created_at<$4 ORDER BY a.created_at DESC,a.id DESC LIMIT 1`, tenant, p.org, snap.Profile, snap.CreatedAt).Scan(&previous)
