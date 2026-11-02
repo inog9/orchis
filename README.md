@@ -81,7 +81,7 @@ test accounts. Specialist skills can be invoked by their own names.
 | `pentest` | Shared rules, workflow, and checklist |
 | `pentest-exploration` | Initial exploration, test-account setup, and triage |
 | `pentest-recon` | Routes, API inventory, JavaScript, and business flows |
-| `pentest-js-analysis` | Step-by-step jsluice analysis with bundled Tree-sitter source/sink queries |
+| `pentest-js-analysis` | Delegated lazy-JS/gau-first archive collection and full-corpus jsluice/direct review |
 | `pentest-dependency-confusion` | Dependency-confusion discovery from collected JS/source maps, independent npxconfuse coverage and optional exposed manifests |
 | `pentest-auth` | Authentication and account lifecycle |
 | `pentest-authz` | Object, function, and tenant authorization |
@@ -102,6 +102,9 @@ by the chosen workflow separately:
 - Interceptor CLI and the `interceptor-browser` skill for browser work.
 - Burp or Caido with its configured proxy/replay integration for HTTP evidence.
 - jxscout for JavaScript analysis when required.
+- gau CLI first for historical URL discovery, followed by curl for Wayback CDX
+  and reachable static JS/map downloads; the recon skill delegates collection
+  gaps and review shards with per-file coverage.
 - jsluice and Python 3.9+ for offline JavaScript analysis. `init` includes the
   query collection under `<agent-folder>/skills/pentest-js-analysis/tree-sitter-query/`
   and the runner under that skill's `scripts/` directory. The original root-level
