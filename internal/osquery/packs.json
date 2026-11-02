@@ -11,6 +11,7 @@
    "queries": [
     {
      "name": "apt_sources",
+     "platform": "linux",
      "description": "Retrieves all the APT sources to install packages from in the target Linux system.",
      "status": "not_reviewed",
      "reason": "Table apt_sources is not reviewed yet.",
@@ -20,6 +21,7 @@
     },
     {
      "name": "backdoored_python_packages",
+     "platform": "posix",
      "description": "Watches for the backdoored Python packages installed on system. See (http://www.nbu.gov.sk/skcsirt-sa-20170909-pypi/index.html)",
      "status": "not_reviewed",
      "reason": "Table python_packages is not reviewed yet.",
@@ -29,6 +31,7 @@
     },
     {
      "name": "browser_plugins",
+     "platform": "darwin",
      "description": "Retrieves the list of C/NPAPI browser plugins in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -39,6 +42,7 @@
     },
     {
      "name": "chrome_extensions",
+     "platform": "all",
      "description": "Retrieves the list of extensions for Chrome in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (chrome_extensions).",
@@ -49,6 +53,7 @@
     },
     {
      "name": "deb_packages",
+     "platform": "linux",
      "key": "osquery.pack.vuln_management.deb_packages",
      "description": "Retrieves all the installed DEB packages in the target Linux system.",
      "status": "runnable",
@@ -59,6 +64,7 @@
     },
     {
      "name": "firefox_addons",
+     "platform": "posix",
      "description": "Retrieves the list of addons for Firefox in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (firefox_addons).",
@@ -69,6 +75,7 @@
     },
     {
      "name": "homebrew_packages",
+     "platform": "darwin",
      "description": "Retrieves the list of brew packages installed in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -78,6 +85,7 @@
     },
     {
      "name": "installed_applications",
+     "platform": "darwin",
      "description": "Retrieves all the currently installed applications in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -87,6 +95,7 @@
     },
     {
      "name": "kernel_info",
+     "platform": "all",
      "key": "osquery.pack.vuln_management.kernel_info",
      "description": "Retrieves information from the current kernel in the target system.",
      "status": "runnable",
@@ -97,6 +106,7 @@
     },
     {
      "name": "kernel_modules",
+     "platform": "linux",
      "key": "osquery.pack.vuln_management.kernel_modules",
      "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
      "status": "runnable",
@@ -107,6 +117,7 @@
     },
     {
      "name": "kextstat",
+     "platform": "darwin",
      "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -116,6 +127,7 @@
     },
     {
      "name": "opera_extensions",
+     "platform": "posix",
      "description": "Retrieves the list of extensions for Opera in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (opera_extensions).",
@@ -126,6 +138,7 @@
     },
     {
      "name": "os_version",
+     "platform": "all",
      "key": "osquery.pack.vuln_management.os_version",
      "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
      "status": "runnable",
@@ -136,6 +149,7 @@
     },
     {
      "name": "package_receipts",
+     "platform": "darwin",
      "description": "Retrieves all the PKG related information stored in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -145,6 +159,7 @@
     },
     {
      "name": "portage_packages",
+     "platform": "linux",
      "description": "Retrieves all the installed packages on the target Linux system.",
      "status": "not_reviewed",
      "reason": "Table portage_packages is not reviewed yet.",
@@ -154,6 +169,7 @@
     },
     {
      "name": "rpm_packages",
+     "platform": "linux",
      "description": "Retrieves all the installed RPM packages in the target Linux system.",
      "status": "unverified",
      "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
@@ -163,6 +179,7 @@
     },
     {
      "name": "safari_extensions",
+     "platform": "darwin",
      "description": "Retrieves the list of extensions for Safari in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -173,6 +190,7 @@
     },
     {
      "name": "unauthenticated_sparkle_feeds",
+     "platform": "darwin",
      "description": "Retrieves all application bundles using unauthenticated Sparkle update feeds. See (https://vulnsec.com/2016/osx-apps-vulnerabilities/) for details.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -192,6 +210,7 @@
    "queries": [
     {
      "name": "ad_config",
+     "platform": "darwin",
      "description": "Retrieves the Active Directory configuration for the target machine, attached to the domain (requires sudo).",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -201,6 +220,7 @@
     },
     {
      "name": "alf",
+     "platform": "darwin",
      "description": "Retrieves the configuration values for the Application Layer Firewall for OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -210,6 +230,7 @@
     },
     {
      "name": "alf_exceptions",
+     "platform": "darwin",
      "description": "Retrieves the exceptions for the Application Layer Firewall in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -219,6 +240,7 @@
     },
     {
      "name": "alf_explicit_auths",
+     "platform": "darwin",
      "description": "Retrieves the list of processes with explicit authorization for the Application Layer Firewall.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -228,6 +250,7 @@
     },
     {
      "name": "alf_services",
+     "platform": "darwin",
      "description": "Retrieves the services for the Application Layer Firewall in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -237,6 +260,7 @@
     },
     {
      "name": "apt_sources",
+     "platform": "ubuntu",
      "description": "Retrieves all the APT sources to install packages from in the target Linux system.",
      "status": "other_os",
      "reason": "Only for ubuntu, not proven yet.",
@@ -246,6 +270,7 @@
     },
     {
      "name": "browser_plugins",
+     "platform": "darwin",
      "description": "Retrieves the list of C/NPAPI browser plugins in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -256,6 +281,7 @@
     },
     {
      "name": "chrome_extensions",
+     "platform": "all",
      "description": "Retrieves the list of extensions for Chrome in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (chrome_extensions).",
@@ -266,6 +292,7 @@
     },
     {
      "name": "deb_packages",
+     "platform": "ubuntu",
      "description": "Retrieves all the installed DEB packages in the target Linux system.",
      "status": "other_os",
      "reason": "Only for ubuntu, not proven yet.",
@@ -275,6 +302,7 @@
     },
     {
      "name": "disk_encryption",
+     "platform": "posix",
      "key": "osquery.pack.it_compliance.disk_encryption",
      "description": "Retrieves the current disk encryption status for the target system.",
      "status": "runnable",
@@ -285,6 +313,7 @@
     },
     {
      "name": "firefox_addons",
+     "platform": "darwin",
      "description": "Retrieves the list of addons for Firefox in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -295,6 +324,7 @@
     },
     {
      "name": "homebrew_packages",
+     "platform": "darwin",
      "description": "Retrieves the list of brew packages installed in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -304,6 +334,7 @@
     },
     {
      "name": "installed_applications",
+     "platform": "darwin",
      "description": "Retrieves all the currently installed applications in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -313,6 +344,7 @@
     },
     {
      "name": "iptables",
+     "platform": "linux",
      "description": "Retrieves the current filters and chains per filter in the target system.",
      "status": "unverified",
      "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
@@ -322,6 +354,7 @@
     },
     {
      "name": "kernel_info",
+     "platform": "all",
      "key": "osquery.pack.it_compliance.kernel_info",
      "description": "Retrieves information from the current kernel in the target system.",
      "status": "runnable",
@@ -332,6 +365,7 @@
     },
     {
      "name": "kernel_modules",
+     "platform": "linux",
      "key": "osquery.pack.it_compliance.kernel_modules",
      "description": "Retrieves the current list of loaded kernel modules in the target Linux system.",
      "status": "runnable",
@@ -342,6 +376,7 @@
     },
     {
      "name": "keychain_items",
+     "platform": "darwin",
      "description": "Retrieves all the items contained in the keychain in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -351,6 +386,7 @@
     },
     {
      "name": "launchd",
+     "platform": "darwin",
      "description": "Retrieves all the daemons that will run in the start of the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -360,6 +396,7 @@
     },
     {
      "name": "mounts",
+     "platform": "all",
      "key": "osquery.pack.it_compliance.mounts",
      "description": "Retrieves the current list of mounted drives in the target system.",
      "status": "runnable",
@@ -370,6 +407,7 @@
     },
     {
      "name": "nfs_shares",
+     "platform": "darwin",
      "description": "Retrieves the current list of Network File System mounted shares.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -379,6 +417,7 @@
     },
     {
      "name": "os_version",
+     "platform": "all",
      "key": "osquery.pack.it_compliance.os_version",
      "description": "Retrieves information from the Operative System where osquery is currently running.",
      "status": "runnable",
@@ -389,6 +428,7 @@
     },
     {
      "name": "osquery_info",
+     "platform": "all",
      "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
      "status": "not_reviewed",
      "reason": "Table osquery_info is not reviewed yet.",
@@ -399,6 +439,7 @@
     },
     {
      "name": "package_receipts",
+     "platform": "darwin",
      "description": "Retrieves all the PKG related information stored in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -408,6 +449,7 @@
     },
     {
      "name": "portage_packages",
+     "platform": "gentoo",
      "description": "Retrieves all the packages installed with portage from the target Linux system.",
      "status": "other_os",
      "reason": "Only for gentoo, not proven yet.",
@@ -417,6 +459,7 @@
     },
     {
      "name": "rpm_packages",
+     "platform": "linux",
      "description": "Retrieves all the installed RPM packages in the target Linux system.",
      "status": "unverified",
      "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
@@ -426,6 +469,7 @@
     },
     {
      "name": "safari_extensions",
+     "platform": "darwin",
      "description": "Retrieves the list of extensions for Safari in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -436,6 +480,7 @@
     },
     {
      "name": "sip_config",
+     "platform": "darwin",
      "description": "Retrieves the current System Integrity Protection configuration in the target system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -445,6 +490,7 @@
     },
     {
      "name": "usb_devices",
+     "platform": "posix",
      "key": "osquery.pack.it_compliance.usb_devices",
      "description": "Retrieves the current list of USB devices in the target system.",
      "status": "runnable",
@@ -455,6 +501,7 @@
     },
     {
      "name": "windows_drivers",
+     "platform": "windows",
      "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
      "status": "other_os",
      "reason": "Only for windows, not proven yet.",
@@ -464,6 +511,7 @@
     },
     {
      "name": "windows_patches",
+     "platform": "windows",
      "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
      "status": "other_os",
      "reason": "Only for windows, not proven yet.",
@@ -473,6 +521,7 @@
     },
     {
      "name": "windows_programs",
+     "platform": "windows",
      "description": "Retrieves the list of products as they are installed by Windows Installer in the target Windows system.",
      "status": "other_os",
      "reason": "Only for windows, not proven yet.",
@@ -482,6 +531,7 @@
     },
     {
      "name": "windows_shared_resources",
+     "platform": "windows",
      "description": "Retrieves the list of shared resources in the target Windows system.",
      "status": "other_os",
      "reason": "Only for windows, not proven yet.",
@@ -500,6 +550,7 @@
    "queries": [
     {
      "name": "alf",
+     "platform": "darwin",
      "description": "Retrieves the configuration values for the Application Layer Firewall for OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -509,6 +560,7 @@
     },
     {
      "name": "alf_exceptions",
+     "platform": "darwin",
      "description": "Retrieves the exceptions for the Application Layer Firewall in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -518,6 +570,7 @@
     },
     {
      "name": "alf_explicit_auths",
+     "platform": "darwin",
      "description": "Retrieves the list of processes with explicit authorization for the Application Layer Firewall.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -527,6 +580,7 @@
     },
     {
      "name": "alf_services",
+     "platform": "darwin",
      "description": "Retrieves the services for the Application Layer Firewall in OSX.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -536,6 +590,7 @@
     },
     {
      "name": "app_schemes",
+     "platform": "darwin",
      "description": "Retrieves the list of application scheme/protocol-based IPC handlers.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -545,6 +600,7 @@
     },
     {
      "name": "arp_cache",
+     "platform": "all",
      "description": "Retrieves the ARP cache values in the target system.",
      "status": "not_reviewed",
      "reason": "Table arp_cache is not reviewed yet.",
@@ -554,6 +610,7 @@
     },
     {
      "name": "crontab",
+     "platform": "posix",
      "description": "Retrieves all the jobs scheduled in crontab in the target system.",
      "status": "not_reviewed",
      "reason": "Table crontab is not reviewed yet.",
@@ -563,6 +620,7 @@
     },
     {
      "name": "disk_encryption",
+     "platform": "posix",
      "key": "osquery.pack.incident_response.disk_encryption",
      "description": "Retrieves the current disk encryption status for the target system.",
      "status": "runnable",
@@ -573,6 +631,7 @@
     },
     {
      "name": "etc_hosts",
+     "platform": "posix",
      "key": "osquery.pack.incident_response.etc_hosts",
      "description": "Retrieves all the entries in the target system /etc/hosts file.",
      "status": "runnable",
@@ -583,6 +642,7 @@
     },
     {
      "name": "installed_applications",
+     "platform": "darwin",
      "description": "Retrieves all the currently installed applications in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -592,6 +652,7 @@
     },
     {
      "name": "ip_forwarding",
+     "platform": "posix",
      "description": "Retrieves the current status of IP/IPv6 forwarding.",
      "status": "unverified",
      "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
@@ -601,6 +662,7 @@
     },
     {
      "name": "iptables",
+     "platform": "linux",
      "description": "Retrieves the current filters and chains per filter in the target system.",
      "status": "unverified",
      "reason": "Returned no rows when the pack was frozen, so its columns could not be confirmed.",
@@ -610,6 +672,7 @@
     },
     {
      "name": "kernel_modules",
+     "platform": "linux",
      "key": "osquery.pack.incident_response.kernel_modules",
      "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
      "status": "runnable",
@@ -620,6 +683,7 @@
     },
     {
      "name": "kextstat",
+     "platform": "darwin",
      "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -629,6 +693,7 @@
     },
     {
      "name": "last",
+     "platform": "posix",
      "description": "Retrieves the list of the latest logins with PID, username and timestamp.",
      "status": "not_reviewed",
      "reason": "Table last is not reviewed yet.",
@@ -638,6 +703,7 @@
     },
     {
      "name": "launchd",
+     "platform": "darwin",
      "description": "Retrieves all the daemons that will run in the start of the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -647,6 +713,7 @@
     },
     {
      "name": "listening_ports",
+     "platform": "posix",
      "key": "osquery.pack.incident_response.listening_ports",
      "description": "Retrieves all the listening ports in the target system.",
      "status": "runnable",
@@ -657,6 +724,7 @@
     },
     {
      "name": "logged_in_users",
+     "platform": "posix",
      "description": "Retrieves the list of all the currently logged in users in the target system.",
      "status": "not_reviewed",
      "reason": "Table logged_in_users is not reviewed yet.",
@@ -667,6 +735,7 @@
     },
     {
      "name": "loginwindow1",
+     "platform": "darwin",
      "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -676,6 +745,7 @@
     },
     {
      "name": "loginwindow2",
+     "platform": "darwin",
      "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -685,6 +755,7 @@
     },
     {
      "name": "loginwindow3",
+     "platform": "darwin",
      "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -695,6 +766,7 @@
     },
     {
      "name": "loginwindow4",
+     "platform": "darwin",
      "description": "Retrieves all the values for the loginwindow process in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -705,6 +777,7 @@
     },
     {
      "name": "mounts",
+     "platform": "posix",
      "key": "osquery.pack.incident_response.mounts",
      "description": "Retrieves the current list of mounted drives in the target system.",
      "status": "runnable",
@@ -715,6 +788,7 @@
     },
     {
      "name": "nfs_shares",
+     "platform": "darwin",
      "description": "Retrieves the current list of Network File System mounted shares.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -724,6 +798,7 @@
     },
     {
      "name": "open_files",
+     "platform": "posix",
      "description": "Retrieves all the open files per process in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (process_open_files).",
@@ -733,6 +808,7 @@
     },
     {
      "name": "open_sockets",
+     "platform": "posix",
      "description": "Retrieves all the open sockets per process in the target system.",
      "status": "not_reviewed",
      "reason": "Table process_open_sockets is not reviewed yet.",
@@ -742,6 +818,7 @@
     },
     {
      "name": "process_env",
+     "platform": "posix",
      "description": "Retrieves all the environment variables per process in the target system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (process_envs).",
@@ -751,6 +828,7 @@
     },
     {
      "name": "process_memory",
+     "platform": "posix",
      "description": "Retrieves the memory map per process in the target Linux or macOS system.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (process_memory_map).",
@@ -760,6 +838,7 @@
     },
     {
      "name": "ramdisk",
+     "platform": "posix",
      "description": "Retrieves all the ramdisk currently mounted in the target system.",
      "status": "not_reviewed",
      "reason": "Table block_devices is not reviewed yet.",
@@ -769,6 +848,7 @@
     },
     {
      "name": "recent_items",
+     "platform": "darwin",
      "description": "Retrieves the list of recent items opened in OSX by parsing the plist per user.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -779,6 +859,7 @@
     },
     {
      "name": "sandboxes",
+     "platform": "darwin",
      "description": "Lists the application bundle that owns a sandbox label.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -788,6 +869,7 @@
     },
     {
      "name": "shell_history",
+     "platform": "posix",
      "description": "Retrieves the command history, per user, by parsing the shell history files.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (shell_history).",
@@ -798,6 +880,7 @@
     },
     {
      "name": "startup_items",
+     "platform": "darwin",
      "description": "Retrieve all the items that will load when the target OSX system starts.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -807,6 +890,7 @@
     },
     {
      "name": "suid_bin",
+     "platform": "posix",
      "description": "Retrieves all the files in the target system that are setuid enabled.",
      "status": "not_reviewed",
      "reason": "Table suid_bin is not reviewed yet.",
@@ -816,6 +900,7 @@
     },
     {
      "name": "wireless_networks",
+     "platform": "darwin",
      "description": "Retrieves all the remembered wireless network that the target machine has connected to.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -834,6 +919,7 @@
    "queries": [
     {
      "name": "acpi_tables",
+     "platform": "posix",
      "description": "General reporting and heuristics monitoring.",
      "status": "not_reviewed",
      "reason": "Table acpi_tables is not reviewed yet.",
@@ -843,6 +929,7 @@
     },
     {
      "name": "cpuid",
+     "platform": "all",
      "description": "General reporting and heuristics monitoring.",
      "status": "not_reviewed",
      "reason": "Table cpuid is not reviewed yet.",
@@ -852,6 +939,7 @@
     },
     {
      "name": "darwin_kernel_system_controls",
+     "platform": "darwin",
      "description": "Double check the information reported in kernel_info and report the kernel signature.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -861,6 +949,7 @@
     },
     {
      "name": "device_nodes",
+     "platform": "posix",
      "description": "Inventory all 'device' nodes in /dev/.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -870,6 +959,7 @@
     },
     {
      "name": "efi_file_hashes",
+     "platform": "darwin",
      "description": "Hash files related to EFI platform updates and EFI bootloaders on primary boot partition. This does not hash bootloaders on the EFI/boot partition.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -880,6 +970,7 @@
     },
     {
      "name": "fan_speeds",
+     "platform": "darwin",
      "description": "Report current fan speeds in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -889,6 +980,7 @@
     },
     {
      "name": "hardware_events",
+     "platform": "posix",
      "description": "Retrieves all the hardware related events in the target OSX system.",
      "status": "not_reviewed",
      "reason": "Table hardware_events is not reviewed yet.",
@@ -898,6 +990,7 @@
     },
     {
      "name": "iokit_devicetree",
+     "platform": "darwin",
      "description": "General inventory of IOKit's devices on OS X.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -907,6 +1000,7 @@
     },
     {
      "name": "kernel_extensions",
+     "platform": "darwin",
      "description": "Retrieves all the information about the current kernel extensions for the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -916,6 +1010,7 @@
     },
     {
      "name": "kernel_info",
+     "platform": "all",
      "description": "Report the booted kernel, potential arguments, and the device.",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (hash).",
@@ -926,6 +1021,7 @@
     },
     {
      "name": "kernel_modules",
+     "platform": "linux",
      "key": "osquery.pack.hardware_monitoring.kernel_modules",
      "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
      "status": "runnable",
@@ -936,6 +1032,7 @@
     },
     {
      "name": "nvram",
+     "platform": "darwin",
      "description": "Report on crashes, alternate boots, and boot arguments.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -945,6 +1042,7 @@
     },
     {
      "name": "pci_devices",
+     "platform": "posix",
      "key": "osquery.pack.hardware_monitoring.pci_devices",
      "description": "Report an inventory of PCI devices. Attaches and detaches will show up in hardware_events.",
      "status": "runnable",
@@ -955,6 +1053,7 @@
     },
     {
      "name": "smbios_tables",
+     "platform": "posix",
      "description": "General reporting and heuristics monitoring.",
      "status": "not_reviewed",
      "reason": "Table smbios_tables is not reviewed yet.",
@@ -964,6 +1063,7 @@
     },
     {
      "name": "temperatures",
+     "platform": "darwin",
      "description": "Report current machine temperatures in the target OSX system.",
      "status": "other_os",
      "reason": "Only for darwin, not proven yet.",
@@ -973,6 +1073,7 @@
     },
     {
      "name": "usb_devices",
+     "platform": "posix",
      "key": "osquery.pack.hardware_monitoring.usb_devices",
      "description": "Report an inventory of USB devices. Attaches and detaches will show up in hardware_events.",
      "status": "runnable",
@@ -983,6 +1084,7 @@
     },
     {
      "name": "windows_drivers",
+     "platform": "windows",
      "description": "Retrieves all the information for the current windows drivers in the target Windows system.",
      "status": "other_os",
      "reason": "Only for windows, not proven yet.",
@@ -1001,6 +1103,7 @@
    "queries": [
     {
      "name": "55808.a_worm",
+     "platform": "linux",
      "description": "55808.a_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1010,6 +1113,7 @@
     },
     {
      "name": "adore_rootkit",
+     "platform": "linux",
      "description": "adore_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1019,6 +1123,7 @@
     },
     {
      "name": "adore_worm",
+     "platform": "linux",
      "description": "adore_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1028,6 +1133,7 @@
     },
     {
      "name": "ajakit_rootkit",
+     "platform": "linux",
      "description": "ajakit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1037,6 +1143,7 @@
     },
     {
      "name": "anonoiyng_rootkit",
+     "platform": "linux",
      "description": "anonoiyng_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1046,6 +1153,7 @@
     },
     {
      "name": "apa_kit",
+     "platform": "linux",
      "description": "apa_kit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1055,6 +1163,7 @@
     },
     {
      "name": "ark_rootkit",
+     "platform": "linux",
      "description": "ark_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1064,6 +1173,7 @@
     },
     {
      "name": "bash_door",
+     "platform": "linux",
      "description": "bash_door",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1073,6 +1183,7 @@
     },
     {
      "name": "beastkit_rootkit",
+     "platform": "linux",
      "description": "beastkit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1082,6 +1193,7 @@
     },
     {
      "name": "beurk_rootkit",
+     "platform": "linux",
      "description": "beurk_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1091,6 +1203,7 @@
     },
     {
      "name": "bmbl_rootkit",
+     "platform": "linux",
      "description": "bmbl_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1100,6 +1213,7 @@
     },
     {
      "name": "bobkit_rootkit",
+     "platform": "linux",
      "description": "bobkit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1109,6 +1223,7 @@
     },
     {
      "name": "cback_worm",
+     "platform": "linux",
      "description": "cback_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1118,6 +1233,7 @@
     },
     {
      "name": "enye_sec_rootkit",
+     "platform": "linux",
      "description": "enye_sec_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1127,6 +1243,7 @@
     },
     {
      "name": "esrk_rootkit",
+     "platform": "linux",
      "description": "esrk_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1136,6 +1253,7 @@
     },
     {
      "name": "fu_rootkit",
+     "platform": "linux",
      "description": "fu_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1145,6 +1263,7 @@
     },
     {
      "name": "hidr00tkit",
+     "platform": "linux",
      "description": "hidr00tkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1154,6 +1273,7 @@
     },
     {
      "name": "illogic_rootkit",
+     "platform": "linux",
      "description": "illogic_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1163,6 +1283,7 @@
     },
     {
      "name": "kenga3_rootkit",
+     "platform": "linux",
      "description": "kenga3_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1172,6 +1293,7 @@
     },
     {
      "name": "knark_installed",
+     "platform": "linux",
      "description": "knark_installed",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1181,6 +1303,7 @@
     },
     {
      "name": "ldp_worm",
+     "platform": "linux",
      "description": "ldp_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1190,6 +1313,7 @@
     },
     {
      "name": "lion_worm",
+     "platform": "linux",
      "description": "lion_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1199,6 +1323,7 @@
     },
     {
      "name": "loc_rookit",
+     "platform": "linux",
      "description": "loc_rookit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1208,6 +1333,7 @@
     },
     {
      "name": "lrk_rootkit",
+     "platform": "linux",
      "description": "lrk_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1217,6 +1343,7 @@
     },
     {
      "name": "madalin_rootkit",
+     "platform": "linux",
      "description": "madalin_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1226,6 +1353,7 @@
     },
     {
      "name": "maniac_rk",
+     "platform": "linux",
      "description": "maniac_rk",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1235,6 +1363,7 @@
     },
     {
      "name": "mithra`s_rootkit",
+     "platform": "linux",
      "description": "mithra`s_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1244,6 +1373,7 @@
     },
     {
      "name": "monkit",
+     "platform": "linux",
      "description": "monkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1253,6 +1383,7 @@
     },
     {
      "name": "monkit_found",
+     "platform": "linux",
      "description": "monkit_found",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1262,6 +1393,7 @@
     },
     {
      "name": "old_rootkits",
+     "platform": "linux",
      "description": "old_rootkits",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1271,6 +1403,7 @@
     },
     {
      "name": "omega_worm",
+     "platform": "linux",
      "description": "omega_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1280,6 +1413,7 @@
     },
     {
      "name": "optickit",
+     "platform": "linux",
      "description": "optickit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1289,6 +1423,7 @@
     },
     {
      "name": "override_rootkit",
+     "platform": "linux",
      "description": "override_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1298,6 +1433,7 @@
     },
     {
      "name": "phalanx_rootkit",
+     "platform": "linux",
      "description": "phalanx_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1307,6 +1443,7 @@
     },
     {
      "name": "ramen_worm",
+     "platform": "linux",
      "description": "ramen_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1316,6 +1453,7 @@
     },
     {
      "name": "reptile_rootkit",
+     "platform": "linux",
      "description": "reptile_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1325,6 +1463,7 @@
     },
     {
      "name": "rh_sharpe",
+     "platform": "linux",
      "description": "rh_sharpe",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1334,6 +1473,7 @@
     },
     {
      "name": "rk17",
+     "platform": "linux",
      "description": "rk17",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1343,6 +1483,7 @@
     },
     {
      "name": "romanian_rootkit",
+     "platform": "linux",
      "description": "romanian_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1352,6 +1493,7 @@
     },
     {
      "name": "rsha",
+     "platform": "linux",
      "description": "rsha",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1361,6 +1503,7 @@
     },
     {
      "name": "sadmind/iis_worm",
+     "platform": "linux",
      "description": "sadmind/iis_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1370,6 +1513,7 @@
     },
     {
      "name": "scalper_installed",
+     "platform": "linux",
      "description": "scalper_installed",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1379,6 +1523,7 @@
     },
     {
      "name": "shitc",
+     "platform": "linux",
      "description": "shitc",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1388,6 +1533,7 @@
     },
     {
      "name": "shkit_rootkit",
+     "platform": "linux",
      "description": "shkit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1397,6 +1543,7 @@
     },
     {
      "name": "showtee",
+     "platform": "linux",
      "description": "showtee",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1406,6 +1553,7 @@
     },
     {
      "name": "showtee_/_romanian_rootkit",
+     "platform": "linux",
      "description": "showtee_/_romanian_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1415,6 +1563,7 @@
     },
     {
      "name": "shv5_rootkit",
+     "platform": "linux",
      "description": "shv5_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1424,6 +1573,7 @@
     },
     {
      "name": "slapper_installed",
+     "platform": "linux",
      "description": "slapper_installed",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1433,6 +1583,7 @@
     },
     {
      "name": "solaris_worm",
+     "platform": "linux",
      "description": "solaris_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1442,6 +1593,7 @@
     },
     {
      "name": "suckit_rootkit",
+     "platform": "linux",
      "description": "suckit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1451,6 +1603,7 @@
     },
     {
      "name": "suspicious_file",
+     "platform": "linux",
      "description": "suspicious_file",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1460,6 +1613,7 @@
     },
     {
      "name": "t0rn_rootkit",
+     "platform": "linux",
      "description": "t0rn_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1469,6 +1623,7 @@
     },
     {
      "name": "tc2_worm",
+     "platform": "linux",
      "description": "tc2_worm",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1478,6 +1633,7 @@
     },
     {
      "name": "telekit_trojan",
+     "platform": "linux",
      "description": "telekit_trojan",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1487,6 +1643,7 @@
     },
     {
      "name": "tribe_bot",
+     "platform": "linux",
      "description": "tribe_bot",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1496,6 +1653,7 @@
     },
     {
      "name": "trk_rootkit",
+     "platform": "linux",
      "description": "trk_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1505,6 +1663,7 @@
     },
     {
      "name": "tuxkit_rootkit",
+     "platform": "linux",
      "description": "tuxkit_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1514,6 +1673,7 @@
     },
     {
      "name": "volc_rootkit",
+     "platform": "linux",
      "description": "volc_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1523,6 +1683,7 @@
     },
     {
      "name": "zarwt_rootkit",
+     "platform": "linux",
      "description": "zarwt_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1532,6 +1693,7 @@
     },
     {
      "name": "zk_rootkit",
+     "platform": "linux",
      "description": "zk_rootkit",
      "status": "sensitive",
      "reason": "Skipped: sensitive data (file).",
@@ -1545,6 +1707,7 @@
  "queries": [
   {
    "key": "osquery.pack.vuln_management.deb_packages",
+   "platform": "linux",
    "pack": "vuln-management",
    "title": "deb packages",
    "description": "Retrieves all the installed DEB packages in the target Linux system.",
@@ -1637,6 +1800,7 @@
   },
   {
    "key": "osquery.pack.vuln_management.kernel_info",
+   "platform": "all",
    "pack": "vuln-management",
    "title": "kernel info",
    "description": "Retrieves information from the current kernel in the target system.",
@@ -1689,6 +1853,7 @@
   },
   {
    "key": "osquery.pack.vuln_management.kernel_modules",
+   "platform": "linux",
    "pack": "vuln-management",
    "title": "kernel modules",
    "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
@@ -1757,6 +1922,7 @@
   },
   {
    "key": "osquery.pack.vuln_management.os_version",
+   "platform": "all",
    "pack": "vuln-management",
    "title": "os version",
    "description": "Retrieves the current version of the running osquery in the target system and where the configuration was loaded from.",
@@ -1821,6 +1987,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.disk_encryption",
+   "platform": "posix",
    "pack": "it-compliance",
    "title": "disk encryption",
    "description": "Retrieves the current disk encryption status for the target system.",
@@ -1889,6 +2056,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.kernel_info",
+   "platform": "all",
    "pack": "it-compliance",
    "title": "kernel info",
    "description": "Retrieves information from the current kernel in the target system.",
@@ -1941,6 +2109,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.kernel_modules",
+   "platform": "linux",
    "pack": "it-compliance",
    "title": "kernel modules",
    "description": "Retrieves the current list of loaded kernel modules in the target Linux system.",
@@ -2009,6 +2178,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.mounts",
+   "platform": "all",
    "pack": "it-compliance",
    "title": "mounts",
    "description": "Retrieves the current list of mounted drives in the target system.",
@@ -2101,6 +2271,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.os_version",
+   "platform": "all",
    "pack": "it-compliance",
    "title": "os version",
    "description": "Retrieves information from the Operative System where osquery is currently running.",
@@ -2165,6 +2336,7 @@
   },
   {
    "key": "osquery.pack.it_compliance.usb_devices",
+   "platform": "posix",
    "pack": "it-compliance",
    "title": "usb devices",
    "description": "Retrieves the current list of USB devices in the target system.",
@@ -2247,6 +2419,7 @@
   },
   {
    "key": "osquery.pack.incident_response.disk_encryption",
+   "platform": "posix",
    "pack": "incident-response",
    "title": "disk encryption",
    "description": "Retrieves the current disk encryption status for the target system.",
@@ -2315,6 +2488,7 @@
   },
   {
    "key": "osquery.pack.incident_response.etc_hosts",
+   "platform": "posix",
    "pack": "incident-response",
    "title": "etc hosts",
    "description": "Retrieves all the entries in the target system /etc/hosts file.",
@@ -2371,6 +2545,7 @@
   },
   {
    "key": "osquery.pack.incident_response.kernel_modules",
+   "platform": "linux",
    "pack": "incident-response",
    "title": "kernel modules",
    "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
@@ -2439,6 +2614,7 @@
   },
   {
    "key": "osquery.pack.incident_response.listening_ports",
+   "platform": "posix",
    "pack": "incident-response",
    "title": "listening ports",
    "description": "Retrieves all the listening ports in the target system.",
@@ -2523,6 +2699,7 @@
   },
   {
    "key": "osquery.pack.incident_response.mounts",
+   "platform": "posix",
    "pack": "incident-response",
    "title": "mounts",
    "description": "Retrieves the current list of mounted drives in the target system.",
@@ -2615,6 +2792,7 @@
   },
   {
    "key": "osquery.pack.hardware_monitoring.kernel_modules",
+   "platform": "linux",
    "pack": "hardware-monitoring",
    "title": "kernel modules",
    "description": "Retrieves all the information for the current kernel modules in the target Linux system.",
@@ -2683,6 +2861,7 @@
   },
   {
    "key": "osquery.pack.hardware_monitoring.pci_devices",
+   "platform": "posix",
    "pack": "hardware-monitoring",
    "title": "pci devices",
    "description": "Report an inventory of PCI devices. Attaches and detaches will show up in hardware_events.",
@@ -2787,6 +2966,7 @@
   },
   {
    "key": "osquery.pack.hardware_monitoring.usb_devices",
+   "platform": "posix",
    "pack": "hardware-monitoring",
    "title": "usb devices",
    "description": "Report an inventory of USB devices. Attaches and detaches will show up in hardware_events.",

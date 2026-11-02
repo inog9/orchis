@@ -48,3 +48,11 @@ it('caps a long list of endpoint findings in the report table',async()=>{
  expect(await screen.findByText(/and 3 more/)).toBeInTheDocument();
  expect(screen.getAllByText(/^info: Port /)).toHaveLength(8);
 });
+
+it('offers only PDF and JSON exports and uses a PDF preview',async()=>{
+ mount([]);await screen.findByRole('heading',{name:'LOCAL FIXTURE'});
+ expect(screen.getByRole('link',{name:'Download PDF'})).toHaveAttribute('href','/api/v1/reports/r/export/pdf');
+ expect(screen.getByRole('link',{name:'Download JSON'})).toHaveAttribute('href','/api/v1/reports/r/export/json');
+ expect(screen.getByRole('link',{name:'Open PDF preview'})).toHaveAttribute('href','/api/v1/reports/r/export/pdf?preview=1');
+ expect(screen.queryByRole('link',{name:/Download (HTML|CSV)/})).toBeNull();
+});

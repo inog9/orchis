@@ -1,3 +1,4 @@
+import { advancedEnabled } from '../components/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { ChevronRight, Pause, Play, Square } from 'lucide-react';
@@ -78,7 +79,7 @@ export function SimulationDetailPage() {
   const tab = params.get('tab') ?? 'overview';
   const q = useSimulation(id);
   const act = useSimulationAction(id);
-  const path = useAttackPath(id, q.data?.status);
+  const path = useAttackPath(id, q.data?.status,advancedEnabled(me));
   const dryRun=useMutation({mutationFn:()=>api.post<{executed:boolean;items:{asset_id:string;step:string;status:string;reason?:string;recorded_reason?:string;mapping_error?:string;inputs?:unknown}[]}>(`/api/v1/simulations/${id}/dry-run`)});
   const [cancelling, setCancelling] = useState(false);
 
@@ -100,7 +101,7 @@ export function SimulationDetailPage() {
         <div>
           <nav className="crumbs" aria-label="Breadcrumb"><Link to="/simulations">Simulations</Link><ChevronRight size={12} aria-hidden="true" /><span className="crumbs__current">{s.code}</span></nav>
           <div className="page__title-row"><h1 id="sim-title" className="page__title">{s.name}</h1><SimBadge status={s.status} /></div>
-          <p className="page__sub">{s.code} · {s.scenario_id ? <Link to={`/scenarios/${s.scenario_id}`}>{s.scenario_name}</Link> : 'scenario removed'} · {s.target_count} {s.target_count === 1 ? 'target' : 'targets'}</p>
+          <p className="page__sub">{s.code} · {s.scenario_id && advancedEnabled(me) ? <Link to={`/chains/${s.scenario_id}/setup`}>{s.scenario_name}</Link> : 'scenario removed'} · {s.target_count} {s.target_count === 1 ? 'target' : 'targets'}</p>
         </div>
         {canRun && live && (
           <div className="page__actions">
@@ -114,7 +115,7 @@ export function SimulationDetailPage() {
       {act.isError && <div className="alert" role="alert"><strong>That didn’t work</strong><span>{describeError(act.error).message}</span></div>}
       {s.cancel_reason && <div className="notice" role="status"><strong>{s.status === 'failed' ? 'Stopped automatically.' : 'Stopped.'}</strong> {s.cancel_reason}</div>}
 
-      <div className="tabs" role="tablist" aria-label="Simulation sections"><TabLink k="overview" label="Overview" /><TabLink k="findings" label={`Findings (${s.finding_count})`} /><TabLink k="path" label="Attack path" /></div>
+      <div className="tabs" role="tablist" aria-label="Simulation sections"><TabLink k="overview" label="Overview" /><TabLink k="findings" label={`Findings (${s.finding_count})`} />{advancedEnabled(me)&&<TabLink k="path" label="Attack path" />}</div>
 
       {tab === 'overview' && (
         <>
@@ -139,7 +140,7 @@ export function SimulationDetailPage() {
         </>
       )}
       {tab === 'findings' && <FindingsTab id={id} />}
-      {tab === 'path' && (
+      {tab === 'path' && advancedEnabled(me) && (
         <div className="panel">
           <h2 className="panel__heading">Attack path</h2>
           <p className="muted small">Actions run against targets, targets yield findings, and findings can start follow-up actions.</p>
@@ -148,7 +149,7 @@ export function SimulationDetailPage() {
         </div>
       )}
 
-      {can(me,'finding.read')&&can(me,'asset.read')&&<section className="panel"><h2 className="panel__heading">Decisions and mapping preview</h2><p className="muted small">Evaluate current parent results without starting any checks.</p><button className="btn btn--secondary btn--auto" disabled={dryRun.isPending} onClick={()=>dryRun.mutate()}>Dry-run conditions and mapping</button>{dryRun.error&&<p role="alert">{describeError(dryRun.error).message}</p>}{dryRun.data?.items.map((row,i)=><article className="org-card" key={i}><h3>{row.step} · {row.status}</h3><p>{row.recorded_reason||row.reason||'Legacy dependency rules'}</p><p className="muted small">Asset {row.asset_id}</p>{row.mapping_error?<p>{row.mapping_error}</p>:<pre className="mono">{JSON.stringify(row.inputs,null,2)}</pre>}</article>)}</section>}
+      {advancedEnabled(me)&&can(me,'finding.read')&&can(me,'asset.read')&&<section className="panel"><h2 className="panel__heading">Decisions and mapping preview</h2><p className="muted small">Evaluate current parent results without starting any checks.</p><button className="btn btn--secondary btn--auto" disabled={dryRun.isPending} onClick={()=>dryRun.mutate()}>Dry-run conditions and mapping</button>{dryRun.error&&<p role="alert">{describeError(dryRun.error).message}</p>}{dryRun.data?.items.map((row,i)=><article className="org-card" key={i}><h3>{row.step} · {row.status}</h3><p>{row.recorded_reason||row.reason||'Legacy dependency rules'}</p><p className="muted small">Asset {row.asset_id}</p>{row.mapping_error?<p>{row.mapping_error}</p>:<pre className="mono">{JSON.stringify(row.inputs,null,2)}</pre>}</article>)}</section>}
       {cancelling && (
         <ConfirmDialog title="Stop this simulation?" body="Queued and running actions are stopped. Findings already recorded are kept. This can’t be undone." confirmLabel="Stop simulation"
           busy={act.isPending} error={act.isError ? describeError(act.error).message : undefined}

@@ -8,9 +8,9 @@ import { when } from '../components/RunBadges';
 export function alertTarget(a: AlertRow): string | null {
   if (!a.resource_id) return null;
   switch (a.resource_type) {
-    case 'simulation': return `/simulations/${a.resource_id}`;
+    case 'simulation': return `/simulations/legacy/${a.resource_id}`;
     case 'finding': return '/findings';
-    case 'execution': return '/atomic';
+    case 'execution': return '/simulations';
     case 'user': return '/settings/users';
     default: return null;
   }

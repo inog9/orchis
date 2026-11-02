@@ -33,6 +33,14 @@ func main() {
 	if server == "" || token == "" || amqpURL == "" {
 		fatal("ORCHIS_SERVER_URL, ORCHIS_INJECTOR_TOKEN, dan ORCHIS_AMQP_URL wajib diisi")
 	}
+	concurrency := 4
+	if raw := os.Getenv("ORCHIS_INJECTOR_CONCURRENCY"); raw != "" {
+		var err error
+		concurrency, err = strconv.Atoi(raw)
+		if err != nil || concurrency < 1 || concurrency > 32 {
+			fatal("ORCHIS_INJECTOR_CONCURRENCY must be between 1 and 32")
+		}
+	}
 	loop, _ := strconv.ParseBool(os.Getenv("ORCHIS_ALLOW_LOOPBACK_TARGETS"))
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -41,7 +49,7 @@ func main() {
 		fatal(err.Error())
 	}
 	(&injector.Worker{
-		Metrics: metrics, Kind: *kind, Client: injector.NewClient(server, token), AMQPURL: amqpURL, Version: version,
+		Concurrency: concurrency, Metrics: metrics, Kind: *kind, Client: injector.NewClient(server, token), AMQPURL: amqpURL, Version: version,
 		Guard: contract.Guard{AllowLoopback: loop}, TemplatesDir: os.Getenv("NUCLEI_TEMPLATES_DIR"),
 	}).Run(ctx)
 }

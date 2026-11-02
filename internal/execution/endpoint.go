@@ -85,14 +85,14 @@ ON CONFLICT (tenant_id, asset_id, query_key) DO UPDATE SET execution_id=EXCLUDED
 }
 
 // OsqueryEnabled menentukan apakah query disetujui untuk organisasi: baris pengaturan admin bila ada, selain itu bawaan katalog
-// (sensitivitas rendah aktif; sedang/tinggi perlu persetujuan). Aset tanpa organisasi memakai bawaan katalog.
+// Semua query bernama memerlukan dokumen consent saat ini, termasuk query sensitivitas rendah.
 func OsqueryEnabled(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, org *uuid.UUID, q *osquery.Query) (enabled, explicit bool, err error) {
-	def := q.DefaultEnabled()
+	def := false
 	if org == nil {
 		return def, false, nil
 	}
 	var e bool
-	err = tx.QueryRow(ctx, `SELECT enabled AND ($4 OR COALESCE((consent_version=$5 AND consent_sha256=$6 AND consented_by IS NOT NULL AND consented_at IS NOT NULL),false)) FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, tenant, *org, q.Key, q.DefaultEnabled(), osquery.Consent().Version, osquery.Consent().SHA256).Scan(&e)
+	err = tx.QueryRow(ctx, `SELECT enabled AND ($4 OR COALESCE((consent_version=$5 AND consent_sha256=$6 AND consented_by IS NOT NULL AND consented_at IS NOT NULL),false)) FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, tenant, *org, q.Key, false, osquery.Consent().Version, osquery.Consent().SHA256).Scan(&e)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return def, false, nil
 	}
@@ -113,6 +113,24 @@ func skipUnapproved(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.U
 	if err != nil {
 		return false, err
 	}
+	reason := osquery.ReasonDisabled
+	if ok {
+		var platform, arch string
+		e := tx.QueryRow(ctx, `SELECT g.os,g.arch FROM executions e JOIN agents g ON g.tenant_id=e.tenant_id AND g.id=e.agent_id WHERE e.tenant_id=$1 AND e.id=$2`, tenant, execID).Scan(&platform, &arch)
+		if e != nil {
+			return false, e
+		}
+		if platform == "macos" {
+			platform = "darwin"
+		}
+		if arch == "x86_64" {
+			arch = "amd64"
+		}
+		if _, supported := osquery.PinnedArtifact(platform, arch); !supported {
+			ok = false
+			reason = osquery.ReasonUnsupported
+		}
+	}
 	if ok {
 		frozen, err := json.Marshal(policy)
 		if err != nil {
@@ -125,7 +143,7 @@ func skipUnapproved(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.U
 	if _, err := tx.Exec(ctx, `UPDATE executions SET state='ended', outcome='success', exit_code=$3, ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`, tenant, execID, zero); err != nil {
 		return false, err
 	}
-	res := &Result{Datasets: []osquery.Dataset{{Query: ckey, Status: osquery.StatusSkipped, Reason: osquery.ReasonDisabled, Rows: []map[string]string{}}}}
+	res := &Result{Datasets: []osquery.Dataset{{Query: ckey, Status: osquery.StatusSkipped, Reason: reason, Rows: []map[string]string{}}}}
 	return true, processEndpointData(ctx, tx, tenant, execID, asset, ckey, "success", res)
 }
 
@@ -148,13 +166,13 @@ func currentEndpointPolicy(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UU
 	if err != nil {
 		return nil, false, err
 	}
-	enabled := q.DefaultEnabled()
+	enabled := false
 	if p.Organization != nil {
 		var org uuid.UUID
 		if err = tx.QueryRow(ctx, `SELECT id FROM organizations WHERE tenant_id=$1 AND id=$2 FOR SHARE`, tenant, *p.Organization).Scan(&org); err != nil {
 			return nil, false, err
 		}
-		err = tx.QueryRow(ctx, `SELECT enabled AND ($4 OR COALESCE((consent_version=$5 AND consent_sha256=$6 AND consented_by IS NOT NULL AND consented_at IS NOT NULL),false)),version FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, tenant, *p.Organization, q.Key, q.DefaultEnabled(), osquery.Consent().Version, osquery.Consent().SHA256).Scan(&enabled, &p.Revision)
+		err = tx.QueryRow(ctx, `SELECT enabled AND ($4 OR COALESCE((consent_version=$5 AND consent_sha256=$6 AND consented_by IS NOT NULL AND consented_at IS NOT NULL),false)),version FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, tenant, *p.Organization, q.Key, false, osquery.Consent().Version, osquery.Consent().SHA256).Scan(&enabled, &p.Revision)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, false, err
 		}

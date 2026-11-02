@@ -28,7 +28,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 
 const tag = await J('POST', '/api/v1/tags', { name: 'crown-jewel', color: '#E8A557' });
 const web = await J('POST', '/api/v1/assets', { category: 'host', name: 'srv-web-01', platform: 'linux', arch: 'x86_64', criticality: 'critical', is_internet_facing: true, testing_authorized: true, tag_ids: [tag.id], addresses: [{ kind: 'ip', value: '127.0.0.1' }, { kind: 'url', value: 'http://127.0.0.1:18081' }] });
@@ -74,10 +74,10 @@ await J('POST', '/api/v1/mitre/import').catch(() => {});
 
 // ---------- pemeriksaan ----------
 const routes = [
-  ['Home', '/'], ['Assets', '/assets'], ['Asset detail', `/assets/${web.id}`], ['Asset groups', '/assets/groups'], ['Group detail', `/assets/groups/${group.id}`], ['Agents', '/assets/agents'],
-  ['Findings', '/findings'], ['Scenario chains', '/chains'], ['Chain workspace', `/chains/${sc.id}`], ['Scenarios', '/scenarios'], ['Scenario detail', `/scenarios/${sc.id}`],
-  ['Simulations', '/simulations'], ['Simulation overview', `/simulations/${sim.id}`], ['Simulation findings', `/simulations/${sim.id}?tab=findings`], ['Simulation attack path', `/simulations/${sim.id}?tab=path`],
-  ['Simulation running', `/simulations/${sim2.id}`], ['Single tests', '/atomic'], ['Atomic detail', `/atomic/${at.id}`], ['MITRE', '/mitre'], ['People', '/people'], ['Teams', '/people/teams'],
+  ['Home', '/overview'], ['Assets', '/assets'], ['Asset detail', `/assets/${web.id}`], ['Asset groups', '/assets/groups'], ['Group detail', `/assets/groups/${group.id}`], ['Agents', '/assets/agents'],
+  ['Findings', '/findings'], ['Scenario chains', '/chains'], ['Chain workspace', `/chains/${sc.id}`], ['Advanced chain setup', `/chains/${sc.id}/setup`],
+  ['Simulations', '/simulations'], ['Simulation overview', `/simulations/legacy/${sim.id}`], ['Simulation findings', `/simulations/legacy/${sim.id}?tab=findings`], ['Simulation attack path', `/simulations/legacy/${sim.id}?tab=path`],
+  ['Simulation running', `/simulations/legacy/${sim2.id}`], ['Single tests', '/atomic'], ['Atomic detail', `/atomic/${at.id}`], ['MITRE', '/mitre'], ['People', '/people'], ['Teams', '/people/teams'],
   ['Notifications', '/notifications'], ['Profile', '/profile'], ['Settings platform', '/settings'], ['Settings users', '/settings/users'], ['Settings roles', '/settings/roles'],
   ['Settings integrations', '/settings/integrations'], ['Settings tags', '/settings/tags'], ['Not found', '/no-such-page'],
 ];
@@ -147,17 +147,16 @@ for (const vp of VIEWPORTS) {
   await p.goto(BASE + `/chains/${sc.id}`);
   await p.locator('.stepcard').first().waitFor();
   await p.screenshot({ path: SHOTS + `responsive-chain-${vp.name}.png` });
-  await p.goto(BASE + `/simulations/${sim.id}?tab=path`);
+  await p.goto(BASE + `/simulations/legacy/${sim.id}?tab=path`);
   await p.getByRole('group', { name: /Attack path/ }).waitFor();
   await p.screenshot({ path: SHOTS + `responsive-path-${vp.name}.png` });
 
   // dialog dan menu: harus muat di layar, bisa digulir, dan lolos axe
   const dialogs = [
     ['Add asset dialog', '/assets', async () => { await p.getByRole('button', { name: /add asset/i }).first().click(); await p.getByRole('dialog').waitFor(); }],
-    ['New scenario dialog', '/scenarios', async () => { await p.getByRole('button', { name: /new scenario/i }).first().click(); await p.getByRole('dialog').waitFor(); }],
     ['New single test dialog', '/atomic', async () => { await p.getByRole('button', { name: /new single test/i }).click(); await p.getByRole('dialog').waitFor(); }],
-    ['Launch dialog', `/scenarios/${sc.id}`, async () => { await p.getByRole('button', { name: /launch simulation/i }).click(); await p.getByRole('dialog').waitFor(); }],
-    ['Edit targets dialog', `/scenarios/${sc.id}`, async () => { await p.getByRole('button', { name: 'Edit targets' }).click(); await p.getByRole('dialog').waitFor(); }],
+    ['Launch dialog', `/chains/${sc.id}/setup`, async () => { await p.getByRole('button', { name: /launch simulation/i }).click(); await p.getByRole('dialog').waitFor(); }],
+    ['Edit targets dialog', `/chains/${sc.id}/setup`, async () => { await p.getByRole('button', { name: 'Edit targets' }).click(); await p.getByRole('dialog').waitFor(); }],
     ['New user dialog', '/settings/users', async () => { await p.getByRole('button', { name: /new user/i }).click(); await p.getByRole('dialog').waitFor(); }],
     ['Add person dialog', '/people', async () => { await p.getByRole('button', { name: /add person/i }).click(); await p.getByRole('dialog').waitFor(); }],
     ['New tag dialog', '/settings/tags', async () => { await p.getByRole('button', { name: /new tag/i }).click(); await p.getByRole('dialog').waitFor(); }],
@@ -230,7 +229,7 @@ for (const vp of VIEWPORTS) {
 
 // ---------- papan ketik: fokus terlihat, tautan lompat ----------
 await p.setViewportSize({ width: 1280, height: 800 });
-const focusRoutes = [['Home', '/'], ['Assets', '/assets'], ['Single tests', '/atomic'], ['Settings users', '/settings/users'], ['Chain workspace', `/chains/${sc.id}`], ['Simulation detail', `/simulations/${sim.id}`]];
+const focusRoutes = [['Home', '/overview'], ['Assets', '/assets'], ['Single tests', '/atomic'], ['Settings users', '/settings/users'], ['Chain workspace', `/chains/${sc.id}`], ['Simulation detail', `/simulations/legacy/${sim.id}`]];
 for (const [label, path] of focusRoutes) {
   await p.goto(BASE + path);
   await p.waitForLoadState('networkidle').catch(() => {});

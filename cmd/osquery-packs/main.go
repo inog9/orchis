@@ -188,6 +188,10 @@ func classify(bin, pack, name, packPlatform string, rq rawQuery) (osquery.PackQu
 	if plat == "" {
 		plat = packPlatform
 	}
+	if plat == "" {
+		plat = "all"
+	}
+	pq.Platform = plat
 	if !platformOK(plat) {
 		pq.Status, pq.Reason = osquery.PackOtherOS, "Only for "+plat+", not proven yet."
 		return pq, nil
@@ -224,7 +228,7 @@ func classify(bin, pack, name, packPlatform string, rq rawQuery) (osquery.PackQu
 	}
 	key := "osquery.pack." + strings.ReplaceAll(pack, "-", "_") + "." + strings.Trim(nonKey.ReplaceAllString(strings.ToLower(name), "_"), "_")
 	title := strings.ReplaceAll(name, "_", " ")
-	q := &osquery.Query{Key: key, Pack: pack, Title: title, Description: desc, Category: "Pack: " + pack, SQL: sql, Tables: pq.Tables, Columns: cols,
+	q := &osquery.Query{Platform: plat, Key: key, Pack: pack, Title: title, Description: desc, Category: "Pack: " + pack, SQL: sql, Tables: pq.Tables, Columns: cols,
 		OS: []string{"linux"}, Sensitivity: "medium", Load: "low", MaxRows: 1000, TimeoutSeconds: 60, Example: ex,
 		Attributes: osquery.Attributes{Aggregates: []osquery.Aggregate{{Key: "row_count", Op: "count"}}}}
 	q.Mitre = mitreFor(pq.Tables)

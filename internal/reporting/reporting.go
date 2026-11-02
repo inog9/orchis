@@ -78,6 +78,7 @@ type EndpointSummary struct {
 }
 
 type Asset struct {
+	Discovered bool             `json:"discovered,omitempty"`
 	Endpoint   *osquery.Posture `json:"endpoint,omitempty"`
 	ID         uuid.UUID        `json:"id"`
 	Name       string           `json:"name"`
@@ -87,6 +88,8 @@ type Asset struct {
 	Methods    []Method         `json:"methods"`
 }
 type Snapshot struct {
+	SchemaVersion   string           `json:"schema_version,omitempty"`
+	ScanID          *uuid.UUID       `json:"scan_id,omitempty"`
 	EndpointSummary *EndpointSummary `json:"endpoint_summary,omitempty"`
 	IsDemo          bool             `json:"is_demo,omitempty"`
 	Label           string           `json:"label,omitempty"`
@@ -114,7 +117,7 @@ type Report struct {
 
 // Freeze selalu dalam transaksi yang sama: satu laporan per assessment, termasuk seluruh aset yang dilewati.
 func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
-	rows, err := tx.Query(ctx, `SELECT a.id,a.organization_id,a.name,a.profile,a.status,a.created_at FROM assessments a WHERE a.tenant_id=$1 AND a.status<>'running' AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY a.id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
+	rows, err := tx.Query(ctx, `SELECT a.id,a.organization_id,a.name,a.profile,a.status,a.created_at FROM assessments a WHERE a.tenant_id=$1 AND a.status<>'running' AND NOT a.is_scan AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY a.id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
 	if err != nil {
 		return err
 	}

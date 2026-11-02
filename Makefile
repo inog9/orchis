@@ -38,6 +38,7 @@ e2e: build   ## Tes end-to-end di browser (database baru per putaran)
 	python3 e2e/cleanup-test.py
 	./e2e/run.sh
 	node e2e/ai-egress.mjs
+	node deploy/report/render.test.mjs
 
 tokens:      ## Sinkronkan token desain dari design/orchis.pen
 	npm --prefix web run tokens && npm --prefix web run raven

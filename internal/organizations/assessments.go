@@ -170,7 +170,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 		}
 		keys := []string{contract.KeyNmapTCP, contract.KeyNucleiVS}
 		for _, t := range targets {
-			ar, e := tx.Query(ctx, `SELECT kind,value,is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 ORDER BY is_primary DESC,created_at`, p.TenantID, t.ID)
+			ar, e := tx.Query(ctx, `SELECT kind,value,is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC,created_at`, p.TenantID, t.ID)
 			if e != nil {
 				return e
 			}
@@ -240,7 +240,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 
 // Refresh aman diulang oleh worker; selesai tidak berarti semua pemindaian berhasil.
 func (s *Service) Refresh(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
-	_, err := tx.Exec(ctx, `UPDATE assessments a SET status='finished',ended_at=now() WHERE a.tenant_id=$1 AND a.status='running' AND NOT EXISTS(SELECT 1 FROM assessment_targets t JOIN simulations s ON s.tenant_id=t.tenant_id AND s.id=t.simulation_id WHERE t.tenant_id=a.tenant_id AND t.assessment_id=a.id AND s.status IN ('running','paused','draft','scheduled'))`, tenant)
+	_, err := tx.Exec(ctx, `UPDATE assessments a SET status='finished',ended_at=now() WHERE a.tenant_id=$1 AND a.status='running' AND NOT a.is_scan AND NOT EXISTS(SELECT 1 FROM assessment_targets t JOIN simulations s ON s.tenant_id=t.tenant_id AND s.id=t.simulation_id WHERE t.tenant_id=a.tenant_id AND t.assessment_id=a.id AND s.status IN ('running','paused','draft','scheduled'))`, tenant)
 	return err
 }
 func (s *Service) Assessment(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Assessment, error) {

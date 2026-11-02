@@ -93,7 +93,7 @@ func loadAddresses(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, list []Asse
 		idx[a.ID] = i
 		idList[i] = a.ID
 	}
-	rows, err := tx.Query(ctx, `SELECT asset_id, kind, value, is_primary FROM asset_addresses
+	rows, err := tx.Query(ctx, `SELECT asset_id, kind, value, is_primary, scan_approved FROM asset_addresses
 WHERE tenant_id=$1 AND asset_id = ANY($2) ORDER BY is_primary DESC, kind, value`, tenant, idList)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ WHERE tenant_id=$1 AND asset_id = ANY($2) ORDER BY is_primary DESC, kind, value`
 	for rows.Next() {
 		var id uuid.UUID
 		var ad Address
-		if err := rows.Scan(&id, &ad.Kind, &ad.Value, &ad.IsPrimary); err != nil {
+		if err := rows.Scan(&id, &ad.Kind, &ad.Value, &ad.IsPrimary, &ad.ScanApproved); err != nil {
 			return err
 		}
 		list[idx[id]].Addresses = append(list[idx[id]].Addresses, ad)
@@ -214,9 +214,25 @@ func (s *Service) Create(ctx context.Context, p *auth.Principal, in CreateInput,
 	if in.TestingAuthorized && !authz.Has(p.Permissions, authz.AssetAuthorize) {
 		return nil, httpx.Forbidden(authz.AssetAuthorize)
 	}
+	if in.OrganizationID != nil && !authz.Has(p.Permissions, authz.OrganizationWrite) {
+		return nil, httpx.Forbidden(authz.OrganizationWrite)
+	}
 	id := ids.New()
 	var out *Asset
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if in.OrganizationID != nil {
+			var demo bool
+			err := tx.QueryRow(ctx, `SELECT is_demo FROM organizations WHERE tenant_id=$1 AND id=$2 FOR KEY SHARE`, p.TenantID, *in.OrganizationID).Scan(&demo)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return httpx.NotFound("Organization")
+			}
+			if err != nil {
+				return err
+			}
+			if demo {
+				return httpx.Conflict("Demo data is read-only; choose another organisation.")
+			}
+		}
 		var authBy *uuid.UUID
 		var authAt *time.Time
 		if in.TestingAuthorized {
@@ -225,10 +241,10 @@ func (s *Service) Create(ctx context.Context, p *auth.Principal, in CreateInput,
 		}
 		_, err := tx.Exec(ctx, `
 INSERT INTO assets (id, tenant_id, category, name, description, platform, arch, criticality, is_internet_facing,
-  testing_authorized, authorized_by, authorized_at, source, attributes, created_by)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual',$13,$14)`,
+  testing_authorized, authorized_by, authorized_at, source, attributes, created_by,organization_id)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual',$13,$14,$15)`,
 			id, p.TenantID, in.Category, in.Name, in.Description, in.Platform, in.Arch, in.Criticality, in.IsInternetFacing,
-			in.TestingAuthorized, authBy, authAt, []byte(in.Attributes), p.UserID)
+			in.TestingAuthorized, authBy, authAt, []byte(in.Attributes), p.UserID, in.OrganizationID)
 		if err != nil {
 			return err
 		}
@@ -246,7 +262,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'manual',$13,$14)`,
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "asset.create",
 			ResourceType: "asset", ResourceID: &id, IP: ip, RequestID: requestID,
-			Detail: map[string]any{"name": in.Name, "category": in.Category, "testing_authorized": in.TestingAuthorized}}); err != nil {
+			Detail: map[string]any{"name": in.Name, "category": in.Category, "testing_authorized": in.TestingAuthorized, "organization_id": in.OrganizationID}}); err != nil {
 			return err
 		}
 		a, err := scanAsset(tx.QueryRow(ctx, `SELECT `+cols+` FROM assets a WHERE a.tenant_id=$1 AND a.id=$2`, p.TenantID, id))
@@ -363,6 +379,9 @@ func (s *Service) Patch(ctx context.Context, p *auth.Principal, id uuid.UUID, in
 		}
 		if cur != *in.Version {
 			return httpx.Conflict("This asset was changed by someone else. Reload and try again.")
+		}
+		if in.Addresses != nil && authorized && !authz.Has(p.Permissions, authz.AssetAuthorize) {
+			return httpx.Forbidden(authz.AssetAuthorize)
 		}
 		var setAuth *bool
 		if in.TestingAuthorized != nil && *in.TestingAuthorized != authorized {

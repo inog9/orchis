@@ -2,21 +2,54 @@
 
 ORCHIS versi ringan: platform validasi keamanan (breach & attack simulation) dengan backend Go.
 
-Status: Fase 0–7, Fase 8a (responsif/aksesibilitas), Fase 9, audit UX Fase 9.5, dan implementasi lokal Fase 10 tersedia. Fase 9 menambahkan organisasi, beberapa instance agent per mesin, assessment organisasi dengan aset yang dilewati secara eksplisit, katalog aksi berversi, kondisi/mapper per aset, laporan organisasi beku (PDF/HTML/JSON/CSV), dan Home berbasis organisasi. Penjadwalan ditunda; AI nyata belum diaktifkan; sisa pengerasan produksi Fase 8 tetap tercatat. Rencana: [docs/RENCANA.md](docs/RENCANA.md). Arsitektur, keputusan, dan batasan: [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
+Status: Fase 0–10 tersedia lokal, dengan alur utama disederhanakan menjadi
+**Organisasi → Agent/Endpoint atau Asset → Scan → Findings → Reports (PDF/JSON)**.
+Assessment dijalankan manual; integrasi AI nyata dan sisa pengerasan produksi Fase 8
+belum diaktifkan. Rencana: [docs/RENCANA.md](docs/RENCANA.md).
+Keputusan dan batasan: [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
 
-## Mulai dari tugas, bukan istilah internal (Fase 9.5)
+## Alur utama
 
-Setelah login, Home memandu lima langkah berdasarkan organisasi yang dipilih: buat organisasi, pasang agent atau tambah aset, set alamat dan otorisasi, Assess organisation, lalu baca laporan. Langkah izin membutuhkan setidaknya satu target siap; aset lain tetap dapat dilaporkan dilewati dengan alasannya. Instalasi agent tidak memberi izin scan dan tidak mempercayakan alamat dari agent secara otomatis.
+Setelah login, buka organisasi lalu gunakan tab Overview, Agents/Endpoints, Assets,
+Scans, Findings, dan Reports. Enam menu utama: Organisations, Simulations, Findings,
+Assets, Reports, Settings. Assets/Findings mempunyai filter server `?org=<uuid>`;
+tab organisasi memakai filter yang terkunci. Asset baru dapat dibuat langsung di tab
+Assets organisasi. Pendaftaran agent tidak memberi izin scan atau alamat target.
+Admin menetapkan alamat dan otorisasi aset/rentang sebelum Scan.
 
-Navigasi kini berlabel dan punya bantuan saat hover atau fokus keyboard (Escape menutup). Pencarian, aksi cepat, dan notifikasi berada di header agar tidak menutupi isi halaman. Start berisi Home/Organisations/Assets; Test berisi Actions/Scenarios/Simulations; Results berisi Findings/Reports; Manage berisi Settings. Actions menghubungkan katalog ke Single tests (dulu Atomic testing). Scenarios menghubungkan rencana/target ke chain editor. MITRE, People dan tautan lama tetap bisa dibuka lewat palet Ctrl/⌘K, menu workspace, atau URL lama. Definisi baru tidak menjalankan scan sampai Run/Launch ditekan.
+Tombol Scan membuka satu halaman untuk memilih organisasi, beberapa aset dan/atau
+rentang dari satu agent, lalu Nmap/Nuclei dengan preset Quick/Standard. Seluruh scan
+berjalan melalui injector container pada server Orchis, dengan paralelisme terbatas.
+Agent hanya melaporkan proposal jaringan. Rentang yang tidak terjangkau dari server
+menghasilkan kegagalan; hasil gagal tidak membuktikan host aman. Host temuan dapat
+ditambahkan sebagai asset, dengan testing permission tetap mati.
 
-Detail aset menampilkan temuan nyata per aset; tautan ke Findings mempertahankan filter aset. Detail organisasi menampilkan pratinjau izin dan scope per aset serta tautan perbaikan. Nmap/Nuclei dijalankan scan worker (injector) container yang harus menjangkau target; agent menjalankan pemeriksaan lokal endpoint. PDF gagal dapat dicoba ulang tanpa scan baru; snapshot dan ekspor HTML/JSON/CSV tetap tersedia.
+osquery menjadi data endpoint di dalam Agents/Endpoints. Semua check yang didukung
+dipilih sebagai usulan pada review consent; persetujuan eksplisit tetap wajib,
+termasuk query sensitivitas rendah. Setelah consent dan izin aset, koleksi berjalan
+saat endpoint memenuhi syarat dan berkala. Hanya Linux amd64 yang memiliki artefak
+osquery terpatok dan bukti runtime. macOS/Windows/arsitektur lain belum didukung
+untuk koleksi nyata.
 
-Audit lengkap, peta objek dan bukti per halaman: `result.txt`. Reproduksi audit pada database disposable: `E2E_SCRIPT=flow9.mjs E2E_UX_ROUND=review ./e2e/run.sh`; flow9 juga masuk default `make check`. Uji mutasi tambahan: `python3 e2e/mutation-ux.py` (salinan terisolasi di work/). Pengguna sudah menyetujui Fase 10 dengan DeepSeek/OpenAI dan tes API palsu lokal. Pengiriman data AI nyata tetap memerlukan key, limit dan consent organisasi.
+Reports memakai snapshot beku dan template milik Orchis; PDF dan JSON tersedia.
+PDF gagal dapat dicoba ulang tanpa mengulang scan. HTML hanya template internal
+renderer tanpa egress; ekspor HTML/CSV di API maupun UI sudah dihapus.
 
-## Bantuan AI per organisasi (Fase 10)
+`/scenarios` dan halaman Actions dihapus dari UI; data dan API engine lama tetap
+dipertahankan. Chains, Single tests/Atomic, AI, MITRE, dan overview tersembunyi secara
+bawaan. `ORCHIS_ADVANCED_FEATURES=true` pada server membuka fitur lanjutan melalui
+palet perintah sesuai izin. Flag tidak mengembalikan route Scenario/Actions.
+Penjadwalan assessment, AI eksternal dan deployment bukan bagian perubahan ini.
 
-**Organisations → organisasi → AI assistance** menyediakan consent, model/key provider, budget, pratinjau data dan riwayat. DeepSeek mengusulkan check allowlist yang memerlukan approval manusia. OpenAI menyusun saran remediasi sebagai suplemen PDF/HTML/JSON/CSV, dengan prompt/version tercatat. Model tidak mengubah snapshot laporan asli atau menjalankan shell.
+Verifikasi alur sederhana: `E2E_SCRIPT=flow16.mjs ./e2e/run.sh` (dua agent Linux,
+osquery/Nmap/Nuclei nyata pada fixture milik tes, PDF/JSON, screenshot dan axe pada
+1280/834/390 px). Flow engine lanjutan tetap opt-in di harness. Gunakan vhost RabbitMQ
+terpisah melalui `ORCHIS_TEST_AMQP_URL` dan `E2E_AMQP_URL` bila instalasi review berbagi
+broker. Gerbang keseluruhan tetap `make check`.
+
+## Bantuan AI per organisasi (Fase 10, fitur lanjutan)
+
+**Organisations → organisasi → AI assistance** menyediakan consent, model/key provider, budget, pratinjau data dan riwayat. DeepSeek mengusulkan check allowlist yang memerlukan approval manusia. OpenAI menyusun saran remediasi sebagai suplemen PDF/JSON, dengan prompt/version tercatat. Model tidak mengubah snapshot laporan asli atau menjalankan shell.
 
 AI mati default; seluruh bukti integrasi memakai API palsu lokal. Model ID, harga akun dan provider nyata belum diuji. Kredensial write-only dienkripsi, payload laporan memakai alias dan metadata teknis terbatas. Target scan tetap dijaga pada Run/Claim/injector. Panduan, API dan keterbatasan: [docs/FASE10-HASIL.md](docs/FASE10-HASIL.md), ADR 082–091.
 
@@ -76,12 +109,12 @@ Lalu **Organisations → organisasi → Install agent** (atau **Assets → Agent
 
 Aset harus ditandai *boleh diuji* oleh Admin. Alamat loopback ditolak kecuali `ORCHIS_ALLOW_LOOPBACK_TARGETS=true` (hanya dev).
 
-## Assessment dan laporan organisasi
+## Scan dan laporan organisasi
 
 1. Buat organisasi, lalu pasang agent atau assign aset yang sudah ada. Aset lama tetap tersedia sebagai **Unassigned**.
 2. Admin menetapkan alamat yang bisa dijangkau injector dan mengotorisasi pengujian per aset; pendaftaran agent tidak memberi izin scan.
-3. Pilih profil Quick exposure, Full TCP + services, atau Web CVEs, kemudian **Assess organisation** untuk seluruh organisasi, atau centang aset dan pilih **Assess selected assets**. Kegagalan satu aset tidak menghentikan aset lainnya.
-4. Buka **Reports** untuk snapshot organisasi, print preview, PDF, HTML, JSON, dan CSV. Aset yang dilewati atau scan gagal tetap terlihat dalam cakupan.
+3. Tekan **Scan**, pilih aset/rentang yang disetujui dan tool Nmap/Nuclei, lalu preset Quick/Standard. Kegagalan satu target tidak menghentikan target lainnya.
+4. Buka **Reports** untuk snapshot organisasi, preview PDF, PDF, dan JSON. Scan gagal tetap terlihat dalam cakupan.
 
 Nmap/Nuclei berjalan di container injector yang harus dapat menjangkau aset. Untuk beberapa agent pada mesin yang sama, berikan nama instance berbeda; perintah pemasangan membuat direktori terpisah dan service memakai nama instance. Untuk opsi `--name`, rilis agent harus dibangun dari kode Fase 9 ini. Saat deployment, gunakan nomor versi lebih tinggi dan kunci penandatanganan yang sama agar instalasi lama dapat memperbarui diri. Agent Windows/macOS/arm64 terbukti ter-build, belum dijalankan pada perangkat nyata dalam sesi ini. Dua instance baru diuji dalam mode user; instalasi service bernama belum diuji langsung.
 
@@ -91,16 +124,21 @@ npm --prefix deploy/report ci
 ./deploy/report/node_modules/.bin/playwright install chromium
 node deploy/report/render.test.mjs   # membuktikan renderer tidak mengakses HTTP eksternal
 ```
-MinIO harus dikonfigurasi untuk PDF. HTML/JSON/CSV tetap tersedia bila rendering PDF gagal; **Retry PDF generation** tidak menjalankan scan lagi. Tidak ada data yang dikirim ke API AI.
+MinIO harus dikonfigurasi untuk PDF. JSON tetap tersedia bila rendering PDF gagal; **Retry PDF generation** tidak menjalankan scan lagi. Tidak ada data yang dikirim ke API AI.
 
 ## Tes
-`make check` (termasuk pemeriksaan responsif 1280/834 px dan aksesibilitas axe-core pada semua halaman) menjalankan tes backend (PostgreSQL, RabbitMQ, Elasticsearch, MinIO, dan scanner asli di container), tes frontend, dan tes end-to-end di Chromium (termasuk container injector). Butuh `make dev-up-full`, `make injector-image`, dan dependensi renderer PDF di atas. Pemeriksaan penuh juga memerlukan `make mitre-update VERSION=20.0` serta `make osquery-fetch` untuk artefak yang dipatok; flow14/15 gagal bila artefak wajib tidak tersedia. `E2E_SCRIPT=flow8.mjs ./e2e/run.sh` menguji alur organisasi hingga PDF, kondisi/mapper, dan axe di 1280/834 px.
+`make check` (termasuk pemeriksaan responsif 1280/834/390 px dan aksesibilitas axe-core pada semua halaman) menjalankan tes backend (PostgreSQL, RabbitMQ, Elasticsearch, MinIO, dan scanner asli di container), tes frontend, dan tes end-to-end di Chromium (termasuk container injector). Butuh `make dev-up-full`, `make injector-image`, dan dependensi renderer PDF di atas. Pemeriksaan penuh juga memerlukan `make mitre-fetch` serta `make osquery-fetch` untuk artefak yang dipatok; flow14/15 gagal bila artefak wajib tidak tersedia. `E2E_SCRIPT=flow8.mjs ./e2e/run.sh` menguji alur organisasi hingga PDF, kondisi/mapper, dan axe di 1280/834 px.
 Verifikasi audit UX: 119 tes frontend, sembilan flow E2E; `flow9.mjs` mencatat 283 lulus/0 gagal; flow7 mencakup 116 pemeriksaan di dua viewport. Uji mutasi Fase 9 (3) dan UX (4) terdeteksi/dipulihkan, renderer nol HTTP. Bukti lengkap dan keterbatasan ada di `result.txt`.
 Tes end-to-end memerlukan `npx playwright install chromium` di folder `e2e/`.
 
 Uji mutasi yang dapat diulang (memakai salinan terisolasi di `work/`, tidak merusak checkout aktif):
 ```bash
 python3 e2e/mutation-phase9.py
+python3 e2e/mutation-organization-scope.py
+python3 e2e/mutation-scan-scope.py
+python3 e2e/mutation-endpoint-collection.py
+python3 e2e/mutation-report-snapshot.py
+python3 e2e/mutation-agent-address.py
 ```
 Script memeriksa baseline hijau, memastikan mutasi otorisasi/kondisi/snapshot membuat tes yang tepat gagal, lalu memulihkan kode dan memastikan tes kembali hijau. Log bukti disimpan di direktori salinan tersebut.
 
@@ -172,3 +210,41 @@ dapat dihapus dari detail aset oleh admin; temuan, laporan beku, audit, serta ba
 mempunyai retensi terpisah. Kedaluwarsa otomatis dan riwayat koleksi belum tersedia.
 Panduan [operasi dan upgrade](docs/OPERASI.md) memuat versi yang didukung,
 prosedur backup → migrate → start → smoke, serta rollback melalui restore.
+
+
+Fitur lanjutan UI (Chains, Atomic tests, AI, MITRE, overview) disembunyikan secara
+bawaan. Set `ORCHIS_ADVANCED_FEATURES=true` pada lingkungan server lalu mulai ulang
+server milik instalasi tersebut untuk membukanya melalui palet perintah. Izin API
+dan persetujuan organisasi tetap wajib. `/scenarios` tidak lagi menjadi route UI;
+editor chain lanjutan memakai `/chains` dan `/chains/:id/setup`.
+
+
+Scan organisasi baru memakai `/simulations/new` dan API `/api/v1/scans`, tanpa
+scenario pengguna. Injector berjalan di server Orchis; jaringan agent harus dapat
+dijangkau server. Batas bawaan256alamat total per scan dan4job aktif per tenant.
+Konfigurasi: `ORCHIS_SCAN_MAX_HOSTS` (1..4096), `ORCHIS_SCAN_CONCURRENCY` (1..32),
+`ORCHIS_INJECTOR_CONCURRENCY` (1..32,bawaan4perinjector). Approval rentang memerlukan
+admin, consent endpoint saat ini, dan dataset interface/routes sukses dalam24jam.
+Host temuan tidak otomatis menjadi aset yang boleh diuji.
+
+
+Data endpoint terpilih berjalan setelah persetujuan dokumen saat ini dan otorisasi
+aset, lalu berkala (bawaan15menit). `ORCHIS_ENDPOINT_COLLECTION_SECONDS` menerima
+60..86400. Buka Organisations → Agents/Endpoints → pilih endpoint → Configure endpoint
+collection. Semua query yang didukung dipilih sebagai usulan pertama; checkbox
+persetujuan tetap kosong sampai admin menyetujuinya. Semua query bernama, termasuk
+sensitivitas rendah, memerlukan consent. Hanya Linux amd64 yang runnable saat ini;
+macOS/Windows/arsitektur lain menampilkan unsupported.
+
+
+Reports menyediakan ekspor PDF dan JSON; HTML hanya internal renderer. JSON Scan
+memakai skema `orchis.report.v1` yang dijelaskan di [REPORT-SCHEMA](docs/REPORT-SCHEMA.md).
+PDF memakai cover dan palet Orchis, snapshot yang sama dengan JSON, serta renderer
+tanpa egress. Gagal merender PDF dapat dicoba ulang tanpa menjalankan ulang scan.
+
+
+Hasil penyederhanaan dan verifikasi akhir (2 November 2026):
+[SIMPLIFY-HASIL.md](docs/SIMPLIFY-HASIL.md). `make check` penuh lulus: 191 tes frontend,
+16 flow browser, flow16 200/0, 40 mutasi keamanan terdeteksi/dipulihkan, axe nol
+pada 1280/834/390 px. PDF nyata 6 halaman dan demo 15 halaman ditinjau seluruhnya.
+Perubahan tetap lokal; layanan review belum di-deploy ulang.

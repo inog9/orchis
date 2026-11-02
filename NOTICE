@@ -27,3 +27,12 @@ ATT&CK Terms of Use (https://attack.mitre.org/resources/terms-of-use/).
 © 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation.
 The complete accompanying license and disclaimers are reproduced in docs/licenses/mitre.LICENSE (and /licenses in the server image).
 Source: https://github.com/mitre-attack/attack-stix-data/blob/master/LICENSE.txt
+
+Report layout provenance (simplification, 2026-11-01):
+The organisation report uses an original Orchis print template and the existing
+Orchis dot/wordmark and bronze palette. Cover/summary/results section concepts
+were reviewed in the locally supplied OpenAEV reporting render directory and
+PlaywrightReportingRenderer.java. The inspected files had no Apache licence
+header establishing permission for copying. No OpenAEV/Filigran source code,
+artwork, logo, fonts or brand colours were copied. Existing third-party notices
+above remain applicable to the components they describe.

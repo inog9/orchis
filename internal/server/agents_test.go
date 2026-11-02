@@ -151,7 +151,7 @@ func TestEnrollmentTokenIsAdminOnlyValidatedAndSingleUse(t *testing.T) {
 	if !st.Used || st.Agent == nil || st.Agent.ID != out.AgentID {
 		t.Fatalf("status setelah dipakai: %+v", st)
 	}
-	// aset dibuat dari agent: sumber agent, belum diotorisasi, hanya alamat nama host
+	// Aset baru menyimpan identitas agent; tidak ada alamat scan atau testing permission otomatis.
 	var al struct {
 		Items []struct {
 			Name, Source      string
@@ -162,7 +162,7 @@ func TestEnrollmentTokenIsAdminOnlyValidatedAndSingleUse(t *testing.T) {
 	}
 	f.a.do("GET", "/api/v1/assets?q=box1", nil, f.viewer).JSON(&al)
 	if len(al.Items) != 1 || al.Items[0].Source != "agent" || al.Items[0].TestingAuthorized || al.Items[0].AgentState != "online" ||
-		len(al.Items[0].Addresses) != 1 || al.Items[0].Addresses[0].Kind != "hostname" {
+		len(al.Items[0].Addresses) != 0 {
 		t.Fatalf("aset dari agent: %+v", al)
 	}
 	// token kedaluwarsa

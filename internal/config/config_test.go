@@ -121,3 +121,22 @@ func TestProductionRejectsDefaultServiceAndInitialAdminCredentials(t *testing.T)
 		})
 	}
 }
+
+func TestAdvancedFeaturesDefaultsOffAndRequiresBoolean(t *testing.T) {
+	t.Setenv("ORCHIS_ENV_FILE", "")
+	t.Setenv("ORCHIS_PRODUCTION", "false")
+	t.Setenv("ORCHIS_ADVANCED_FEATURES", "")
+	c, err := Load()
+	if err != nil || c.AdvancedFeatures {
+		t.Fatalf("advanced default: %v %v", c, err)
+	}
+	t.Setenv("ORCHIS_ADVANCED_FEATURES", "true")
+	c, err = Load()
+	if err != nil || !c.AdvancedFeatures {
+		t.Fatalf("advanced opt in: %v %v", c, err)
+	}
+	t.Setenv("ORCHIS_ADVANCED_FEATURES", "invalid")
+	if _, err := Load(); err == nil {
+		t.Fatal("invalid advanced flag accepted")
+	}
+}

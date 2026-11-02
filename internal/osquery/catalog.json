@@ -94,7 +94,8 @@
           "physical_memory": "16714969088",
           "uptime_seconds": "366229"
         }
-      ]
+      ],
+      "platform": "linux"
     },
     {
       "key": "osquery.packages",
@@ -193,7 +194,8 @@
           "source": "deb",
           "version": "0.16.1-2ubuntu1"
         }
-      ]
+      ],
+      "platform": "linux"
     },
     {
       "key": "osquery.users",
@@ -324,7 +326,8 @@
           "uid": "3",
           "username": "sys"
         }
-      ]
+      ],
+      "platform": "linux"
     },
     {
       "key": "osquery.network",
@@ -427,7 +430,8 @@
           "process": "server",
           "protocol": "6"
         }
-      ]
+      ],
+      "platform": "linux"
     },
     {
       "key": "osquery.hardening",
@@ -603,7 +607,8 @@
           "target": "kernel.dmesg_restrict",
           "value": "1"
         }
-      ]
+      ],
+      "platform": "linux"
     },
     {
       "key": "osquery.firewall",
@@ -660,7 +665,55 @@
         {
           "rules": "0"
         }
-      ]
+      ],
+      "platform": "linux"
+    },
+    {
+      "key": "osquery.network_ranges",
+      "title": "Network interfaces and routes",
+      "description": "Reports network ranges as untrusted proposals. Admin approval is required before the Orchis server may scan them.",
+      "category": "network",
+      "sql": "SELECT interface,address,mask,'interface' AS source FROM interface_addresses UNION ALL SELECT interface,destination AS address,netmask AS mask,'route' AS source FROM routes LIMIT 256",
+      "tables": [
+        "interface_addresses",
+        "routes"
+      ],
+      "columns": [
+        "interface",
+        "address",
+        "mask",
+        "source"
+      ],
+      "os": [
+        "linux",
+        "macos",
+        "windows"
+      ],
+      "sensitivity": "medium",
+      "load": "low",
+      "needs_root": false,
+      "max_rows": 256,
+      "timeout_seconds": 20,
+      "mitre": [
+        {
+          "id": "T1016",
+          "reason": "Collects network interface and route configuration from an explicitly approved endpoint. This reports configuration, not exploitation."
+        }
+      ],
+      "attributes": {
+        "first_row": {},
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "interface": "eth0",
+          "address": "192.168.50.10",
+          "mask": "255.255.255.0",
+          "source": "interface"
+        }
+      ],
+      "platform": "all"
     }
   ]
 }

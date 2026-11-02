@@ -4,14 +4,16 @@ export type User = {
   display_name: string;
   role: string;
   permissions: string[];
+  features?: { advanced: boolean };
 };
 
-export type AssetAddress = { kind: string; value: string; is_primary: boolean };
+export type AssetAddress = { scan_approved?:boolean;kind: string; value: string; is_primary: boolean };
 
 export type TagRef = { id: string; name: string; color: string };
 export type GroupRef = { id: string; name: string; is_system: boolean };
 
 export type Asset = {
+ is_demo?:boolean;
  organization_id?: string | null;
   id: string;
   category: string;
@@ -36,6 +38,7 @@ export type Asset = {
 export type AssetPage = { items: Asset[]; next_cursor: string | null };
 
 export type NewAsset = {
+ organization_id?: string;
   category: string;
   name: string;
   platform?: string | null;
@@ -257,7 +260,8 @@ export type AttackPath = { nodes: PathNode[]; edges: PathEdge[]; truncated: bool
 
 // ---------- Fase 7: akun, pengaturan, orang, MITRE, notifikasi ----------
 export type UserRow = { id: string; email: string; display_name: string; role: string; role_name: string; status: 'active' | 'disabled'; last_login_at: string | null; created_at: string; version: number; has_password: boolean };
-export type RoleRow = { key: string; name: string; description: string | null; permissions: string[]; is_system: boolean; users: number };
+export type RoleRow = { key: string; name: string; description: string | null; permissions: string[];
+  features?: { advanced: boolean }; is_system: boolean; users: number };
 export type ResetLink = { token: string; expires_at: string };
 export type CreatedUser = { user: UserRow; reset_link: ResetLink };
 export type ApiToken = { is_demo?: boolean; revoked_at?: string | null; id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; expires_at: string | null };
@@ -290,6 +294,7 @@ export type AlertList = { items: AlertRow[]; unread: number };
 
 // ---------- Fase 4: agent ----------
 export type AgentRow = {
+ is_demo?:boolean;
  organization_id?: string | null; instance_name?: string | null;
   id: string; asset_id: string; asset_name: string; hostname: string | null; os: 'windows' | 'linux' | 'macos'; arch: 'x86_64' | 'arm64'; mode: 'service' | 'user';
   version: string; status: 'online' | 'offline' | 'revoked'; last_heartbeat_at: string | null; enrolled_at: string; update_available: boolean;
@@ -300,21 +305,22 @@ export type EnrollmentStatus = { used: boolean; expired: boolean; agent_id: stri
 // ---------- T4: data endpoint dari osquery ----------
 export type EndpointRuleMeta = { rule: string; type: string; severity: string; title: string; explain: string };
 export type EndpointQueryMeta = {
+ platform?:string;
   key: string; pack?: string; title: string; description: string; category: string; tables: string[]; columns: string[]; os: string[];
   sensitivity: 'low' | 'medium' | 'high'; load: string; needs_root: boolean; default_enabled: boolean; timeout_seconds: number; max_rows: number;
   mitre: { id: string; reason: string }[]; attributes: string[]; findings: EndpointRuleMeta[]; report_section: string;
   example: Record<string, string>[]; example_findings: { rule: string; type: string; severity: string; title: string }[]; example_attributes: Record<string, unknown>;
 };
-export type EndpointPackQuery = { name: string; key?: string; description: string; status: 'runnable' | 'sensitive' | 'not_reviewed' | 'other_os' | 'unverified'; reason: string; tables: string[] };
+export type EndpointPackQuery = { platform?:string; name: string; key?: string; description: string; status: 'runnable' | 'sensitive' | 'not_reviewed' | 'other_os' | 'unverified'; reason: string; tables: string[] };
 export type EndpointPack = { name: string; description: string; file: string; sha256: string; platform: string; tables_read: string[]; queries: EndpointPackQuery[] };
 export type EndpointConsent = { version: string; sha256: string; text: string };
-export type EndpointCatalog = { consent: EndpointConsent; osquery_version: string; license: string; proven_os: string[]; queries: EndpointQueryMeta[]; packs: EndpointPack[] };
-export type OrgOsquerySetting = { key: string; enabled: boolean; explicit: boolean; updated_at: string | null; consent_version?: string | null; consent_sha256?: string | null; consented_by?: string | null; consented_at?: string | null };
-export type EndpointDataset = {
+export type EndpointCatalog = { collection_interval_seconds?:number; consent: EndpointConsent; osquery_version: string; license: string; proven_os: string[]; queries: EndpointQueryMeta[]; packs: EndpointPack[] };
+export type OrgOsquerySetting = { version?:number; key: string; enabled: boolean; explicit: boolean; updated_at: string | null; consent_version?: string | null; consent_sha256?: string | null; consented_by?: string | null; consented_at?: string | null };
+export type EndpointDataset = { supported?:boolean;
   key: string; title: string; status: 'ok' | 'skipped' | 'failed' | 'never'; reason: string; collected_at: string | null; last_attempt_at: string | null;
   osquery_version: string; attributes: Record<string, unknown>; rows: Record<string, string>[]; truncated: boolean; enabled: boolean; synthetic: boolean;
 };
-export type EndpointAssetData = {
+export type EndpointAssetData = { platform?:string;arch?:string;supported?:boolean;
   asset_id: string; version: number; read_only: boolean; organization_id: string | null; has_agent: boolean; items: EndpointDataset[];
   findings: { id: string; type: string; severity: string; title: string; value: string; query: string }[];
 };

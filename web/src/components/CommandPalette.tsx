@@ -1,4 +1,4 @@
-import { navigationFor } from './navigation';
+import { advancedEnabled, navigationFor } from './navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMe } from '../api/hooks';
@@ -9,18 +9,21 @@ type Entry = { id: string; label: string; hint: string; to: string; show: boolea
 
 // Daftar tujuan yang boleh dibuka pengguna ini. 'keys' = pintasan "g lalu huruf".
 export function entriesFor(me: User | null | undefined): Entry[] {
+  const advanced=advancedEnabled(me);
   const all: Entry[] = [
     ...navigationFor(me).map(n => ({ id:n.id, label:n.label, hint:n.hint, to:n.to, show:true, keys:'keys' in n ? n.keys : undefined })),
-    { id: 'chains', label: 'Edit scenario chains', hint: 'Open the action editor for an existing scenario; this is the same scenario list.', to: '/chains', show: can(me, 'scenario.read'), keys: 'c', words:'attack chains' },
-    { id: 'atomic', label: 'Saved single tests', hint: 'Single tests: run one saved check against one authorized asset.', to: '/atomic', show: can(me, 'atomic.read'), keys: 't', words:'atomic testing' },
+    { id: 'chains', label: 'Chains', hint: 'Advanced: edit a sequence of checks and dependencies.', to: '/chains', show: advanced && can(me, 'scenario.read'), keys: 'c', words:'attack chains' },
+    { id: 'atomic', label: 'Saved single tests', hint: 'Single tests: run one saved check against one authorized asset.', to: '/atomic', show: advanced && can(me, 'atomic.read'), keys: 't', words:'atomic testing' },
     { id: 'groups', label: 'Asset groups', hint: 'Dynamic groups', to: '/assets/groups', show: can(me, 'asset.read') },
     { id: 'people', label: 'People', hint: 'Exercise participants', to: '/people', show: can(me, 'people.read'), keys: 'p' },
     { id: 'teams', label: 'Teams', hint: 'Groups of people', to: '/people/teams', show: can(me, 'people.read') },
-    { id: 'mitre', label: 'MITRE ATT&CK', hint: 'Technique coverage', to: '/mitre', show: can(me, 'scenario.read'), keys: 'x', words: 'attack matrix techniques tactics' },
+    { id: 'mitre', label: 'MITRE ATT&CK', hint: 'Technique coverage', to: '/mitre', show: advanced && can(me, 'scenario.read'), keys: 'x', words: 'attack matrix techniques tactics' },
     { id: 'notifications', label: 'Notifications', hint: 'Alerts', to: '/notifications', show: can(me, 'alert.read'), keys: 'n' },
     { id: 'profile', label: 'Profile', hint: 'Password and API tokens', to: '/profile', show: true },
     { id: 'new-asset', label: 'Add asset', hint: 'Create', to: '/assets?new=1', show: can(me, 'asset.write') },
-    { id: 'new-scenario', label: 'New scenario', hint: 'Create', to: '/scenarios?new=1', show: can(me, 'scenario.write') },
+    { id: 'new-scan', label: 'New scan', hint: 'Select an organisation, targets and tools', to: '/simulations/new', show: can(me, 'simulation.run') },
+    { id: 'new-chain', label: 'New chain', hint: 'Advanced', to: '/chains?new=1', show: advanced && can(me, 'scenario.write') },
+    { id: 'overview', label: 'Advanced overview', hint: 'Advanced workspace activity', to: '/overview', show: advanced, keys: 'h' },
   ];
   return all.filter((e) => e.show);
 }

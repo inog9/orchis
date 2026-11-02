@@ -55,8 +55,8 @@ func TestSeedIsDeterministicIdempotentAndFullyMarked(t *testing.T) {
 	if st.Counts["organizations"] != 5 || st.Counts["assets"] != 50 || st.Counts["scenarios"] != 3 || st.Counts["alerts"] != 3 {
 		t.Fatalf("diharapkan 5 organisasi/50 aset/3 skenario/3 alert, dapat %+v", st.Counts)
 	}
-	if st.Counts["endpoint_datasets"] != 30 {
-		t.Fatalf("diharapkan 30 dataset osquery sintetis (6 query x 5 aset Linux): %d", st.Counts["endpoint_datasets"])
+	if st.Counts["endpoint_datasets"] != 35 {
+		t.Fatalf("diharapkan 35 dataset osquery sintetis (7 query x 5 aset Linux, termasuk proposal jaringan): %d", st.Counts["endpoint_datasets"])
 	}
 	// Data osquery demo hanya di aset Linux demo, bertanda is_demo, dan bukan hasil eksekusi nyata.
 	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1 AND (NOT is_demo OR execution_id IS NOT NULL)`, env.TenantA); n != 0 {
@@ -268,7 +268,7 @@ func TestPurgeFailsClosedWhenRealEndpointDataSitsOnDemoAsset(t *testing.T) {
 	if _, err := svc.Purge(ctx, env.TenantA, nil, "", "t"); err == nil {
 		t.Fatal("purge harus ditolak saat ada data endpoint nyata pada aset demo")
 	}
-	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1`, env.TenantA); n != 31 {
+	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1`, env.TenantA); n != 36 {
 		t.Fatalf("purge sebagian: %d dataset", n)
 	}
 }

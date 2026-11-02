@@ -1,16 +1,17 @@
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useMe, useScenarios } from '../api/hooks';
 import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
-import { NewScenarioDialog } from './ScenariosPage';
+import { NewScenarioDialog } from './NewChainDialog';
 
 export function ChainsPage() {
   const { data: me } = useMe();
   const navigate = useNavigate();
   const q = useScenarios();
-  const [creating, setCreating] = useState(false);
+  const [params,setParams]=useSearchParams();
+  const [creating, setCreating] = useState(params.get('new')==='1'&&can(me,'scenario.write'));
   const items = q.data ?? [];
   return (
     <section className="page" aria-labelledby="chains-title">
@@ -38,7 +39,7 @@ export function ChainsPage() {
           ))}
         </div>
       )}
-      {creating && <NewScenarioDialog title="New scenario chain" onClose={() => setCreating(false)} onCreated={(id) => navigate(`/chains/${id}`)} />}
+      {creating && <NewScenarioDialog title="New scenario chain" onClose={() => {setCreating(false);params.delete('new');setParams(params,{replace:true});}} onCreated={(id) => navigate(`/chains/${id}`)} />}
     </section>
   );
 }

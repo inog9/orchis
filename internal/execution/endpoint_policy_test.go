@@ -7,6 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"net/url"
 	"orchis-go/internal/db"
 	"orchis-go/internal/osquery"
 	"os"
@@ -40,17 +41,20 @@ func TestEndpointPolicySerializesMissingSettingsAndAssetChanges(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer owner.Close()
-	appConfig, err := pgxpool.ParseConfig(ownerURL)
+	appURL, err := url.Parse(ownerURL)
 	if err != nil {
 		t.Fatal(err)
 	}
-	appConfig.ConnConfig.User = "orchis_app"
-	appConfig.ConnConfig.Password = "orchis_app"
-	app, err := db.Open(ctx, appConfig.ConnConfig.ConnString())
+	appURL.User = url.UserPassword("orchis_app", "orchis_app")
+	app, err := db.Open(ctx, appURL.String())
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer app.Close()
+	var role string
+	if err = app.Pool.QueryRow(ctx, "SELECT current_user").Scan(&role); err != nil || role != "orchis_app" {
+		t.Fatalf("policy test must use application role: %s %v", role, err)
+	}
 	tenantA, tenantB := uuid.New(), uuid.New()
 	if _, err = owner.Exec(ctx, `INSERT INTO tenants(id,name) VALUES($1,'a'),($2,'b')`, tenantA, tenantB); err != nil {
 		t.Fatal(err)

@@ -19,7 +19,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 await p.goto(BASE + '/assets');
 await p.getByRole('heading', { name: 'Assets', exact: true }).waitFor();
 

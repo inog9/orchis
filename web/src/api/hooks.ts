@@ -37,15 +37,15 @@ export function useLogout() {
   });
 }
 
-export function useAssets(q: string, category: string, organization = '') {
+export function useAssets(q: string, category: string, organization = '', enabled=true) {
   return useInfiniteQuery({
-    queryKey: ['assets', q, category, organization],
+    queryKey: ['assets', q, category, organization], enabled,
     initialPageParam: '',
     queryFn: ({ pageParam }) => {
       const p = new URLSearchParams({ limit: '25' });
       if (q) p.set('q', q);
       if (category) p.set('category', category);
-      if (organization) p.set('organization_id', organization);
+      if (organization) p.set('org', organization);
       if (pageParam) p.set('cursor', pageParam);
       return api.get<AssetPage>(`/api/v1/assets?${p}`);
     },
@@ -58,7 +58,7 @@ export function useCreateAsset() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (v: NewAsset) => api.post<Asset>('/api/v1/assets', v),
-    onSuccess: () => Promise.all(['assets','home'].map(key=>qc.invalidateQueries({queryKey:[key]}))),
+    onSuccess: () => Promise.all(['assets','organization-assets','organization-readiness','home'].map(key=>qc.invalidateQueries({queryKey:[key]}))),
   });
 }
 
@@ -208,9 +208,9 @@ export function useDeleteAtomicTest(id: string) {
   return useMutation({ mutationFn: () => api.del(`/api/v1/atomic-tests/${id}`), onSuccess: inv });
 }
 
-export function useFindings(q: string, type: string, severity: string, assetID = '') {
+export function useFindings(q: string, type: string, severity: string, assetID = '', organization = '') {
   return useInfiniteQuery({
-    queryKey: ['findings', q, type, severity, assetID],
+    queryKey: ['findings', q, type, severity, assetID, organization],
     initialPageParam: '',
     queryFn: ({ pageParam }) => {
       const p = new URLSearchParams({ limit: '25' });
@@ -218,6 +218,7 @@ export function useFindings(q: string, type: string, severity: string, assetID =
       if (type) p.set('type', type);
       if (severity) p.set('severity', severity);
       if (assetID) p.set('asset_id', assetID);
+      if (organization) p.set('org',organization);
       if (pageParam) p.set('cursor', pageParam);
       return api.get<FindingPage>(`/api/v1/findings?${p}`);
     },
@@ -314,9 +315,9 @@ export function useSimulation(id: string) {
   });
 }
 
-export function useAttackPath(id: string, status: string | undefined) {
+export function useAttackPath(id: string, status: string | undefined,enabled=true) {
   return useQuery({
-    queryKey: ['attack-path', id, status],
+    queryKey: ['attack-path', id, status], enabled,
     queryFn: () => api.get<AttackPath>(`/api/v1/simulations/${id}/attack-path`),
     refetchInterval: status === 'running' ? 3000 : false,
     retry: false,

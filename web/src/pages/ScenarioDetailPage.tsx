@@ -79,7 +79,7 @@ export function ScenarioDetailPage() {
 
   if (q.isPending) return <section className="page"><span className="skeleton" /></section>;
   if (q.isError || !q.data) {
-    return <section className="page"><div className="state state--error" role="alert"><h2>Couldn’t load this scenario</h2><p>{describeError(q.error).message}</p><Link className="btn btn--secondary btn--auto" to="/scenarios">Back to scenarios</Link></div></section>;
+    return <section className="page"><div className="state state--error" role="alert"><h2>Couldn’t load this scenario</h2><p>{describeError(q.error).message}</p><Link className="btn btn--secondary btn--auto" to="/chains">Back to chains</Link></div></section>;
   }
   const sc = q.data;
   const ready = sc.problems.length === 0;
@@ -87,7 +87,7 @@ export function ScenarioDetailPage() {
     <section className="page" aria-labelledby="scenario-title">
       <div className="page__head">
         <div>
-          <nav className="crumbs" aria-label="Breadcrumb"><Link to="/scenarios">Scenarios</Link><ChevronRight size={12} aria-hidden="true" /><span className="crumbs__current">{sc.name}</span></nav>
+          <nav className="crumbs" aria-label="Breadcrumb"><Link to="/chains">Scenarios</Link><ChevronRight size={12} aria-hidden="true" /><span className="crumbs__current">{sc.name}</span></nav>
           <div className="page__title-row"><h1 id="scenario-title" className="page__title">{sc.name}</h1><span className={`status ${ready ? 'status--ok' : ''}`}>{ready ? 'Ready' : 'Draft'}</span></div>
           <p className="page__sub">{sc.description || 'No description.'}</p>
         </div>
@@ -136,10 +136,10 @@ export function ScenarioDetailPage() {
       </div>
 
       {dialog === 'targets' && <TargetsDialog sc={sc} onClose={() => setDialog(null)} />}
-      {dialog === 'launch' && <LaunchDialog sc={sc} onClose={() => setDialog(null)} onLaunched={(sid) => navigate(`/simulations/${sid}`)} />}
+      {dialog === 'launch' && <LaunchDialog sc={sc} onClose={() => setDialog(null)} onLaunched={(sid) => navigate(`/simulations/legacy/${sid}`)} />}
       {dialog === 'delete' && (
         <ConfirmDialog title="Delete this scenario?" body="Simulations already run from it stay in the history." confirmLabel="Delete scenario" busy={del.isPending}
-          error={del.isError ? describeError(del.error).message : undefined} onConfirm={() => del.mutate(undefined, { onSuccess: () => navigate('/scenarios') })} onClose={() => setDialog(null)} />
+          error={del.isError ? describeError(del.error).message : undefined} onConfirm={() => del.mutate(undefined, { onSuccess: () => navigate('/chains') })} onClose={() => setDialog(null)} />
       )}
     </section>
   );

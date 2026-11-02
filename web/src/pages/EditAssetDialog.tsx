@@ -21,6 +21,7 @@ export function EditAssetDialog({ asset, onClose, onStale }: { asset: Asset; onC
   const [authorized, setAuthorized] = useState(asset.testing_authorized);
   const [tagIds, setTagIds] = useState(asset.tags.map((t) => t.id));
 
+  const canEditAddresses = !asset.testing_authorized || can(me, 'asset.authorize');
   const err = patch.error;
   const stale = err instanceof ApiError && err.status === 409;
   const fieldErr = (n: string) => (err instanceof ApiError ? err.fields.find((f) => f.name === n)?.message : undefined);
@@ -38,7 +39,7 @@ export function EditAssetDialog({ asset, onClose, onStale }: { asset: Asset; onC
         criticality,
         is_internet_facing: internet,
         ...(can(me, 'asset.authorize') ? { testing_authorized: authorized } : {}),
-        addresses: lines.map((value) => ({ kind: inferKind(value), value })),
+        ...(canEditAddresses ? { addresses: lines.map((value) => ({ kind: inferKind(value), value })) } : {}),
         tag_ids: tagIds,
       },
       { onSuccess: onClose },
@@ -77,10 +78,10 @@ export function EditAssetDialog({ asset, onClose, onStale }: { asset: Asset; onC
         </div>
         <div className="textarea">
           <label htmlFor="ed-addresses">Addresses</label>
-          <textarea id="ed-addresses" rows={3} value={addresses} aria-invalid={!!fieldErr('addresses')} aria-describedby="ed-addresses-hint"
+          <textarea id="ed-addresses" disabled={!canEditAddresses} rows={3} value={addresses} aria-invalid={!!fieldErr('addresses')} aria-describedby="ed-addresses-hint"
             onChange={(e) => { touch(); setAddresses(e.target.value); }} />
           <small id="ed-addresses-hint" className={fieldErr('addresses') ? 'is-error' : ''} role={fieldErr('addresses') ? 'alert' : undefined}>
-            {fieldErr('addresses') ?? 'One per line: IP, CIDR, hostname, domain, URL or MAC.'}
+            {fieldErr('addresses') ?? (canEditAddresses ? 'One per line: IP, CIDR, hostname, domain, URL or MAC.' : 'An administrator must review address changes on an authorized asset.')}
           </small>
         </div>
         <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate />

@@ -29,7 +29,7 @@ const login = async (page, email, password) => {
   await page.getByRole('button', { name: /sign in/i }).click();
 };
 await login(p, 'admin@orchis.local', 'Orchis-Dev-Pass-1');
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 
 // 1. Settings > Platform: ubah nama; komponen
 await p.getByRole('button', { name: /Platform default/ }).click();
@@ -89,7 +89,7 @@ await e.goto(resetUrl);
 await e.getByRole('heading', { name: 'This link can’t be used' }).waitFor();
 ok(true, 'link yang sudah dipakai tidak bisa dipakai lagi');
 await login(e, 'eve@orchis.test', STRONG);
-await e.waitForURL(BASE + '/');
+await e.waitForURL(BASE + '/organizations');
 await e.getByRole('button', { name: /Acme Red Team/ }).click();
 ok(await e.getByRole('menuitem', { name: 'Settings' }).isVisible(), 'Eve (analyst) bisa membuka Settings');
 await e.getByRole('menuitem', { name: 'Settings' }).click();
@@ -196,7 +196,8 @@ ok((await inj(nmapToken, 'heartbeat')).status === 401 && (await inj(rotated, 'he
 await p.screenshot({ path: SHOTS + 'settings-integrations.png' });
 
 // 8. People & Teams
-await p.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Home' }).click();
+await p.goto(BASE+'/overview');
+await p.getByRole('heading',{name:'Home',exact:true}).waitFor();
 await p.keyboard.press('Control+k');
 await p.getByRole('combobox', { name: 'Search or jump to' }).fill('peo');
 await p.getByRole('option', { name: /People/ }).first().waitFor();
@@ -316,9 +317,9 @@ await p.screenshot({ path: SHOTS + 'notifications.png' });
 // 12. Pintasan g lalu huruf
 await p.locator('body').click({ position: { x: 5, y: 5 } });
 await p.keyboard.press('g');
-await p.keyboard.press('s');
-await p.waitForURL('**/scenarios');
-ok(true, 'pintasan "g lalu s" membuka Scenarios');
+await p.keyboard.press('m');
+await p.waitForURL('**/simulations');
+ok(true, 'pintasan "g lalu m" membuka Simulations');
 
 ok(errors.length === 0, 'tidak ada error konsol/halaman tak terduga' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await b.close();

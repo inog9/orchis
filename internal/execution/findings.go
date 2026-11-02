@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"log/slog"
+	"orchis-go/internal/contract"
 	"strconv"
 	"strings"
 	"time"
@@ -49,6 +51,23 @@ func valueHash(typ, value string) []byte {
 // ingest menyimpan finding satu eksekusi: satu baris findings per (aset, jenis, nilai) dan satu occurrence per eksekusi.
 // Mengembalikan jumlah yang diterima serta alasan untuk yang ditolak.
 func ingest(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.UUID, simulation *uuid.UUID, allowed []string, in []NewFinding) (accepted int, rejected []string, err error) {
+	storedAsset := any(asset)
+	var organization *uuid.UUID
+	var subject *string
+	if simulation != nil {
+		var org uuid.UUID
+		var assigned *uuid.UUID
+		var target string
+		e := tx.QueryRow(ctx, `SELECT a.organization_id,j.asset_id,j.target FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id WHERE j.tenant_id=$1 AND j.simulation_id=$2`, tenant, *simulation).Scan(&org, &assigned, &target)
+		if e == nil {
+			organization = &org
+			storedAsset = assigned
+			host := contract.HostOf(target)
+			subject = &host
+		} else if !errors.Is(e, pgx.ErrNoRows) {
+			return 0, nil, e
+		}
+	}
 	allow := map[string]bool{}
 	for _, t := range allowed {
 		allow[t] = true
@@ -83,15 +102,19 @@ func ingest(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.UUID, sim
 		}
 		seen[key] = true
 		var fid uuid.UUID
-		if err = tx.QueryRow(ctx, `
-INSERT INTO findings (id, tenant_id, asset_id, type, value, value_hash, title, severity, details)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-ON CONFLICT (tenant_id, asset_id, type, value_hash) WHERE asset_id IS NOT NULL
-DO UPDATE SET last_seen_at=now(), occurrence_count=findings.occurrence_count+1, title=EXCLUDED.title,
-  severity=EXCLUDED.severity, details=EXCLUDED.details
-RETURNING id`, ids.New(), tenant, asset, f.Type, normalizeValue(f.Value), hash, f.Title, f.Severity, []byte(details)).Scan(&fid); err != nil {
+		conflict := `(tenant_id, asset_id, type, value_hash) WHERE asset_id IS NOT NULL`
+		if organization != nil {
+			if ptr, ok := storedAsset.(*uuid.UUID); ok && ptr == nil {
+				conflict = `(tenant_id,organization_id,subject_address,type,value_hash) WHERE asset_id IS NULL AND organization_id IS NOT NULL`
+			}
+		}
+		if err = tx.QueryRow(ctx, `INSERT INTO findings(id,tenant_id,asset_id,type,value,value_hash,title,severity,details,organization_id,subject_address)
+ VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT `+conflict+`
+ DO UPDATE SET last_seen_at=now(),occurrence_count=findings.occurrence_count+1,title=EXCLUDED.title,severity=EXCLUDED.severity,details=EXCLUDED.details
+ RETURNING id`, ids.New(), tenant, storedAsset, f.Type, normalizeValue(f.Value), hash, f.Title, f.Severity, []byte(details), organization, subject).Scan(&fid); err != nil {
 			return 0, nil, err
 		}
+
 		if f.Severity == "critical" {
 			var assetName string
 			if err = tx.QueryRow(ctx, `SELECT name FROM assets WHERE tenant_id=$1 AND id=$2`, tenant, asset).Scan(&assetName); err != nil {
@@ -115,7 +138,7 @@ VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tenant_id, finding_id, execution_id) 
 	return accepted, rejected, nil
 }
 
-const findingCols = `f.id, f.asset_id, a.name, f.type, f.value, f.title, f.severity, f.details, f.first_seen_at, f.last_seen_at, f.occurrence_count`
+const findingCols = `f.id, f.asset_id, COALESCE(a.name,f.subject_address), f.type, f.value, f.title, f.severity, f.details, f.first_seen_at, f.last_seen_at, f.occurrence_count`
 
 // queryFindings menjalankan SELECT finding. joinWhere harus diawali JOIN/WHERE yang membatasi tenant (f.tenant_id=$1).
 func queryFindings(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, joinWhere string, args []any, tail string) ([]Finding, error) {
@@ -159,6 +182,7 @@ func querySubstringPage(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, joinWh
 type FindingFilter struct {
 	Type, Severity, Query, Cursor string
 	AssetID                       *uuid.UUID
+	OrganizationID                *uuid.UUID
 	SimulationID                  *uuid.UUID
 	Limit                         int
 }
@@ -214,6 +238,9 @@ func (s *Service) ListFindings(ctx context.Context, p *auth.Principal, f Finding
 		}
 		if f.Severity != "" {
 			add("f.severity=?", f.Severity)
+		}
+		if f.OrganizationID != nil {
+			add("COALESCE(f.organization_id,a.organization_id)=?", *f.OrganizationID)
 		}
 		if f.AssetID != nil {
 			add("f.asset_id=?", *f.AssetID)

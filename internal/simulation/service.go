@@ -208,7 +208,7 @@ WHERE st.tenant_id=$1 AND st.scenario_id=$2`, p.TenantID, scenarioID)
 		}
 		// penjaga scope di muka: setiap aset harus bisa ditargetkan oleh setiap langkah aktif, supaya kegagalan terlihat sebelum jalan
 		for i := range targets {
-			ar, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 ORDER BY is_primary DESC, created_at`, p.TenantID, targets[i].ID)
+			ar, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC, created_at`, p.TenantID, targets[i].ID)
 			if err != nil {
 				return err
 			}
@@ -313,7 +313,7 @@ type ListFilter struct{ Status string }
 func (s *Service) List(ctx context.Context, p *auth.Principal, f ListFilter) ([]Simulation, error) {
 	out := []Simulation{}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		q := `SELECT ` + simCols + ` ` + simFrom + ` WHERE s.tenant_id=$1`
+		q := `SELECT ` + simCols + ` ` + simFrom + ` WHERE s.tenant_id=$1 AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=s.tenant_id AND j.simulation_id=s.id)`
 		args := []any{p.TenantID}
 		if f.Status != "" {
 			q += ` AND s.status=$2`

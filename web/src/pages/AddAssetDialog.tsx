@@ -9,7 +9,7 @@ import { TagPicker } from '../components/TagPicker';
 import { describeError } from '../components/ErrorNote';
 import { CATEGORIES, categoryOf, inferKind } from './categories';
 
-export function AddAssetDialog({ onClose }: { onClose: () => void }) {
+export function AddAssetDialog({ onClose, organizationID }: { onClose: () => void; organizationID?: string }) {
   const { data: me } = useMe();
   const create = useCreateAsset();
   const [category, setCategory] = useState<string | null>(null);
@@ -34,6 +34,7 @@ export function AddAssetDialog({ onClose }: { onClose: () => void }) {
     create.mutate(
       {
         category,
+        ...(organizationID?{organization_id:organizationID}:{}),
         name,
         platform: platform || null,
         arch: arch || null,

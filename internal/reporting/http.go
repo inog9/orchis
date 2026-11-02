@@ -138,16 +138,10 @@ func (h *Handlers) Register(m *http.ServeMux) {
 		case "json":
 			content = "application/json"
 			data, e = json.MarshalIndent(v.Snapshot, "", "  ")
-		case "csv":
-			content = "text/csv; charset=utf-8"
-			data, e = CSV(v.Snapshot)
-		case "html":
-			content = "text/html; charset=utf-8"
-			data, e = HTML(v.Snapshot)
 		case "pdf":
 			content = "application/pdf"
 			if v.Status != "ready" {
-				httpx.Write(w, r, httpx.Conflict("The PDF is not ready. HTML and JSON are available."))
+				httpx.Write(w, r, httpx.Conflict("The PDF is not ready. JSON is available."))
 				return
 			}
 			store, ok := h.Svc.Store.(interface {
@@ -168,7 +162,7 @@ func (h *Handlers) Register(m *http.ServeMux) {
 		}
 		w.Header().Set("Content-Type", content)
 		disposition := "attachment"
-		if format == "html" && r.URL.Query().Get("preview") == "1" {
+		if format == "pdf" && r.URL.Query().Get("preview") == "1" {
 			disposition = "inline"
 		}
 		w.Header().Set("Content-Disposition", disposition+"; filename=\"orchis-report-"+id.String()+"."+format+"\"")

@@ -84,7 +84,7 @@ function Card({ q, state, canManage, onToggle }: { q: EndpointQueryMeta; state?:
   );
 }
 
-const PACK_STATUS = { runnable: 'Runs', sensitive: 'Skipped: sensitive data', not_reviewed: 'Skipped: table not reviewed', other_os: 'Not for Linux', unverified: 'Skipped: not verified' } as const;
+const PACK_STATUS = { runnable: 'Runs', sensitive: 'Skipped: sensitive data', not_reviewed: 'Skipped: table not reviewed', other_os: 'Not supported in this release', unverified: 'Skipped: not verified' } as const;
 
 const PACK_ORDER = { runnable: 0, sensitive: 1, not_reviewed: 2, unverified: 3, other_os: 4 } as const;
 
@@ -134,7 +134,7 @@ function ConsentReview({ doc }: { doc: EndpointConsent }) {
  return <section aria-label="Endpoint collection consent"><h3 className="ed-h4">Collection consent · {doc.version}</h3><p className="muted small">Scroll within the document to review data, retention, and how to stop or delete collection.</p><div className="ed-consent-text" role="region" aria-label="Collection document" tabIndex={0}>{doc.text}</div><p className="muted small">Approving records your identity, the time, and document SHA-256 <code>{doc.sha256}</code>.</p></section>;
 }
 
-export function EndpointCatalog({ orgId, canManage = false }: { orgId?: string; canManage?: boolean }) {
+export function EndpointCatalog({ orgId, canManage = false,platform='linux',arch='x86_64' }: { orgId?: string; canManage?: boolean;platform?:string;arch?:string }) {
   const cat = useEndpointCatalog();
   const org = useOrgOsquery(orgId ?? '', !!orgId);
   const set = useSetOrgOsquery(orgId ?? '');
@@ -143,6 +143,7 @@ export function EndpointCatalog({ orgId, canManage = false }: { orgId?: string; 
   const [pendingPack, setPendingPack] = useState<EndpointPack | null>(null);
   if (cat.isPending) return <span className="skeleton" />;
   if (cat.isError || !cat.data) return <div className="state state--error" role="alert"><h2>Couldn’t load the endpoint data catalogue</h2><p>{describeError(cat.error).message}</p></div>;
+  const runnable=platform==='linux'&&(arch==='x86_64'||arch==='amd64');
   const consent = { version: cat.data.consent.version, sha256: cat.data.consent.sha256 };
   const states = new Map((org.data?.items ?? []).map((i) => [i.key, i]));
   const toggle = (q: EndpointQueryMeta, enabled: boolean) => {
@@ -151,18 +152,18 @@ export function EndpointCatalog({ orgId, canManage = false }: { orgId?: string; 
   };
   return (
     <section className="ed" aria-labelledby="ed-title">
-      <h2 id="ed-title" className="panel__heading">Endpoint data</h2>
-      <p className="muted">What an installed agent can read from inside a machine, using osquery {cat.data.osquery_version}. Each check is read-only, runs once, and only reads the tables listed here. {orgId ? 'Low-sensitivity checks are on by default. Others need an administrator’s approval.' : 'Approval is decided per organisation.'}</p>
+      <h2 id="ed-title" className="panel__heading">Endpoint data · {platform}</h2>{!runnable&&<p className="notice">Not supported on this agent yet. Linux amd64 is the only pinned osquery platform.</p>}
+      <p className="muted">What an installed agent can read from inside a machine, using osquery {cat.data.osquery_version}. Each check is read-only and only reads the listed tables. Approved checks run periodically and may also be refreshed manually. {orgId ? 'Every named check needs current collection consent. Supported checks are preselected when an administrator reviews bulk approval.' : 'Approval is decided per organisation.'}</p>
       {set.isError && <div className="alert" role="alert"><strong>Couldn’t save this choice</strong><span>{describeError(set.error).message}</span></div>}
       {orgId && org.isError && <p role="alert">{describeError(org.error).message}</p>}
       <div className="ed-list">
-        {cat.data.queries.filter((q) => !q.pack).map((q) => <Card key={q.key} q={q} canManage={canManage} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined} />)}
+        {cat.data.queries.filter((q) => !q.pack && q.os.includes(platform==='darwin'?'macos':platform)).map((q) => <Card key={q.key} q={q} canManage={canManage&&runnable} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined} />)}
       </div>
       <h2 id="ed-packs-title" className="panel__heading">Official packs</h2>
       <p className="muted">Collections of checks published with osquery, frozen in this release. Approving a pack approves only the checks marked “Runs”. Everything else stays skipped.</p>
       {setPack.isError && <div className="alert" role="alert"><strong>Couldn’t save this choice</strong><span>{describeError(setPack.error).message}</span></div>}
       <div className="ed-list" aria-labelledby="ed-packs-title">
-        {cat.data.packs.map((p) => <PackCard key={p.name} pack={p} orgMode={!!orgId} canManage={canManage} enabledCount={p.queries.filter((q) => q.key && states.get(q.key)?.enabled).length} onToggle={(pk, enabled) => (enabled ? setPendingPack(pk) : setPack.mutate({ pack: pk.name, enabled: false }))} />)}
+        {cat.data.packs.filter(p=>!p.platform||p.platform==='all'||p.platform===platform).map(p=>({...p,queries:p.queries.filter(q=>!q.platform||q.platform==='all'||q.platform===platform)})).filter(p=>p.queries.length>0).map((p) => <PackCard key={p.name} pack={p} orgMode={!!orgId} canManage={canManage&&runnable} enabledCount={p.queries.filter((q) => q.key && states.get(q.key)?.enabled).length} onToggle={(pk, enabled) => (enabled ? setPendingPack(pk) : setPack.mutate({ pack: pk.name, enabled: false }))} />)}
       </div>
       {orgId && <details className="ed-details"><summary>Recorded collection approvals</summary><ul>{(org.data?.items ?? []).filter(i=>i.consented_at).map(i=><li key={i.key}>{i.key}: document {i.consent_version}, approved by {i.consented_by} at {new Date(i.consented_at!).toLocaleString()}. {i.enabled?'Enabled.':'Currently disabled.'}</li>)}</ul><p className="muted small">Revocations are recorded in the audit log. Approvals for an older document need renewal.</p></details>}
       {pendingPack && (

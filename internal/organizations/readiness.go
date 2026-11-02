@@ -36,7 +36,7 @@ func (s *Service) Readiness(ctx context.Context, p *auth.Principal, org uuid.UUI
 		if err := tx.QueryRow(ctx, `SELECT count(*),count(*) FILTER(WHERE testing_authorized) FROM assets WHERE tenant_id=$1 AND organization_id=$2 AND deleted_at IS NULL`, p.TenantID, org).Scan(&out.Total, &out.Authorized); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT a.id,a.name,a.testing_authorized,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',d.kind,'value',d.value,'is_primary',d.is_primary) ORDER BY d.is_primary DESC,d.created_at) FROM asset_addresses d WHERE d.tenant_id=a.tenant_id AND d.asset_id=a.id),'[]'::jsonb) FROM assets a WHERE a.tenant_id=$1 AND a.organization_id=$2 AND a.deleted_at IS NULL ORDER BY a.name,a.id LIMIT 1000`, p.TenantID, org)
+		rows, err := tx.Query(ctx, `SELECT a.id,a.name,a.testing_authorized,COALESCE((SELECT jsonb_agg(jsonb_build_object('kind',d.kind,'value',d.value,'is_primary',d.is_primary) ORDER BY d.is_primary DESC,d.created_at) FROM asset_addresses d WHERE d.tenant_id=a.tenant_id AND d.asset_id=a.id AND d.scan_approved),'[]'::jsonb) FROM assets a WHERE a.tenant_id=$1 AND a.organization_id=$2 AND a.deleted_at IS NULL ORDER BY a.name,a.id LIMIT 1000`, p.TenantID, org)
 		if err != nil {
 			return err
 		}

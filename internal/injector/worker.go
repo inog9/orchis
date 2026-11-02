@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -28,6 +29,7 @@ const (
 )
 
 type Worker struct {
+	Concurrency  int // jumlah consumer independen per injector; 0 memakai bawaan4
 	Metrics      *telemetry.Registry
 	Kind         string // nmap | nuclei
 	Client       *Client
@@ -38,7 +40,7 @@ type Worker struct {
 	Binary       string // jalur biner; kosong = nama default di PATH
 }
 
-// Run: heartbeat berkala + konsumen antrean exec.<kind>, satu tugas pada satu waktu.
+// Run: heartbeat berkala + konsumen antrean exec.<kind>, consumer paralel terbatas, masing-masing satu tugas pada satu waktu.
 func (w *Worker) Run(ctx context.Context) {
 	go func() {
 		t := time.NewTicker(15 * time.Second)
@@ -57,7 +59,20 @@ func (w *Worker) Run(ctx context.Context) {
 		}
 	}()
 	slog.Info("injector berjalan", "kind", w.Kind)
-	mq.Consume(ctx, w.AMQPURL, "exec."+w.Kind, 1, w.handle)
+	n := w.Concurrency
+	if n == 0 {
+		n = 4
+	}
+	if n < 1 || n > 32 {
+		slog.Error("invalid injector concurrency")
+		return
+	}
+	var workers sync.WaitGroup
+	for i := 0; i < n; i++ {
+		workers.Add(1)
+		go func() { defer workers.Done(); mq.Consume(ctx, w.AMQPURL, "exec."+w.Kind, 1, w.handle) }()
+	}
+	workers.Wait()
 }
 
 func (w *Worker) handle(ctx context.Context, m mq.Message) error {
@@ -129,6 +144,11 @@ func (w *Worker) execute(ctx context.Context, spec *execution.ClaimSpec) executi
 	}
 	spec.Params = normalized
 	// Pertahanan berlapis: server sudah memeriksa, injector memeriksa lagi sebelum menyentuh jaringan.
+	if spec.ScanScope != nil {
+		if err := spec.ScanScope.Validate(spec.Target, w.Guard); err != nil {
+			return fail("refused by the injector scan scope: %v", err)
+		}
+	}
 	host := contract.HostOf(spec.Target)
 	if err := w.Guard.CheckHost(host); err != nil {
 		return fail("refused by the injector scope guard: %v", err)

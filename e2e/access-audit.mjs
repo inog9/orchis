@@ -14,7 +14,7 @@ try{
   if(![401,429].includes(res.status()))throw new Error('Unexpected local failure status');checks++;
  }
  const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('/login');await page.getByLabel('Email').fill(process.env.E2E_ACCESS_EMAIL||'admin@orchis.local');await page.getByLabel('Password',{exact:true}).fill(process.env.E2E_ACCESS_PASSWORD||'Orchis-Dev-Pass-1');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL(base+'/');checks++;
+ await page.goto('/login');await page.getByLabel('Email').fill(process.env.E2E_ACCESS_EMAIL||'admin@orchis.local');await page.getByLabel('Password',{exact:true}).fill(process.env.E2E_ACCESS_PASSWORD||'Orchis-Dev-Pass-1');await page.getByRole('button',{name:'Sign in',exact:true}).click();await page.waitForURL(base+'/organizations');checks++;
  await page.goto('/settings');await page.getByRole('link',{name:'Audit log',exact:true}).click();await page.getByRole('heading',{name:'Audit log',exact:true}).waitFor();checks++;
  const audit=page.getByRole('list',{name:'Audit events'});await audit.locator('li').first().waitFor();
  if(await audit.locator('li').count()!==25)throw new Error('Audit page size is incorrect');checks++;
@@ -23,7 +23,7 @@ try{
  await page.getByRole('button',{name:'Previous',exact:true}).click();await page.getByText('Page 1',{exact:true}).waitFor();
  await page.getByLabel('Event type').selectOption('auth.login_failed');await page.getByText('Page 1',{exact:true}).waitFor();await audit.getByText('Sign-in failed',{exact:true}).first().waitFor();checks++;
  const summaries=[];
- for(const width of [1280,834]){
+ for(const width of [1280,834,390]){
   await page.setViewportSize({width,height:900});await page.evaluate(()=>window.scrollTo(0,0));await page.screenshot({path:`${out}/audit-${width}-top.png`});
   const results=await new AxeBuilder({page}).analyze();if(results.violations.length)throw new Error('Audit axe violations: '+results.violations.map(v=>v.id).join(','));
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth);if(overflow)throw new Error('Audit horizontal overflow');

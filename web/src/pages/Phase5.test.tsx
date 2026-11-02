@@ -5,9 +5,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ChainWorkspacePage } from './ChainWorkspacePage';
-import { ScenariosPage } from './ScenariosPage';
 import { AttackPathView, SimulationDetailPage } from './SimulationDetailPage';
-import { SimulationsPage } from './SimulationsPage';
+import { LegacySimulations as SimulationsPage } from './LegacySimulations';
 
 const perms = ['scenario.read', 'scenario.write', 'simulation.read', 'simulation.run', 'atomic.read', 'finding.read'];
 const analyst = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: perms };
@@ -40,23 +39,6 @@ function mount(ui: React.ReactNode, path: string, routePath = '*') {
   return render(<QueryClientProvider client={qc}><MemoryRouter initialEntries={[path]}><Routes><Route path={routePath} element={ui} /></Routes></MemoryRouter></QueryClientProvider>);
 }
 afterEach(() => vi.restoreAllMocks());
-
-describe('ScenariosPage', () => {
-  it('menampilkan scenario dengan status Ready/Draft dan jumlah aksi', async () => {
-    route(analyst, (u) => (u.endsWith('/scenarios') ? json({ items: [scenario(), scenario({ id: 's2', name: 'Draft one', status: 'draft', step_count: 0, target_count: 0 })] }) : undefined));
-    mount(<ScenariosPage />, '/scenarios');
-    expect(await screen.findByRole('link', { name: 'Kill chain' })).toHaveAttribute('href', '/scenarios/s1');
-    expect(screen.getByText('Ready')).toBeInTheDocument();
-    expect(screen.getByText('Draft')).toBeInTheDocument();
-    expect(screen.getByText(/2 actions · 1 target/)).toBeInTheDocument();
-  });
-  it('keadaan kosong, dan viewer tidak melihat tombol membuat', async () => {
-    route(viewer, (u) => (u.endsWith('/scenarios') ? json({ items: [] }) : undefined));
-    mount(<ScenariosPage />, '/scenarios');
-    expect(await screen.findByText('No scenarios yet')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /new scenario|create the first/i })).not.toBeInTheDocument();
-  });
-});
 
 describe('ChainWorkspacePage', () => {
   const load = (extra = {}) => (u: string, init?: RequestInit) => {

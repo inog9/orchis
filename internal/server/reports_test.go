@@ -89,9 +89,17 @@ func TestReportSnapshotIsFrozenRedactedAndTenantScoped(t *testing.T) {
 	if compact := strings.ReplaceAll(string(original.Body), " ", ""); !strings.Contains(compact, `"basis":"estimate"`) || !strings.Contains(compact, `"id":"T1190"`) {
 		t.Fatal("vulnerability finding must carry a frozen ATT&CK estimate (T1190)")
 	}
-	htmlExport := f.a.do("GET", "/api/v1/reports/"+id+"/export/html", nil, f.viewer)
-	if htmlExport.Status != 200 || !strings.Contains(string(htmlExport.Body), "T1046") {
-		t.Fatal("print report omitted MITRE mapping")
+
+	for _, format := range []string{"html", "csv"} {
+		if removed := f.a.do("GET", "/api/v1/reports/"+id+"/export/"+format, nil, f.viewer); removed.Status != 404 {
+			t.Fatalf("removed report format %s: %d", format, removed.Status)
+		}
+	}
+	var full reporting.Report
+	f.a.do("GET", "/api/v1/reports/"+id, nil, f.viewer).JSON(&full)
+	printData, e := reporting.HTML(full.Snapshot)
+	if e != nil || !strings.Contains(string(printData), "T1046") {
+		t.Fatal("internal print report omitted frozen mapping")
 	}
 	for _, secret := range []string{"hunter2", "SHOULD-NOT-EXPORT", "?token=SECRET"} {
 		if strings.Contains(string(original.Body), secret) {

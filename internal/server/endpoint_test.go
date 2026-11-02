@@ -157,7 +157,7 @@ func rowCount(t *testing.T, f *agentFixture, q string, args ...any) int {
 
 func TestOsquerySkippedAndFailedAttemptsKeepLastGoodData(t *testing.T) {
 	f := newAgentFixture(t)
-	secret, asset := f.authorizedAgent(t, "box1")
+	secret, asset := f.approvedAgent(t, "box1", "osquery.firewall")
 	ok := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "ok", "rows": []map[string]any{{"rules": "7"}}}}}
 	f.agentCall("POST", "executions/"+f.agentTask(t, secret, asset, "osquery.firewall")+"/result", ok, secret)
 	skip := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "skipped", "reason": "needs more privileges (administrator rights)", "rows": []map[string]any{{"rules": "999"}}}}}
@@ -298,11 +298,11 @@ func TestOsqueryCatalogIsReadableAndDescribesWhatItReads(t *testing.T) {
 		t.Fatalf("katalog: %d %s", r.Status, r.Body)
 	}
 	r.JSON(&cat)
-	if cat.OsqueryVersion != "5.24.0" || len(cat.ProvenOS) != 1 || cat.ProvenOS[0] != "linux" || len(cat.Queries) != 6+len(osquery.PackQueryKeys()) || len(cat.Packs) != 5 {
+	if cat.OsqueryVersion != "5.24.0" || len(cat.ProvenOS) != 1 || cat.ProvenOS[0] != "linux" || len(cat.Queries) != 7+len(osquery.PackQueryKeys()) || len(cat.Packs) != 5 {
 		t.Fatalf("katalog: %+v", cat)
 	}
 	for _, q := range cat.Queries {
-		if len(q.Tables) == 0 || len(q.Mitre) == 0 || q.Mitre[0].Reason == "" || q.DefaultEnabled != (q.Sensitivity == "low") {
+		if len(q.Tables) == 0 || len(q.Mitre) == 0 || q.Mitre[0].Reason == "" || q.DefaultEnabled {
 			t.Errorf("metadata %s tidak lengkap: %+v", q.Key, q)
 		}
 		for _, fr := range q.Findings {
@@ -371,7 +371,7 @@ func TestOsqueryUnapprovedQueriesAreSkippedWithReasonAndApprovalIsAdminOnly(t *t
 	for _, it := range settings.Items {
 		byKey[it.Key] = [2]bool{it.Enabled, it.Explicit}
 	}
-	if len(settings.Items) != 6+len(osquery.PackQueryKeys()) || byKey["osquery.users"] != [2]bool{true, true} || byKey["osquery.network"] != [2]bool{false, false} || byKey["osquery.inventory"] != [2]bool{true, false} {
+	if len(settings.Items) != 7+len(osquery.PackQueryKeys()) || byKey["osquery.users"] != [2]bool{true, true} || byKey["osquery.network"] != [2]bool{false, false} || byKey["osquery.inventory"] != [2]bool{false, false} {
 		t.Fatalf("pengaturan efektif (bawaan vs keputusan admin): %v", byKey)
 	}
 	// Setelah disetujui, tugas sampai ke agent dan hasilnya diproses.
@@ -404,10 +404,10 @@ func TestOsqueryUnapprovedQueriesAreSkippedWithReasonAndApprovalIsAdminOnly(t *t
 	if n != 2 {
 		t.Fatalf("jejak audit persetujuan: %d", n)
 	}
-	// Sensitivitas rendah berjalan tanpa persetujuan.
+	// Sensitivitas rendah juga memerlukan persetujuan dokumen saat ini.
 	f.createRun(t, secret, asset, "osquery.firewall")
-	if cl := f.agentCall("POST", "executions/claim", nil, secret); cl.Status != 200 {
-		t.Fatalf("query sensitivitas rendah aktif secara bawaan: %d", cl.Status)
+	if cl := f.agentCall("POST", "executions/claim", nil, secret); cl.Status != 204 {
+		t.Fatalf("query sensitivitas rendah tanpa consent harus dilewati: %d", cl.Status)
 	}
 }
 
@@ -433,7 +433,7 @@ func (f *agentFixture) createRun(t *testing.T, secret, assetID, contractKey stri
 func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	f := newAgentFixture(t)
 	secret, asset := f.authorizedAgent(t, "box1")
-	f.joinOrg(t, asset)
+	org := f.joinOrg(t, asset)
 	// Aset tanpa data: semua query "never", bendera aktif sesuai bawaan, tidak ada temuan.
 	var d struct {
 		HasAgent bool `json:"has_agent"`
@@ -449,11 +449,11 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	} else {
 		r.JSON(&d)
 	}
-	if !d.HasAgent || len(d.Items) != 6+len(osquery.PackQueryKeys()) || len(d.Findings) != 0 {
+	if !d.HasAgent || len(d.Items) != 7+len(osquery.PackQueryKeys()) || len(d.Findings) != 0 {
 		t.Fatalf("awal: %+v", d)
 	}
 	for _, it := range d.Items {
-		if it.Status != "never" || it.Synthetic || it.Enabled != (it.Key != "osquery.users" && it.Key != "osquery.network" && !strings.HasPrefix(it.Key, "osquery.pack.")) {
+		if it.Status != "never" || it.Synthetic || it.Enabled {
 			t.Errorf("item awal %s: %+v", it.Key, it)
 		}
 	}
@@ -469,6 +469,9 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	}
 	if refresh(f.viewer, "osquery.firewall").Status != 403 || refresh(f.analyst, "osquery.nope").Status != 404 {
 		t.Fatal("izin/validasi refresh")
+	}
+	if approval := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/osquery.firewall", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin); approval.Status != 204 {
+		t.Fatalf("refresh approval: %d %s", approval.Status, approval.Body)
 	}
 	f.agentCall("POST", "heartbeat", map[string]any{"version": "1.0.0", "protocol_version": 1}, secret)
 	r := refresh(f.analyst, "osquery.firewall")
@@ -592,7 +595,7 @@ func TestOsqueryPackIsOptInPerOrganisationAndOnlyRunnableQueriesAreApproved(t *t
 
 func TestOsqueryFailureDiagnosticsCannotBypassDatasetRedaction(t *testing.T) {
 	f := newAgentFixture(t)
-	secret, asset := f.authorizedAgent(t, "diagnostics")
+	secret, asset := f.approvedAgent(t, "diagnostics", "osquery.inventory")
 	ex := f.agentTask(t, secret, asset, "osquery.inventory")
 	body := map[string]any{
 		"exit_code": 1, "error": "Authorization: Bearer diagnostic-secret-marker",
@@ -618,7 +621,7 @@ func (s *endpointStoreSpy) Put(context.Context, string, []byte, string) error { 
 
 func TestOsqueryNeverWritesRawObjectsAndRejectedResultsHaveNoSideEffects(t *testing.T) {
 	f := newAgentFixture(t)
-	secret, asset := f.authorizedAgent(t, "raw-object")
+	secret, asset := f.approvedAgent(t, "raw-object", "osquery.inventory")
 	ex := f.agentTask(t, secret, asset, "osquery.inventory")
 	var in execution.Injector
 	if err := f.a.env.Owner.QueryRow(context.Background(), `SELECT integration_id,agent_id FROM executions WHERE id=$1`, ex).Scan(&in.ID, &in.AgentID); err != nil {

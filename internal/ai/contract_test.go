@@ -132,14 +132,14 @@ func TestProviderContractsAndNoRedirect(t *testing.T) {
 		t.Fatal("redirect accepted")
 	}
 }
-func TestCSVFormula(t *testing.T) {
-	for _, s := range []string{"=1+1", " +SUM(1)", "\t@evil", "-x"} {
-		if !strings.HasPrefix(safeCell(s), "'") {
-			t.Fatal("unsafe CSV")
-		}
+func TestInternalAdvicePrintEscapesUntrustedOutputAndKeepsSource(t *testing.T) {
+	j := Job{ReportID: uuid.New(), Instructions: "<img src=x>", Output: &Output{Summary: "<script>alert(1)</script>", Remediations: []Advice{{FindingID: "finding_1", Recommendation: "<img src=x>", Validation: "Validate locally"}}}}
+	var out bytes.Buffer
+	if err := adviceTemplate.Execute(&out, j); err != nil {
+		t.Fatal(err)
 	}
-	if safeCell("Review update") != "Review update" {
-		t.Fatal("normal changed")
+	if strings.Contains(out.String(), "<script>") || strings.Contains(out.String(), "<img src=x>") || !strings.Contains(out.String(), "&lt;img") || !strings.Contains(out.String(), j.ReportID.String()) {
+		t.Fatal("internal advice print lost escaping or source reference")
 	}
 }
 

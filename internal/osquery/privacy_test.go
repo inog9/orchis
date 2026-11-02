@@ -87,10 +87,10 @@ func TestRunnerBoundsAndRedactsDiagnostics(t *testing.T) {
 	}
 }
 
-func TestEveryPackIsOptInEvenWhenLowSensitivity(t *testing.T) {
+func TestEveryQueryIsOptInEvenWhenLowSensitivity(t *testing.T) {
 	q := Query{Sensitivity: "low"}
-	if !q.DefaultEnabled() {
-		t.Fatal("baseline rendah harus tetap aktif")
+	if q.DefaultEnabled() {
+		t.Fatal("query rendah juga tidak boleh aktif tanpa persetujuan")
 	}
 	q.Pack = "future-pack"
 	if q.DefaultEnabled() {

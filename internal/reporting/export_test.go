@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestReportRedactionEscapingAndCSVFormulaProtection(t *testing.T) {
+func TestReportRedactionAndPrintEscaping(t *testing.T) {
 	raw := `password=hunter2 token=oag_secret Bearer abc.def person@example.com`
 	safe := Redact(raw, 1000)
 	for _, secret := range []string{"hunter2", "oag_secret", "abc.def", "person@example.com"} {
@@ -29,15 +29,7 @@ func TestReportRedactionEscapingAndCSVFormulaProtection(t *testing.T) {
 	if strings.Contains(string(html), "<script>alert") {
 		t.Fatal("unescaped target HTML")
 	}
-	csv, e := CSV(snap)
-	if e != nil {
-		t.Fatal(e)
-	}
-	for _, value := range []string{"'=1+1", "'+SUM(1)", "'@evil"} {
-		if !strings.Contains(string(csv), value) {
-			t.Fatalf("unsafe CSV %s", csv)
-		}
-	}
+
 }
 func TestComparisonDoesNotResolveFailedOrChangedCoverage(t *testing.T) {
 	id := uuid.New()
@@ -60,26 +52,19 @@ func TestComparisonDoesNotResolveFailedOrChangedCoverage(t *testing.T) {
 	}
 }
 
-func TestDemoSnapshotIsLabelledInHTMLAndCSV(t *testing.T) {
+func TestDemoSnapshotIsLabelledInPrint(t *testing.T) {
 	snap := Snapshot{Organization: "Demo Org", IsDemo: true, Label: "DEMO / SYNTHETIC - test label", BySeverity: map[string]int{},
 		Assets: []Asset{{Name: "a", Findings: []Finding{{Type: "text", Severity: "low", Title: "t", Value: "v"}}}}}
 	html, err := HTML(snap)
 	if err != nil || !strings.Contains(string(html), "DEMO / SYNTHETIC - test label") {
 		t.Fatalf("HTML demo tanpa label: %v", err)
 	}
-	csv, err := CSV(snap)
-	if err != nil || !strings.Contains(string(csv), "synthetic") || !strings.Contains(string(csv), ",true") {
-		t.Fatalf("CSV demo tanpa penanda: %s %v", csv, err)
-	}
 	snap.IsDemo, snap.Label = false, ""
 	html, _ = HTML(snap)
 	if strings.Contains(string(html), "demo-banner\">") {
 		t.Fatal("laporan nyata tidak boleh berlabel demo")
 	}
-	csv, _ = CSV(snap)
-	if !strings.Contains(string(csv), ",false") {
-		t.Fatalf("CSV nyata harus synthetic=false: %s", csv)
-	}
+
 }
 
 func TestFindingTechniqueIsAConservativeEstimateRenderedInReport(t *testing.T) {

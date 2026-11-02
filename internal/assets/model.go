@@ -32,9 +32,10 @@ const (
 )
 
 type Address struct {
-	Kind      string `json:"kind"`
-	Value     string `json:"value"`
-	IsPrimary bool   `json:"is_primary"`
+	ScanApproved bool   `json:"scan_approved"`
+	Kind         string `json:"kind"`
+	Value        string `json:"value"`
+	IsPrimary    bool   `json:"is_primary"`
 }
 
 type TagRef struct {
@@ -50,6 +51,7 @@ type GroupRef struct {
 }
 
 type CreateInput struct {
+	OrganizationID    *uuid.UUID      `json:"organization_id"`
 	Category          string          `json:"category"`
 	Name              string          `json:"name"`
 	Description       *string         `json:"description"`

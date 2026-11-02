@@ -55,14 +55,16 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false 
   return (
     <section className="panel ed-panel" aria-labelledby="ed-asset-h">
       <h2 id="ed-asset-h" className="panel__title">Endpoint data</h2>
-      <p className="muted small">What the agent saw from inside this machine (osquery), as opposed to what a scan sees from outside. Data updates when you run a check.</p>
+      <p className="muted small">What the agent saw from inside this machine (osquery), as opposed to what a scan sees from outside. Approved checks update periodically; an authorised user can also request a refresh.</p>
       {!allowed ? <p className="muted">Your role cannot read asset data.</p> : q.isPending ? <span className="skeleton" /> : q.isError || !q.data ? <p role="alert">{describeError(q.error).message}</p> : (
         <>
+          {q.data.supported===false&&q.data.has_agent&&<p className="notice">Endpoint collection is not supported on this agent yet. Only Linux amd64 has a pinned osquery artifact; macOS, Windows and other architectures are not runtime tested.</p>}
           {!q.data.has_agent && <p className="muted">This asset has no agent, so no endpoint data can be collected. <Link to="/assets/agents">Install an agent</Link> to see inventory, accounts and hardening here.</p>}
+          {q.data.organization_id&&<p><Link to={`/organizations/${q.data.organization_id}?tab=agents&asset=${assetID}`}>Review collection consent and schedules for this endpoint</Link></p>}
           {refresh.isError && <div className="alert" role="alert"><strong>Couldn’t start the check</strong><span>{describeError(refresh.error).message}</span></div>}
           {canDelete && !q.data.read_only && <button className="btn btn--secondary btn--auto" type="button" onClick={()=>setConfirmDelete(true)}>Delete collected data</button>}
           {remove.isError && <p role="alert">{describeError(remove.error).message}</p>}
-          {confirmDelete && <Modal labelledBy="delete-endpoint-data-title" onClose={()=>setConfirmDelete(false)} width={480}><h2 id="delete-endpoint-data-title" className="dialog__title">Delete collected endpoint data?</h2><p>This deletes the latest datasets for this asset and discards in-flight collection results. Findings, frozen reports, audit events and backups remain. Queued or future manual checks stay enabled; turn them off separately in the organisation.</p><footer className="dialog__foot"><button className="btn btn--secondary btn--auto" type="button" onClick={()=>setConfirmDelete(false)}>Cancel</button><button className="btn btn--primary btn--auto" type="button" disabled={remove.isPending} onClick={()=>remove.mutate(q.data!.version,{onSuccess:()=>setConfirmDelete(false)})}>{remove.isPending?'Deleting…':'Delete data'}</button></footer></Modal>}
+          {confirmDelete && <Modal labelledBy="delete-endpoint-data-title" onClose={()=>setConfirmDelete(false)} width={480}><h2 id="delete-endpoint-data-title" className="dialog__title">Delete collected endpoint data?</h2><p>This deletes the latest datasets for this asset and discards in-flight collection results. Findings, frozen reports, audit events and backups remain. Queued, periodic and future manual checks stay enabled; turn them off separately in the organisation.</p><footer className="dialog__foot"><button className="btn btn--secondary btn--auto" type="button" onClick={()=>setConfirmDelete(false)}>Cancel</button><button className="btn btn--primary btn--auto" type="button" disabled={remove.isPending} onClick={()=>remove.mutate(q.data!.version,{onSuccess:()=>setConfirmDelete(false)})}>{remove.isPending?'Deleting…':'Delete data'}</button></footer></Modal>}
           <ul className="ed-rows">
             {(q.data.items ?? []).filter((d) => !d.key.startsWith('osquery.pack.') || d.enabled || d.status !== 'never').map((d) => {
               const st = statusOf(d);
@@ -77,7 +79,7 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false 
                     <RowsTable d={d} />
                   </div>
                   {canRun && q.data.has_agent && (
-                    <button type="button" className="btn btn--secondary btn--sm btn--auto" disabled={refresh.isPending} aria-label={`Run ${d.title} now`} onClick={() => refresh.mutate(d.key)}>Run now</button>
+                    <button type="button" className="btn btn--secondary btn--sm btn--auto" disabled={refresh.isPending||!d.enabled||d.supported===false} aria-label={`Run ${d.title} now`} onClick={() => refresh.mutate(d.key)}>Run now</button>
                   )}
                 </li>
               );

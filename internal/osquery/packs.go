@@ -19,6 +19,7 @@ const (
 
 type PackQuery struct {
 	Name        string   `json:"name"`
+	Platform    string   `json:"platform"`
 	Key         string   `json:"key,omitempty"` // hanya untuk status runnable
 	Description string   `json:"description"`
 	Status      string   `json:"status"`

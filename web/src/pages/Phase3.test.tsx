@@ -177,11 +177,11 @@ describe('FindingsPage', () => {
     expect(urls.some((u) => u.includes('q=zzz'))).toBe(true);
   });
 
-  it('keadaan kosong tanpa saringan mengajak menjalankan atomic test', async () => {
+  it('keadaan kosong mengajak membuka organisasi', async () => {
     route(analyst, (u) => (u.includes('/findings') ? json({ items: [], next_cursor: null, search: 'none' }) : undefined));
     mount(<FindingsPage />, '/findings');
     expect(await screen.findByText('No findings yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /go to single tests/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open organisations/i })).toBeInTheDocument();
   });
 
   it('gagal memuat menampilkan error dan bisa dicoba lagi', async () => {

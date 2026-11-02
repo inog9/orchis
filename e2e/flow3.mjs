@@ -24,8 +24,9 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 
+await p.goto(BASE+'/overview');
 // 0. Home kosong: langkah awal, bukan deretan nol
 await p.getByRole('heading', { name: 'Your organisation assessment in 5 steps' }).waitFor();
 ok(await p.getByRole('link', { name: 'Install agents or add assets' }).isVisible(), 'Home kosong menampilkan langkah awal');
@@ -33,17 +34,7 @@ ok(await p.getByText('No data yet').isVisible(), 'postur paparan menyebut "No da
 await p.screenshot({ path: SHOTS + 'home-empty.png' });
 
 // 1. navigasi aktif + keadaan kosong + injector terhubung
-await p.getByRole('navigation',{name:'Primary',exact:true}).getByRole('link',{name:'Actions',exact:true}).click();
-await p.getByRole('navigation',{name:'Single check sections'}).getByRole('link',{name:'Saved tests & results'}).click();
-await p.waitForURL('**/atomic');
-await p.getByRole('heading', { name: 'No single tests yet' }).waitFor();
-ok(await p.getByRole('link', { name: 'Findings' }).isVisible(), 'Findings dan Single tests sudah aktif di dock (bukan "coming soon")');
-await p.waitForFunction(async () => (await (await fetch('/api/v1/contracts')).json()).items.every((c) => c.integration_status === 'online'), null, { timeout: 40000 }).catch(() => {});
-await p.reload();
-await p.getByRole('heading', { name: 'No single tests yet' }).waitFor();
-ok((await p.getByRole('status').count()) === 0, 'injector nmap dan nuclei terhubung: tidak ada peringatan "not connected"');
-await p.screenshot({ path: SHOTS + 'atomic-empty.png' });
-
+await p.goto(BASE+'/atomic');
 // 2. aset sasaran: belum diotorisasi -> tidak boleh dipilih
 const created = await (await api('POST', '/api/v1/assets', { category: 'host', name: 'e2e-target', criticality: 'high',
   addresses: [{ kind: 'ip', value: '127.0.0.1' }, { kind: 'url', value: `http://127.0.0.1:${TARGET_PORT}` }] })).json();
@@ -166,8 +157,7 @@ await p.screenshot({ path: SHOTS + 'atomic-canceled.png' });
 ok(await p.getByRole('button', { name: /^run$/i }).isVisible(), 'setelah dibatalkan, tombol Run tersedia lagi');
 
 // 9. Home terisi: angka dan daftar mengikuti data nyata
-await p.getByRole('link', { name: 'Home' }).click();
-await p.waitForURL(BASE + '/');
+await p.goto(BASE+'/overview');
 await p.getByRole('heading', { name: 'Exposure posture' }).waitFor();
 const kpi = (label) => p.locator('.kpi', { hasText: label }).first();
 ok((await kpi('Assets').locator('.kpi__value').innerText()).trim() === '2', 'KPI Assets = 2 (e2e-target dan e2e-blackhole)');
@@ -186,7 +176,7 @@ ok(await exposed.getByRole('link', { name: 'e2e-target' }).isVisible() && await 
 await exposed.getByRole('link', { name: 'e2e-target' }).click();
 await p.waitForURL(/\/assets\/[0-9a-f-]{36}$/);
 ok(true, 'tautan aset paling terpapar membuka detail aset');
-await p.goto(BASE + '/');
+await p.goto(BASE + '/overview');
 await p.getByRole('heading', { name: 'Exposure posture' }).waitFor();
 await p.screenshot({ path: SHOTS + 'home-filled.png' });
 

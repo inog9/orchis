@@ -73,7 +73,7 @@ function HomeBody({ h }: { h: HomeSummary }) {
       {h.organizations&&<section aria-labelledby="organisation-overview-title" className="org-overview"><div className="page__head"><div><p className="eyebrow">YOUR SECURITY POSTURE</p><h2 id="organisation-overview-title">Organisation overview</h2><p className="muted">Coverage and exposure from your latest assessments.</p></div><Link className="btn btn--secondary btn--auto" to="/organizations">{can(me,'organization.write')?'Manage organisations':'View organisations'}</Link></div>{h.organizations.length>0?<div className="org-grid">{h.organizations.map(o=><article className="org-card" key={o.id}><p className="eyebrow">{o.latest_status.replace('_',' ')}</p><h3><Link to={`/organizations/${o.id}`}>{o.name}</Link></h3><strong className="org-risk">{o.risk}</strong><p>{o.authorized} authorized / {o.assets} assets</p><p className="muted small">{o.comparison}</p><div className="row"><Link to={`/organizations/${o.id}`}>{can(me,'assessment.run')?'Assess organisation →':'View organisation →'}</Link>{o.latest_assessment&&<Link to={`/assessments/${o.latest_assessment}`}>Latest assessment</Link>}</div></article>)}</div>:<div className="org-card"><h3>Bring your assets together</h3><p>Create an organisation to assess its authorized assets and generate one consolidated report.</p><Link to="/organizations">{can(me,'organization.write')?'Create your first organisation →':'View organisations →'}</Link></div>}</section>}
       <ul className="kpis" aria-label="Key numbers">
         {h.assets && <Kpi label="Assets" value={h.assets.total} note={`${h.assets.authorized} authorized for testing`} to="/assets" />}
-        {h.chains && <Kpi label="Scenarios" value={h.chains.scenarios} to="/scenarios" />}
+        {h.chains && <Kpi label="Scenarios" value={h.chains.scenarios} to="/chains" />}
         {h.chains && <Kpi label="Simulations" value={h.chains.simulations} note={h.chains.running ? `${h.chains.running} running or paused` : undefined} to="/simulations" />}
         {h.atomic && <Kpi label="Single tests" value={h.atomic.tests} note={h.atomic.active ? `${h.atomic.active} running now` : undefined} to="/atomic" />}
         {h.atomic && <Kpi label="Single-test runs, last 7 days" value={h.atomic.runs_7d} note={h.atomic.failed_7d ? `${h.atomic.failed_7d} did not complete` : undefined} to="/atomic" />}
@@ -114,7 +114,7 @@ function HomeBody({ h }: { h: HomeSummary }) {
           <ul className="mini-list">
             {h.latest_simulations.map((s) => (
               <li key={s.id}>
-                <div className="mini-list__main"><Link to={`/simulations/${s.id}`}><strong>{s.name}</strong></Link><span className="muted small">{s.code} · {when(s.started_at ?? s.created_at)}</span></div>
+                <div className="mini-list__main"><Link to={`/simulations/legacy/${s.id}`}><strong>{s.name}</strong></Link><span className="muted small">{s.code} · {when(s.started_at ?? s.created_at)}</span></div>
                 <SimBadge status={s.status} />
               </li>
             ))}

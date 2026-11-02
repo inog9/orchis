@@ -115,7 +115,16 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	}))
 	mux.HandleFunc("GET /api/v1/findings", auth.Require(authz.FindingRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		q := r.URL.Query()
+		organization, err := httpx.OrganizationParam(q, false)
+		if err != nil {
+			httpx.Write(w, r, err)
+			return
+		}
 		f := FindingFilter{Type: q.Get("type"), Severity: q.Get("severity"), Query: q.Get("q"), Cursor: q.Get("cursor")}
+		if organization != "" {
+			id := uuid.MustParse(organization)
+			f.OrganizationID = &id
+		}
 		if v := q.Get("limit"); v != "" {
 			n, err := strconv.Atoi(v)
 			if err != nil || n < 1 {

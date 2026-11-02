@@ -61,6 +61,8 @@ try {
   await p.getByLabel('Email').fill('admin@orchis.local');
   await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
   await p.getByRole('button', { name: /sign in/i }).click();
+  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.goto(BASE+'/overview');
   await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
 
   ok((await api('GET', '/demo/status')).has_demo === false, 'DB baru: status demo kosong');
@@ -81,6 +83,8 @@ try {
 
   await p.goto(BASE + '/');
   await banner.waitFor();
+  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.goto(BASE+'/overview');
   await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
   await p.locator('.skeleton').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   ok((await banner.innerText()).includes('synthetic demo data'), 'banner demo tampil dan menjelaskan data sintetis');
@@ -123,7 +127,7 @@ try {
   }
   await p.goto(BASE+'/simulations');await axe('synthetic simulations');
   const paused=simulations.find(s=>s.name==='Demo: synthetic paused');
-  await p.goto(BASE+`/simulations/${paused.id}`);
+  await p.goto(BASE+`/simulations/legacy/${paused.id}`);
   await p.getByText('Demo / synthetic history.',{exact:true}).waitFor();
   ok(await p.getByRole('button',{name:'Resume',exact:true}).count()===0,'riwayat sintetis tidak menawarkan dispatch');
   await axe('synthetic simulation detail');
@@ -181,13 +185,11 @@ try {
   ok(await p.getByRole('button',{name:'Review and approve checks'}).count()===0,'UI tidak menawarkan dispatch rencana sintetis');
   await axe('synthetic AI request');
   const sourceSnapshot=JSON.stringify((await api('GET',`/reports/${completedJob.report_id}`)).snapshot);
-  for(const format of ['json','html','csv','pdf']){
+  for(const format of ['json','pdf']){
     const response=await ctx.request.get(`${BASE}/api/v1/ai/jobs/${completedJob.id}/export/${format}`);
     const body=await response.body();
     ok(response.ok(),`ekspor AI sintetis ${format} tersedia`);
     if(format==='json')ok(JSON.parse(body.toString()).is_demo===true,'ekspor AI JSON bertanda demo');
-    if(format==='html')ok(body.toString().includes('DEMO / SYNTHETIC'),'ekspor AI HTML berlabel sintetis');
-    if(format==='csv')ok(body.toString().split('\n')[0].includes('synthetic')&&body.toString().includes(',true'),'ekspor AI CSV menandai setiap baris sintetis');
     if(format==='pdf'){ok(body.subarray(0,5).toString()==='%PDF-','ekspor AI PDF dirender nyata');writeFileSync(SHOTS+'demo-ai-advice.pdf',body);}
   }
   ok(JSON.stringify((await api('GET',`/reports/${completedJob.report_id}`)).snapshot)===sourceSnapshot,'suplemen AI tidak mengubah snapshot sumber');
@@ -195,34 +197,7 @@ try {
   server('reindex');
   ok((await api('GET', '/findings?q=Demo')).items.length > 0, 'temuan demo dapat dicari melalui Elasticsearch lokal');
 
-  const html = await (await ctx.request.get(`${BASE}/api/v1/reports/${ready.id}/export/html?preview=1`)).text();
-  ok(/DEMO \/ SYNTHETIC/.test(html), 'ekspor HTML berlabel DEMO');
-  const printPage = await ctx.newPage();
-  await printPage.setViewportSize({width:720,height:1000});
-  await printPage.goto(`${BASE}/api/v1/reports/${ready.id}/export/html?preview=1`);
-  await printPage.emulateMedia({media:'print'});
-  const overflowingCells = await printPage.evaluate(() => {
-    document.body.style.width = '170mm'; // A4 minus the template's two 20mm margins.
-    let count = 0;
-    const section = [...document.querySelectorAll('section')].find(s=>s.querySelector('h2')?.textContent==='Endpoint posture');
-    const tables = section?.querySelectorAll('table') ?? [];
-    for (const cell of section?.querySelectorAll('td') ?? []) {
-      const bounds = cell.getBoundingClientRect();
-      const walker = document.createTreeWalker(cell,NodeFilter.SHOW_TEXT);
-      let node;
-      while ((node = walker.nextNode())) {
-        if (!node.textContent?.trim()) continue;
-        const range = document.createRange();range.selectNodeContents(node);
-        if ([...range.getClientRects()].some(r=>r.left<bounds.left-1 || r.right>bounds.right+1)) count++;
-      }
-    }
-    return {tables:tables.length,count};
-  });
-  ok(overflowingCells.tables===1 && overflowingCells.count===0,'kolom postur endpoint tidak bertumpuk pada lebar cetak A4');
-  await printPage.close();
-
-  const csv = await (await ctx.request.get(`${BASE}/api/v1/reports/${ready.id}/export/csv`)).text();
-  ok(csv.split('\n')[0].endsWith('synthetic') && csv.split('\n').slice(1).filter(Boolean).every((l) => l.endsWith(',true')), 'ekspor CSV punya kolom synthetic=true');
+  for(const format of ['html','csv'])ok((await ctx.request.get(`${BASE}/api/v1/reports/${ready.id}/export/${format}`)).status()===404,`${format} export is removed`);
   const json = await (await ctx.request.get(`${BASE}/api/v1/reports/${ready.id}/export/json`)).json();
   ok(json.is_demo === true && /DEMO/.test(json.label), 'ekspor JSON memuat is_demo dan label');
 
@@ -235,10 +210,10 @@ try {
 
   const scenarios = (await api('GET', '/scenarios?limit=50')).items;
   ok(scenarios.filter((s) => /^Demo:/.test(s.name)).length === 3, 'tiga skenario demo terlihat di API');
-  await p.goto(BASE + '/scenarios');
+  await p.goto(BASE + '/chains');
   await p.waitForLoadState('networkidle');
   await p.screenshot({ path: SHOTS + 'scenarios-1280.png' });
-  await axe('skenario');
+  await axe('advanced chains');
 
   // Purge dari banner.
   await p.goto(BASE + '/');

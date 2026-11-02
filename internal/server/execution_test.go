@@ -442,9 +442,9 @@ func TestContractsReportInjectorStatus(t *testing.T) {
 	for _, c := range out.Items {
 		keys[c.Key] = true
 	}
-	// Nmap, Nuclei, dua aksi agent lama, dan enam aksi osquery (T4).
+	// Nmap, Nuclei, dua aksi agent lama, dan tujuh aksi osquery.
 	want := []string{"nmap.tcp_connect", "nuclei.scan", "agent.listening_ports", "agent.system_info",
-		"osquery.inventory", "osquery.packages", "osquery.users", "osquery.network", "osquery.hardening", "osquery.firewall"}
+		"osquery.inventory", "osquery.packages", "osquery.users", "osquery.network", "osquery.hardening", "osquery.firewall", "osquery.network_ranges"}
 	// Query pack resmi yang dibekukan masing-masing punya kontrak (kunci = kunci query).
 	want = append(want, osquery.PackQueryKeys()...)
 	if len(out.Items) != len(want) {

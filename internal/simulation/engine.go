@@ -17,6 +17,7 @@ import (
 	"orchis-go/internal/contract"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/scanscope"
 )
 
 // Engine memajukan chain sebuah simulasi. Semua langkahnya terjadi dalam transaksi pemanggil.
@@ -263,7 +264,7 @@ WHERE t.tenant_id=$1 AND t.simulation_id=$2 ORDER BY a.name, a.id`, tenant, sim)
 		if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return nil, err
 		}
-		ar, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 ORDER BY is_primary DESC, created_at`, tenant, out[i].ID)
+		ar, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC, created_at`, tenant, out[i].ID)
 		if err != nil {
 			return nil, err
 		}
@@ -312,6 +313,21 @@ func (e *Engine) launchStep(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUI
 			}
 		} else {
 			addr, gerr = e.Guard.Target(s.ContractKey, t.Addrs)
+			if gerr == nil {
+				// Batas khusus deployment telah diperiksa worker sebelum memanggil engine; 4096 adalah maksimum konfigurasi.
+				proof, err := scanscope.CheckJob(ctx, tx, tenant, sim, addr, e.Guard, 4096)
+				if err != nil {
+					gerr = err
+				} else if proof == nil || proof.CIDR == "" {
+					approved, err := execution.AgentTargetConfirmed(ctx, tx, tenant, t.ID, addr)
+					if err != nil {
+						return err
+					}
+					if !approved {
+						gerr = errors.New("agent-reported target requires administrator confirmation")
+					}
+				}
+			}
 		}
 		sum := sha256.Sum256([]byte(s.ID.String() + "|" + t.ID.String() + "|" + addr + "|" + string(s.Params)))
 		execID := ids.New()

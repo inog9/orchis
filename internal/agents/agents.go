@@ -264,11 +264,8 @@ ORDER BY a.created_at LIMIT 1`, s.Tenant, assetName, in.OS, in.Arch, mode, org).
 				assetID, s.Tenant, assetName, in.OS, in.Arch, createdBy, org); err != nil {
 				return err
 			}
-			// Hanya nama host yang dipercaya dari agent. Alamat IP sengaja tidak diambil: alamat menentukan apa yang boleh dipindai.
-			if _, err := tx.Exec(ctx, `INSERT INTO asset_addresses (id, tenant_id, asset_id, kind, value, is_primary) VALUES ($1,$2,$3,'hostname',$4,true) ON CONFLICT DO NOTHING`,
-				ids.New(), s.Tenant, assetID, strings.ToLower(in.Hostname)); err != nil {
-				return err
-			}
+			// Hostname hanya identitas agent; alamat scan harus ditetapkan admin pada aset.
+
 		} else if err != nil {
 			return err
 		}

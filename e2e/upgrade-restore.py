@@ -91,9 +91,9 @@ def main():
             with opener.open(base+path,timeout=10) as response:assert response.status==200
         report=sql(upgraded,'SELECT id FROM reports ORDER BY created_at LIMIT 1')
         if report:
-            with opener.open(base+'/api/v1/reports/'+report+'/export/html?preview=1',timeout=10) as response:
-                html=response.read();assert response.status==200 and b'Executive summary' in html
-        result['login_and_api_smoke']=True;result['existing_report_html']=bool(report)
+            with opener.open(base+'/api/v1/reports/'+report+'/export/json',timeout=10) as response:
+                snapshot=json.load(response);assert response.status==200 and snapshot.get('organization')
+        result['login_and_api_smoke']=True;result['existing_report_json']=bool(report)
         (args.out/'result.json').write_text(json.dumps(result,indent=2)+'\n')
         print(json.dumps({k:v for k,v in result.items() if k!='counts'},indent=2))
     finally:

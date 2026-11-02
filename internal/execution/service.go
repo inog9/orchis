@@ -328,7 +328,7 @@ func (s *Service) DeleteTest(ctx context.Context, p *auth.Principal, id uuid.UUI
 
 // loadAddresses mengambil alamat sebuah aset untuk penjaga scope.
 func loadAddresses(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID) ([]contract.Address, error) {
-	rows, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 ORDER BY is_primary DESC, created_at`, tenant, asset)
+	rows, err := tx.Query(ctx, `SELECT kind, value, is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC, created_at`, tenant, asset)
 	if err != nil {
 		return nil, err
 	}

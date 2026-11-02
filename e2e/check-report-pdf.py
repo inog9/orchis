@@ -16,7 +16,7 @@ def main():
   words=page.findall('.//{*}word');assert len(words)>10,'Blank or almost empty page'
   text=normalize(' '.join(w.text or '' for w in words));texts.append(text)
   assert f'{number} / {len(pages)}' in text,'Missing or incorrect page number'
-  caption='DEMO / SYNTHETIC assessment - not a real scan' if s.get('is_demo') else 'Frozen assessment snapshot'
+  caption='DEMO / SYNTHETIC report - not a real scan' if s.get('is_demo') else 'Frozen organisation report'
   assert caption in text,'Missing per-page provenance caption'
   for word in words:
    x1,y1,x2,y2=[float(word.attrib[k]) for k in ['xMin','yMin','xMax','yMax']]

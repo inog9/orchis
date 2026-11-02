@@ -3,7 +3,6 @@ package ai
 import (
 	"bytes"
 	"crypto/subtle"
-	"encoding/csv"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -16,7 +15,6 @@ import (
 	"orchis-go/internal/reporting"
 	"os"
 	"strings"
-	"unicode"
 )
 
 type Handlers struct {
@@ -258,7 +256,7 @@ func (h *Handlers) export(w http.ResponseWriter, r *http.Request, p *auth.Princi
 		return
 	}
 	switch r.PathValue("format") {
-	case "json", "html", "csv", "pdf":
+	case "json", "pdf":
 	default:
 		httpx.Write(w, r, httpx.NotFound("Export format"))
 		return
@@ -288,37 +286,14 @@ func (h *Handlers) export(w http.ResponseWriter, r *http.Request, p *auth.Princi
 		}
 		pdf, e := renderer.RenderPDF(r.Context(), html.Bytes())
 		if e != nil {
-			httpx.Write(w, r, httpx.NewProblem(503, "PDF unavailable", "The AI advice is saved. HTML, JSON and CSV remain available."))
+			httpx.Write(w, r, httpx.NewProblem(503, "PDF unavailable", "The AI advice is saved. JSON remains available."))
 			return
 		}
 		w.Header().Set("Content-Type", "application/pdf")
 		_, _ = w.Write(pdf)
-	case "html":
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_ = adviceTemplate.Execute(w, j)
-	case "csv":
-		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		cw := csv.NewWriter(w)
-		_ = cw.Write([]string{"source_report_id", "source_asset_id", "asset_label", "source_finding_id", "finding_label", "finding_alias", "recommendation", "validation", "synthetic"})
-		for _, v := range j.Output.Remediations {
-			asset := j.References.FindingTargets[v.FindingID]
-			cells := []string{j.ReportID.String(), j.References.Assets[asset], j.References.AssetLabels[asset], j.References.Findings[v.FindingID], j.References.FindingLabels[v.FindingID], v.FindingID, v.Recommendation, v.Validation, fmt.Sprintf("%t", j.IsDemo)}
-			for i := range cells {
-				cells[i] = safeCell(cells[i])
-			}
-			_ = cw.Write(cells)
-		}
-		cw.Flush()
 	default:
 		httpx.Write(w, r, httpx.NotFound("Export format"))
 	}
-}
-func safeCell(s string) string {
-	trimmed := strings.TrimLeftFunc(s, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) || r == '\ufeff' || r == '\u200b' })
-	if trimmed != "" && strings.ContainsRune("=+-@", rune(trimmed[0])) {
-		return "'" + s
-	}
-	return s
 }
 
 var adviceTemplate = template.Must(template.New("advice").Parse(`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="orchis-document-type" content="ai-advice"><title>AI review</title><style>@page{size:A4;margin:18mm 16mm 22mm}body{font:14px sans-serif;max-width:800px;margin:40px auto;padding:20px;overflow-wrap:anywhere}@media print{body{margin:0;padding:0;max-width:none}}article{break-inside:avoid;border-top:1px solid;padding:16px 0}h1,h2{break-after:avoid}.provenance{break-inside:avoid}pre{font-size:12px;line-height:1.35}</style>{{if .IsDemo}}<p class="provenance"><strong>DEMO / SYNTHETIC - local fake API output. No external AI model or check was invoked.</strong></p>{{end}}<h1>AI advisory supplement</h1><p>Unverified AI guidance. Review before applying. The original assessment snapshot is unchanged.</p><p>Source report: {{.ReportID}}</p><p>Job {{.ID}} · {{.Provider}} · {{.Model}} · prompt {{.PromptVersion}}</p><p>{{.Output.Summary}}</p>{{range .Output.Remediations}}<article><h2>{{index $.References.FindingLabels .FindingID}}</h2><p>Asset: {{index $.References.FindingTargets .FindingID}} | {{index $.References.AssetLabels (index $.References.FindingTargets .FindingID)}}</p><p>Reference: {{.FindingID}} | Source finding: {{index $.References.Findings .FindingID}}</p><p>{{.Recommendation}}</p><p>Validation: {{.Validation}}</p></article>{{end}}<section class="provenance"><h2>Recorded instructions</h2><pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{.Instructions}}</pre></section></html>`))

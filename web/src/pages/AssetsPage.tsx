@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAssets, useMe } from '../api/hooks';
 import { can, type Asset } from '../api/types';
+import { OrganizationFilter } from '../components/OrganizationFilter';
 import { AssetTabs } from '../components/AssetTabs';
 import { describeError } from '../components/ErrorNote';
 import { TagChips } from '../components/TagPicker';
@@ -56,7 +57,7 @@ function Row({ a }: { a: Asset }) {
         {a.arch && <span className="muted small">{a.arch}</span>}
       </div>
       <div className="asset-row__cell asset-row__cell--address">
-        {primary ? <span className="mono">{primary.value}</span> : <span className="muted">No address</span>}
+        {primary ? <span className="mono">{primary.value}{primary.scan_approved===false?' · Admin confirmation required':''}</span> : <span className="muted">No address</span>}
         {a.addresses.length > 1 && <span className="muted small">+{a.addresses.length - 1} more</span>}
       </div>
       <div className="asset-row__cell asset-row__cell--crit">
@@ -69,17 +70,18 @@ function Row({ a }: { a: Asset }) {
   );
 }
 
-export function AssetsPage() {
+export function AssetsPage({organizationID,organizationName}:{organizationID?:string;organizationName?:string} = {}) {
   const { data: me } = useMe();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const dq = useDebounced(q.trim(), 250);
-  const organization=params.get('organization_id')??'';
+  const organization=organizationID ?? params.get('org') ?? params.get('organization_id') ?? '';
+  const Heading=organizationID?'h2':'h1';
   const list = useAssets(dq, category, organization);
   const [adding, setAdding] = useState(params.get('new') === '1');
   const [importing, setImporting] = useState(false);
-  const canWrite = can(me, 'asset.write');
+  const canWrite = can(me, 'asset.write') && (!organization || organization==='unassigned' || can(me,'organization.write'));
 
   const items = list.data?.pages.flatMap((p) => p.items) ?? [];
   const filtered = !!dq || !!category || !!organization;
@@ -102,27 +104,27 @@ export function AssetsPage() {
             <span className="crumbs__current">Endpoints</span>
           </nav>
           <div className="page__title-row">
-            <h1 id="assets-title" className="page__title">
+            <Heading id="assets-title" className="page__title">
               Assets
-            </h1>
+            </Heading>
             {!list.isPending && !list.isError && <span className="badge">{items.length}{list.hasNextPage ? '+' : ''}</span>}
           </div>
           <p className="page__sub">Machines and services your simulations can target.</p>
         </div>
         {canWrite && (
           <div className="page__actions">
-            <button type="button" className="btn btn--secondary btn--auto" onClick={() => setImporting(true)}>
+            {!organizationID && <button type="button" className="btn btn--secondary btn--auto" onClick={() => setImporting(true)}>
               <FileUp size={16} aria-hidden="true" /> Import CSV
-            </button>
+            </button>}
             <button type="button" className="btn btn--primary btn--auto" onClick={() => setAdding(true)}>
               <Plus size={16} aria-hidden="true" /> Add asset
             </button>
           </div>
         )}
       </div>
-      <AssetTabs />
+      {!organizationID && <AssetTabs />}
 
-      <div className="toolbar"><label className="filter"><span className="sr-only">Organisation assignment</span><select aria-label="Organisation assignment" value={organization==='unassigned'?'unassigned':''} onChange={e=>{const next=new URLSearchParams(params);if(e.target.value)next.set('organization_id',e.target.value);else next.delete('organization_id');setParams(next);}}><option value="">All organisations</option><option value="unassigned">Unassigned</option></select></label>
+      <div className="toolbar"><OrganizationFilter value={organization} locked={!!organizationID} name={organizationName} allowUnassigned onChange={value=>{const next=new URLSearchParams(params);next.delete('organization_id');if(value)next.set('org',value);else next.delete('org');setParams(next);}} />
         <label className="search-input">
           <Search size={15} aria-hidden="true" />
           <input type="search" placeholder="Search by name…" aria-label="Search assets" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -195,7 +197,7 @@ export function AssetsPage() {
           </button>
         </div>
       )}
-      {adding && <AddAssetDialog onClose={closeDialog} />}
+      {adding && canWrite && <AddAssetDialog onClose={closeDialog} organizationID={organization && organization!=='unassigned'?organization:undefined} />}
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </section>
   );

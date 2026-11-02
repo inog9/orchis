@@ -1,3 +1,4 @@
+import { OrganizationFilter } from '../components/OrganizationFilter';
 import { can } from '../api/types';
 import { Search } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -12,26 +13,28 @@ function useDebounced<T>(value: T, ms: number) {
   return v;
 }
 
-export function FindingsPage() {
+export function FindingsPage({organizationID,organizationName}:{organizationID?:string;organizationName?:string} = {}) {
   const [params,setParams]=useSearchParams();const assetID=params.get('asset_id')??'';const {data:me}=useMe();
+  const organization=organizationID ?? params.get('org') ?? params.get('organization_id') ?? '';
+  const Heading=organizationID?'h2':'h1';
   const [text, setText] = useState('');
   const [type, setType] = useState('');
   const [severity, setSeverity] = useState('');
   const q = useDebounced(text.trim(), 250);
-  const res = useFindings(q, type, severity, assetID);
+  const res = useFindings(q, type, severity, assetID,organization);
   const items = res.data?.pages.flatMap((p) => p.items) ?? [];
-  const filtered = !!(q || type || severity || assetID);
+  const filtered = !!(q || type || severity || assetID || organization);
 
   return (
     <section className="page" aria-labelledby="findings-title">
       <div className="page__head">
         <div>
-          <div className="page__title-row"><h1 id="findings-title" className="page__title">Findings</h1></div>
+          <div className="page__title-row"><Heading id="findings-title" className="page__title">Findings</Heading></div>
           <p className="page__sub">Everything the scans discovered. The same finding seen again is counted once, with its number of sightings.</p>
         </div>
       </div>
       {assetID&&<div className="prerequisites" aria-label="Asset findings filter"><p>Showing findings for {items[0]?.asset_name || 'the selected asset'}. Search and severity filters stay within this asset.</p><div className="report-relations">{can(me,'asset.read')&&<Link to={`/assets/${encodeURIComponent(assetID)}`}>Review selected asset →</Link>}<button className="btn btn--secondary btn--auto" onClick={()=>{const next=new URLSearchParams(params);next.delete('asset_id');setParams(next);}}>Show findings for all assets</button></div></div>}
-      <div className="toolbar" role="search">
+      <div className="toolbar" role="search"><OrganizationFilter value={organization} locked={!!organizationID} name={organizationName} onChange={value=>{const next=new URLSearchParams(params);next.delete('organization_id');if(value)next.set('org',value);else next.delete('org');setParams(next);}} />
         <label className="search-input">
           <Search size={15} aria-hidden="true" />
           <input type="search" placeholder="Search findings" aria-label="Search findings" value={text} onChange={(e) => setText(e.target.value)} />
@@ -57,8 +60,8 @@ export function FindingsPage() {
       ) : items.length === 0 ? (
         <div className="state">
           <h2>{filtered ? 'No findings match' : 'No findings yet'}</h2>
-          <p>{filtered ? 'Try a different search or clear the filters.' : 'Run an organisation assessment or a single test to discover findings on authorized assets.'}</p>
-          {!filtered && <Link className="btn btn--secondary btn--auto" to="/atomic">Go to single tests</Link>}
+          <p>{filtered ? 'Try a different search or clear the filters.' : 'Choose an organisation and run a scan on authorized assets to discover findings.'}</p>
+          {!filtered && <Link className="btn btn--secondary btn--auto" to="/organizations">Open organisations</Link>}
         </div>
       ) : (
         <>

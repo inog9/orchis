@@ -61,7 +61,8 @@ type MitreRef struct {
 
 // Query adalah satu query bernama beku. Version naik bila SQL/kolom/aturan berubah.
 type Query struct {
-	Key string `json:"key"`
+	Key      string `json:"key"`
+	Platform string `json:"platform"`
 	// Pack: nama pack resmi asal query ("" untuk query bawaan katalog). Diisi hanya oleh packs.json yang dibekukan.
 	Pack           string     `json:"pack,omitempty"`
 	Title          string     `json:"title"`
@@ -123,6 +124,20 @@ func init() {
 	}
 }
 
+// PlatformName mengikuti nama platform pack resmi; protokol agent lama memakai macos.
+func (q *Query) PlatformName() string {
+	if q.Platform != "" {
+		return q.Platform
+	}
+	if len(q.OS) != 1 {
+		return "all"
+	}
+	if q.OS[0] == "macos" {
+		return "darwin"
+	}
+	return q.OS[0]
+}
+
 // PinnedArtifact mengembalikan artefak yang dipatok untuk platform Go (mis. linux, amd64).
 func PinnedArtifact(goos, goarch string) (Artifact, bool) {
 	a, ok := Artifacts[goos+"/"+goarch]
@@ -146,7 +161,7 @@ func IsOsquery(key string) bool { return strings.HasPrefix(key, "osquery.") }
 var AllowedTables = map[string]bool{
 	"system_info": true, "os_version": true, "kernel_info": true, "uptime": true, "deb_packages": true, "rpm_packages": true,
 	"users": true, "groups": true, "user_groups": true, "listening_ports": true, "processes": true, "system_controls": true,
-	"disk_encryption": true, "iptables": true,
+	"disk_encryption": true, "iptables": true, "interface_addresses": true, "routes": true,
 	// Ditinjau saat membekukan pack resmi (metadata sistem; tanpa isi berkas, perintah, atau kredensial).
 	"kernel_modules": true, "mounts": true, "etc_hosts": true, "time": true, "pci_devices": true, "usb_devices": true,
 }
@@ -302,13 +317,16 @@ func (q *Query) Validate() error {
 }
 
 // TablesRead mengembalikan tabel yang dibaca query (untuk ditampilkan sebelum admin menyetujui).
-// DefaultEnabled hanya mengaktifkan pemeriksaan dasar; seluruh pack selalu opt-in.
-func (q *Query) DefaultEnabled() bool { return q.Pack == "" && q.Sensitivity == "low" }
+// DefaultEnabled tidak memberi izin koleksi tanpa consent; pilihan awal UI terpisah dari izin efektif.
+func (q *Query) DefaultEnabled() bool { return false }
 
 func (q *Query) TablesRead() []string { return append([]string(nil), q.Tables...) }
 
 // SupportsOS: Linux terbukti; OS lain hanya struktur (ditandai belum terbukti di UI).
 func (q *Query) SupportsOS(os string) bool {
+	if os == "darwin" {
+		os = "macos"
+	}
 	for _, o := range q.OS {
 		if o == os {
 			return true

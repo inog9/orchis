@@ -48,6 +48,8 @@ try {
   await p.getByLabel('Email').fill('admin@orchis.local');
   await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
   await p.getByRole('button', { name: /sign in/i }).click();
+  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.goto(BASE+'/overview');
   await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
 
   await api('POST', '/mitre/import');

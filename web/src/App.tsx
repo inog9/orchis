@@ -1,3 +1,4 @@
+import { advancedEnabled } from './components/navigation';
 import {lazy, Suspense} from 'react';
 import {SettingsPage} from './pages/SettingsPage';
 import {NotificationsPage} from './pages/NotificationsPage';
@@ -7,12 +8,13 @@ import { useMe } from './api/hooks';
 import { describeError } from './components/ErrorNote';
 import { Shell } from './components/Shell';
 
+const NewScanPage=lazy(()=>import('./pages/ScansPage').then(m=>({default:m.NewScanPage})));
+const ScanDetailPage=lazy(()=>import('./pages/ScansPage').then(m=>({default:m.ScanDetailPage})));
 const AuditPanel = lazy(() => import('./pages/AuditPanel').then(module => ({default: module.AuditPanel})));
 const AIPage = lazy(() => import('./pages/AIPage').then(module => ({default: module.AIPage})));
 const AIJobPage = lazy(() => import('./pages/AIPage').then(module => ({default: module.AIJobPage})));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then(module => ({default: module.ReportsPage})));
 const ReportDetailPage = lazy(() => import('./pages/ReportsPage').then(module => ({default: module.ReportDetailPage})));
-const ActionsPage = lazy(() => import('./pages/ActionsPage').then(module => ({default: module.ActionsPage})));
 const OrganizationsPage = lazy(() => import('./pages/OrganizationsPage').then(module => ({default: module.OrganizationsPage})));
 const OrganizationDetailPage = lazy(() => import('./pages/OrganizationsPage').then(module => ({default: module.OrganizationDetailPage})));
 const AssessmentPage = lazy(() => import('./pages/OrganizationsPage').then(module => ({default: module.AssessmentPage})));
@@ -20,7 +22,6 @@ const AgentsPage = lazy(() => import('./pages/AgentsPage').then(module => ({defa
 const ChainWorkspacePage = lazy(() => import('./pages/ChainWorkspacePage').then(module => ({default: module.ChainWorkspacePage})));
 const ChainsPage = lazy(() => import('./pages/ChainsPage').then(module => ({default: module.ChainsPage})));
 const ScenarioDetailPage = lazy(() => import('./pages/ScenarioDetailPage').then(module => ({default: module.ScenarioDetailPage})));
-const ScenariosPage = lazy(() => import('./pages/ScenariosPage').then(module => ({default: module.ScenariosPage})));
 const SimulationDetailPage = lazy(() => import('./pages/SimulationDetailPage').then(module => ({default: module.SimulationDetailPage})));
 const SimulationsPage = lazy(() => import('./pages/SimulationsPage').then(module => ({default: module.SimulationsPage})));
 const IntegrationsPanel = lazy(() => import('./pages/IntegrationsPanel').then(module => ({default: module.IntegrationsPanel})));
@@ -63,6 +64,9 @@ function Guard({ children, guest = false }: { children: React.ReactNode; guest?:
   return me.data ? <>{children}</> : <Navigate to="/login" replace state={{ from: loc.pathname }} />;
 }
 
+// Flag presentasi saja: API tetap memeriksa permission, scope dan consent yang sama.
+function Advanced({children}:{children:React.ReactNode}) { const {data:me}=useMe(); return advancedEnabled(me)?children:<Navigate to="/organizations" replace/>; }
+
 export function App() {
   return (
     <Suspense fallback={<div className="splash" role="status" aria-label="Loading page" />}><Routes>
@@ -70,13 +74,13 @@ export function App() {
       <Route path="/forgot" element={<Guard guest><ForgotPage /></Guard>} />
       <Route path="/reset" element={<Guard guest><ResetPage /></Guard>} />
       <Route element={<Guard><Shell /></Guard>}>
-        <Route index element={<HomePage />} />
+        <Route index element={<Navigate to="/organizations" replace />} />
+        <Route path="overview" element={<Advanced><HomePage /></Advanced>} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="reports/:id" element={<ReportDetailPage />} />
-        <Route path="actions" element={<ActionsPage />} />
         <Route path="organizations" element={<OrganizationsPage />} />
-        <Route path="organizations/:id/ai" element={<AIPage />} />
-<Route path="ai/jobs/:id" element={<AIJobPage />} />
+        <Route path="organizations/:id/ai" element={<Advanced><AIPage /></Advanced>} />
+<Route path="ai/jobs/:id" element={<Advanced><AIJobPage /></Advanced>} />
 <Route path="organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="assessments/:id" element={<AssessmentPage />} />
         <Route path="assets" element={<AssetsPage />} />
@@ -86,7 +90,7 @@ export function App() {
         <Route path="assets/:id" element={<AssetDetailPage />} />
         <Route path="people" element={<PeoplePage />} />
         <Route path="people/:tab" element={<PeoplePage />} />
-        <Route path="mitre" element={<MitrePage />} />
+        <Route path="mitre" element={<Advanced><MitrePage /></Advanced>} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="settings" element={<SettingsPage />}>
@@ -97,14 +101,15 @@ export function App() {
           <Route path="tags" element={<TagsPanel />} />
           <Route path="audit" element={<AuditPanel />} />
         </Route>
-        <Route path="chains" element={<ChainsPage />} />
-        <Route path="chains/:id" element={<ChainWorkspacePage />} />
-        <Route path="scenarios" element={<ScenariosPage />} />
-        <Route path="scenarios/:id" element={<ScenarioDetailPage />} />
+        <Route path="chains" element={<Advanced><ChainsPage /></Advanced>} />
+        <Route path="chains/:id" element={<Advanced><ChainWorkspacePage /></Advanced>} />
+        <Route path="chains/:id/setup" element={<Advanced><ScenarioDetailPage /></Advanced>} />
         <Route path="simulations" element={<SimulationsPage />} />
-        <Route path="simulations/:id" element={<SimulationDetailPage />} />
-        <Route path="atomic" element={<AtomicTestsPage />} />
-        <Route path="atomic/:id" element={<AtomicTestDetailPage />} />
+        <Route path="simulations/new" element={<NewScanPage />} />
+        <Route path="simulations/:id" element={<ScanDetailPage />} />
+        <Route path="simulations/legacy/:id" element={<SimulationDetailPage />} />
+        <Route path="atomic" element={<Advanced><AtomicTestsPage /></Advanced>} />
+        <Route path="atomic/:id" element={<Advanced><AtomicTestDetailPage /></Advanced>} />
         <Route path="findings" element={<FindingsPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

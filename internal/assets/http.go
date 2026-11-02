@@ -24,7 +24,12 @@ func (h *Handlers) List(w http.ResponseWriter, r *http.Request, p *auth.Principa
 		}
 		limit = n
 	}
-	page, err := h.Svc.List(r.Context(), p, ListFilter{Organization: q.Get("organization_id"), Category: q.Get("category"), Query: q.Get("q"), Limit: limit, Cursor: q.Get("cursor")})
+	organization, err := httpx.OrganizationParam(q, true)
+	if err != nil {
+		httpx.Write(w, r, err)
+		return
+	}
+	page, err := h.Svc.List(r.Context(), p, ListFilter{Organization: organization, Category: q.Get("category"), Query: q.Get("q"), Limit: limit, Cursor: q.Get("cursor")})
 	if err != nil {
 		httpx.Write(w, r, err)
 		return

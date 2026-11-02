@@ -19,17 +19,21 @@ type S3Config struct {
 }
 
 type Config struct {
-	Production     bool
-	TrustedProxies []netip.Prefix
-	HTTPAddr       string
-	DatabaseURL    string // peran aplikasi (tunduk pada RLS)
-	MigrateURL     string // peran pemilik, hanya untuk migrasi
-	AppRole        string // nama peran aplikasi yang diberi hak akses setelah migrasi
-	TenantName     string // tenant tunggal MVP
-	AdminEmail     string
-	AdminPassword  string
-	CookieSecure   bool
-	WebDir         string // direktori hasil build frontend (opsional)
+	Production                bool
+	TrustedProxies            []netip.Prefix
+	HTTPAddr                  string
+	DatabaseURL               string // peran aplikasi (tunduk pada RLS)
+	MigrateURL                string // peran pemilik, hanya untuk migrasi
+	AppRole                   string // nama peran aplikasi yang diberi hak akses setelah migrasi
+	TenantName                string // tenant tunggal MVP
+	AdminEmail                string
+	AdminPassword             string
+	CookieSecure              bool
+	AdvancedFeatures          bool
+	ScanMaxHosts              int
+	ScanConcurrency           int
+	EndpointCollectionSeconds int
+	WebDir                    string // direktori hasil build frontend (opsional)
 
 	// Infrastruktur opsional: tanpa ini server tetap jalan (aset, grup), hanya eksekusi/pencarian tidak aktif.
 	AMQPURL string // RabbitMQ
@@ -69,8 +73,23 @@ func Load() (*Config, error) {
 	c.MitreSHA256 = strings.ToLower(strings.TrimSpace(os.Getenv("ORCHIS_MITRE_SHA256")))
 	c.AgentReleaseDir = os.Getenv("ORCHIS_AGENT_RELEASE_DIR")
 	var err error
+	if c.AdvancedFeatures, err = strconv.ParseBool(env("ORCHIS_ADVANCED_FEATURES", "false")); err != nil {
+		return nil, fmt.Errorf("ORCHIS_ADVANCED_FEATURES is invalid: %w", err)
+	}
 	if c.AllowLoopbackTargets, err = strconv.ParseBool(env("ORCHIS_ALLOW_LOOPBACK_TARGETS", "false")); err != nil {
 		return nil, fmt.Errorf("ORCHIS_ALLOW_LOOPBACK_TARGETS tidak valid: %w", err)
+	}
+	c.ScanMaxHosts, err = strconv.Atoi(env("ORCHIS_SCAN_MAX_HOSTS", "256"))
+	if err != nil || c.ScanMaxHosts < 1 || c.ScanMaxHosts > 4096 {
+		return nil, fmt.Errorf("ORCHIS_SCAN_MAX_HOSTS must be between 1 and 4096")
+	}
+	c.ScanConcurrency, err = strconv.Atoi(env("ORCHIS_SCAN_CONCURRENCY", "4"))
+	if err != nil || c.ScanConcurrency < 1 || c.ScanConcurrency > 32 {
+		return nil, fmt.Errorf("ORCHIS_SCAN_CONCURRENCY must be between 1 and 32")
+	}
+	c.EndpointCollectionSeconds, err = strconv.Atoi(env("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "900"))
+	if err != nil || c.EndpointCollectionSeconds < 60 || c.EndpointCollectionSeconds > 86400 {
+		return nil, fmt.Errorf("ORCHIS_ENDPOINT_COLLECTION_SECONDS must be between 60 and 86400")
 	}
 	c.S3.TLS, _ = strconv.ParseBool(env("ORCHIS_S3_TLS", "false"))
 	secure, err := strconv.ParseBool(env("ORCHIS_COOKIE_SECURE", "false"))

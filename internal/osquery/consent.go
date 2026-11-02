@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 )
 
-const ConsentVersion = "2026-11-01.1"
+const ConsentVersion = "2026-11-01.3"
 
 //go:embed consent.md
 var consentText string

@@ -32,6 +32,7 @@ import (
 	"orchis-go/internal/organizations"
 	"orchis-go/internal/people"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/scans"
 	"orchis-go/internal/scenario"
 	"orchis-go/internal/settings"
 	"orchis-go/internal/simulation"
@@ -40,17 +41,21 @@ import (
 )
 
 type Options struct {
-	DB              *db.DB
-	Tenant          uuid.UUID
-	PublicRateLimit bool
-	TrustedProxies  []netip.Prefix
-	CookieSecure    bool
-	WebDir          string
-	Version         string
-	Checks          []settings.Check
-	AgentRelease    string // direktori rilis agent (manifest.json + biner); kosong = tidak ada rilis
-	MitreSource     string // sumber STIX (URL atau berkas beku); kosong = impor manual dinonaktifkan
-	MitreSHA256     string // hash bundel yang dipatok; kosong = tidak diperiksa (hanya pengembangan)
+	DB                        *db.DB
+	Tenant                    uuid.UUID
+	PublicRateLimit           bool
+	TrustedProxies            []netip.Prefix
+	CookieSecure              bool
+	AdvancedFeatures          bool
+	ScanMaxHosts              int
+	ScanConcurrency           int
+	EndpointCollectionSeconds int
+	WebDir                    string
+	Version                   string
+	Checks                    []settings.Check
+	AgentRelease              string // direktori rilis agent (manifest.json + biner); kosong = tidak ada rilis
+	MitreSource               string // sumber STIX (URL atau berkas beku); kosong = impor manual dinonaktifkan
+	MitreSHA256               string // hash bundel yang dipatok; kosong = tidak diperiksa (hanya pengembangan)
 
 	// Eksekusi. Guard menentukan sasaran yang boleh dipindai; Search/Store boleh nil.
 	Guard         contract.Guard
@@ -63,7 +68,7 @@ type Options struct {
 func New(o Options) http.Handler {
 	mux := http.NewServeMux()
 	authSvc := auth.NewService(o.DB)
-	ah := &auth.Handlers{Svc: authSvc, Tenant: o.Tenant, CookieSecure: o.CookieSecure}
+	ah := &auth.Handlers{Svc: authSvc, Tenant: o.Tenant, CookieSecure: o.CookieSecure, AdvancedFeatures: o.AdvancedFeatures}
 
 	mux.HandleFunc("GET /api/healthz", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
@@ -75,11 +80,12 @@ func New(o Options) http.Handler {
 		httpx.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	ah.Register(mux)
+	(&scans.Handlers{Svc: ScanService(o)}).Register(mux)
 	(&auditview.Handler{DB: o.DB}).Register(mux)
 	(&ai.Handlers{Svc: AIService(o), Reports: ReportService(o)}).Register(mux)
 	(&organizations.Handlers{Svc: OrganizationService(o)}).Register(mux)
 	(&demo.Handlers{Svc: DemoService(o)}).Register(mux)
-	(&endpoint.Handlers{Svc: &endpoint.Service{DB: o.DB, Exec: &execution.Service{DB: o.DB, Guard: o.Guard}}}).Register(mux)
+	(&endpoint.Handlers{Svc: EndpointService(o)}).Register(mux)
 	(&reporting.Handlers{Svc: ReportService(o)}).Register(mux)
 	(&assets.Handlers{Svc: &assets.Service{DB: o.DB}}).Register(mux)
 	(&groups.Handlers{Svc: &groups.Service{DB: o.DB}}).Register(mux)
@@ -146,7 +152,7 @@ func spa(dir string) http.Handler {
 // Runtime membangun sisi server untuk injector dari opsi yang sama dengan handler HTTP.
 func Runtime(o Options) *execution.Runtime {
 	eng := &simulation.Engine{Guard: o.Guard}
-	return &execution.Runtime{DB: o.DB, Tenant: o.Tenant, Guard: o.Guard, Store: o.Store, AfterEnd: eng.Advance}
+	return &execution.Runtime{DB: o.DB, Tenant: o.Tenant, Guard: o.Guard, Store: o.Store, ScanMaxHosts: o.ScanMaxHosts, AfterEnd: eng.Advance}
 }
 
 // SimulationService membangun layanan simulasi dengan mesin chain yang memakai penjaga scope yang sama.
@@ -209,4 +215,16 @@ func DemoService(o Options) *demo.Service {
 		s.Search = search
 	}
 	return s
+}
+
+func ScanService(o Options) *scans.Service {
+	return &scans.Service{DB: o.DB, Guard: o.Guard, Engine: &simulation.Engine{Guard: o.Guard}, Reports: ReportService(o), MaxHosts: o.ScanMaxHosts, Concurrency: o.ScanConcurrency}
+}
+
+func EndpointService(o Options) *endpoint.Service {
+	seconds := o.EndpointCollectionSeconds
+	if seconds == 0 {
+		seconds = 900
+	}
+	return &endpoint.Service{DB: o.DB, Exec: &execution.Service{DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
 }

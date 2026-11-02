@@ -67,10 +67,16 @@ func TestEndpointPostureUsesOnlyCurrentlyApprovedDataAndComparesPorts(t *testing
 		}
 		return out
 	}
-	// Bawaan: users dan network bersensitivitas sedang dan belum disetujui -> tidak ikut; hanya inventory (rendah).
+
+	// Data historis tanpa dokumen saat ini tidak memberi postur baru, termasuk inventory rendah.
 	got := posture()
+	if got != nil {
+		t.Fatalf("posture without consent: %+v", got)
+	}
+	must(`INSERT INTO osquery_org_settings(tenant_id,organization_id,query_key,enabled,consent_version,consent_sha256,consented_by,consented_at) VALUES($1,$2,'osquery.inventory',true,$3,$4,$5,now())`, env.TenantA, org, osquery.ConsentVersion, osquery.Consent().SHA256, actor)
+	got = posture()
 	if got == nil || got.attrs != "Ubuntu" || got.ports != "" || got.findings != 0 {
-		t.Fatalf("bawaan: %+v", got)
+		t.Fatalf("inventory explicitly approved: %+v", got)
 	}
 	must(`INSERT INTO osquery_org_settings (tenant_id, organization_id, query_key, enabled,consent_version,consent_sha256,consented_by,consented_at) VALUES ($1,$2,'osquery.network',true,$3,$4,$5,now())`, env.TenantA, org, osquery.ConsentVersion, osquery.Consent().SHA256, actor)
 	if got = posture(); got == nil || got.ports != "22|80|5432" || got.findings != 2 {
@@ -87,7 +93,7 @@ func TestEndpointPostureUsesOnlyCurrentlyApprovedDataAndComparesPorts(t *testing
 		t.Fatalf("setelah dicabut: %+v", got)
 	}
 	// Inventory dicabut (query bawaan aktif dimatikan admin): tidak ada lagi atribut OS.
-	must(`INSERT INTO osquery_org_settings (tenant_id, organization_id, query_key, enabled) VALUES ($1,$2,'osquery.inventory',false)`, env.TenantA, org)
+	must(`UPDATE osquery_org_settings SET enabled=false WHERE tenant_id=$1 AND organization_id=$2 AND query_key='osquery.inventory'`, env.TenantA, org)
 	if got = posture(); got == nil || got.attrs != "" {
 		t.Fatalf("inventory dimatikan: %+v", got)
 	}

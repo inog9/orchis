@@ -25,9 +25,10 @@ func PrincipalFrom(ctx context.Context) *Principal {
 
 // Handlers menyajikan endpoint autentikasi. MVP memakai satu tenant, ditetapkan saat server naik.
 type Handlers struct {
-	Svc          *Service
-	Tenant       uuid.UUID
-	CookieSecure bool
+	Svc              *Service
+	Tenant           uuid.UUID
+	CookieSecure     bool
+	AdvancedFeatures bool
 }
 
 func ClientIP(r *http.Request) string {
@@ -81,15 +82,16 @@ func Require(perm string, next func(w http.ResponseWriter, r *http.Request, p *P
 }
 
 type userDTO struct {
-	ID          string   `json:"id"`
-	Email       string   `json:"email"`
-	DisplayName string   `json:"display_name"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	ID          string          `json:"id"`
+	Email       string          `json:"email"`
+	DisplayName string          `json:"display_name"`
+	Role        string          `json:"role"`
+	Permissions []string        `json:"permissions"`
+	Features    map[string]bool `json:"features"`
 }
 
-func toDTO(p *Principal) userDTO {
-	return userDTO{ID: p.UserID.String(), Email: p.Email, DisplayName: p.DisplayName, Role: p.RoleKey, Permissions: p.Permissions}
+func (h *Handlers) toDTO(p *Principal) userDTO {
+	return userDTO{ID: p.UserID.String(), Email: p.Email, DisplayName: p.DisplayName, Role: p.RoleKey, Permissions: p.Permissions, Features: map[string]bool{"advanced": h.AdvancedFeatures}}
 }
 
 func (h *Handlers) setCookie(w http.ResponseWriter, token string, remember bool) {
@@ -116,7 +118,7 @@ func (h *Handlers) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.setCookie(w, res.Token, res.Remember)
-	httpx.JSON(w, http.StatusOK, toDTO(res.Principal))
+	httpx.JSON(w, http.StatusOK, h.toDTO(res.Principal))
 }
 
 func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request, p *Principal) {
@@ -129,7 +131,7 @@ func (h *Handlers) Logout(w http.ResponseWriter, r *http.Request, p *Principal) 
 }
 
 func (h *Handlers) Me(w http.ResponseWriter, r *http.Request, p *Principal) {
-	httpx.JSON(w, http.StatusOK, toDTO(p))
+	httpx.JSON(w, http.StatusOK, h.toDTO(p))
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {

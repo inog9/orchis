@@ -82,7 +82,7 @@ export function ChainWorkspacePage() {
           <p className="page__sub">A step starts once <strong>all</strong> of its parents finish. A step set to start on a finding runs only if a parent finds a match.</p>
         </div>
         <div className="page__actions">
-          <Link className="btn btn--secondary btn--auto" to={`/scenarios/${base.id}`}>Scenario</Link>
+          <Link className="btn btn--secondary btn--auto" to={`/chains/${base.id}/setup`}>Scenario</Link>
           {editable && <>
             <button type="button" className="btn btn--secondary btn--auto" onClick={add}><Plus size={15} aria-hidden="true" /> Add action</button>
             <button type="button" className="btn btn--secondary btn--auto" onClick={discard} disabled={!isDirty}>Discard</button>

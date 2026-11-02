@@ -41,7 +41,7 @@ await p.getByRole('button', { name: /back to sign in/i }).click();
 
 // 4. masuk benar
 await fill('admin@orchis.local', 'Orchis-Dev-Pass-1');
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 ok(true, 'login benar -> beranda');
 const cookies = await ctx.cookies();
 const sc = cookies.find((c) => c.name === 'orchis_session');

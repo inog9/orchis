@@ -197,8 +197,8 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .more { display: flex; justify-content: center; }
 
 /* ---------- dialog ---------- */
-.modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #000000a6; padding: 24px; }
-.dialog { width: 720px; max-width: 100%; max-height: 90vh; overflow: auto; padding: 24px; background: #121417; border: 1px solid #3A3F46; border-radius: 14px; box-shadow: 0 24px 64px #000c; display: flex; flex-direction: column; gap: 20px; }
+.modal { grid-template-columns: minmax(0, 1fr); position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: #000000a6; padding: 24px; }
+.dialog { min-width: 0; justify-self: center; width: 720px; max-width: 100%; max-height: 90vh; overflow: auto; padding: 24px; background: #121417; border: 1px solid #3A3F46; border-radius: 14px; box-shadow: 0 24px 64px #000c; display: flex; flex-direction: column; gap: 20px; }
 .dialog__head { display: flex; align-items: flex-start; justify-content: space-between; }
 .dialog__head h2 { font-family: var(--font-display); font-size: 22px; font-weight: 600; }
 .steps { display: flex; gap: 16px; margin-top: 8px; font-size: 12px; color: var(--ink-3); }
@@ -231,7 +231,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 
 /* ---------- Fase 2: tab, tag, panel, grup, impor ---------- */
 .page__actions { display: flex; gap: 10px; }
-.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--ring); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--ring); }
 .tab { padding: 10px 14px; margin-bottom: -1px; border-bottom: 2px solid transparent; font-size: 14px; font-weight: 500; color: var(--ink-3); text-decoration: none; }
 .tab:hover { color: var(--ink); }
 .tab.is-active { color: var(--ink); border-bottom-color: var(--bronze); }
@@ -670,3 +670,26 @@ main.content:focus { outline: none; }
 
 /* Dokumen persetujuan dapat dibaca lewat keyboard tanpa menggeser tombol keputusan keluar dialog. */
 .ed-consent-text{height:180px;max-height:180px;overflow-y:scroll;scrollbar-gutter:stable;scrollbar-color:var(--line) var(--panel);white-space:pre-wrap;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px;line-height:1.5}.ed-consent-text+ p code{overflow-wrap:anywhere}
+
+/* Pilihan koleksi dan dokumen consent tetap dapat digulir tanpa mendorong keputusan keluar dialog. */
+.collection-query-list{max-height:24vh;overflow:auto;padding:12px}
+.collection-consent .ed-consent-text{max-height:20vh}
+.collection-consent .dialog__foot{flex:none;background:var(--panel);padding-top:4px}
+.organization-filter select{max-width:100%}
+.org-table-wrap,.org-table-wrap table{min-width:0}
+
+/* Dialog content must shrink inside the viewport, including long collection labels. */
+.dialog > *, .dialog form, .dialog fieldset { min-width: 0; }
+.collection-consent { display:flex;flex-direction:column;gap:12px;max-height:calc(90vh - 48px);overflow-wrap:anywhere; }
+.collection-consent .dialog__foot { flex-wrap:wrap; }
+
+.collection-consent .collection-query-list { flex:1 1 160px;min-height:72px; }
+.collection-consent .ed-consent-text { flex:1 1 120px;height:120px;min-height:72px; }
+
+/* Keep mobile findings readable rather than squeezing the title between badge and timestamp. */
+@media (max-width: 600px) {
+ .finding-row { grid-template-columns:minmax(0,1fr);gap:8px;padding:16px; }
+ .finding-row > :first-child { justify-self:start; }
+ .finding-row__main span { overflow-wrap:anywhere; }
+}
+.ed-report td { vertical-align:top; }

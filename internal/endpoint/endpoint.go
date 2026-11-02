@@ -23,8 +23,9 @@ import (
 )
 
 type Service struct {
-	DB   *db.DB
-	Exec *execution.Service
+	DB                 *db.DB
+	Exec               *execution.Service
+	CollectionInterval time.Duration
 }
 
 type RuleMeta struct {
@@ -37,6 +38,7 @@ type RuleMeta struct {
 
 type QueryMeta struct {
 	Key               string              `json:"key"`
+	Platform          string              `json:"platform"`
 	Pack              string              `json:"pack,omitempty"`
 	Title             string              `json:"title"`
 	Description       string              `json:"description"`
@@ -79,12 +81,13 @@ type PackView struct {
 }
 
 type Catalog struct {
-	Consent        osquery.ConsentDocument `json:"consent"`
-	OsqueryVersion string                  `json:"osquery_version"`
-	License        string                  `json:"license"`
-	ProvenOS       []string                `json:"proven_os"`
-	Queries        []QueryMeta             `json:"queries"`
-	Packs          []PackView              `json:"packs"`
+	CollectionIntervalSeconds int                     `json:"collection_interval_seconds"`
+	Consent                   osquery.ConsentDocument `json:"consent"`
+	OsqueryVersion            string                  `json:"osquery_version"`
+	License                   string                  `json:"license"`
+	ProvenOS                  []string                `json:"proven_os"`
+	Queries                   []QueryMeta             `json:"queries"`
+	Packs                     []PackView              `json:"packs"`
 }
 
 func packView(p *osquery.Pack) PackView {
@@ -108,8 +111,8 @@ func packTables(p *osquery.Pack) []string {
 }
 
 func meta(q *osquery.Query) QueryMeta {
-	m := QueryMeta{Key: q.Key, Pack: q.Pack, Title: q.Title, Description: q.Description, Category: q.Category, Tables: q.TablesRead(), Columns: q.Columns, OS: q.OS,
-		Sensitivity: q.Sensitivity, Load: q.Load, NeedsRoot: q.NeedsRoot, DefaultEnabled: q.DefaultEnabled(), TimeoutSeconds: q.TimeoutSeconds,
+	m := QueryMeta{Platform: q.PlatformName(), Key: q.Key, Pack: q.Pack, Title: q.Title, Description: q.Description, Category: q.Category, Tables: q.TablesRead(), Columns: q.Columns, OS: q.OS,
+		Sensitivity: q.Sensitivity, Load: q.Load, NeedsRoot: q.NeedsRoot, DefaultEnabled: false, TimeoutSeconds: q.TimeoutSeconds,
 		MaxRows: q.MaxRows, Mitre: q.Mitre, Attributes: []string{}, Findings: []RuleMeta{}, Report: "Endpoint posture", Example: q.Example, ExampleFindings: []ExampleFinding{}}
 	mapped := q.Map(&osquery.Dataset{Query: q.Key, Status: osquery.StatusOK, Rows: q.Example})
 	m.ExampleAttributes = mapped.Attributes
@@ -139,7 +142,7 @@ func sortStrings(s []string) {
 
 // CatalogView adalah katalog beku apa adanya. Linux adalah satu-satunya OS yang terbukti; OS lain hanya struktur.
 func CatalogView() Catalog {
-	c := Catalog{Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, Queries: []QueryMeta{}, Packs: []PackView{}}
+	c := Catalog{CollectionIntervalSeconds: 900, Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, Queries: []QueryMeta{}, Packs: []PackView{}}
 	for i := range osquery.Packs {
 		c.Packs = append(c.Packs, packView(&osquery.Packs[i]))
 	}
@@ -155,6 +158,7 @@ type OrgSetting struct {
 	ConsentedBy    *uuid.UUID `json:"consented_by"`
 	ConsentedAt    *time.Time `json:"consented_at"`
 	Key            string     `json:"key"`
+	Version        int64      `json:"version"`
 	Enabled        bool       `json:"enabled"`
 	Explicit       bool       `json:"explicit"` // true = keputusan admin; false = bawaan katalog
 	UpdatedAt      *time.Time `json:"updated_at"`
@@ -178,7 +182,7 @@ func (s *Service) OrgSettings(ctx context.Context, p *auth.Principal, org uuid.U
 			}
 			st := OrgSetting{Key: q.Key, Enabled: en, Explicit: ex}
 			if ex {
-				if err := tx.QueryRow(ctx, `SELECT updated_at,consent_version,consent_sha256,consented_by,consented_at FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, p.TenantID, org, q.Key).Scan(&st.UpdatedAt, &st.ConsentVersion, &st.ConsentSHA256, &st.ConsentedBy, &st.ConsentedAt); err != nil {
+				if err := tx.QueryRow(ctx, `SELECT version,updated_at,consent_version,consent_sha256,consented_by,consented_at FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND query_key=$3`, p.TenantID, org, q.Key).Scan(&st.Version, &st.UpdatedAt, &st.ConsentVersion, &st.ConsentSHA256, &st.ConsentedBy, &st.ConsentedAt); err != nil {
 					return err
 				}
 			}
@@ -247,6 +251,7 @@ ON CONFLICT (tenant_id, organization_id, query_key) DO UPDATE SET enabled=EXCLUD
 }
 
 type DatasetView struct {
+	Supported     bool                `json:"supported"`
 	Key           string              `json:"key"`
 	Title         string              `json:"title"`
 	Status        string              `json:"status"` // ok | skipped | failed | never
@@ -271,6 +276,9 @@ type FindingView struct {
 }
 
 type AssetData struct {
+	Platform       string        `json:"platform"`
+	Arch           string        `json:"arch"`
+	Supported      bool          `json:"supported"`
 	Version        int           `json:"version"`
 	ReadOnly       bool          `json:"read_only"`
 	AssetID        uuid.UUID     `json:"asset_id"`
@@ -285,14 +293,15 @@ const rowsShown = 200
 func (s *Service) AssetData(ctx context.Context, p *auth.Principal, asset uuid.UUID) (*AssetData, error) {
 	out := &AssetData{AssetID: asset, Items: []DatasetView{}, Findings: []FindingView{}}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		err := tx.QueryRow(ctx, `SELECT version,is_demo,organization_id, EXISTS(SELECT 1 FROM agents ag WHERE ag.tenant_id=a.tenant_id AND ag.asset_id=a.id AND NOT ag.is_demo AND ag.status<>'revoked')
-FROM assets a WHERE a.tenant_id=$1 AND a.id=$2 AND a.deleted_at IS NULL`, p.TenantID, asset).Scan(&out.Version, &out.ReadOnly, &out.OrganizationID, &out.HasAgent)
+		err := tx.QueryRow(ctx, `SELECT version,is_demo,organization_id,COALESCE((SELECT os FROM agents ag WHERE ag.tenant_id=a.tenant_id AND ag.asset_id=a.id ORDER BY enrolled_at DESC LIMIT 1),platform,''),COALESCE((SELECT arch FROM agents ag WHERE ag.tenant_id=a.tenant_id AND ag.asset_id=a.id ORDER BY enrolled_at DESC LIMIT 1),arch,''), EXISTS(SELECT 1 FROM agents ag WHERE ag.tenant_id=a.tenant_id AND ag.asset_id=a.id AND NOT ag.is_demo AND ag.status<>'revoked')
+FROM assets a WHERE a.tenant_id=$1 AND a.id=$2 AND a.deleted_at IS NULL`, p.TenantID, asset).Scan(&out.Version, &out.ReadOnly, &out.OrganizationID, &out.Platform, &out.Arch, &out.HasAgent)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Asset")
 		}
 		if err != nil {
 			return err
 		}
+		out.Supported = out.Platform == "linux" && out.Arch == "x86_64"
 		stored := map[string]DatasetView{}
 		rows, err := tx.Query(ctx, `SELECT query_key, rows, attributes, truncated, collected_at, last_attempt_at, COALESCE(osquery_version,''), last_status, last_reason, is_demo
 FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)
@@ -319,6 +328,9 @@ FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)
 		}
 		for i := range osquery.Queries {
 			q := &osquery.Queries[i]
+			if out.Platform != "" && !q.SupportsOS(out.Platform) {
+				continue
+			}
 			v, ok := stored[q.Key]
 			if !ok {
 				v = DatasetView{Status: "never", Rows: []map[string]string{}, Attributes: map[string]any{}}
@@ -330,6 +342,7 @@ FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)
 				v.Attributes = map[string]any{}
 			}
 			v.Key, v.Title = q.Key, q.Title
+			v.Supported = out.Supported
 			en, _, err := execution.OsqueryEnabled(ctx, tx, p.TenantID, out.OrganizationID, q)
 			if err != nil {
 				return err
@@ -402,8 +415,31 @@ func id(r *http.Request, name, what string) (uuid.UUID, error) {
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/osquery/catalog", auth.Require(authz.AtomicRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
-		httpx.JSON(w, 200, CatalogView())
+	mux.HandleFunc("PUT /api/v1/organizations/{id}/endpoint-collection", auth.Require(authz.SettingsManage, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+		org, e := id(r, "id", "Organisation")
+		if e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		var in CollectionInput
+		if e = httpx.Decode(w, r, &in); e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		e = h.Svc.SetCollection(r.Context(), p, org, in, auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
+		if e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	mux.HandleFunc("GET /api/v1/osquery/catalog", auth.Require(authz.AssetRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+		catalog := CatalogView()
+		if h.Svc.CollectionInterval > 0 {
+			catalog.CollectionIntervalSeconds = int(h.Svc.CollectionInterval.Seconds())
+		}
+		httpx.JSON(w, 200, catalog)
 	}))
 	mux.HandleFunc("GET /api/v1/organizations/{id}/osquery", auth.Require(authz.OrganizationRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		org, err := id(r, "id", "Organization")

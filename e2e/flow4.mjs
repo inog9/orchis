@@ -25,27 +25,18 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 
 // aset sasaran: BELUM diotorisasi
 const target = await (await api('POST', '/api/v1/assets', { category: 'host', name: 'e2e-target', criticality: 'high',
   addresses: [{ kind: 'ip', value: '127.0.0.1' }, { kind: 'url', value: `http://127.0.0.1:${PORT}` }] })).json();
 
-// 1. dock aktif + daftar kosong + buat scenario
-await p.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Scenarios' }).click();
-await p.waitForURL('**/scenarios');
-await p.getByRole('heading', { name: 'No scenarios yet' }).waitFor();
-await p.getByRole('button', { name: /create the first scenario/i }).click();
-let dlg = p.getByRole('dialog');
-await dlg.getByRole('button', { name: 'Create', exact: true }).click();
-await dlg.getByText(/enter a name/i).waitFor();
-ok(true, 'nama kosong ditolak dengan pesan jelas');
-await dlg.getByLabel('Name').fill('E2E kill chain');
-await dlg.getByLabel('Severity').selectOption('high');
-await dlg.getByRole('button', { name: 'Create', exact: true }).click();
-await p.waitForURL(/\/scenarios\/[0-9a-f-]{36}$/);
-const scenarioUrl = p.url();
-const sid = scenarioUrl.split('/').pop();
+// Advanced legacy engine fixture; Scenario route/create UI has been removed.
+const createdScenario = await (await api('POST','/api/v1/scenarios',{name:'E2E kill chain',severity:'high'})).json();
+const sid=createdScenario.id;
+const scenarioUrl=BASE+`/chains/${sid}/setup`;
+let dlg;
+await p.goto(scenarioUrl);
 await p.getByRole('heading', { name: 'E2E kill chain' }).waitFor();
 ok(await p.getByText('Not ready to launch yet.').isVisible(), 'scenario baru berstatus Draft dengan alasan belum siap');
 ok(await p.getByRole('button', { name: /launch simulation/i }).isDisabled(), 'tombol Launch nonaktif selama belum siap');
@@ -115,7 +106,7 @@ ok(await p.getByRole('button', { name: /launch simulation/i }).isEnabled(), 'sce
 ok((await p.locator('.steps-flow li').count()) === 4, 'ringkasan scenario menampilkan 4 aksi');
 await p.getByRole('button', { name: /launch simulation/i }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).click();
-await p.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
+await p.waitForURL(/\/simulations\/legacy\/[0-9a-f-]{36}$/);
 const simUrl = p.url();
 await p.getByRole('heading', { name: 'E2E kill chain', exact: true, level: 1 }).waitFor();
 await p.locator('.page__sub').filter({ hasText: /OP-\d{4}/ }).waitFor({ timeout: 15000 }).catch(() => {});
@@ -152,10 +143,10 @@ const d2 = await (await api('GET', `/api/v1/scenarios/${delayed.id}`)).json();
 const gr = await api('PUT', `/api/v1/scenarios/${delayed.id}/graph`, { version: d2.version, edges: [], steps: [
   { key: 'scan', title: 'Delayed scan', contract_key: 'nmap.tcp_connect', trigger_mode: 'after_parents', is_enabled: true, delay_seconds: 20, params: { profile: 'custom', ports: PORT } }] });
 ok(gr.status() === 200, 'scenario dengan jeda 20 detik dibuat');
-await p.goto(BASE + `/scenarios/${delayed.id}`);
+await p.goto(BASE + `/chains/${delayed.id}/setup`);
 await p.getByRole('button', { name: /launch simulation/i }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).click();
-await p.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
+await p.waitForURL(/\/simulations\/legacy\/[0-9a-f-]{36}$/);
 await p.getByRole('button', { name: 'Pause' }).click();
 await p.locator('.page__title-row .status').filter({ hasText: 'Paused' }).waitFor();
 ok(await p.getByRole('button', { name: 'Resume' }).isVisible(), 'jeda: tombol berganti ke Resume');
@@ -173,10 +164,10 @@ const s2 = await (await api('GET', `/api/v1/scenarios/${slow.id}`)).json();
 await api('PUT', `/api/v1/scenarios/${slow.id}/graph`, { version: s2.version, edges: [{ parent: 'scan', child: 'after' }], steps: [
   { key: 'scan', title: 'Slow scan', contract_key: 'nmap.tcp_connect', trigger_mode: 'after_parents', is_enabled: true, delay_seconds: 0, params: { profile: 'top1000' } },
   { key: 'after', title: 'After slow', contract_key: 'nmap.tcp_connect', trigger_mode: 'after_parents', is_enabled: true, delay_seconds: 0, params: {} }] });
-await p.goto(BASE + `/scenarios/${slow.id}`);
+await p.goto(BASE + `/chains/${slow.id}/setup`);
 await p.getByRole('button', { name: /launch simulation/i }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).click();
-await p.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
+await p.waitForURL(/\/simulations\/legacy\/[0-9a-f-]{36}$/);
 const nmapRunning = () => sh(`docker top ${process.env.E2E_NMAP_CONTAINER} 2>/dev/null | grep -c "[n]map -sT" || true`).trim();
 let started = false;
 for (let i = 0; i < 30 && !started; i++) { started = nmapRunning() === '1'; if (!started) await sleep(500); }
@@ -194,6 +185,7 @@ ok((await p.getByRole('button', { name: 'Pause' }).count()) === 0, 'simulasi yan
 // 8. daftar simulasi dan filter
 await p.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Simulations' }).click();
 await p.waitForURL('**/simulations');
+await p.locator('details').filter({has:p.locator('summary').getByText('Earlier runs',{exact:true})}).locator('summary').click();
 await p.getByRole('table', { name: 'Simulations' }).waitFor();
 ok((await p.getByRole('table', { name: 'Simulations' }).getByRole('row').count()) === 4, 'daftar memuat 3 simulasi + baris judul');
 await p.getByRole('button', { name: 'Finished', exact: true }).click();

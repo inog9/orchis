@@ -21,6 +21,7 @@ import (
 	"orchis-go/internal/db"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/osquery"
+	"orchis-go/internal/scanscope"
 )
 
 const (
@@ -32,10 +33,11 @@ const (
 
 // Runtime adalah sisi server untuk injector: autentikasi token, claim, heartbeat, hasil, dan reaper.
 type Runtime struct {
-	DB     *db.DB
-	Tenant uuid.UUID
-	Guard  contract.Guard
-	Store  ObjectStore
+	DB           *db.DB
+	Tenant       uuid.UUID
+	Guard        contract.Guard
+	ScanMaxHosts int
+	Store        ObjectStore
 	// AfterEnd dipanggil DALAM transaksi yang sama setiap kali eksekusi milik simulasi berakhir, agar chain maju atomik
 	// bersama hasilnya. Boleh nil (atomic test tidak memerlukannya).
 	AfterEnd func(ctx context.Context, tx pgx.Tx, tenant, simulation uuid.UUID) error
@@ -130,12 +132,13 @@ func (r *Runtime) Beat(ctx context.Context, in *Injector, version string) error 
 }
 
 type ClaimSpec struct {
-	ContractVersion int             `json:"contract_version"`
-	ExecutionID     uuid.UUID       `json:"execution_id"`
-	ContractKey     string          `json:"contract_key"`
-	Target          string          `json:"target"`
-	Params          json.RawMessage `json:"params"`
-	TimeoutSeconds  int             `json:"timeout_seconds"`
+	ContractVersion int                 `json:"contract_version"`
+	ScanScope       *contract.ScanScope `json:"scan_scope,omitempty"`
+	ExecutionID     uuid.UUID           `json:"execution_id"`
+	ContractKey     string              `json:"contract_key"`
+	Target          string              `json:"target"`
+	Params          json.RawMessage     `json:"params"`
+	TimeoutSeconds  int                 `json:"timeout_seconds"`
 }
 
 // Claim memindahkan eksekusi ready -> running dengan satu UPDATE bersyarat. Penjaga scope diperiksa ulang di sini:
@@ -194,6 +197,28 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 		case !onAgent && r.Guard.CheckHost(host) != nil:
 			why = "The target is refused by the scope guard: " + r.Guard.CheckHost(host).Error() + "."
 		}
+		var scanProof *contract.ScanScope
+		if why == "" && sim != nil {
+			limit := r.ScanMaxHosts
+			if limit == 0 {
+				limit = contract.DefaultScanMaxHosts
+			}
+			var e error
+			scanProof, e = scanscope.CheckJob(ctx, tx, r.Tenant, *sim, target, r.Guard, limit)
+			if e != nil {
+				why = "Scan scope refused: " + e.Error()
+			}
+		}
+
+		if why == "" && !onAgent && (scanProof == nil || scanProof.CIDR == "") {
+			approved, e := AgentTargetConfirmed(ctx, tx, r.Tenant, asset, target)
+			if e != nil {
+				return e
+			}
+			if !approved {
+				why = "Agent-reported target requires administrator confirmation."
+			}
+		}
 		if why != "" {
 			if _, err := tx.Exec(ctx, `UPDATE executions SET state='ended', outcome='error', error=$3, ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`,
 				r.Tenant, id, why); err != nil {
@@ -230,7 +255,7 @@ UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, leas
 		if err := logLine(ctx, tx, r.Tenant, id, "info", "Started by the "+in.Key+" injector."); err != nil {
 			return err
 		}
-		spec = &ClaimSpec{ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
+		spec = &ClaimSpec{ScanScope: scanProof, ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
 		return nil
 	})
 	if err != nil {
@@ -302,6 +327,20 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 		}
 		if err != nil {
 			return err
+		}
+		if sim != nil {
+			var target string
+			if err = tx.QueryRow(ctx, `SELECT target_address FROM executions WHERE tenant_id=$1 AND id=$2`, r.Tenant, id).Scan(&target); err != nil {
+				return err
+			}
+			limit := r.ScanMaxHosts
+			if limit == 0 {
+				limit = contract.DefaultScanMaxHosts
+			}
+			if _, e := scanscope.CheckJob(ctx, tx, r.Tenant, *sim, target, r.Guard, limit); e != nil {
+				outcome = "error"
+				res = Result{Error: "Scan scope refused: " + e.Error()}
+			}
 		}
 		endpointRefused := false
 		if q := osquery.Find(ckey); q != nil {

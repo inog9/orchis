@@ -2257,3 +2257,231 @@ dari query antre/manual memerlukan penghentian izin terpisah bila harus dicegah.
 Audit mencatat jumlah dataset yang dihapus tanpa isinya. Temuan dan snapshot beku
 tetap utuh, dibuktikan melalui API dan E2E. Referensi dokumen lama, versi penghapusan,
 invalidation hasil, serta pemeriksaan kredensial diuji dengan mutasi pada salinan.
+
+
+## 49. Filter organisasi bersama dan pembuatan aset atomik
+
+ADR 131: Assets dan Findings memakai parameter kanonik `org` dan komponen filter
+yang sama; `organization_id` tetap diterima sebagai alias untuk klien lama. Dua
+parameter berbeda ditolak agar scope tidak ambigu. UUID tidak valid ditolak, bukan
+diabaikan. Query SQL tenant/RLS mengiriskan organisasi, filter aset, pencarian,
+dan cursor. ID dari indeks pencarian tidak memberi wewenang lintas scope.
+
+Tab organisasi mengunci filter ke ID path. URL dapat menyimpan tab dan filter
+lain tanpa mengganti scope itu. Opsi organisasi dimuat bertahap; kegagalan memuat
+opsi tidak menghapus filter aktif. Izin lintas organisasi tetap mengikuti permission
+tenant yang sudah ada; perubahan ini tidak memperkenalkan ACL per organisasi.
+
+Create asset dapat menerima organization_id. Selain asset.write, assignment
+memerlukan organization.write. Organisasi harus berada di tenant yang sama dan
+bukan demo. Validasi dan insert terjadi dalam satu transaksi dengan kunci FK,
+sehingga penolakan tidak meninggalkan aset tanpa organisasi. Izin pengujian tetap
+keputusan terpisah yang memerlukan asset.authorize. Import CSV global tetap terpisah
+dari tambah aset pada tab organisasi agar tidak menjanjikan assignment implisit.
+
+Tes menguji paging/search, hasil indeks lintas organisasi/tenant, scope URL terkunci,
+opsi gagal, assignment tanpa izin/tenant/demo. Lima mutasi guard dijalankan pada
+salinan modul, harus membuat tes gagal dan dipulihkan sebelum kelulusan akhir.
+
+
+## 50. Navigasi ringkas dan fitur lanjutan
+
+ADR 132: enam menu utama adalah Organisations, Simulations, Findings, Assets,
+Reports dan Settings. Landing membuka Organisations. Route UI /scenarios dan
+halaman Actions dihapus; tabel dan API scenario tetap dipakai mesin legacy serta
+editor chain internal. Setup chain lanjutan memakai /chains/:id/setup.
+
+ORCHIS_ADVANCED_FEATURES=false adalah bawaan konfigurasi server; nilai tidak valid
+menggagalkan startup. Login dan auth/me menyampaikan features.advanced yang sama.
+Chains, Atomic tests, AI, MITRE dan overview lama hanya dapat dibuka frontend bila
+flag ini true; entri palet dan pintasan juga mengikuti flag. Fitur tersebut tidak
+masuk enam menu utama walaupun diaktifkan. Flag ini keputusan presentasi, bukan
+batas otorisasi: API tetap memeriksa permission, consent, tenant dan scope.
+
+Tes frontend memeriksa route langsung tertutup saat default, editor terbuka saat
+opt-in, /scenarios tetap tidak ditemukan di kedua mode, dan pintasan tidak bentrok.
+Tes UI list Scenario dihapus bersama halaman itu; tes chain, graph, kondisi, mapper,
+atomic, AI, MITRE dan backend legacy dipertahankan. Form Scan baru serta pembaruan
+e2e lama dikerjakan pada subfase berikutnya sebelum full gate akhir.
+
+
+## 51. Scan organisasi tanpa scenario pengguna
+
+ADR 133: API /api/v1/scans memakai assessment sebagai penyimpanan kelompok hasil
+yang kompatibel, dibedakan is_scan. Setiap pasangan target-tool mempunyai scan_job
+tersendiri dan satu simulasi engine internal tanpa scenario_id. runner dibatasi CHECK
+menjadi injector. Mesin chain dan kontrak versi lama tetap ada; pengguna Scan hanya
+mengirim organisasi, ID target/rentang, nama tool dan preset quick/standard.
+
+Alamat, parameter tervalidasi, versi kontrak, kontrol aset dan revisi persetujuan
+rentang dibekukan pada peluncuran. Pengulangan Idempotency-Key mengembalikan root
+yang sama; payload berbeda ditolak. Worker memakai advisory lock per tenant untuk
+mereservasi slot dan dispatch atomik. Bawaan empat job aktif (ORCHIS_SCAN_CONCURRENCY,
+1..32); injector mempunyai consumer independen terbatas (ORCHIS_INJECTOR_CONCURRENCY,
+bawaan4,1..32). Pembatalan berulang aman; antrian dan lease tetap tersimpan untuk restart.
+
+Rentang interface/routes dari query osquery bernama adalah usulan. Admin memerlukan
+settings.manage, asset.authorize, organization.write, agent.read dan asset.read untuk
+approval. Keputusan mencatat aktor/waktu server, versi CAS dan revisi consent. Approval
+hanya untuk subnet yang masih dilaporkan agent terkait. Data harus sukses, diterima
+server dalam24jam, berasal dari agent/aset non-demo yang aktif di organisasi yang sama,
+dengan testing_authorized dan dokumen consent saat ini. Waktu koleksi klaim agent tidak
+dipakai untuk freshness. Approval dapat dicabut walau dataset hilang atau consent berubah.
+
+ORCHIS_SCAN_MAX_HOSTS bawaan256 (1..4096) membatasi jumlah alamat total per scan.
+Batas ini setara /24 IPv4 atau /120 IPv6, bukan /24 IPv6. Default route, link-local,
+multicast dan metadata ditolak; jaringan publik juga memerlukan internet-facing dan
+izin testing aset kontrol. Scan range hanya dari satu agent per root. Tidak ada scan
+dari agent: ketakterjangkauan dari server adalah kegagalan, tidak menyatakan host mati.
+
+Run dan Claim memeriksa lagi izin saat ini; injector memvalidasi bukti scope server
+dan guard sebelum menjalankan alat. Result setelah approval berubah dibuang. Finding
+untuk host yang belum didaftarkan mempunyai asset_id NULL serta organisasi/alamat
+yang ditetapkan job server. UI/API global mengiriskan scope tersebut dengan tenant,
+filter aset, pencarian dan cursor. Satu klik tambah host hanya mengambil job sukses;
+aset baru selalu testing_authorized=false dan is_internet_facing=false.
+
+Satu snapshot laporan dibekukan atomik setelah semua job terminal, termasuk kegagalan
+parsial; retry renderer tidak menjalankan ulang scan. Dua job satu host digabung dalam
+snapshot. Host jaringan memakai ID laporan deterministik dan discovered=true, sehingga
+tidak keliru diberi postur endpoint milik agent pelapor. Raw output tidak disalin ke
+snapshot. Skema JSON baru bernama orchis.report.v1; snapshot lama tidak ditulis ulang.
+
+Tes menguji reservation paralel/idempotensi/restart Tick, kegagalan parsial, cancellation,
+tenancy, parameter injeksi, scope hidup Run/Claim/Result, source consent/freshness,
+asset tanpa izin, dan snapshot beku/redaksi. Query interface/routes juga dicoba pada
+osquery Linux5.24.0 yang dipatok (100baris; hasil privat di work/simplify). Ini belum
+bukti osquery Windows/macOS. E2E browser/scan nyata dan full gate masih wajib dilakukan
+sebelum seluruh penyederhanaan dinyatakan selesai.
+
+
+## 52. Koleksi endpoint berkala setelah consent eksplisit
+
+ADR 134: query osquery bernama tidak lagi mempunyai fallback izin sensitivitas rendah.
+Semuanya memerlukan organisasi dan dokumen consent saat ini. Dokumen2026-11-01.3
+menjelaskan pengumpulan setelah enrollment/otorisasi aset, berkala, dan manual.
+Persetujuan manual lama tidak otomatis mengizinkan jadwal baru: admin meninjau
+kembali versi/hash, query, tabel, sensitivitas dan retensi yang tetap latest-good.
+
+Worker memindai eligibility setiap5detik dan mengantrekan query yang disetujui
+setelah enrollment serta pada due time. ORCHIS_ENDPOINT_COLLECTION_SECONDS bawaan900,
+batas60..86400. Eligibility memerlukan agent online dengan heartbeat90detik, Linux
+x86_64, non-demo, aset aktif/diotorisasi di organisasi yang sama, dan consent tepat.
+Satu definisi internal dipakai ulang per agent/query; endpoint_collection_schedule
+menyimpan due time secara durable. Advisory lock tenant dan pemeriksaan tugas ready/
+running mencegah duplikasi. Run tetap memakai QueueTest dan Claim/Result memeriksa
+ulang izin/versi. Audit membedakan enqueue sistem dengan aktor consent manusia.
+
+Dialog baru menyiapkan semua query Linux yang didukung untuk tinjauan pertama;
+checkbox consent sendiri tidak pernah dicentang otomatis. PUT endpoint-collection
+memerlukan settings.manage dan organization.write, memvalidasi query bernama,
+platform Linux, dokumen, serta versi setiap pilihan dalam satu transaksi. Versi
+missing dianggap0. Keputusan single/pack juga menaikkan versi, sehingga bulk yang
+stale ditolak409. Tidak ada parameter SQL atau shell. Uncheck tetap dapat dipilih
+sebelum approval. Pencabutan single/pack tetap tidak memerlukan menerima dokumen baru.
+
+Katalog/pack membawa platform linux/darwin/windows/all dari metadata yang dibekukan;
+query pack mempertahankan platform sumber artefak resmi. OS protocol macos dipetakan
+ke darwin pada presentasi. Metadata lintas OS bukan bukti runtime: hanya Linux amd64
+mempunyai artefak osquery dipatok. Scheduler dan Claim menolak osquery pada platform
+lain, dengan alasan unsupported; katalog agent menyaring query OS lain. Persetujuan
+dan Data endpoint ditempatkan pada endpoint terpilih di organisasi.
+
+Tes mencakup consent rendah sebelum/selepas antre, periode tanpa tidur15menit, reusable
+definitions, busy/due, CAS, eligibility, unknown query, unsupported platform dan UI
+acknowledgement kosong. Sepuluh mutasi killed/restored pada modul salinan. Uji policy
+DB juga diperbaiki agar URL benar-benar memakai orchis_app (ConnString pgx tidak
+menserialisasi perubahan field config); current_user diperiksa. Snapshot lama tidak
+ditulis ulang. Retensi otomatis/raw history dan pin macOS/Windows tetap di luar ini.
+
+
+## 53. Laporan PDF/JSON dan template cetak Orchis
+
+ADR 135: ekspor organisasi dan suplemen AI hanya menerima pdf/json. html/csv
+mengembalikan404; formatter CSV dan tes format usang dihapus. Pengujian escaping
+advice tetap ada pada template cetak internal. HTML tetap fungsi internal untuk
+Chromium, bukan endpoint ekspor. PDF preview memakai format PDF dengan disposition
+inline, sedangkan download tetap attachment. Status renderer terpisah dari snapshot.
+
+Halaman cetak baru memakai wordmark titik/ORCHIS serta bronze#C19A5B dari token
+desain Orchis. Cover penuh memuat organisasi, provenance, tanggal, preset/status dan
+referensi; isi berlanjut ke ringkasan risiko, scope, postur endpoint, temuan, remediasi,
+perbandingan konservatif dan metodologi. Header tabel diulang pada halaman berikut;
+baris dan kartu temuan normal tetap utuh. Teks dipotong/diredaksi sebelum snapshot
+dan di-escape saat render. Source PDF dan JSON sama, termasuk gagal/dilewati.
+
+Header berkas referensi OpenAEV render/theme/logo/Cover/ExecutiveSummary/ResultsBreakdown
+dan PlaywrightReportingRenderer.java diperiksa. Tidak ada header Apache yang memberi
+dasar menyalin kode file-file itu, sehingga hanya konsep struktur yang dipakai.
+Tidak ada kode, aset, logo, font atau warna merek OpenAEV/Filigran yang disalin;
+provenance dicatat di NOTICE. Renderer tetap offline, JavaScript mati dan semua route
+resource diblokir. Tidak perlu membuka egress untuk logo atau font eksternal.
+
+Tes menguji404 format lama, internal HTML escaping, izin, redaksi dan snapshot. Dua
+mutasi snapshot-overwrite/evidence-response killed/restored. Tes renderer dengan
+listener HTTP lokal membuktikan nol request CSS/gambar/JavaScript dan kini termasuk
+make check. Fixture PDF demo15halaman lulus QA teks/geometri dan seluruh halaman
+ditinjau sebagaiPNG; orphan severity yang ditemukan pada iterasi pertama diperbaiki.
+PDF dari Scan nyata, e2e UI dan full gate akhir tetap wajib pada subfase verifikasi.
+
+## 54. Identitas endpoint dan persetujuan alamat target
+
+ADR 136: hostname enrollment adalah identitas endpoint, bukan izin menentukan target
+jaringan. Agent baru tidak lagi menambahkan hostname ke asset_addresses. Migrasi29
+menandai scan_approved=false hanya pada hostname otomatis yang dapat dibuktikan dari
+source=agent, kecocokan hostname agent, dan timestamp alamat sama dengan pembuatan
+aset. Alamat tetap tersimpan dan terlihat dengan label perlu konfirmasi admin; edit
+alamat oleh admin menggantinya dengan alamat yang disetujui. Edit historis dengan
+timestamp berbeda dipertahankan. Aset manual/data laporan beku tidak diubah.
+
+Pemilihan alamat Scan, assessment, single test, preview readiness, serta engine hanya
+memakai alamat disetujui. Frozen target agent diperiksa lagi saat langkah chain dan
+Claim, agar antrean lama tidak memintas persetujuan. CIDR dari jaringan agent memakai
+proof scope tersendiri yang memeriksa izin admin/range/consent hidup. Migrasi mengakhiri
+ready/running yang masih memakai hostname otomatis dan menulis audit pencabutan scope.
+Mengubah alamat aset yang sudah diotorisasi memerlukan asset.authorize; asset.write
+sendiri tidak dapat mengalihkan target yang sebelumnya disetujui. UI menyatakan alasan
+kolom terkunci dan tetap memungkinkan perubahan nama/label.
+
+Tes integrasi membuktikan enrollment tidak memberi alamat, Run/Claim/chain menolak
+alamat tanpa konfirmasi, admin dapat mengonfirmasi, upgrade mempertahankan data dan
+edit admin serta mencabut antrean dengan audit. Mutation test terisolasi mencabut tiap
+cek ini dan wajib gagal karena assertion terkait, lalu source dipulihkan dan tes lulus.
+
+
+## 55. Verifikasi alur sederhana dan kompatibilitas lanjutan
+
+ADR 137: alur utama dibuktikan terpisah dari editor/engine lanjutan. flow16 memakai
+flag advanced mati, dua instance agent Linux nyata pada satu mesin, consent
+pengumpulan endpoint, otorisasi subnet fixture milik tes, penambahan aset lewat
+organisasi, serta Nmap/Nuclei container nyata. Hasil mencakup setiap pasangan
+aset/tool, host ditemukan tanpa testing permission, endpoint tidak terjangkau,
+alamat agent yang belum dikonfirmasi, snapshot tetap dan PDF/JSON. Delapan job
+mencakup dua tool pada dua aset fixture, satu endpoint tanpa alamat dan satu host
+rentang yang diotorisasi. Tidak ada scan yang dijalankan oleh agent.
+
+Tes browser fitur Scenario/Actions yang dihapus diganti fixture API untuk engine
+lama. Editor chain lanjutan dan kontrol run tetap diuji; root kini menuju
+Organisations dan Home lama hanya di /overview setelah opt-in. Navigasi dan
+pintasan memakai tujuan menu baru. Tes laporan hanya memakai PDF/JSON dan
+memeriksa404 untuk format yang dihapus; escaping HTML tetap diuji internal.
+
+Tinjauan54screenshot (18tampilan × 1280/834/390px) menemukan dan memperbaiki tab
+organisasi yang meluber, checkbox tanpa glyph, dialog consent yang terlalu lebar,
+acknowledgement tertutup dan kolom Findings ponsel yang terlalu sempit. Tes
+mencakup axe0, lebar halaman, batas dialog, serta teks persetujuan yang terlihat
+dan tidak tertutup. Laporan data endpoint menyediakan tabel bergulir pada layar
+sempit dengan petunjuk eksplisit. PDF nyata6halaman dan demo15halaman lulus QA
+teks/geometri/provenance dan setiap halaman ditinjau sebagaiPNG.
+
+Gerbang akhir /tmp/orchis-simplify-check2.status=0: go vet/test, frontend191tes pada
+25berkas, seluruh16flowbrowser, egressAI6/0, dan renderer0HTTP. flow16=200/0;
+flow9=258/0; flow15=85/0. Empat puluh mutasi keamanan killed/restored pada source
+akhir (organisasi5, Scan17, koleksi10, snapshot2, otoritas alamat6). Putaran awal
+yang gagal pada asumsi UI lama tetap dicatat terpisah dan tidak dihitung hijau.
+
+Agent berhasil di-build untuk linux/darwin/windows × amd64/arm64. Bukti runtime
+agent/osquery hanya Linux amd64. Jangkauan pemindaian dibuktikan pada fixture
+milik tes; endpoint web sengaja ditutup menghasilkan kegagalan eksplisit, bukan
+klaim aman. Hasil, reproduksi, konfigurasi, dan batas milestone dijelaskan dalam
+SIMPLIFY-HASIL.md. Sisa produksi T4 dan audit akhir T6 tetap pekerjaan berikutnya.

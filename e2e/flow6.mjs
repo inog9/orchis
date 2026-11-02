@@ -40,7 +40,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/');
+await p.waitForURL(BASE + '/organizations');
 
 // 1. tab Agents + keadaan kosong
 await p.goto(BASE + '/assets');
@@ -128,16 +128,16 @@ const wrong = await (await api('POST', '/api/v1/scenarios', { name: 'Wrong targe
 await api('PUT', `/api/v1/scenarios/${wrong.id}/targets`, { version: wrong.version, asset_ids: [agentless.id], group_ids: [] });
 const w2 = await (await api('GET', `/api/v1/scenarios/${wrong.id}`)).json();
 await api('PUT', `/api/v1/scenarios/${wrong.id}/graph`, { version: w2.version, edges: [], steps: [{ key: 'ports', title: 'Listening ports', contract_key: 'agent.listening_ports', trigger_mode: 'after_parents', is_enabled: true, delay_seconds: 0, params: {} }] });
-await p.goto(BASE + `/scenarios/${wrong.id}`);
+await p.goto(BASE + `/chains/${wrong.id}/setup`);
 await p.getByRole('button', { name: /launch simulation/i }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).click();
 await p.getByText(/has no agent/).waitFor();
 ok(true, 'peluncuran ke aset TANPA agent ditolak di muka dengan penjelasan');
 await p.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
-await p.goto(BASE + `/scenarios/${sc.id}`);
+await p.goto(BASE + `/chains/${sc.id}/setup`);
 await p.getByRole('button', { name: /launch simulation/i }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Launch simulation' }).click();
-await p.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
+await p.waitForURL(/\/simulations\/legacy\/[0-9a-f-]{36}$/);
 await p.locator('.page__title-row .status').filter({ hasText: /Finished/ }).waitFor({ timeout: 90000 });
 ok(await p.getByRole('row').filter({ hasText: 'Listening ports' }).getByText('Done', { exact: true }).isVisible() && await p.getByRole('row').filter({ hasText: 'System info' }).getByText('Done', { exact: true }).isVisible(), 'simulasi dua langkah agent berjalan berurutan sampai Finished');
 

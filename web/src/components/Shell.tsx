@@ -1,4 +1,5 @@
-import { navigationFor } from './navigation';
+import { useScans } from '../api/scans';
+import { advancedEnabled, navigationFor } from './navigation';
 import { PageAccess, PageGuide } from './PageGuide';
 import { Bell, ChevronUp, LogOut, Plus, Search, Settings, Server, UserRound, Users } from 'lucide-react';
 import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
@@ -15,10 +16,10 @@ export function NavDock() {
   const [tip, setTip] = useState<string | null>(null);
   const items = navigationFor(me);
   const {pathname}=useLocation();
-  const active=(n:typeof items[number]) => n.to==='/'?pathname==='/':pathname===n.to||pathname.startsWith(n.to+'/')||(n.id==='actions'&&pathname.startsWith('/atomic'))||(n.id==='scenarios'&&pathname.startsWith('/chains'))||(n.id==='organizations'&&pathname.startsWith('/ai/jobs/'));
+  const active=(n:typeof items[number]) => n.to==='/'?pathname==='/':pathname===n.to||pathname.startsWith(n.to+'/')||(n.id==='organizations'&&pathname.startsWith('/ai/jobs/'));
   return <nav className="dock dock--nav" aria-label="Primary" onKeyDown={e => { if (e.key === 'Escape') setTip(null); }}>
     <span className="nav-brand">WORKSPACE</span>
-    {['Start','Test','Results','Manage'].map(group => <div className="nav-group" key={group}>
+    {['Workspace','Manage'].map(group => <div className="nav-group" key={group}>
       <span className="nav-group__title">{group}</span>
       {items.filter(n => n.group === group).map(n => { const Icon=n.icon; return <div className="nav-entry" key={n.id} onMouseEnter={()=>setTip(n.id)} onMouseLeave={()=>setTip(null)}>
         <Link to={n.to} className={`dock__item ${active(n)?'is-active':''}`} aria-current={active(n)?'page':undefined} aria-label={n.label} aria-describedby={tip===n.id?`nav-tip-${n.id}`:undefined} onFocus={()=>setTip(n.id)} onBlur={()=>setTip(null)}><Icon size={17} aria-hidden="true"/><span>{n.label}</span></Link>
@@ -129,8 +130,10 @@ function ActionDock({ openPalette }: { openPalette: () => void }) {
   const ref = useDismiss(open, () => setOpen(false));
   const liveQuery = useSimulations('running', can(me,'simulation.read'));
   const live = { ...liveQuery, data: liveQuery.data?.filter(s => !s.is_demo) };
-  const canCreate=['organization.write','asset.write','scenario.write','people.write'].some(perm=>can(me,perm));
-  const n = can(me, 'simulation.read') ? (live.data?.length ?? 0) : 0;
+  const canCreate=['organization.write','asset.write','simulation.run'].some(perm=>can(me,perm));
+  const scans=useScans('','',can(me,'simulation.read')&&can(me,'assessment.read')&&can(me,'asset.read')&&can(me,'organization.read'));
+  const runningScans=scans.data?.items.filter(s=>s.status==='running')??[];
+  const n = (can(me, 'simulation.read') ? (live.data?.length ?? 0) : 0)+runningScans.length;
   const item = (label: string, to: string, perm: string) => can(me, perm) ? (
     <button role="menuitem" className="menu__item" disabled={!can(me, perm)} onClick={() => { setOpen(false); navigate(to); }}><Plus size={15} /> {label}</button>
   ) : null;
@@ -138,7 +141,7 @@ function ActionDock({ openPalette }: { openPalette: () => void }) {
     <div className="dock dock--action" ref={ref} role="region" aria-label="Quick actions">
       <button type="button" className="dock__idle" onClick={() => navigate('/simulations')} aria-label={n > 0 ? `${n} live ${n === 1 ? 'run' : 'runs'}` : 'No live runs'}>
         <span className="dock__idle-title">{n > 0 ? `${n} live ${n === 1 ? 'run' : 'runs'}` : 'No live runs'}</span>
-        <span className="dock__idle-sub">{n > 0 ? live.data![0]!.name : 'Nothing is running'}</span>
+        <span className="dock__idle-sub">{n > 0 ? (runningScans[0]?.name??live.data?.[0]?.name??'Running') : 'Nothing is running'}</span>
       </button>
       <span className="dock__sep" aria-hidden="true" />
       {canCreate&&<div className="dock__new-wrap">
@@ -149,8 +152,8 @@ function ActionDock({ openPalette }: { openPalette: () => void }) {
           <div className="menu menu--up" role="menu">
             {item('Create organisation', '/organizations?new=1', 'organization.write')}<p className="menu__group">ASSETS</p>
             {item('Add asset', '/assets?new=1', 'asset.write')}
-            <p className="menu__group">CHAINS</p>
-            {item('New scenario', '/scenarios?new=1', 'scenario.write')}
+            {item('New scan', '/simulations/new', 'simulation.run')}
+            {advancedEnabled(me)&&item('New chain', '/chains?new=1', 'scenario.write')}
             <p className="menu__group">PEOPLE</p>
             {item('Add person', '/people?new=1', 'people.write')}
           </div>

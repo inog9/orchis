@@ -366,7 +366,7 @@ describe('NotificationsPage', () => {
     await waitFor(() => expect(f.mock.calls.some(([u]) => String(u).endsWith('/alerts/a2/dismiss'))).toBe(true));
     await user.click(screen.getByRole('button', { name: /^Simulation OP-0001 finished/ }));
     await waitFor(() => expect(f.mock.calls.some(([u]) => String(u).endsWith('/alerts/a1/read'))).toBe(true));
-    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/simulations/sim-1'));
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/simulations/legacy/sim-1'));
   });
   it('kosong dan galat', async () => {
     route(admin, (u) => (u.includes('/alerts') ? json({ items: [], unread: 0 }) : undefined));
@@ -383,10 +383,10 @@ describe('NotificationsPage', () => {
 describe('CommandPalette', () => {
   it('entri mengikuti izin pengguna, dan pencarian menyaring label dan petunjuk', () => {
     const v = entriesFor({ ...viewer, permissions: ['atomic.read'] }).map((e) => e.id);
-    expect(v).toContain('home'); expect(v).toContain('atomic'); expect(v).toContain('settings');
+    expect(v).not.toContain('overview'); expect(v).not.toContain('atomic'); expect(v).toContain('settings');
     expect(v).not.toContain('findings'); expect(v).not.toContain('new-asset'); expect(v).not.toContain('people');
-    const all = entriesFor(admin);
-    expect(all.filter((e) => matches(e, 'discover')).map((e) => e.id)).toEqual(['findings']);
+    const all = entriesFor({...admin,features:{advanced:true}});
+    expect(all.filter((e) => matches(e, 'vulnerabilities')).map((e) => e.id)).toEqual(['findings']);
     expect(all.filter((e) => matches(e, 'attack')).map((e) => e.id)).toContain('mitre');
     expect(all.filter((e) => matches(e, '  '))).toHaveLength(all.length);
   });
