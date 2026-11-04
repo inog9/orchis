@@ -7,6 +7,13 @@ const keys = {
 "password_too_short":"api_password_too_short" as const,
 "current_password_wrong":"api_current_password_wrong" as const,
 "person_email_exists":"api_person_email_exists" as const,
+"address_ip_invalid":"api_address_ip_invalid" as const,
+"address_cidr_invalid":"api_address_cidr_invalid" as const,
+"address_hostname_invalid":"api_address_hostname_invalid" as const,
+"address_url_invalid":"api_address_url_invalid" as const,
+"address_mac_invalid":"api_address_mac_invalid" as const,
+"address_kind_invalid":"api_address_kind_invalid" as const,
+"addresses_too_many":"api_addresses_too_many" as const,
 
 dependency_cycle:"api_dependency_cycle" as const,
 "invalid_request": "api_invalid_request" as const,

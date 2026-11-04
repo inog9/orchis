@@ -160,13 +160,16 @@ services:
     user: "0:0"
     cap_add: [NET_BIND_SERVICE]
     healthcheck:
-      test: [CMD, wget, -q, -O, /dev/null, --no-check-certificate, https://localhost/api/healthz]
+      test: [CMD-SHELL, 'wget -q -O /dev/null --no-check-certificate https://$$ORCHIS_SITE/api/healthz']
       interval: 5s
       timeout: 3s
       retries: 30
     environment:
       ORCHIS_SITE: ${ORCHIS_SITE:-localhost}
-    ports: ["${ORCHIS_BIND:-127.0.0.1}:${ORCHIS_HTTPS_PORT:-8443}:443"]
+      ORCHIS_TLS: ${ORCHIS_TLS-tls internal}
+      ORCHIS_AUTO_HTTPS: ${ORCHIS_AUTO_HTTPS-auto_https disable_redirects}
+    extra_hosts: ["${ORCHIS_SITE:-localhost}:127.0.0.1"]
+    ports: ["${ORCHIS_BIND:-127.0.0.1}:${ORCHIS_HTTPS_PORT:-8443}:443", "${ORCHIS_BIND:-127.0.0.1}:${ORCHIS_HTTP_PORT:-18080}:80"]
     volumes:
       - ./deploy/prod/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
@@ -208,8 +211,8 @@ services:
     extends: nmap
     command: [--kind, nuclei]
     volumes: ["${ORCHIS_STATE}/nuclei.json:/run/secrets/app.json:ro"]
-    mem_limit: 384m
-    cpus: 0.75
+    mem_limit: 1g
+    cpus: 1.0
   ai-proxy:
     <<: *app
     restart: unless-stopped

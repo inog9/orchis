@@ -2,7 +2,7 @@ import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "..
 import { AssetFindings } from '../components/AssetFindings';
 import { EndpointDataPanel } from '../components/EndpointDataPanel';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useAsset, useDeleteAsset, useMe } from '../api/hooks';
@@ -12,6 +12,7 @@ import { TagChips } from '../components/TagPicker';
 import { ConfirmDialog } from './ConfirmDialog';
 import { EditAssetDialog } from './EditAssetDialog';
 import { categoryOf, PLATFORM_LABEL } from './categories';
+import { NOTES_LABEL, specOf } from './categorySchema';
 const fmt = (iso: string) => new Date(iso).toLocaleString(locale(), { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export function AssetDetailPage() {
     useLocale();
@@ -74,6 +75,17 @@ export function AssetDetailPage() {
             <dt>{textUI("m_3a5ecca188c0")}</dt><dd>{formatUI(fmt(a.updated_at))}</dd>
           </dl>
         </section>
+        {formatUI(specOf(a.category).fields.length > 0 && (<section className="panel" aria-labelledby="cat-h">
+          <h2 id="cat-h" className="panel__title">{formatUI(cat.label)}</h2>
+          <dl className="dl">
+            {formatUI(specOf(a.category).fields.map((f) => {
+                const raw = a.attributes?.[f.key];
+                const value = typeof raw === 'string' && raw ? (f.options.find((o) => o.value === raw)?.label ?? raw) : '—';
+                return <Fragment key={f.key}><dt>{formatUI(f.label)}</dt><dd>{formatUI(value)}</dd></Fragment>;
+            }))}
+            {formatUI(a.description && <><dt>{formatUI(NOTES_LABEL())}</dt><dd>{formatUI(a.description)}</dd></>)}
+          </dl>
+        </section>))}
         <section className="panel" aria-labelledby="addr-h">
           <h2 id="addr-h" className="panel__title">{textUI("m_76179aafc43c")}</h2>
           {formatUI(a.addresses.length === 0 ? <p className="muted">{textUI("m_79da1e76bc61")}</p> : (<ul className="plain-list">

@@ -9,6 +9,8 @@ import { Field } from '../components/Field';
 import { Modal } from '../components/Modal';
 import { TagPicker } from '../components/TagPicker';
 import { inferKind } from './categories';
+import { CategoryFields, attributesOf, initialValues, missingRequired } from './CategoryFields';
+import { badAddress, kindsText, specOf } from './categorySchema';
 export function EditAssetDialog({ asset, onClose, onStale }: {
     asset: Asset;
     onClose: () => void;
@@ -25,6 +27,10 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
     const [internet, setInternet] = useState(asset.is_internet_facing);
     const [authorized, setAuthorized] = useState(asset.testing_authorized);
     const [tagIds, setTagIds] = useState(asset.tags.map((t) => t.id));
+    const spec = specOf(asset.category);
+    const [values, setValues] = useState(() => initialValues(spec, asset.attributes, asset.description));
+    const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
+    const setValue = (k: string, v: string) => { touch(); setClientErrors((c) => ({ ...c, [k]: '' })); setValues((x) => ({ ...x, [k]: v })); };
     const canEditAddresses = !asset.testing_authorized || can(me, 'asset.authorize');
     const err = patch.error;
     const stale = err instanceof ApiError && err.status === 409;
@@ -33,6 +39,18 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
     const submit = (e: FormEvent) => {
         e.preventDefault();
         const lines = addresses.split(/[\n,]+/).map((l) => l.trim()).filter(Boolean);
+        const problems = missingRequired(spec, values);
+        if (canEditAddresses && spec.address === 'required' && lines.length === 0)
+            problems.addresses = textUI("m_cf_err_addr_required", [kindsText(spec.kinds)]);
+        const bad = canEditAddresses && spec.address !== 'hidden' ? badAddress(lines, spec.kinds, inferKind) : null;
+        if (bad)
+            problems.addresses = textUI("m_cf_err_line", [bad, kindsText(spec.kinds)]);
+        setClientErrors(problems);
+        if (Object.keys(problems).length)
+            return;
+        // Atribut di luar skema kategori (mis. dari agent) dipertahankan; kunci skema diganti sesuai isian.
+        const schemaKeys = new Set(spec.fields.map((f) => f.key));
+        const kept = Object.fromEntries(Object.entries(asset.attributes ?? {}).filter(([k]) => !schemaKeys.has(k)));
         patch.mutate({
             version: asset.version,
             name,
@@ -41,7 +59,9 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
             criticality,
             is_internet_facing: internet,
             ...(can(me, 'asset.authorize') ? { testing_authorized: authorized } : {}),
-            ...(canEditAddresses ? { addresses: lines.map((value) => ({ kind: inferKind(value), value })) } : {}),
+            ...(canEditAddresses && spec.address !== 'hidden' ? { addresses: lines.map((value) => ({ kind: inferKind(value), value })) } : {}),
+            attributes: { ...kept, ...attributesOf(spec, values) },
+            description: (values.__notes ?? '').trim(),
             tag_ids: tagIds,
         }, { onSuccess: onClose });
     };
@@ -58,29 +78,30 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
           </div>))}
         <Field label={textUI("m_dcd1d5223f73")} value={name} onChange={(e) => { touch(); setName(e.target.value); }} error={fieldErr('name')}/>
         <div className="row">
-          <div className="select"><label htmlFor="ed-platform">{textUI("m_c78ffe195710")}</label>
+          {formatUI((spec.platform || platform) && <div className="select"><label htmlFor="ed-platform">{textUI("m_c78ffe195710")}</label>
             <select id="ed-platform" value={platform} onChange={(e) => { touch(); setPlatform(e.target.value); }}>
               <option value="">{textUI("m_4895f73177ab")}</option><option value="windows">{textUI("m_d598026a9cbc")}</option><option value="linux">{textUI("m_4828e60247c1")}</option>
               <option value="macos">{textUI("m_aed6b7aa2a05")}</option><option value="ios">{textUI("m_355f5e748485")}</option><option value="android">{textUI("m_6d612a86bee4")}</option><option value="other">{textUI("m_f97e9da0e3b8")}</option>
-            </select></div>
-          <div className="select"><label htmlFor="ed-arch">{textUI("m_cd74053c5481")}</label>
+            </select></div>)}
+          {formatUI((spec.arch || arch) && <div className="select"><label htmlFor="ed-arch">{textUI("m_cd74053c5481")}</label>
             <select id="ed-arch" value={arch} onChange={(e) => { touch(); setArch(e.target.value); }}>
               <option value="">{textUI("m_4895f73177ab")}</option><option value="x86_64">{textUI("m_7520b5a1b312")}</option><option value="arm64">{textUI("m_f69162950f23")}</option><option value="other">{textUI("m_f97e9da0e3b8")}</option>
-            </select></div>
+            </select></div>)}
           <div className="select"><label htmlFor="ed-crit">{textUI("m_afdc3ea3ef86")}</label>
             <select id="ed-crit" value={criticality} onChange={(e) => { touch(); setCriticality(e.target.value); }}>
               <option value="low">{textUI("m_f793de205ead")}</option><option value="medium">{textUI("m_8e588cd18774")}</option><option value="high">{textUI("m_c4ebc6d4a583")}</option><option value="critical">{textUI("m_427dd2969bd1")}</option>
             </select></div>
         </div>
-        <div className="textarea">
-          <label htmlFor="ed-addresses">{textUI("m_76179aafc43c")}</label>
-          <textarea id="ed-addresses" disabled={!canEditAddresses} rows={3} value={addresses} aria-invalid={!!fieldErr('addresses')} aria-describedby="ed-addresses-hint" onChange={(e) => { touch(); setAddresses(e.target.value); }}/>
-          <small id="ed-addresses-hint" className={fieldErr('addresses') ? 'is-error' : ''} role={fieldErr('addresses') ? 'alert' : undefined}>
-            {formatUI(fieldErr('addresses') ?? (canEditAddresses ? textUI("m_d105d1da575a") : textUI("m_3dce808e1410")))}
+        <CategoryFields spec={spec} values={values} onChange={setValue} errors={clientErrors}/>
+        {formatUI(spec.address !== 'hidden' && (<div className="textarea">
+          <label htmlFor="ed-addresses">{formatUI(spec.addressLabel)}</label>
+          <textarea id="ed-addresses" disabled={!canEditAddresses} rows={3} value={addresses} placeholder={spec.addressPlaceholder} aria-invalid={!!(clientErrors.addresses || fieldErr('addresses'))} aria-describedby="ed-addresses-hint" onChange={(e) => { touch(); setClientErrors((c) => ({ ...c, addresses: '' })); setAddresses(e.target.value); }}/>
+          <small id="ed-addresses-hint" className={(clientErrors.addresses || fieldErr('addresses')) ? 'is-error' : ''} role={(clientErrors.addresses || fieldErr('addresses')) ? 'alert' : undefined}>
+            {formatUI(clientErrors.addresses || fieldErr('addresses') || (canEditAddresses ? spec.addressHint : textUI("m_3dce808e1410")))}
           </small>
-        </div>
+        </div>))}
         <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate/>
-        <label className="check">{richUI("m_7a59eaa2b03d", [<input type="checkbox" checked={internet} onChange={(e) => { touch(); setInternet(e.target.checked); }}/>, <span className="check__box" aria-hidden="true"/>])}</label>
+        {formatUI((spec.internet || internet) && <label className="check">{richUI("m_7a59eaa2b03d", [<input type="checkbox" checked={internet} onChange={(e) => { touch(); setInternet(e.target.checked); }}/>, <span className="check__box" aria-hidden="true"/>])}</label>)}
         {formatUI(can(me, 'asset.authorize') && (<label className="check"><input type="checkbox" checked={authorized} onChange={(e) => { touch(); setAuthorized(e.target.checked); }}/><span className="check__box" aria-hidden="true"/>
             <span>{richUI("m_21b0282172a5", [<small className="check__sub">{textUI("m_cc2513acdabd")}</small>])}</span></label>))}
         <footer className="dialog__foot">

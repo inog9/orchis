@@ -1,11 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AssetsPage } from './AssetsPage';
 
-const me = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['asset.read', 'asset.write'] };
+const me = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['asset.read', 'asset.write', 'organization.read'] };
 const asset = (n: string, extra = {}) => ({
   id: n, category: 'host', name: n, description: null, platform: 'linux', arch: 'x86_64', criticality: 'high',
   is_internet_facing: false, testing_authorized: n === 'srv-ok', source: 'manual', attributes: {},
@@ -89,6 +89,7 @@ describe('AssetsPage', () => {
         return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).', code: 'name_invalid' }] }, 422);
       return json({ items: [], next_cursor: null });
     });
+    await userEvent.type(screen.getByRole('textbox', { name: 'URLs' }), 'https://example.org');
     await userEvent.click(screen.getByRole('button', { name: /create asset/i }));
     expect(await screen.findByText('Name is required (max 200 characters).')).toBeInTheDocument();
     expect(screen.queryByLabelText(/I confirm this asset may be tested/i)).not.toBeInTheDocument(); // analyst tidak punya asset.authorize
@@ -107,6 +108,7 @@ describe('AddAssetDialog', () => {
       if (init?.method === 'POST') return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).', code: 'name_invalid' }] }, 422);
       return json({ items: [], next_cursor: null });
     });
+    await userEvent.type(screen.getByRole('textbox', { name: 'Addresses' }), '10.0.0.5');
     await userEvent.click(screen.getByRole('button', { name: /create asset/i }));
     expect(await screen.findByText('Name is required (max 200 characters).')).toBeInTheDocument();
     await userEvent.type(screen.getByLabelText('Name', { exact: true }), 'srv-01');
@@ -120,5 +122,71 @@ describe('AddAssetDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Host/ }));
     expect(screen.getByRole('textbox', { name: 'Addresses' })).toHaveAccessibleDescription(/One per line/);
     expect(screen.getByRole('combobox', { name: 'Platform' })).toBeInTheDocument();
+  });
+  it('menyimpan aset ke organisasi yang dipilih (satu-satunya organisasi dipilih otomatis)', async () => {
+    const spy = route((url) => url.includes('/organizations?') ? json({ items: [{ id: 'org-1', name: 'Acme' }], next_cursor: null }) : json({ items: [], next_cursor: null }));
+    mount();
+    await userEvent.click((await screen.findAllByRole('button', { name: /add asset/i }))[0]!);
+    await userEvent.click(screen.getByRole('button', { name: /^Host/ }));
+    await waitFor(() => expect(within(screen.getByRole('dialog')).getByRole('combobox', { name: 'Organisation' })).toHaveValue('org-1'));
+    expect(screen.getByText(/can only be scanned once it belongs to an organisation/)).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText('Name', { exact: true }), 'srv-01');
+    await userEvent.type(screen.getByRole('textbox', { name: 'Addresses' }), '10.0.0.5');
+    await userEvent.click(screen.getByRole('button', { name: /create asset/i }));
+    await waitFor(() => expect(spy.mock.calls.some(([, init]) => init?.method === 'POST' && JSON.parse(String(init.body)).organization_id === 'org-1')).toBe(true));
+  });
+  const open = async (label: RegExp) => {
+    const spy = route((url) => url.includes('/organizations?') ? json({ items: [{ id: 'org-1', name: 'Acme' }], next_cursor: null }) : json({ items: [], next_cursor: null }));
+    mount();
+    await userEvent.click((await screen.findAllByRole('button', { name: /add asset/i }))[0]!);
+    await userEvent.click(screen.getByRole('button', { name: label }));
+    return spy;
+  };
+  const posted = (spy: ReturnType<typeof route>) => spy.mock.calls.map(([, init]) => init).find((init) => init?.method === 'POST');
+
+  it('menampilkan kolom khusus tiap kategori dan menyembunyikan yang tidak relevan', async () => {
+    await open(/^Cloud resource/);
+    const dialog = screen.getByRole('dialog');
+    for (const name of [/Provider/, /Account \/ subscription \/ project ID/, /Resource type/, /Resource ID \/ ARN/]) expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText('Platform')).toBeNull();
+    expect(within(dialog).queryByLabelText('Architecture')).toBeNull();
+    expect(within(dialog).getByText(/Inventory only/)).toBeInTheDocument();
+  });
+
+  it('identity tidak meminta alamat dan menyimpan atribut khususnya', async () => {
+    const spy = await open(/^Identity/);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).queryByRole('textbox', { name: /Addresses|URLs/ })).toBeNull();
+    await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'svc-backup');
+    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
+    expect(await within(dialog).findByText('Choose a value for Identity type.')).toBeInTheDocument();
+    expect(within(dialog).getByText('Principal / login is required.')).toBeInTheDocument();
+    expect(posted(spy)).toBeUndefined();
+    await userEvent.selectOptions(within(dialog).getByLabelText(/Identity type/), 'service_account');
+    await userEvent.type(within(dialog).getByLabelText(/Principal \/ login/), 'svc-backup@corp.local');
+    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
+    await waitFor(() => expect(posted(spy)).toBeDefined());
+    const body = JSON.parse(String(posted(spy)!.body));
+    expect(body).toMatchObject({ category: 'identity', addresses: [], attributes: { identity_type: 'service_account', principal: 'svc-backup@corp.local' }, is_internet_facing: false, testing_authorized: false });
+  });
+
+  it('menyebut baris alamat yang tidak cocok dengan tipe aset', async () => {
+    const spy = await open(/^Web application/);
+    const dialog = screen.getByRole('dialog');
+    await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'Portal');
+    await userEvent.type(within(dialog).getByRole('textbox', { name: 'URLs' }), 'not a url');
+    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
+    expect(await within(dialog).findByText(/“not a url” isn’t a valid address for this type\. Use: URL\./)).toBeInTheDocument();
+    expect(posted(spy)).toBeUndefined();
+  });
+
+  it('host wajib punya alamat dan tetap menampilkan Platform dan Architecture', async () => {
+    await open(/^Host/);
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByLabelText('Platform')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Architecture')).toBeInTheDocument();
+    await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'srv');
+    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
+    expect(await within(dialog).findByText(/Add at least one address\. Use: IP, CIDR, hostname, domain\./)).toBeInTheDocument();
   });
 });

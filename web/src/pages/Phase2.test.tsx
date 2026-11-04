@@ -56,6 +56,18 @@ describe('AssetDetailPage', () => {
     expect(screen.queryByText(/No findings yet/)).not.toBeInTheDocument();
   });
 
+  it('menampilkan detail khusus kategori (atribut dan catatan) dengan label yang terbaca', async () => {
+    api(perms(), () => json(asset({ category: 'cloud_resource', name: 'prod-bucket', platform: null, arch: null, description: 'Holds invoices', attributes: { provider: 'aws', account_id: '123456789012', resource_type: 'S3 bucket', resource_id: 'arn:aws:s3:::prod-bucket' }, addresses: [] })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await screen.findByRole('heading', { name: 'prod-bucket' });
+    const panel = screen.getByRole('heading', { name: 'Cloud resource', level: 2 }).closest('section')!;
+    expect(panel).toHaveTextContent('Provider');
+    expect(panel).toHaveTextContent('AWS');
+    expect(panel).toHaveTextContent('123456789012');
+    expect(panel).toHaveTextContent('arn:aws:s3:::prod-bucket');
+    expect(panel).toHaveTextContent('Holds invoices');
+  });
+
   it('tombol ubah dan hapus mengikuti izin', async () => {
     api(['asset.read'], () => json(asset()));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');

@@ -39,6 +39,20 @@ func knownMessageCode(message string) string {
 	switch message {
 	case "Name is required (max 200 characters).":
 		return "name_invalid"
+	case "Invalid IP address.":
+		return "address_ip_invalid"
+	case "Invalid CIDR.":
+		return "address_cidr_invalid"
+	case "Invalid hostname.":
+		return "address_hostname_invalid"
+	case "URL must start with http:// or https://.":
+		return "address_url_invalid"
+	case "Invalid MAC address.":
+		return "address_mac_invalid"
+	case "Unknown address kind.":
+		return "address_kind_invalid"
+	case "At most 20 addresses.":
+		return "addresses_too_many"
 	case "The file is empty.":
 		return "file_empty"
 	case "Use ports like 22,80,8000-8100 (at most 50 entries).":

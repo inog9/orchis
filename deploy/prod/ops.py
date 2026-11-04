@@ -11,10 +11,24 @@ def private(path, value, uid=10001):
     with os.fdopen(fd,"w") as out: out.write(data)
     os.chown(path,uid,uid)
 
+def installation_address(bind,site):
+    try:address=ipaddress.IPv4Address(bind)
+    except ipaddress.AddressValueError:raise ValueError("--bind must be an IPv4 address") from None
+    if not address.is_loopback and not site:raise ValueError("Non-loopback --bind requires an explicit --site hostname or IPv4 address")
+    site=site or "localhost"
+    if len(site)>253 or not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?",label) for label in site.split('.')):
+        raise ValueError("--site must be a hostname or IPv4 address without scheme, port, path or wildcard")
+    if re.fullmatch(r"[0-9.]+",site):
+        try:
+            if ipaddress.IPv4Address(site).is_unspecified:raise ValueError()
+        except ValueError:raise ValueError("--site must identify a concrete server address") from None
+    return str(address),site.lower()
+
 def init(args):
     if os.geteuid()!=0: raise SystemExit("prod-init needs root to assign private secret files to container users")
     if args.state.exists(): raise SystemExit("State directory exists; refusing to replace secrets")
     if not re.fullmatch(r"[a-z][a-z0-9-]{2,39}",args.project): raise SystemExit("Invalid project name")
+    bind,site=installation_address(getattr(args,"bind","127.0.0.1"),getattr(args,"site",None))
     from mitre_config import defaults
     mitre=defaults(REPO)
     network_ids=subprocess.check_output(["docker","network","ls","-q"],text=True).split()
@@ -43,7 +57,7 @@ def init(args):
     for kind,token in [("nmap",nmap),("nuclei",nuclei)]:private(args.state/(kind+".json"),{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_INJECTOR_TOKEN":token,"ORCHIS_AMQP_URL":mqurl})
     private(args.state/"ai.json",{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_AI_WORKER_TOKEN":ai,"ORCHIS_AI_PROXY":"http://ai-proxy:8080"})
     private(args.state/"initial-admin.json",{"email":args.email,"password":admin},0)
-    private(args.state/"operator.json",{"project":args.project,"port":str(args.port),"bind":"127.0.0.1","site":"localhost","proxy_subnet":str(subnet),"proxy_range":str(subnet.network_address+128)+"/25","caddy_ip":caddy_ip,"smoke":args.command=="smoke"},0)
+    private(args.state/"operator.json",{"project":args.project,"port":str(args.port),"bind":bind,"site":site,"proxy_subnet":str(subnet),"proxy_range":str(subnet.network_address+128)+"/25","caddy_ip":caddy_ip,"smoke":args.command=="smoke"},0)
     private(args.state/"backup.key",secrets.token_hex(32),0)
     (args.state/"agent-releases").mkdir(mode=0o755)
     print("Initialized private state. Initial credentials: "+str(args.state/"initial-admin.json"))
@@ -179,6 +193,8 @@ def main():
     p.add_argument("--state",type=Path,default=None)
     p.add_argument("--project")
     p.add_argument("--port",type=int)
+    p.add_argument("--bind",default="127.0.0.1",help="Explicit IPv4 listen address; default loopback only")
+    p.add_argument("--site",help="TLS hostname or IPv4 address; required for a non-loopback bind")
     p.add_argument("--email",default="admin@orchis.local")
     p.add_argument("--demo-seed",type=int,default=int(os.environ.get("DEMO_SEED","1")))
     p.add_argument("--credentials-file",type=Path)
@@ -196,7 +212,7 @@ def main():
     args.state=args.state.resolve()
     if args.key_file and args.key_file.resolve().is_relative_to(REPO):p.error("Backup keys must be outside the checkout")
     if not args.state.is_absolute() or args.state.is_relative_to(REPO):p.error("State must be an absolute path outside the checkout")
-    if not 1024<=args.port<=65535:p.error("Port must be between 1024 and 65535")
+    if not(args.port==443 or 1024<=args.port<=65535):p.error("Port must be 443 or between 1024 and 65535")
     def execute():
         if args.command=="init":init(args)
         elif args.command in {"demo-seed","demo-purge","demo-status"}:

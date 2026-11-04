@@ -192,7 +192,7 @@ func serve(ctx context.Context, cfg *config.Config) error {
 		fmt.Printf("\n  Admin pertama dibuat.\n  Email   : %s\n  Password: %s\n  (hanya ditampilkan sekali; simpan atau segera ganti)\n\n", cfg.AdminEmail, generated)
 	}
 	opts := server.Options{DB: d, Tenant: tenant, TrustedProxies: cfg.TrustedProxies, PublicRateLimit: cfg.Production, CookieSecure: cfg.CookieSecure, AdvancedFeatures: cfg.AdvancedFeatures, ScanMaxHosts: cfg.ScanMaxHosts, ScanConcurrency: cfg.ScanConcurrency, EndpointCollectionSeconds: cfg.EndpointCollectionSeconds, WebDir: cfg.WebDir,
-		Guard: contract.Guard{AllowLoopback: cfg.AllowLoopbackTargets}, Version: version, AgentRelease: cfg.AgentReleaseDir}
+		Guard: contract.Guard{AllowLoopback: cfg.AllowLoopbackTargets, DeferNames: true}, Version: version, AgentRelease: cfg.AgentReleaseDir}
 	opts.Checks = []settings.Check{{Name: "PostgreSQL", Fn: d.Pool.Ping}}
 	var es *search.Client
 	if cfg.ESURL != "" {

@@ -37,6 +37,13 @@ func TestKnownMessageCodesCoverCuratedAdminMessages(t *testing.T) {
 		"Use at least 12 characters.":                                          "password_too_short",
 		"That isn’t your current password.":                                    "current_password_wrong",
 		"Someone with this email already exists.":                              "person_email_exists",
+		"Invalid IP address.":                                                  "address_ip_invalid",
+		"Invalid CIDR.":                                                        "address_cidr_invalid",
+		"Invalid hostname.":                                                    "address_hostname_invalid",
+		"URL must start with http:// or https://.":                             "address_url_invalid",
+		"Invalid MAC address.":                                                 "address_mac_invalid",
+		"Unknown address kind.":                                                "address_kind_invalid",
+		"At most 20 addresses.":                                                "addresses_too_many",
 	} {
 		if got := knownMessageCode(message); got != code {
 			t.Fatal(message, got, code)

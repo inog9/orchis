@@ -80,3 +80,21 @@ class AgentTrustSetup(unittest.TestCase):
    with mock.patch.object(ops,'compose',return_value=types.SimpleNamespace(stdout='invalid')):
     with self.assertRaises(ValueError):ops.agent_trust(args)
    self.assertEqual((state/'server.json').read_bytes(),before)
+
+class InstallationAddress(unittest.TestCase):
+ def test_cli_default_is_loopback(self):
+  with tempfile.TemporaryDirectory() as directory, mock.patch('sys.argv',['ops.py','init','--state',str(Path(directory)/'new')]), mock.patch.object(ops,'init') as init, mock.patch.object(ops,'REPO',Path(directory)/'checkout'):
+   ops.main()
+   self.assertEqual(init.call_args.args[0].bind,'127.0.0.1')
+   self.assertIsNone(init.call_args.args[0].site)
+
+ def test_default_stays_loopback(self):self.assertEqual(ops.installation_address('127.0.0.1',None),('127.0.0.1','localhost'))
+ def test_explicit_remote_binding(self):
+  self.assertEqual(ops.installation_address('192.0.2.10','192.0.2.10'),('192.0.2.10','192.0.2.10'))
+  self.assertEqual(ops.installation_address('0.0.0.0','Orchis.Example.test'),('0.0.0.0','orchis.example.test'))
+ def test_nonloopback_needs_explicit_site(self):
+  for bind in ['0.0.0.0','192.0.2.10']:
+   with self.subTest(bind=bind),self.assertRaisesRegex(ValueError,'explicit --site'):ops.installation_address(bind,None)
+ def test_malformed_bind_and_site_are_rejected(self):
+  for bind,site in [('localhost',None),('127.0.0.1;echo',None),('127.0.0.1','https://host'),('127.0.0.1','host:443'),('127.0.0.1','host/path'),('127.0.0.1','*.test'),('127.0.0.1','bad\nhost'),('127.0.0.1','-host'),('127.0.0.1','a'*64),('127.0.0.1','0.0.0.0'),('127.0.0.1','999.999.0.1')]:
+   with self.subTest(bind=bind,site=site),self.assertRaises(ValueError):ops.installation_address(bind,site)

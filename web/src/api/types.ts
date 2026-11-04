@@ -48,6 +48,8 @@ export type NewAsset = {
   is_internet_facing: boolean;
   testing_authorized: boolean;
   addresses: { kind: string; value: string }[];
+  attributes?: Record<string, string>;
+  description?: string;
   tag_ids?: string[];
 };
 
@@ -62,6 +64,8 @@ export type AssetPatch = {
   is_internet_facing?: boolean;
   testing_authorized?: boolean;
   addresses?: { kind: string; value: string }[];
+  attributes?: Record<string, unknown>;
+  description?: string;
   tag_ids?: string[];
 };
 

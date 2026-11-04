@@ -141,3 +141,20 @@ func TestNmapRetainsClosedAndFilteredStatesForCoverage(t *testing.T) {
 		}
 	}
 }
+
+func TestDeferNamesOnlyWhenResolutionFails(t *testing.T) {
+	fail := func(string) ([]netip.Addr, error) { return nil, errors.New("no dns") }
+	if err := (Guard{Resolve: fail}).CheckHost("example.com"); err == nil {
+		t.Fatal("strict guard must reject an unresolvable name")
+	}
+	if err := (Guard{Resolve: fail, DeferNames: true}).CheckHost("example.com"); err != nil {
+		t.Fatalf("deferred name: %v", err)
+	}
+	private := func(string) ([]netip.Addr, error) { return []netip.Addr{netip.MustParseAddr("169.254.169.254")}, nil }
+	if err := (Guard{Resolve: private, DeferNames: true}).CheckHost("example.com"); err == nil {
+		t.Fatal("a name that resolves to a blocked address must stay blocked even when names are deferred")
+	}
+	if err := (Guard{Resolve: fail, DeferNames: true}).CheckHost("-oX"); err == nil {
+		t.Fatal("syntax check must still apply")
+	}
+}

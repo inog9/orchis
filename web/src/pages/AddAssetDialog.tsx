@@ -9,6 +9,9 @@ import { Modal } from '../components/Modal';
 import { TagPicker } from '../components/TagPicker';
 import { describeError } from '../components/ErrorNote';
 import { CATEGORIES, categoryOf, inferKind } from './categories';
+import { OrganizationFilter } from '../components/OrganizationFilter';
+import { CategoryFields, attributesOf, missingRequired } from './CategoryFields';
+import { badAddress, kindsText, specOf } from './categorySchema';
 export function AddAssetDialog({ onClose, organizationID }: {
     onClose: () => void;
     organizationID?: string;
@@ -17,6 +20,7 @@ export function AddAssetDialog({ onClose, organizationID }: {
     const { data: me } = useMe();
     const create = useCreateAsset();
     const [category, setCategory] = useState<string | null>(null);
+    const [orgChoice, setOrgChoice] = useState('');
     const [name, setName] = useState('');
     const [platform, setPlatform] = useState('');
     const [arch, setArch] = useState('');
@@ -25,6 +29,8 @@ export function AddAssetDialog({ onClose, organizationID }: {
     const [internet, setInternet] = useState(false);
     const [authorized, setAuthorized] = useState(false);
     const [tagIds, setTagIds] = useState<string[]>([]);
+    const [values, setValues] = useState<Record<string, string>>({});
+    const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
     const err = create.error;
     // Galat server milik isian sebelumnya; hilangkan begitu pengguna mengubah sesuatu agar tidak menyesatkan.
     const touch = () => create.isError && create.reset();
@@ -33,21 +39,35 @@ export function AddAssetDialog({ onClose, organizationID }: {
         e.preventDefault();
         if (!category)
             return;
+        const spec = specOf(category);
         const lines = addresses.split(/[\n,]+/).map((l) => l.trim()).filter(Boolean);
+        const problems = missingRequired(spec, values);
+        if (spec.address === 'required' && lines.length === 0)
+            problems.addresses = textUI("m_cf_err_addr_required", [kindsText(spec.kinds)]);
+        const bad = spec.address === 'hidden' ? null : badAddress(lines, spec.kinds, inferKind);
+        if (bad)
+            problems.addresses = textUI("m_cf_err_line", [bad, kindsText(spec.kinds)]);
+        setClientErrors(problems);
+        if (Object.keys(problems).length)
+            return;
         create.mutate({
             category,
-            ...(organizationID ? { organization_id: organizationID } : {}),
+            ...((organizationID || orgChoice) ? { organization_id: organizationID || orgChoice } : {}),
             name,
-            platform: platform || null,
-            arch: arch || null,
+            platform: spec.platform ? (platform || null) : null,
+            arch: spec.arch ? (arch || null) : null,
             criticality,
-            is_internet_facing: internet,
-            testing_authorized: authorized,
-            addresses: lines.map((value) => ({ kind: inferKind(value), value })),
+            is_internet_facing: spec.internet && internet,
+            testing_authorized: spec.testable && authorized,
+            addresses: spec.address === 'hidden' ? [] : lines.map((value) => ({ kind: inferKind(value), value })),
+            attributes: attributesOf(spec, values),
+            ...((values.__notes ?? '').trim() ? { description: (values.__notes ?? '').trim() } : {}),
             tag_ids: tagIds,
         }, { onSuccess: onClose });
     };
     const cat = category ? categoryOf(category) : null;
+    const spec = category ? specOf(category) : null;
+    const setValue = (k: string, v: string) => { touch(); setClientErrors((c) => ({ ...c, [k]: '' })); setValues((x) => ({ ...x, [k]: v })); };
     return (<Modal labelledBy="add-asset-title" onClose={onClose}>
       <>
         <header className="dialog__head">
@@ -84,9 +104,11 @@ export function AddAssetDialog({ onClose, organizationID }: {
                   {formatUI(describeError(err).errorId ? textUI("m_488d61c8380b", [describeError(err).errorId]) : '')}
                 </span>
               </div>))}
+            {formatUI(!organizationID && (<div className="field"><span className="label">{textUI("m_asset_org_label")}</span><OrganizationFilter value={orgChoice} onChange={(v) => { touch(); setOrgChoice(v); }} required/><p className="hint">{textUI("m_asset_org_hint")}</p></div>))}
             <Field label={textUI("m_dcd1d5223f73")} value={name} onChange={(e) => { touch(); setName(e.target.value); }} error={fieldErr('name')} placeholder={textUI("m_368bcf1c9887")} autoFocus/>
+            {formatUI(spec && (<>
             <div className="row">
-              <div className="select">
+              {formatUI(spec.platform && (<div className="select">
                 <label htmlFor="asset-platform">{textUI("m_c78ffe195710")}</label>
                 <select id="asset-platform" value={platform} onChange={(e) => { touch(); setPlatform(e.target.value); }}>
                   <option value="">{textUI("m_4895f73177ab")}</option>
@@ -97,8 +119,8 @@ export function AddAssetDialog({ onClose, organizationID }: {
                   <option value="android">{textUI("m_6d612a86bee4")}</option>
                   <option value="other">{textUI("m_f97e9da0e3b8")}</option>
                 </select>
-              </div>
-              <div className="select">
+              </div>))}
+              {formatUI(spec.arch && (<div className="select">
                 <label htmlFor="asset-arch">{textUI("m_cd74053c5481")}</label>
                 <select id="asset-arch" value={arch} onChange={(e) => { touch(); setArch(e.target.value); }}>
                   <option value="">{textUI("m_4895f73177ab")}</option>
@@ -106,7 +128,7 @@ export function AddAssetDialog({ onClose, organizationID }: {
                   <option value="arm64">{textUI("m_f69162950f23")}</option>
                   <option value="other">{textUI("m_f97e9da0e3b8")}</option>
                 </select>
-              </div>
+              </div>))}
               <div className="select">
                 <label htmlFor="asset-criticality">{textUI("m_afdc3ea3ef86")}</label>
                 <select id="asset-criticality" value={criticality} onChange={(e) => { touch(); setCriticality(e.target.value); }}>
@@ -117,21 +139,24 @@ export function AddAssetDialog({ onClose, organizationID }: {
                 </select>
               </div>
             </div>
-            <div className="textarea">
-              <label htmlFor="asset-addresses">{textUI("m_76179aafc43c")}</label>
-              <textarea id="asset-addresses" rows={3} value={addresses} onChange={(e) => { touch(); setAddresses(e.target.value); }} placeholder={'10.0.0.5\nsrv-db-01.corp.local'} aria-invalid={!!fieldErr('addresses')} aria-describedby="asset-addresses-hint"/>
-              <small id="asset-addresses-hint" className={fieldErr('addresses') ? 'is-error' : ''} role={fieldErr('addresses') ? 'alert' : undefined}>
-                {formatUI(fieldErr('addresses') ?? textUI("m_d105d1da575a"))}
+            <CategoryFields spec={spec} values={values} onChange={setValue} errors={clientErrors}/>
+            {formatUI(spec.address !== 'hidden' && (<div className="textarea">
+              <label htmlFor="asset-addresses">{formatUI(spec.addressLabel)}</label>
+              <textarea id="asset-addresses" rows={3} value={addresses} onChange={(e) => { touch(); setClientErrors((c) => ({ ...c, addresses: '' })); setAddresses(e.target.value); }} placeholder={spec.addressPlaceholder} aria-invalid={!!(clientErrors.addresses || fieldErr('addresses'))} aria-describedby="asset-addresses-hint"/>
+              <small id="asset-addresses-hint" className={(clientErrors.addresses || fieldErr('addresses')) ? 'is-error' : ''} role={(clientErrors.addresses || fieldErr('addresses')) ? 'alert' : undefined}>
+                {formatUI(clientErrors.addresses || fieldErr('addresses') || spec.addressHint)}
               </small>
-            </div>
+            </div>))}
+            {formatUI((spec.address === 'hidden' || (spec.address === 'optional' && !addresses.trim())) && <p className="notice" role="note">{textUI("m_cf_inventory")}</p>)}
             <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate/>
-            <label className="check">{richUI("m_7a59eaa2b03d", [<input type="checkbox" checked={internet} onChange={(e) => setInternet(e.target.checked)}/>,
-                <span className="check__box" aria-hidden="true"/>])}</label>
-            {formatUI(can(me, 'asset.authorize') && (<label className="check">
+            {formatUI(spec.internet && (<label className="check">{richUI("m_7a59eaa2b03d", [<input type="checkbox" checked={internet} onChange={(e) => setInternet(e.target.checked)}/>,
+                <span className="check__box" aria-hidden="true"/>])}</label>))}
+            {formatUI(spec.testable && can(me, 'asset.authorize') && (<label className="check">
                 <input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)}/>
                 <span className="check__box" aria-hidden="true"/>
                 <span>{richUI("m_dd8bf02dedb9", [<small className="check__sub">{textUI("m_cc2513acdabd")}</small>])}</span>
               </label>))}
+            </>))}
             <footer className="dialog__foot">
               <button type="button" className="btn btn--secondary btn--auto" onClick={() => setCategory(null)}>{textUI("m_76900f1bfd16")}</button>
               <button type="submit" className="btn btn--primary btn--auto" disabled={create.isPending}>

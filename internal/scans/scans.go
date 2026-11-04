@@ -370,6 +370,7 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 		if e = rows.Err(); e != nil {
 			return e
 		}
+		out.Status = effectiveStatus(out.Status, out.Jobs)
 		for i := range out.Jobs {
 			j := &out.Jobs[i]
 			if j.SimulationID == nil {
@@ -396,6 +397,20 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 	})
 	return &out, err
 }
+
+// effectiveStatus: scan yang selesai tetapi tidak satu pun job-nya berhasil dilaporkan gagal, bukan selesai.
+func effectiveStatus(status string, jobs []Job) string {
+	if status != "finished" || len(jobs) == 0 {
+		return status
+	}
+	for _, j := range jobs {
+		if j.Status != "failed" {
+			return status
+		}
+	}
+	return "failed"
+}
+
 func jobFindings(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID) ([]reporting.Finding, error) {
 	rows, err := tx.Query(ctx, `SELECT DISTINCT ON(f.id) f.id,COALESCE(o.finding_snapshot->>'type',f.type),COALESCE(o.finding_snapshot->>'value',f.value),COALESCE(o.finding_snapshot->>'title',f.title),COALESCE(o.finding_snapshot->>'severity',f.severity),o.details FROM finding_occurrences o JOIN findings f ON f.tenant_id=o.tenant_id AND f.id=o.finding_id WHERE o.tenant_id=$1 AND o.simulation_id=$2 ORDER BY f.id,o.seen_at DESC`, tenant, sim)
 	if err != nil {

@@ -81,3 +81,22 @@ Konfigurasi berikut berada di `server.json` privat, bukan `.env` Compose:
 Mode **user** hanya mendaftarkan agent. Jalankan perintah startup yang dicetak installer
 pada terminal pengguna, dan biarkan terminal itu berjalan. Contoh instance `lab`:
 `"$HOME/orchis-agent-lab/orchis-agent" run`. Mode **service** memasang dan menjalankan layanan.
+
+## Agent dari mesin lain
+
+Bawaan `prod-init` hanya mendengarkan di loopback. Untuk host yang harus dapat
+menerima koneksi dari agent lain, pilih alamat antarmuka server dan identitas TLS
+secara eksplisit saat membuat state baru:
+
+```bash
+python3 deploy/prod/ops.py init --state /var/lib/orchis-lan --project orchis-lan \
+  --port 8443 --bind 192.168.10.20 --site 192.168.10.20
+ORCHIS_STATE=/var/lib/orchis-lan python3 deploy/prod/ops.py env > .env
+```
+
+Ganti alamat contoh dengan alamat server yang dapat dijangkau agent. `--bind 0.0.0.0`
+juga tersedia bila memang ingin semua antarmuka IPv4; batasi akses port HTTPS dengan
+firewall. `--site` menerima hostname atau IPv4 tanpa skema/path/port. Bila memakai
+hostname, DNS agent harus mengarahkannya ke alamat server. URL konsol dan pemasangan
+harus memakai identitas `--site` yang sama agar verifikasi hostname TLS tetap berlaku.
+Bawaan ini tetap memakai CA internal; HTTPS publik/ACME belum dibuktikan.

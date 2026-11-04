@@ -40,6 +40,9 @@ func SystemResolver(host string) ([]netip.Addr, error) {
 type Guard struct {
 	AllowLoopback bool
 	Resolve       Resolver
+	// DeferNames: nama yang tidak bisa diterjemahkan di sini tidak ditolak; injector menerjemahkan dan
+	// memeriksa ulang SEMUA alamatnya saat eksekusi. Untuk server yang hanya berada di jaringan internal tanpa DNS.
+	DeferNames bool
 }
 
 var errBlocked = errors.New("blocked")
@@ -80,6 +83,9 @@ func (g Guard) CheckHost(host string) error {
 	}
 	ips, err := res(host)
 	if err != nil || len(ips) == 0 {
+		if g.DeferNames {
+			return nil
+		}
 		return errors.New("target name does not resolve")
 	}
 	for _, ip := range ips {
