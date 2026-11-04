@@ -68,6 +68,49 @@ describe('AssetDetailPage', () => {
     expect(panel).toHaveTextContent('Holds invoices');
   });
 
+  it('aset agent: versi OS dari agent terisi otomatis; peran dan lokasi dijelaskan sebagai isian manual', async () => {
+    api(perms(), () => json(asset({ source: 'agent', platform: 'macos', arch: 'x86_64', attributes: { agent_os_version: 'macOS 10.15.7' } })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await screen.findByRole('heading', { name: 'WINTERFELL' });
+    const panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    expect(panel).toHaveTextContent('macOS 10.15.7');
+    expect(panel).toHaveTextContent('(from the agent)');
+    expect(panel).toHaveTextContent('Not set. Add it with Edit.');
+    expect(panel).toHaveTextContent(/Role and location can.t be detected/);
+    expect(panel).not.toHaveTextContent('—');
+  });
+
+  it('versi OS isian manual menang atas laporan agent; agent yang belum melapor diberi keterangan', async () => {
+    const spy = api(perms(), () => json(asset({ source: 'agent', attributes: { os_version: 'Custom OS 1', agent_os_version: 'macOS 10.15.7' } })));
+    const { unmount } = mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await screen.findByRole('heading', { name: 'WINTERFELL' });
+    let panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    expect(panel).toHaveTextContent('Custom OS 1');
+    expect(panel).not.toHaveTextContent('macOS 10.15.7');
+    unmount();
+    spy.mockRestore();
+    api(perms(), () => json(asset({ source: 'agent', attributes: {} })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await screen.findByRole('heading', { name: 'WINTERFELL' });
+    panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    expect(panel).toHaveTextContent("Waiting for the agent's next report.");
+  });
+
+  it('dialog ubah aset agent: platform dan arsitektur hanya baca, versi OS dari agent jadi petunjuk dan tetap tersimpan', async () => {
+    const spy = api(perms(), () => json(asset({ source: 'agent', testing_authorized: false, platform: 'macos', arch: 'x86_64', addresses: [], attributes: { agent_os_version: 'macOS 10.15.7' } })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await userEvent.click(await screen.findByRole('button', { name: /edit/i }));
+    expect(screen.getByLabelText('Platform')).toBeDisabled();
+    expect(screen.getByLabelText('Architecture')).toBeDisabled();
+    expect(screen.getByText(/Reported by the agent: macOS 10.15.7/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() => expect(spy.mock.calls.some(([, i]) => i?.method === 'PATCH')).toBe(true));
+    const [, init] = spy.mock.calls.find(([, i]) => i?.method === 'PATCH')!;
+    const body = JSON.parse(init!.body as string);
+    expect(body.attributes.agent_os_version).toBe('macOS 10.15.7');
+    expect(body.attributes.os_version).toBeUndefined();
+  });
+
   it('tombol ubah dan hapus mengikuti izin', async () => {
     api(['asset.read'], () => json(asset()));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');

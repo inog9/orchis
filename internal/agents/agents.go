@@ -343,6 +343,19 @@ type HeartbeatInput struct {
 	ControlProtocol int    `json:"control_protocol,omitempty"`
 	OsqueryVersion  string `json:"osquery_version,omitempty"`
 	DiagnosticCode  string `json:"diagnostic_code,omitempty"`
+	// OSVersion adalah laporan agent tentang dirinya sendiri; data tidak tepercaya, dibersihkan sebelum disimpan.
+	OSVersion string `json:"os_version,omitempty"`
+}
+
+var osVersionRe = regexp.MustCompile(`^[\p{L}\p{N} ._()+/-]{1,64}$`)
+
+// CleanOSVersion menerima hanya string pendek bergaya nama OS ("macOS 10.15.7", "Ubuntu 24.04.1 LTS"); selain itu kosong.
+func CleanOSVersion(s string) string {
+	s = strings.TrimSpace(s)
+	if !osVersionRe.MatchString(s) {
+		return ""
+	}
+	return s
 }
 
 type HeartbeatReply struct {
@@ -393,6 +406,18 @@ WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, s.Tenant, p.AgentID, ipAddr
 			if err = alerts.Raise(ctx, tx, s.Tenant, alerts.New{Kind: "agent_update_failed", Severity: "warning", Title: "Agent update failed", ResourceType: "agent", ResourceID: &p.AgentID, Audience: authz.AgentRead, DedupeKey: "agent-update-failed:" + p.AgentID.String() + ":" + itoa(episode)}); err != nil {
 				return err
 			}
+		}
+		if v := CleanOSVersion(in.OSVersion); v != "" {
+			// Kunci terpisah dari os_version isian manual: isian pengguna selalu menang, dan hanya ditulis bila nilainya berubah.
+			if _, err = tx.Exec(ctx, `UPDATE assets SET attributes=attributes||jsonb_build_object('agent_os_version',$3::text)
+WHERE tenant_id=$1 AND id=(SELECT asset_id FROM agents WHERE tenant_id=$1 AND id=$2) AND attributes->>'agent_os_version' IS DISTINCT FROM $3::text`, s.Tenant, p.AgentID, v); err != nil {
+				return err
+			}
+		}
+		if _, err = tx.Exec(ctx, `UPDATE assets SET platform=$3, arch=$4, updated_at=now()
+WHERE tenant_id=$1 AND id=(SELECT asset_id FROM agents WHERE tenant_id=$1 AND id=$2) AND source='agent'
+AND (platform IS DISTINCT FROM $3 OR arch IS DISTINCT FROM $4)`, s.Tenant, p.AgentID, p.OS, p.Arch); err != nil {
+			return err
 		}
 		var command *uuid.UUID
 		var state string

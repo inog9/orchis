@@ -250,7 +250,7 @@ func (a *Agent) Run(ctx context.Context) error {
 			code := a.diagnosticCode
 			osqueryVersion := a.osqueryVersion
 			a.mu.Unlock()
-			_, err := a.do(ctx, http.MethodPost, "heartbeat", map[string]any{"version": a.Version, "protocol_version": agentproto.ProtocolVersion, "control_protocol": a.controlProtocol(), "osquery_version": osqueryVersion, "diagnostic_code": code}, &r)
+			_, err := a.do(ctx, http.MethodPost, "heartbeat", map[string]any{"version": a.Version, "protocol_version": agentproto.ProtocolVersion, "control_protocol": a.controlProtocol(), "osquery_version": osqueryVersion, "diagnostic_code": code, "os_version": OSVersion()}, &r)
 			switch {
 			case errors.Is(err, ErrRevoked):
 				if cancelWork != nil {

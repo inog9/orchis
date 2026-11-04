@@ -122,7 +122,7 @@ func TestEndpointCollectionRejectsUnsupportedPlatformsAndUnknownQueries(t *testi
 	_, asset := f.authorizedAgent(t, "platform")
 	org := f.joinOrg(t, asset)
 	path := "/api/v1/organizations/" + org + "/endpoint-collection"
-	for _, platform := range []string{"darwin", "windows", "linux;sh"} {
+	for _, platform := range []string{"windows", "ios", "linux;sh"} {
 		in := endpoint.CollectionInput{Platform: platform, Consent: osquery.Consent().ConsentRef}
 		if r := f.a.do("PUT", path, in, f.admin); r.Status != 422 {
 			t.Fatalf("unsupported automatic platform %s: %d", platform, r.Status)
@@ -146,7 +146,7 @@ func TestEndpointCollectionSchedulerNeverUsesUnapprovedRevokedOrUnsupportedAgent
 		{"disabled", `UPDATE osquery_org_settings SET enabled=false WHERE organization_id=$1`, `UPDATE osquery_org_settings SET enabled=true WHERE organization_id=$1`, org},
 		{"revoked", `UPDATE agents SET status='revoked' WHERE id=$1`, `UPDATE agents SET status='online' WHERE id=$1`, enrolled.AgentID},
 		{"demo", `UPDATE agents SET is_demo=true WHERE id=$1`, `UPDATE agents SET is_demo=false WHERE id=$1`, enrolled.AgentID},
-		{"platform", `UPDATE agents SET os='macos' WHERE id=$1`, `UPDATE agents SET os='linux' WHERE id=$1`, enrolled.AgentID},
+		{"platform", `UPDATE agents SET os='windows' WHERE id=$1`, `UPDATE agents SET os='linux' WHERE id=$1`, enrolled.AgentID},
 		{"architecture", `UPDATE agents SET arch='arm64' WHERE id=$1`, `UPDATE agents SET arch='x86_64' WHERE id=$1`, enrolled.AgentID},
 		{"testing", `UPDATE assets SET testing_authorized=false WHERE id=$1`, `UPDATE assets SET testing_authorized=true WHERE id=$1`, asset},
 		{"organisation", `UPDATE assets SET organization_id=NULL WHERE id=$1`, `UPDATE assets SET organization_id='` + org.String() + `' WHERE id=$1`, asset},
@@ -187,17 +187,88 @@ func TestOsqueryUnpinnedPlatformsNeverReceiveNamedQueries(t *testing.T) {
 	f := newAgentFixture(t)
 	secret, asset := f.approvedAgent(t, "unsupported-osquery", "osquery.inventory")
 	ctx := context.Background()
-	for _, platform := range []string{"macos", "windows"} {
-		if _, e := f.a.env.Owner.Exec(ctx, `UPDATE agents SET os=$2 WHERE asset_id=$1`, asset, platform); e != nil {
+	for _, p := range []struct{ os, arch string }{{"windows", "x86_64"}, {"linux", "arm64"}} {
+		if _, e := f.a.env.Owner.Exec(ctx, `UPDATE agents SET os=$2,arch=$3 WHERE asset_id=$1`, asset, p.os, p.arch); e != nil {
 			t.Fatal(e)
 		}
 		f.createRun(t, secret, asset, "osquery.inventory")
 		if r := f.agentCall("POST", "executions/claim", nil, secret); r.Status != 204 {
-			t.Fatalf("unpinned platform received osquery (%s): %d %s", platform, r.Status, r.Body)
+			t.Fatalf("unpinned platform received osquery (%s/%s): %d %s", p.os, p.arch, r.Status, r.Body)
 		}
 		status, reason := f.datasetStatus(t, asset, "osquery.inventory")
 		if status != "skipped" || reason != osquery.ReasonUnsupported {
 			t.Fatalf("unsupported platform was not explicit: %s %s", status, reason)
 		}
+	}
+}
+
+// macOS (Intel dan Apple Silicon) punya artefak yang dipatok: query yang mendukung macOS sampai ke agent.
+func TestOsqueryPinnedMacOSReceivesNamedQueries(t *testing.T) {
+	f := newAgentFixture(t)
+	secret, asset := f.approvedAgent(t, "macos-osquery", "osquery.inventory")
+	ctx := context.Background()
+	for _, arch := range []string{"x86_64", "arm64"} {
+		if _, e := f.a.env.Owner.Exec(ctx, `UPDATE agents SET os='macos',arch=$2 WHERE asset_id=$1`, asset, arch); e != nil {
+			t.Fatal(e)
+		}
+		f.createRun(t, secret, asset, "osquery.inventory")
+		if r := f.agentCall("POST", "executions/claim", nil, secret); r.Status != 200 {
+			t.Fatalf("pinned macOS %s did not receive osquery.inventory: %d %s", arch, r.Status, r.Body)
+		}
+	}
+}
+
+// Persetujuan dari tampilan macOS hanya menyentuh query yang mendukung macOS; query khusus Linux tidak ikut dinonaktifkan.
+func TestEndpointCollectionMacOSOnlyTouchesMacQueries(t *testing.T) {
+	f := newAgentFixture(t)
+	_, asset := f.authorizedAgent(t, "mac-collection")
+	org := f.joinOrg(t, asset)
+	path := "/api/v1/organizations/" + org + "/endpoint-collection"
+	versions := map[string]int64{}
+	for _, q := range osquery.Queries {
+		if q.SupportsOS("macos") {
+			versions[q.Key] = 0
+		}
+	}
+	in := endpoint.CollectionInput{Platform: "macos", Keys: []string{"osquery.inventory"}, Versions: versions, Consent: osquery.Consent().ConsentRef}
+	if r := f.a.do("PUT", path, in, f.admin); r.Status >= 300 {
+		t.Fatalf("macOS collection approval: %d %s", r.Status, r.Body)
+	}
+	ctx := context.Background()
+	var enabled, linuxOnly int
+	if e := f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND enabled`, org).Scan(&enabled); e != nil {
+		t.Fatal(e)
+	}
+	if enabled != 1 {
+		t.Fatalf("exactly the chosen macOS query must be enabled: %d", enabled)
+	}
+	if e := f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND query_key IN('osquery.packages','osquery.firewall')`, org).Scan(&linuxOnly); e != nil {
+		t.Fatal(e)
+	}
+	if linuxOnly != 0 {
+		t.Fatalf("a macOS approval wrote settings for Linux-only queries: %d", linuxOnly)
+	}
+	// Linux-only query diminta dari tampilan macOS ditolak.
+	bad := endpoint.CollectionInput{Platform: "macos", Keys: []string{"osquery.firewall"}, Versions: versions, Consent: osquery.Consent().ConsentRef}
+	if r := f.a.do("PUT", path, bad, f.admin); r.Status != 422 {
+		t.Fatalf("Linux-only query accepted for macOS: %d", r.Status)
+	}
+}
+
+// Penjadwal otomatis juga mengumpulkan dari agent macOS yang online dan disetujui.
+func TestEndpointCollectionSchedulerIncludesMacOSAgents(t *testing.T) {
+	f, _, _, enrolled := networkSourceFixture(t)
+	ctx := context.Background()
+	svc := server.EndpointService(server.Options{DB: f.a.env.App})
+	if _, e := f.a.env.Owner.Exec(ctx, `UPDATE agents SET os='macos' WHERE id=$1`, enrolled.AgentID); e != nil {
+		t.Fatal(e)
+	}
+	if e := svc.CollectTick(ctx, f.a.env.TenantA, 15*time.Minute); e != nil {
+		t.Fatal(e)
+	}
+	var n int
+	f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM endpoint_collection_schedule WHERE tenant_id=$1`, f.a.env.TenantA).Scan(&n)
+	if n != 1 {
+		t.Fatalf("macOS agent was not scheduled: %d", n)
 	}
 }

@@ -60,6 +60,10 @@ make agent-release VERSION=1.3.1 RELEASE_KEY=$ORCHIS_STATE/release.key RELEASE_D
 make osquery-fetch
 go run ./cmd/agenttool -file deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz \
   -key "$ORCHIS_STATE/release.key" -out "$ORCHIS_STATE/agent-releases"
+go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch amd64 \
+  -key "$ORCHIS_STATE/release.key" -out "$ORCHIS_STATE/agent-releases"   # macOS Intel
+go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch arm64 \
+  -key "$ORCHIS_STATE/release.key" -out "$ORCHIS_STATE/agent-releases"   # macOS Apple Silicon (berkas yang sama, tanda tangan berbeda)
 python3 deploy/prod/ops.py agent-trust
 docker compose -f docker-compose.yaml -f deploy/prod/compose.ops.yml up -d --no-deps --force-recreate server
 ```

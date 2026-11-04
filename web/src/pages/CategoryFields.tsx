@@ -3,11 +3,12 @@ import { useId } from 'react';
 import { Field } from '../components/Field';
 import { type CategorySpec, NOTES_LABEL, NOTES_PLACEHOLDER } from './categorySchema';
 // Kolom khusus kategori: isi disimpan di `attributes` aset; catatan di `description`.
-export function CategoryFields({ spec, values, onChange, errors }: {
+export function CategoryFields({ spec, values, onChange, errors, hints }: {
     spec: CategorySpec;
     values: Record<string, string>;
     onChange: (key: string, value: string) => void;
     errors: Record<string, string>;
+    hints?: Record<string, string | undefined>;
 }) {
     useLocale();
     const id = useId();
@@ -22,7 +23,7 @@ export function CategoryFields({ spec, values, onChange, errors }: {
                 </select>
                 {formatUI(errors[f.key] && <small className="is-error" role="alert">{formatUI(errors[f.key])}</small>)}
               </div>)
-            : (<Field key={f.key} label={f.label + (f.required ? ' *' : '')} value={values[f.key] ?? ''} placeholder={f.placeholder} error={errors[f.key]} onChange={(e) => onChange(f.key, e.target.value)}/>)))}
+            : (<Field key={f.key} label={f.label + (f.required ? ' *' : '')} value={values[f.key] ?? ''} placeholder={f.placeholder} hint={hints?.[f.key]} error={errors[f.key]} onChange={(e) => onChange(f.key, e.target.value)}/>)))}
       </div>))}
       <div className="textarea">
         <label htmlFor={`${id}-notes`}>{formatUI(NOTES_LABEL())}</label>

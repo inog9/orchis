@@ -285,7 +285,18 @@ func (q *Query) Map(ds *Dataset) Mapped {
 					n++
 				}
 			}
-			if n > r.CountGT {
+			if r.CountLT > 0 {
+				present := false
+				for _, row := range ds.Rows {
+					if all(r.Require, row) {
+						present = true
+						break
+					}
+				}
+				if present && n < r.CountLT {
+					add(r, map[string]string{"count": strconv.Itoa(n)})
+				}
+			} else if n > r.CountGT {
 				add(r, map[string]string{"count": strconv.Itoa(n)})
 			}
 		}

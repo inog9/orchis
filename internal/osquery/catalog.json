@@ -9,6 +9,22 @@
       "bytes": 54502525,
       "binary": "opt/osquery/bin/osqueryd",
       "max_binary_bytes": 314572800
+    },
+    "darwin/amd64": {
+      "file": "osqueryd-macos-bare-5.24.0.tar.gz",
+      "url": "https://github.com/osquery/osquery/releases/download/5.24.0/osqueryd-macos-bare-5.24.0.tar.gz",
+      "sha256": "b2b8fe5428885755e8243f209dc051dc328a1c622c68c777c8662f575f63c74b",
+      "bytes": 16657746,
+      "binary": "osqueryd",
+      "max_binary_bytes": 209715200
+    },
+    "darwin/arm64": {
+      "file": "osqueryd-macos-bare-5.24.0.tar.gz",
+      "url": "https://github.com/osquery/osquery/releases/download/5.24.0/osqueryd-macos-bare-5.24.0.tar.gz",
+      "sha256": "b2b8fe5428885755e8243f209dc051dc328a1c622c68c777c8662f575f63c74b",
+      "bytes": 16657746,
+      "binary": "osqueryd",
+      "max_binary_bytes": 209715200
     }
   },
   "queries": [
@@ -36,7 +52,8 @@
         "uptime_seconds"
       ],
       "os": [
-        "linux"
+        "linux",
+        "macos"
       ],
       "sensitivity": "low",
       "load": "light",
@@ -215,7 +232,8 @@
         "groups"
       ],
       "os": [
-        "linux"
+        "linux",
+        "macos"
       ],
       "sensitivity": "medium",
       "load": "light",
@@ -346,7 +364,8 @@
         "process"
       ],
       "os": [
-        "linux"
+        "linux",
+        "macos"
       ],
       "sensitivity": "medium",
       "load": "light",
@@ -438,10 +457,11 @@
       "title": "Hardening settings",
       "description": "A few kernel security settings and disk encryption status. Read-only.",
       "category": "Endpoint",
-      "sql": "SELECT 'sysctl' AS item, name AS target, current_value AS value FROM system_controls WHERE name IN ('kernel.randomize_va_space', 'net.ipv4.ip_forward', 'net.ipv4.tcp_syncookies', 'kernel.dmesg_restrict') UNION ALL SELECT 'disk' AS item, name AS target, CAST(encrypted AS TEXT) AS value FROM disk_encryption WHERE name LIKE '/dev/%' AND name NOT LIKE '/dev/loop%' AND name NOT LIKE '/dev/ram%' AND name NOT LIKE '/dev/sr%'",
+      "sql": "SELECT 'sysctl' AS item, name AS target, current_value AS value FROM system_controls WHERE name IN ('kernel.randomize_va_space', 'net.ipv4.ip_forward', 'net.ipv4.tcp_syncookies', 'kernel.dmesg_restrict') UNION ALL SELECT CASE WHEN (SELECT platform FROM os_version) = 'darwin' THEN 'volume' ELSE 'disk' END AS item, name AS target, CAST(encrypted AS TEXT) AS value FROM disk_encryption WHERE name LIKE '/dev/%' AND name NOT LIKE '/dev/loop%' AND name NOT LIKE '/dev/ram%' AND name NOT LIKE '/dev/sr%'",
       "tables": [
         "system_controls",
-        "disk_encryption"
+        "disk_encryption",
+        "os_version"
       ],
       "columns": [
         "item",
@@ -449,13 +469,14 @@
         "value"
       ],
       "os": [
-        "linux"
+        "linux",
+        "macos"
       ],
       "sensitivity": "low",
       "load": "light",
       "needs_root": false,
       "max_rows": 100,
-      "timeout_seconds": 30,
+      "timeout_seconds": 60,
       "mitre": [
         {
           "id": "T1082",
@@ -560,6 +581,37 @@
             "value": "osquery:syncookies-off"
           },
           "explain": "SYN cookies help the system survive SYN flood attacks."
+        },
+        {
+          "id": "filevault-off",
+          "scope": "agg",
+          "require": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "volume"
+            }
+          ],
+          "count_where": [
+            {
+              "col": "item",
+              "op": "eq",
+              "val": "volume"
+            },
+            {
+              "col": "value",
+              "op": "eq",
+              "val": "1"
+            }
+          ],
+          "count_lt": 1,
+          "finding": {
+            "type": "text",
+            "severity": "medium",
+            "title": "FileVault disk encryption is not enabled",
+            "value": "osquery:filevault-off"
+          },
+          "explain": "On macOS no volume reports encryption, so FileVault looks off. Data on the disk is readable if the Mac is lost or stolen. macOS lists many container and snapshot volumes, so only a Mac where none is encrypted is reported."
         },
         {
           "id": "disk-unencrypted",

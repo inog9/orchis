@@ -86,6 +86,7 @@ type Catalog struct {
 	OsqueryVersion            string                  `json:"osquery_version"`
 	License                   string                  `json:"license"`
 	ProvenOS                  []string                `json:"proven_os"`
+	SupportedPlatforms        []string                `json:"supported_platforms"`
 	Queries                   []QueryMeta             `json:"queries"`
 	Packs                     []PackView              `json:"packs"`
 }
@@ -142,7 +143,7 @@ func sortStrings(s []string) {
 
 // CatalogView adalah katalog beku apa adanya. Linux adalah satu-satunya OS yang terbukti; OS lain hanya struktur.
 func CatalogView() Catalog {
-	c := Catalog{CollectionIntervalSeconds: 900, Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, Queries: []QueryMeta{}, Packs: []PackView{}}
+	c := Catalog{CollectionIntervalSeconds: 900, Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, SupportedPlatforms: osquery.SupportedPlatforms(), Queries: []QueryMeta{}, Packs: []PackView{}}
 	for i := range osquery.Packs {
 		c.Packs = append(c.Packs, packView(&osquery.Packs[i]))
 	}
@@ -313,7 +314,7 @@ FROM assets a WHERE a.tenant_id=$1 AND a.id=$2 AND a.deleted_at IS NULL`, p.Tena
 		if err != nil {
 			return err
 		}
-		out.Supported = out.Platform == "linux" && out.Arch == "x86_64"
+		out.Supported = osquery.CollectionSupported(out.Platform, out.Arch)
 		stored := map[string]DatasetView{}
 		rows, err := tx.Query(ctx, `SELECT query_key, rows, attributes, truncated, collected_at, last_attempt_at, COALESCE(osquery_version,''), last_status, last_reason, is_demo
 FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)

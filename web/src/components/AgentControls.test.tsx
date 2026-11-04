@@ -41,8 +41,12 @@ it('shows confirmed removal without obsolete pause or update instructions',()=>{
  expect(screen.queryByText(/Release status is unknown/)).not.toBeInTheDocument();
  expect(screen.queryByRole('button',{name:'Update now'})).not.toBeInTheDocument();
 });
+it.each(['x86_64', 'arm64'] as const)('offers data collection on macOS %s, which has a pinned osquery artifact', (arch) => {
+ mount(<AgentControls agent={{ ...agent, os: 'macos', arch }} />);
+ expect(screen.getByRole('button', { name: 'Collect data now' })).toBeEnabled();
+});
 it('does not offer data collection on an agent type that cannot collect', () => {
- mount(<AgentControls agent={{ ...agent, os: 'macos' }} />);
+ mount(<AgentControls agent={{ ...agent, os: 'windows' }} />);
  expect(screen.queryByRole('button', { name: 'Collect data now' })).toBeNull();
  expect(screen.getByRole('button', { name: 'Pause agent' })).toBeEnabled();
  expect(screen.getByRole('button', { name: 'Uninstall remotely' })).toBeEnabled();

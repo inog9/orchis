@@ -12,17 +12,23 @@ function mount(agent: AgentRow) {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[`/organizations/org-1?tab=agents&endpoint=${agent.id}`]}><OrganizationEndpoints org="org-1" agents={[agent]} /></MemoryRouter></QueryClientProvider>);
 }
 afterEach(() => vi.restoreAllMocks());
-it('shows one clear notice for a macOS agent instead of controls that can never work', async () => {
-  mount(base);
-  expect(await screen.findByText(/only available for Linux amd64 agents/)).toBeInTheDocument();
+it('shows one clear notice for a Windows agent instead of controls that can never work', async () => {
+  mount({ ...base, os: 'windows', instance_name: 'win' } as AgentRow);
+  expect(await screen.findByText(/only available for Linux amd64 and macOS agents/)).toBeInTheDocument();
   expect(await screen.findByRole('button', { name: 'Pause agent' })).toBeEnabled();
   for (const name of ['Collect data now', 'Delete collected data', 'Approve range']) expect(screen.queryByRole('button', { name })).toBeNull();
   expect(screen.queryByText('Network ranges reported by this agent')).toBeNull();
+});
+it('offers endpoint data, collection and the experimental note for a macOS agent', async () => {
+  mount(base);
+  expect(await screen.findByRole('button', { name: 'Collect data now' })).toBeInTheDocument();
+  expect(screen.queryByText(/only available for Linux amd64 and macOS agents/)).toBeNull();
+  expect(screen.getByText(/Not yet proven on a real Mac/)).toBeInTheDocument();
 });
 it('keeps endpoint data, collection and network ranges for a Linux amd64 agent', async () => {
   mount({ ...base, os: 'linux', instance_name: 'lab' } as AgentRow);
   expect(await screen.findByText('Network ranges reported by this agent')).toBeInTheDocument();
   expect(await screen.findByRole('button', { name: 'Collect data now' })).toBeInTheDocument();
-  expect(screen.queryByText(/only available for Linux amd64 agents/)).toBeNull();
+  expect(screen.queryByText(/only available for Linux amd64 and macOS agents/)).toBeNull();
   expect(screen.queryByRole('link', { name: /Review collection consent/ })).toBeNull();
 });

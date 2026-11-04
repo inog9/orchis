@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const ConsentVersion = "2026-11-03.2"
+const ConsentVersion = "2026-11-04.1"
 
 //go:embed consent.md
 var consentText string

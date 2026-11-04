@@ -113,7 +113,11 @@ kecuali `ORCHIS_ALLOW_LOOPBACK_TARGETS=true` (hanya untuk pengembangan).
 make agent-release VERSION=1.0.0          # bangun + tandatangani semua platform ke dist/agent
 make osquery-fetch                        # artefak osquery yang dipatok (diverifikasi SHA-256)
 go run ./cmd/agenttool -file deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz \
-  -key dist/release.key -out dist/agent   # sajikan osquery untuk agent
+  -key dist/release.key -out dist/agent   # sajikan osquery untuk agent Linux
+go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch amd64 \
+  -key dist/release.key -out dist/agent   # macOS Intel
+go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch arm64 \
+  -key dist/release.key -out dist/agent   # macOS Apple Silicon
 ORCHIS_AGENT_RELEASE_DIR=$PWD/dist/agent ./bin/server serve
 ```
 

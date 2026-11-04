@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"orchis-go/internal/agentproto"
 )
 
 //go:embed catalog.json
@@ -32,13 +34,17 @@ type FindingTpl struct {
 }
 
 type Rule struct {
-	ID         string     `json:"id"`
-	Scope      string     `json:"scope"` // row | agg
-	Match      []Match    `json:"match"`
-	CountWhere []Match    `json:"count_where"`
-	CountGT    int        `json:"count_gt"`
-	Finding    FindingTpl `json:"finding"`
-	Explain    string     `json:"explain"`
+	ID         string  `json:"id"`
+	Scope      string  `json:"scope"` // row | agg
+	Match      []Match `json:"match"`
+	CountWhere []Match `json:"count_where"`
+	CountGT    int     `json:"count_gt"`
+	// CountLT dan Require: temuan bila jumlah baris CountWhere kurang dari CountLT, asalkan ada baris yang cocok dengan Require
+	// (mencegah temuan palsu saat tidak ada data sama sekali).
+	CountLT int        `json:"count_lt"`
+	Require []Match    `json:"require"`
+	Finding FindingTpl `json:"finding"`
+	Explain string     `json:"explain"`
 }
 
 type Aggregate struct {
@@ -142,6 +148,38 @@ func (q *Query) PlatformName() string {
 func PinnedArtifact(goos, goarch string) (Artifact, bool) {
 	a, ok := Artifacts[goos+"/"+goarch]
 	return a, ok && a.SHA256 != "" && a.Binary != ""
+}
+
+// CollectionSupported: ada artefak osquery yang dipatok untuk pasangan OS/arsitektur bernama database
+// (linux|macos|windows, x86_64|arm64). Satu-satunya sumber kebenaran untuk "agent ini bisa mengumpulkan data endpoint".
+func CollectionSupported(osName, arch string) bool {
+	goos, goarch, ok := agentproto.GoNames(osName, arch)
+	if !ok {
+		return false
+	}
+	_, ok = PinnedArtifact(goos, goarch)
+	return ok
+}
+
+// SupportedPlatforms mengembalikan pasangan "os/arch" bernama database yang punya artefak dipatok, terurut.
+func SupportedPlatforms() []string {
+	out := []string{}
+	for _, osName := range []string{"linux", "macos", "windows"} {
+		for _, arch := range []string{"x86_64", "arm64"} {
+			if CollectionSupported(osName, arch) {
+				out = append(out, osName+"/"+arch)
+			}
+		}
+	}
+	return out
+}
+
+// PlatformHasArtifact: ada artefak dipatok untuk OS ini pada arsitektur mana pun (linux|macos|darwin).
+func PlatformHasArtifact(osName string) bool {
+	if osName == "darwin" {
+		osName = "macos"
+	}
+	return CollectionSupported(osName, "x86_64") || CollectionSupported(osName, "arm64")
 }
 
 // Find mengembalikan query bernama, atau nil. Hanya kunci katalog yang dikenal; tidak ada jalur SQL bebas.

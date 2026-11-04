@@ -45,8 +45,8 @@ WHERE g.tenant_id=$1 AND g.id=$2 AND g.organization_id=a.organization_id AND NOT
 		if !authorized {
 			return httpx.Conflict("Authorize the asset before collecting data.")
 		}
-		if platform != "linux" || arch != "x86_64" {
-			return httpx.Conflict("Endpoint collection is supported on Linux amd64 only.")
+		if !osquery.CollectionSupported(platform, arch) {
+			return httpx.Conflict("Endpoint collection is not supported on this agent's platform yet.")
 		}
 		consent := osquery.Consent()
 		rows, e := tx.Query(ctx, `SELECT query_key FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND enabled AND consent_version=$3 AND consent_sha256=$4 AND consented_by IS NOT NULL AND consented_at IS NOT NULL ORDER BY query_key FOR SHARE`, p.TenantID, org, consent.Version, consent.SHA256)

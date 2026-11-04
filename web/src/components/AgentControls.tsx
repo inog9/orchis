@@ -1,3 +1,4 @@
+import { collectionSupported } from '../lib/collectionSupport';
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -73,7 +74,7 @@ export function AgentControls({ agent: a }: {
     const uninstallPending = a.uninstall_status === 'queued' || a.uninstall_status === 'dispatched';
     const busy = control.isPending || collect.isPending;
     const unavailable = a.status === 'revoked' || uninstallPending;
-    const collectSupported = a.os === 'linux' && a.arch === 'x86_64';
+    const collectSupported = collectionSupported(a.os, a.arch);
     // Setiap tombol yang mati harus punya alasan yang terlihat di dekatnya.
     const reasons: string[] = [];
     if (a.status !== 'revoked' && !unavailable && !a.update_available)

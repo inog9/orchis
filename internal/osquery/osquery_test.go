@@ -525,3 +525,31 @@ func TestParsePacksRejectsTamperedFiles(t *testing.T) {
 		t.Error("tanpa artefak yang dipatok seharusnya ditolak")
 	}
 }
+
+func TestHardeningFileVaultRuleOnlyFlagsMacWithNoEncryptedVolume(t *testing.T) {
+	h := Find("osquery.hardening")
+	titles := func(rs ...[]string) map[string]string {
+		m := h.Map(&Dataset{Query: h.Key, Status: StatusOK, Rows: rows(rs...)})
+		out := map[string]string{}
+		for _, f := range m.Findings {
+			out[f.Rule] = f.Severity + "|" + f.Title
+		}
+		return out
+	}
+	// Mac dengan FileVault aktif: banyak volume container/snapshot melapor 0, tetapi minimal satu volume bernilai 1.
+	if got := titles([]string{"item", "volume", "target", "/dev/disk0", "value", "0"}, []string{"item", "volume", "target", "/dev/disk1s5", "value", "1"}, []string{"item", "volume", "target", "/dev/disk2", "value", "0"}); len(got) != 0 {
+		t.Fatalf("FileVault aktif tidak boleh menghasilkan temuan: %v", got)
+	}
+	// Mac tanpa volume terenkripsi.
+	if got := titles([]string{"item", "volume", "target", "/dev/disk0", "value", "0"}, []string{"item", "volume", "target", "/dev/disk1", "value", "0"}); got["filevault-off"] != "medium|FileVault disk encryption is not enabled" || got["disk-unencrypted"] != "" {
+		t.Fatalf("FileVault mati harus dilaporkan sekali: %v", got)
+	}
+	// Tanpa baris volume sama sekali (mis. Linux atau query gagal) tidak boleh ada temuan FileVault.
+	if got := titles([]string{"item", "sysctl", "target", "net.ipv4.ip_forward", "value", "1"}); got["filevault-off"] != "" {
+		t.Fatalf("tanpa data volume tidak boleh ada temuan FileVault: %v", got)
+	}
+	// Linux: baris disk tidak terpengaruh oleh aturan FileVault.
+	if got := titles([]string{"item", "disk", "target", "/dev/sda", "value", "0"}); got["disk-unencrypted"] == "" || got["filevault-off"] != "" {
+		t.Fatalf("aturan Linux berubah: %v", got)
+	}
+}

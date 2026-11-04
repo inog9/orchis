@@ -80,11 +80,15 @@ export function AssetDetailPage() {
           <dl className="dl">
             {formatUI(specOf(a.category).fields.map((f) => {
                 const raw = a.attributes?.[f.key];
-                const value = typeof raw === 'string' && raw ? (f.options.find((o) => o.value === raw)?.label ?? raw) : '—';
+                const fromAgent = f.key === 'os_version' ? a.attributes?.agent_os_version : undefined;
+                const value = typeof raw === 'string' && raw ? (f.options.find((o) => o.value === raw)?.label ?? raw)
+                    : typeof fromAgent === 'string' && fromAgent ? <>{fromAgent} <span className="muted small">{textUI("m_attr_by_agent")}</span></>
+                        : <span className="muted">{textUI(f.key === 'os_version' && a.source === 'agent' ? "m_attr_waiting_agent" : "m_attr_not_set")}</span>;
                 return <Fragment key={f.key}><dt>{formatUI(f.label)}</dt><dd>{formatUI(value)}</dd></Fragment>;
             }))}
             {formatUI(a.description && <><dt>{formatUI(NOTES_LABEL())}</dt><dd>{formatUI(a.description)}</dd></>)}
           </dl>
+          {formatUI(a.source === 'agent' && specOf(a.category).fields.some((f) => f.key === 'os_version') && <p className="muted small">{textUI("m_host_auto_note")}</p>)}
         </section>))}
         <section className="panel" aria-labelledby="addr-h">
           <h2 id="addr-h" className="panel__title">{textUI("m_76179aafc43c")}</h2>

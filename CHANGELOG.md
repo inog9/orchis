@@ -14,6 +14,14 @@ Rilis stabil pertama. Alur utama:
 
 #### Ditambahkan
 
+- **Data endpoint di macOS (eksperimental):** osquery 5.24.0 untuk macOS (biner universal Intel + Apple Silicon)
+  dipatok dengan SHA-256 dan ukuran, ditandatangani dengan kunci rilis agent seperti Linux. Query lintas-platform
+  yang sama dengan Linux (inventaris, akun, jaringan, hardening/FileVault, rentang jaringan) dibuka untuk macOS;
+  query khusus Linux (paket, firewall, pack resmi) tetap Linux saja. Belum terbukti di Mac nyata, jadi katalog
+  menandai macOS "not proven yet".
+- **Info host otomatis dari agent:** versi OS dilaporkan agent lewat heartbeat dan tampil di halaman aset
+  (`agent_os_version`, tidak pernah menimpa isian manual). Platform dan arsitektur aset agent mengikuti agent
+  dan tidak bisa diubah dari konsol; peran dan lokasi tetap isian manual dengan keterangan yang jelas.
 - **Peran pengguna:** tiga peran tetap, Admin, Analyst, dan Viewer. Peran lama
   dipetakan otomatis ke peran terluas yang tidak menambah izin
   ([docs/ROLES.md](docs/ROLES.md)).

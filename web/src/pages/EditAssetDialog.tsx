@@ -31,6 +31,8 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
     const [values, setValues] = useState(() => initialValues(spec, asset.attributes, asset.description));
     const [clientErrors, setClientErrors] = useState<Record<string, string>>({});
     const setValue = (k: string, v: string) => { touch(); setClientErrors((c) => ({ ...c, [k]: '' })); setValues((x) => ({ ...x, [k]: v })); };
+    const fromAgent = asset.source === 'agent';
+    const agentOS = typeof asset.attributes?.agent_os_version === 'string' ? asset.attributes.agent_os_version : '';
     const canEditAddresses = !asset.testing_authorized || can(me, 'asset.authorize');
     const err = patch.error;
     const stale = err instanceof ApiError && err.status === 409;
@@ -79,12 +81,12 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
         <Field label={textUI("m_dcd1d5223f73")} value={name} onChange={(e) => { touch(); setName(e.target.value); }} error={fieldErr('name')}/>
         <div className="row">
           {formatUI((spec.platform || platform) && <div className="select"><label htmlFor="ed-platform">{textUI("m_c78ffe195710")}</label>
-            <select id="ed-platform" value={platform} onChange={(e) => { touch(); setPlatform(e.target.value); }}>
+            <select id="ed-platform" value={platform} disabled={fromAgent} onChange={(e) => { touch(); setPlatform(e.target.value); }}>
               <option value="">{textUI("m_4895f73177ab")}</option><option value="windows">{textUI("m_d598026a9cbc")}</option><option value="linux">{textUI("m_4828e60247c1")}</option>
               <option value="macos">{textUI("m_aed6b7aa2a05")}</option><option value="ios">{textUI("m_355f5e748485")}</option><option value="android">{textUI("m_6d612a86bee4")}</option><option value="other">{textUI("m_f97e9da0e3b8")}</option>
             </select></div>)}
           {formatUI((spec.arch || arch) && <div className="select"><label htmlFor="ed-arch">{textUI("m_cd74053c5481")}</label>
-            <select id="ed-arch" value={arch} onChange={(e) => { touch(); setArch(e.target.value); }}>
+            <select id="ed-arch" value={arch} disabled={fromAgent} onChange={(e) => { touch(); setArch(e.target.value); }}>
               <option value="">{textUI("m_4895f73177ab")}</option><option value="x86_64">{textUI("m_7520b5a1b312")}</option><option value="arm64">{textUI("m_f69162950f23")}</option><option value="other">{textUI("m_f97e9da0e3b8")}</option>
             </select></div>)}
           <div className="select"><label htmlFor="ed-crit">{textUI("m_afdc3ea3ef86")}</label>
@@ -92,7 +94,8 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
               <option value="low">{textUI("m_f793de205ead")}</option><option value="medium">{textUI("m_8e588cd18774")}</option><option value="high">{textUI("m_c4ebc6d4a583")}</option><option value="critical">{textUI("m_427dd2969bd1")}</option>
             </select></div>
         </div>
-        <CategoryFields spec={spec} values={values} onChange={setValue} errors={clientErrors}/>
+        {formatUI(fromAgent && <p className="muted small">{textUI("m_ed_platform_from_agent")}</p>)}
+        <CategoryFields spec={spec} values={values} onChange={setValue} errors={clientErrors} hints={{ os_version: agentOS ? textUI("m_ed_os_from_agent", [agentOS]) : undefined }}/>
         {formatUI(spec.address !== 'hidden' && (<div className="textarea">
           <label htmlFor="ed-addresses">{formatUI(spec.addressLabel)}</label>
           <textarea id="ed-addresses" disabled={!canEditAddresses} rows={3} value={addresses} placeholder={spec.addressPlaceholder} aria-invalid={!!(clientErrors.addresses || fieldErr('addresses'))} aria-describedby="ed-addresses-hint" onChange={(e) => { touch(); setClientErrors((c) => ({ ...c, addresses: '' })); setAddresses(e.target.value); }}/>

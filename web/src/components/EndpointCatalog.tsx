@@ -1,3 +1,4 @@
+import { catalogOS, collectionSupported } from '../lib/collectionSupport';
 import {displayLabel} from '../i18n/display';
 import { language } from '../i18n/runtime';
 import { endpointCopy } from '../i18n/endpoint';
@@ -170,7 +171,7 @@ export function EndpointCatalog({ orgId, canManage = false, platform = 'linux', 
         return <span className="skeleton"/>;
     if (cat.isError || !cat.data)
         return <div className="state state--error" role="alert"><h2>{textUI("m_9403b65bc150")}</h2><p>{formatUI(describeError(cat.error).message)}</p></div>;
-    const runnable = platform === 'linux' && (arch === 'x86_64' || arch === 'amd64');
+    const runnable = collectionSupported(platform, arch);
     const consent = { version: cat.data.consent.version, sha256: cat.data.consent.sha256 };
     const states = new Map((org.data?.items ?? []).map((i) => [i.key, i]));
     const toggle = (q: EndpointQueryMeta, enabled: boolean) => {
@@ -200,7 +201,7 @@ export function EndpointCatalog({ orgId, canManage = false, platform = 'linux', 
       {formatUI(set.isError && <div className="alert" role="alert"><strong>{textUI("m_f3ad8557ee44")}</strong><span>{formatUI(describeError(set.error).message)}</span></div>)}
       {formatUI(orgId && org.isError && <p role="alert">{formatUI(describeError(org.error).message)}</p>)}
       <div className="ed-list">
-        {formatUI(cat.data.queries.filter((q) => !q.pack && q.os.includes(platform === 'darwin' ? 'macos' : platform)).map((q) => <Card key={q.key} q={q} canManage={canManage && runnable && (!orgId || org.isSuccess)} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined}/>))}
+        {formatUI(cat.data.queries.filter((q) => !q.pack && q.os.includes(catalogOS(platform))).map((q) => <Card key={q.key} q={q} canManage={canManage && runnable && (!orgId || org.isSuccess)} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined}/>))}
       </div>
       <h2 id="ed-packs-title" className="panel__heading">{textUI("m_2864afe9cc79")}</h2>
       <p className="muted">{textUI("m_ba2b56c711a0")}</p>

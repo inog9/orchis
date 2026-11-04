@@ -370,8 +370,9 @@ func (s *Service) Patch(ctx context.Context, p *auth.Principal, id uuid.UUID, in
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var cur int
 		var authorized bool
-		err := tx.QueryRow(ctx, `SELECT version, testing_authorized FROM assets WHERE tenant_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`,
-			p.TenantID, id).Scan(&cur, &authorized)
+		var source, curPlatform, curArch string
+		err := tx.QueryRow(ctx, `SELECT version, testing_authorized, source, COALESCE(platform,''), COALESCE(arch,'') FROM assets WHERE tenant_id=$1 AND id=$2 AND deleted_at IS NULL FOR UPDATE`,
+			p.TenantID, id).Scan(&cur, &authorized, &source, &curPlatform, &curArch)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Asset")
 		}
@@ -380,6 +381,15 @@ func (s *Service) Patch(ctx context.Context, p *auth.Principal, id uuid.UUID, in
 		}
 		if cur != *in.Version {
 			return httpx.Conflict("This asset was changed by someone else. Reload and try again.")
+		}
+		if source == "agent" {
+			// Platform dan arsitektur aset agent dilaporkan agent sendiri; mengubahnya dari konsol membuat catatan menyimpang dari mesin.
+			if in.ClearPlatform || (in.Platform != nil && *in.Platform != curPlatform) {
+				return httpx.Validation(httpx.FieldError{Name: "platform", Message: "The platform is reported by the agent and can't be changed here."})
+			}
+			if in.ClearArch || (in.Arch != nil && *in.Arch != curArch) {
+				return httpx.Validation(httpx.FieldError{Name: "arch", Message: "The architecture is reported by the agent and can't be changed here."})
+			}
 		}
 		if in.Addresses != nil && authorized && !authz.Has(p.Permissions, authz.AssetAuthorize) {
 			return httpx.Forbidden(authz.AssetAuthorize)

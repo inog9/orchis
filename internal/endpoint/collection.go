@@ -32,8 +32,12 @@ func (s *Service) SetCollection(ctx context.Context, p *auth.Principal, org uuid
 	if !authz.Has(p.Permissions, authz.OrganizationWrite) {
 		return httpx.Forbidden(authz.OrganizationWrite)
 	}
-	if in.Platform != "linux" {
-		return httpx.Validation(httpx.FieldError{Name: "platform", Message: "Only Linux amd64 currently has a pinned agent artifact."})
+	platform := in.Platform
+	if platform == "darwin" {
+		platform = "macos"
+	}
+	if !osquery.PlatformHasArtifact(platform) {
+		return httpx.Validation(httpx.FieldError{Name: "platform", Message: "This platform has no pinned agent artifact yet."})
 	}
 	if !in.Consent.Valid() {
 		return httpx.Validation(httpx.FieldError{Name: "consent", Message: "Review and accept the current endpoint collection document."})
@@ -41,8 +45,8 @@ func (s *Service) SetCollection(ctx context.Context, p *auth.Principal, org uuid
 	selected := map[string]bool{}
 	for _, key := range in.Keys {
 		q := osquery.Find(key)
-		if q == nil || !q.SupportsOS("linux") || selected[key] {
-			return httpx.Validation(httpx.FieldError{Name: "keys", Message: "Choose each supported Linux query once."})
+		if q == nil || !q.SupportsOS(platform) || selected[key] {
+			return httpx.Validation(httpx.FieldError{Name: "keys", Message: "Choose each query supported on this platform once."})
 		}
 		selected[key] = true
 	}
@@ -59,7 +63,7 @@ func (s *Service) SetCollection(ctx context.Context, p *auth.Principal, org uuid
 		tables := []string{}
 		keys := []string{}
 		for _, q := range osquery.Queries {
-			if !q.SupportsOS("linux") {
+			if !q.SupportsOS(platform) {
 				continue
 			}
 			expected, known := in.Versions[q.Key]
@@ -103,26 +107,26 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 		c := osquery.Consent()
 		type item struct {
 			agent, asset, actor uuid.UUID
-			key                 string
+			key, os, arch       string
 		}
 		items := []item{}
-		rows, err := tx.Query(ctx, `SELECT g.id,a.id,s.consented_by,s.query_key FROM agents g
+		rows, err := tx.Query(ctx, `SELECT g.id,a.id,s.consented_by,s.query_key,g.os,g.arch FROM agents g
    JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id AND a.organization_id=g.organization_id
    JOIN organizations o ON o.tenant_id=a.tenant_id AND o.id=a.organization_id
    JOIN osquery_org_settings s ON s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
    LEFT JOIN endpoint_collection_schedule d ON d.tenant_id=g.tenant_id AND d.agent_id=g.id AND d.query_key=s.query_key
-   WHERE g.tenant_id=$1 AND g.os='linux' AND g.arch='x86_64' AND g.status='online' AND NOT g.paused AND g.uninstall_status NOT IN('queued','dispatched') AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
+   WHERE g.tenant_id=$1 AND g.os||'/'||g.arch=ANY($5::text[]) AND g.status='online' AND NOT g.paused AND g.uninstall_status NOT IN('queued','dispatched') AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
    AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT o.is_demo AND a.testing_authorized
    AND s.enabled AND s.consent_version=$2 AND s.consent_sha256=$3 AND s.consented_by IS NOT NULL AND s.consented_at IS NOT NULL
    AND (d.last_enqueued_at IS NULL OR d.last_enqueued_at<=now()-make_interval(secs=>$4))
    AND NOT EXISTS(SELECT 1 FROM executions e JOIN contracts co ON co.tenant_id=e.tenant_id AND co.id=e.contract_id WHERE e.tenant_id=g.tenant_id AND e.target_asset_id=a.id AND co.key=s.query_key AND e.state IN ('ready','running'))
-   ORDER BY g.id,s.query_key LIMIT 100 FOR SHARE OF g,a,s`, tenant, c.Version, c.SHA256, interval.Seconds())
+   ORDER BY g.id,s.query_key LIMIT 100 FOR SHARE OF g,a,s`, tenant, c.Version, c.SHA256, interval.Seconds(), osquery.SupportedPlatforms())
 		if err != nil {
 			return err
 		}
 		for rows.Next() {
 			var i item
-			if err = rows.Scan(&i.agent, &i.asset, &i.actor, &i.key); err != nil {
+			if err = rows.Scan(&i.agent, &i.asset, &i.actor, &i.key, &i.os, &i.arch); err != nil {
 				rows.Close()
 				return err
 			}
@@ -134,10 +138,7 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 		}
 		for _, i := range items {
 			q := osquery.Find(i.key)
-			if q == nil || !q.SupportsOS("linux") {
-				continue
-			}
-			if _, ok := osquery.PinnedArtifact("linux", "amd64"); !ok {
+			if q == nil || !q.SupportsOS(i.os) || !osquery.CollectionSupported(i.os, i.arch) {
 				continue
 			}
 			var contract uuid.UUID

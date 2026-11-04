@@ -55,6 +55,7 @@ mitre-update: ## Bekukan bundel ATT&CK Enterprise: make mitre-update VERSION=20.
 
 osquery-fetch: ## Ambil artefak osquery yang dipatok ke deploy/osquery (diverifikasi SHA-256; dipakai e2e agent nyata)
 	go run ./cmd/agenttool -fetch
+	go run ./cmd/agenttool -fetch -os darwin -arch amd64
 
 mitre-fetch: ## Ambil tepat pin manifest; tidak mengubah versi atau hash yang ditinjau
 	go run ./cmd/mitre-update -fetch
