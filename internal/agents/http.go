@@ -51,6 +51,7 @@ func (h *Handlers) guard(next func(w http.ResponseWriter, r *http.Request, p *Pr
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
+	h.registerControls(mux)
 	// ---- konsol (cookie/token API pengguna) ----
 	mux.HandleFunc("GET /api/v1/agents", auth.Require(authz.AgentRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		v, err := h.Svc.List(r.Context(), p)

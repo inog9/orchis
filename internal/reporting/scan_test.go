@@ -3,6 +3,7 @@ package reporting
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"orchis-go/internal/ids"
@@ -23,7 +24,7 @@ func TestFreezeScanSnapshotCannotOverwriteAnExistingSnapshot(t *testing.T) {
 	}
 	must(`INSERT INTO organizations(id,tenant_id,name,slug) VALUES($1,$2,'Frozen scan','frozen-scan')`, org, env.TenantA)
 	must(`INSERT INTO users(id,tenant_id,email,display_name,role_id) SELECT $1,$2,'freeze@a.test','Fixture',id FROM roles WHERE tenant_id=$2 AND key='admin'`, actor, env.TenantA)
-	must(`INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by,is_scan,status) VALUES($1,$2,$3,'Frozen scan','quick','fixture','fixture',$4,true,'finished')`, scan, env.TenantA, org, actor)
+	must(`INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by,is_scan,status,report_language) VALUES($1,$2,$3,'Frozen scan','quick','fixture','fixture',$4,true,'finished','id')`, scan, env.TenantA, org, actor)
 	svc := Service{DB: env.App}
 	snapshot := Snapshot{SchemaVersion: "orchis.report.v1", ScanID: &scan, AssessmentID: scan, Organization: "Original organisation", Profile: "quick", CreatedAt: time.Now().UTC(), Status: "finished", Assets: []Asset{}, BySeverity: map[string]int{}}
 	freeze := func() {
@@ -42,6 +43,13 @@ func TestFreezeScanSnapshotCannotOverwriteAnExistingSnapshot(t *testing.T) {
 	}
 	freeze()
 	before := read()
+	var saved Snapshot
+	if err := json.Unmarshal(before, &saved); err != nil || saved.Language != "id" {
+		t.Fatal("freeze ignored authoritative launch language", saved.Language, err)
+	}
+	must(`UPDATE assessments SET report_language='en' WHERE id=$1`, scan)
+	snapshot.Language = "en"
+
 	snapshot.Organization = "Changed organisation"
 	snapshot.BySeverity = map[string]int{"critical": 99}
 	freeze()

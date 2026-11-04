@@ -2,6 +2,7 @@ package server_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
 	"orchis-go/internal/contract"
@@ -23,13 +24,17 @@ func TestFirstClassScanParallelIdempotencyPartialFailureAndFrozenReport(t *testi
 	}
 	second := mkAsset(t, f.a, f.admin, map[string]any{"category": "host", "name": "target-2", "organization_id": o.ID, "testing_authorized": true, "addresses": []map[string]any{{"kind": "ip", "value": "127.0.0.2"}}})
 	svc := server.ScanService(server.Options{DB: f.a.env.App, Guard: contract.Guard{AllowLoopback: true}, ScanConcurrency: 2})
-	in := scans.Input{OrganizationID: o.ID, AssetIDs: []uuid.UUID{uuid.MustParse(f.asset), uuid.MustParse(second)}, Tools: []string{"nmap", "nuclei"}, Preset: "quick"}
+	in := scans.Input{Language: "id", OrganizationID: o.ID, AssetIDs: []uuid.UUID{uuid.MustParse(f.asset), uuid.MustParse(second)}, Tools: []string{"nmap", "nuclei"}, Preset: "quick"}
 	r := f.a.do("POST", "/api/v1/scans", in, f.analyst, "Idempotency-Key", "first-class")
 	if r.Status != 201 {
 		t.Fatalf("scan launch: %d %s", r.Status, r.Body)
 	}
 	var scan scans.Scan
 	r.JSON(&scan)
+	if r = f.a.do("PATCH", "/api/v1/auth/preferences", map[string]any{"ui_language": "en"}, f.analyst); r.Status != 200 {
+		t.Fatal("preference change", r.Status)
+	}
+
 	again := f.a.do("POST", "/api/v1/scans", in, f.analyst, "Idempotency-Key", "first-class")
 	var repeated scans.Scan
 	again.JSON(&repeated)
@@ -110,7 +115,7 @@ func TestFirstClassScanParallelIdempotencyPartialFailureAndFrozenReport(t *testi
 	if err = svc.Tick(ctx, f.a.env.TenantA); err != nil {
 		t.Fatal(err)
 	}
-	final := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.viewer)
+	final := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.analyst)
 	final.JSON(&scan)
 	if final.Status != 200 || scan.Status != "finished" {
 		t.Fatalf("final: %d %s", final.Status, final.Body)
@@ -131,7 +136,25 @@ func TestFirstClassScanParallelIdempotencyPartialFailureAndFrozenReport(t *testi
 		t.Fatalf("scan snapshot: %d %s", reports.Status, reports.Body)
 	}
 	report := page.Items[0]
+	if report.Snapshot.Language != "id" {
+		t.Fatal("report followed a later preference instead of launch choice", report.Snapshot.Language)
+	}
+
 	before := f.a.do("GET", "/api/v1/reports/"+report.ID.String()+"/export/json", nil, f.viewer)
+	var frozen reporting.Snapshot
+	if err = json.Unmarshal(before.Body, &frozen); err != nil {
+		t.Fatal(err)
+	}
+	if frozen.ComparisonDetails == nil || scan.ComparisonDetails == nil {
+		t.Fatal("scan API and JSON must expose frozen comparison")
+	}
+	for _, asset := range frozen.Assets {
+		for _, finding := range asset.Findings {
+			if len(finding.Coverage) == 0 {
+				t.Fatal("scan freeze lost producing check")
+			}
+		}
+	}
 	for _, secret := range []string{"hunter2", "DO-NOT-EXPORT"} {
 		if strings.Contains(string(before.Body), secret) {
 			t.Fatal("scan report leaked evidence")
@@ -205,7 +228,7 @@ func TestScanAssetRevokedBeforeDispatchAndCancellationAreIdempotent(t *testing.T
 	if e := svc.Tick(ctx, f.a.env.TenantA); e != nil {
 		t.Fatal(e)
 	}
-	final := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.viewer)
+	final := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.analyst)
 	final.JSON(&scan)
 	if len(scan.Jobs) != 1 || scan.Jobs[0].Status != "failed" || !strings.Contains(scan.Jobs[0].Error, "authorization") {
 		t.Fatalf("revoked before dispatch: %s", final.Body)
@@ -290,7 +313,7 @@ func TestNetworkRangeApprovalScopeRevocationAndDiscoveredAssetIsNotAuthorized(t 
 	if e := svc.Tick(ctx, f.a.env.TenantA); e != nil {
 		t.Fatal(e)
 	}
-	result := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.viewer)
+	result := f.a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, f.analyst)
 	result.JSON(&scan)
 	if len(scan.Jobs) != 1 || scan.Jobs[0].Status != "finished" {
 		t.Fatalf("discovered result %s", result.Body)
@@ -307,7 +330,7 @@ func TestNetworkRangeApprovalScopeRevocationAndDiscoveredAssetIsNotAuthorized(t 
 	if add.Status != 201 {
 		t.Fatalf("add discovered %d %s", add.Status, add.Body)
 	}
-	assetResponse := f.a.do("GET", "/api/v1/assets/"+created.ID, nil, f.viewer)
+	assetResponse := f.a.do("GET", "/api/v1/assets/"+created.ID, nil, f.analyst)
 	if !strings.Contains(string(assetResponse.Body), `"testing_authorized":false`) {
 		t.Fatalf("discovery granted testing permission: %s", assetResponse.Body)
 	}
@@ -357,7 +380,7 @@ func networkSourceFixture(t *testing.T) (*agentFixture, uuid.UUID, string, enrol
 	if r.Status != 200 {
 		t.Fatalf("admin target confirmation: %d %s", r.Status, r.Body)
 	}
-	r = f.a.do("PUT", "/api/v1/organizations/"+o.ID.String()+"/osquery/osquery.network_ranges", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin)
+	r = f.a.do("PUT", "/api/v1/organizations/"+o.ID.String()+"/osquery/osquery.network_ranges", f.collectionChoice(t, o.ID.String(), "osquery.network_ranges", true), f.admin)
 	if r.Status != 204 {
 		t.Fatalf("network consent: %d %s", r.Status, r.Body)
 	}

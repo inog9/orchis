@@ -1,0 +1,24 @@
+{
+  "source_css": "https://fonts.googleapis.com/css2?family=Geologica:wght@400..600&family=IBM+Plex+Sans:wght@400..600&display=swap",
+  "upstream_license_commit": "2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc",
+  "files": [
+    {
+      "file": "geologica-latin.woff2",
+      "family": "Geologica",
+      "weights": "400..600",
+      "url": "https://fonts.gstatic.com/s/geologica/v5/oY1l8evIr7j9P3TN9YwNAdyjzUyDKkKdAGOJh1UlCDUIhAIdhCZOn1fLsig7jfvCCPHZckUWE1lE.woff2",
+      "sha256": "b14f1edee95a57f8782d505232e54584c80c673acbd25a0e7c6366332977b47d",
+      "bytes": 24944,
+      "license_source": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/geologica/OFL.txt"
+    },
+    {
+      "file": "ibm-plex-sans-latin.woff2",
+      "family": "IBM Plex Sans",
+      "weights": "400..600",
+      "url": "https://fonts.gstatic.com/s/ibmplexsans/v23/zYXzKVElMYYaJe8bpLHnCwDKr932-G7dytD-Dmu1syxeKYY.woff2",
+      "sha256": "e2291e842cf5af167122a22881a740c7f2dda7716f1e8cd76680264f4a859470",
+      "bytes": 45712,
+      "license_source": "https://raw.githubusercontent.com/google/fonts/2fe1e8c6b137fb13041a7cfca6fdcd8a910ea4dc/ofl/ibmplexsans/OFL.txt"
+    }
+  ]
+}

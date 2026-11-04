@@ -1,4 +1,5 @@
-/* Semua warna dan font berasal dari tokens.css (diekstrak dari design/orchis.pen). */
+/* Semua warna dan font berasal dari tokens.css. */
+:root { --orchis-ui-styled: 1; }
 *, *::before, *::after { box-sizing: border-box; }
 html, body, #root { height: 100%; }
 body {
@@ -92,7 +93,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .auth__headline { width: 520px; max-width: 100%; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
 .auth__meta { display: flex; align-items: center; gap: 16px; font-size: 13px; letter-spacing: 0.04em; color: var(--ink-3); }
 .auth__rule { width: 32px; height: 1px; background: var(--bronze); }
-.auth__form-panel { display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 56px 56px 40px; background: var(--bg); }
+.auth__form-panel { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 56px 56px 40px; background: var(--bg); }
 .auth__help { width: 100%; display: flex; justify-content: flex-end; gap: 6px; font-size: 14px; }
 .auth__column { width: 380px; max-width: 100%; display: flex; flex-direction: column; gap: 36px; }
 .auth__footer { width: 100%; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
@@ -106,7 +107,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .lock__time { font-family: var(--font-mono); font-size: 36px; font-weight: 600; }
 .lock__unit { font-size: 13px; color: var(--ink-3); }
 @media (max-width: 1100px) {
-  .auth { grid-template-columns: 1fr; }
+  .auth { grid-template-columns: minmax(0, 1fr); }
   .auth__brand { display: none; }
 }
 
@@ -470,7 +471,7 @@ button.dock__idle:hover { background: #ffffff08; }
 .alert-item__btn:hover { background: #ffffff08; }
 .alert-item.is-unread strong { color: var(--ink); }
 .alert-item:not(.is-unread) strong { color: var(--ink-2); font-weight: 500; }
-.alert-item__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.alert-item__text { overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .alert-item__dot { flex: none; width: 8px; height: 8px; border-radius: 4px; margin-top: 6px; background: var(--ink-3); }
 .alert-item__dot--critical { background: var(--error); }
 .alert-item__dot--warning { background: var(--warn); }
@@ -693,3 +694,29 @@ main.content:focus { outline: none; }
  .finding-row__main span { overflow-wrap:anywhere; }
 }
 .ed-report td { vertical-align:top; }
+
+/* Scan deltas keep labels readable and table columns intact on small screens. */
+.scan-comparison .comparison-totals{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.scan-comparison .org-table{min-width:560px}
+.scan-comparison .org-table th,.scan-comparison .org-table td{white-space:nowrap;overflow-wrap:normal}
+.org-card>label.select{display:flex;flex-direction:column;gap:8px}
+
+/* Agent controls remain readable outside the fixed data columns. */
+.agent-list { container-type: inline-size; }
+.agent-list .agent-row { grid-template-columns: minmax(180px,1fr) 130px 130px 100px 130px 160px; gap:12px; padding-left:16px; padding-right:16px; min-width:900px; }
+.agent-controls { display:grid; gap:12px; }
+.agent-controls .row { display:flex; flex-wrap:wrap; gap:12px; }
+@container (max-width: 760px) {
+ .agent-list .list__head { display:none; }
+ .agent-list .agent-row { grid-template-columns:repeat(2,minmax(0,1fr)); min-width:0; padding:20px; gap:12px; }
+ .agent-list .agent-row > :first-child,.agent-list .agent-row > :last-child { grid-column:1/-1; }
+ .agent-list .agent-row > span { overflow-wrap:anywhere; }
+ .agent-list .row-actions { justify-content:flex-start; }
+}
+
+.language-preference{display:flex;align-items:center;gap:6px;font-size:11px;min-width:0}.language-preference select{color:var(--ink);background:var(--input-bg);border:1px solid var(--line);border-radius:6px;padding:5px;font:inherit;max-width:110px}.language-preference p{max-width:180px}.language-preference select:focus-visible{outline:2px solid var(--bronze);outline-offset:2px}
+
+@media (max-width: 600px) {
+  .auth__form-panel { padding: 32px 24px 24px; }
+  .auth__footer { flex-wrap: wrap; gap: 16px; }
+}

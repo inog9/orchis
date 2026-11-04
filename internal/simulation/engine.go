@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"orchis-go/internal/scancontrol"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,6 +23,7 @@ import (
 
 // Engine memajukan chain sebuah simulasi. Semua langkahnya terjadi dalam transaksi pemanggil.
 type Engine struct {
+	Now   func() time.Time
 	Guard contract.Guard
 }
 
@@ -154,6 +156,9 @@ WHERE o.tenant_id=$1 AND o.simulation_id=$2`, tenant, sim)
 // Advance meluncurkan langkah yang kini boleh jalan dan menutup simulasi bila semuanya selesai. Idempoten: memanggilnya
 // berulang tidak membuat eksekusi ganda (kunci baris + indeks idempotensi). Tidak berbuat apa-apa bila status bukan running.
 func (e *Engine) Advance(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID) error {
+	if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+		return err
+	}
 	var status string
 	var synthetic bool
 	err := tx.QueryRow(ctx, `SELECT status,is_demo FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenant, sim).Scan(&status, &synthetic)
@@ -197,7 +202,7 @@ func (e *Engine) Advance(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID) 
 		}
 		if len(res.Launch) == 0 {
 			if res.Finished {
-				if _, err := tx.Exec(ctx, `UPDATE simulations SET status='finished', ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='running'`, tenant, sim); err != nil {
+				if _, err := tx.Exec(ctx, `UPDATE simulations SET status=CASE WHEN EXISTS(SELECT 1 FROM executions x WHERE x.tenant_id=$1 AND x.simulation_id=$2 AND x.outcome='canceled' AND x.scan_stop_reason<>'') THEN 'canceled' ELSE 'finished' END, ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='running'`, tenant, sim); err != nil {
 					return err
 				}
 				var name string
@@ -227,14 +232,15 @@ func execKindFor(needsAgent bool) string {
 }
 
 type target struct {
-	ID    uuid.UUID
-	Name  string
-	Addrs []contract.Address
+	OrganizationID *uuid.UUID
+	ID             uuid.UUID
+	Name           string
+	Addrs          []contract.Address
 }
 
 func loadTargets(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID) ([]target, error) {
 	rows, err := tx.Query(ctx, `
-SELECT a.id, a.name FROM simulation_targets t JOIN assets a ON a.tenant_id=t.tenant_id AND a.id=t.asset_id
+SELECT a.id, a.name,t.scan_organization_id FROM simulation_targets t JOIN assets a ON a.tenant_id=t.tenant_id AND a.id=t.asset_id
 WHERE t.tenant_id=$1 AND t.simulation_id=$2 ORDER BY a.name, a.id`, tenant, sim)
 	if err != nil {
 		return nil, err
@@ -242,7 +248,7 @@ WHERE t.tenant_id=$1 AND t.simulation_id=$2 ORDER BY a.name, a.id`, tenant, sim)
 	var out []target
 	for rows.Next() {
 		var t target
-		if err := rows.Scan(&t.ID, &t.Name); err != nil {
+		if err := rows.Scan(&t.ID, &t.Name, &t.OrganizationID); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -329,6 +335,11 @@ func (e *Engine) launchStep(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUI
 				}
 			}
 		}
+		if !needsAgent {
+			if err := scancontrol.CheckAsset(ctx, tx, tenant, t.ID, t.OrganizationID, scancontrol.Now(e.Now)); err != nil {
+				gerr = err
+			}
+		}
 		sum := sha256.Sum256([]byte(s.ID.String() + "|" + t.ID.String() + "|" + addr + "|" + string(s.Params)))
 		execID := ids.New()
 		var inserted uuid.UUID
@@ -343,10 +354,10 @@ RETURNING id`, execID, tenant, sim, s.ID, s.ContractID, s.ContractVer, t.ID, add
 		} else {
 			err = tx.QueryRow(ctx, `
 INSERT INTO executions (id, tenant_id, simulation_id, simulation_step_id, contract_id, contract_version, target_asset_id, target_address,
-  executor_kind, integration_id, params, input_hash, state, outcome, error, started_at, ended_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,'',  $12,$8,$9,$10,'ended','error',$11,now(),now())
+  executor_kind, integration_id, params, input_hash, state, outcome, error, started_at, ended_at,scan_stop_reason)
+VALUES ($1,$2,$3,$4,$5,$6,$7,'',  $12,$8,$9,$10,'ended',$13,$11,now(),now(),$14)
 ON CONFLICT (tenant_id, simulation_step_id, target_asset_id, input_hash) WHERE simulation_step_id IS NOT NULL DO NOTHING
-RETURNING id`, execID, tenant, sim, s.ID, s.ContractID, s.ContractVer, t.ID, s.Integration, []byte(s.Params), sum[:], "Target refused: "+gerr.Error()+".", execKindFor(needsAgent)).Scan(&inserted)
+RETURNING id`, execID, tenant, sim, s.ID, s.ContractID, s.ContractVer, t.ID, s.Integration, []byte(s.Params), sum[:], gerr.Error(), execKindFor(needsAgent), scancontrol.Outcome(gerr), scancontrol.Code(gerr)).Scan(&inserted)
 		}
 		if errors.Is(err, pgx.ErrNoRows) {
 			continue // sudah ada (idempoten)

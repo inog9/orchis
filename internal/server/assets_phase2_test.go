@@ -108,7 +108,7 @@ func TestCustomGroupLifecycle(t *testing.T) {
 		Count, Total int
 		Sample       []struct{ Name string }
 	}
-	r := a.do("POST", "/api/v1/asset-groups/preview", map[string]any{"rule": rule}, viewer)
+	r := a.do("POST", "/api/v1/asset-groups/preview", map[string]any{"rule": rule}, analyst)
 	r.JSON(&pv)
 	if r.Status != 200 || pv.Count != 1 || pv.Total != 2 || pv.Sample[0].Name != "db-01" {
 		t.Fatalf("pratinjau salah: %d %s", r.Status, r.Body)

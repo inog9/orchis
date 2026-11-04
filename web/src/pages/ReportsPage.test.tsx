@@ -56,3 +56,8 @@ it('offers only PDF and JSON exports and uses a PDF preview',async()=>{
  expect(screen.getByRole('link',{name:'Open PDF preview'})).toHaveAttribute('href','/api/v1/reports/r/export/pdf?preview=1');
  expect(screen.queryByRole('link',{name:/Download (HTML|CSV)/})).toBeNull();
 });
+it('keeps the server comparison summary visible in English even when structured details exist',async()=>{
+ mount([],{comparison_details:{version:1,totals:{new:0,persistent:1,resolved:2,uncompared:0},by_severity:{},rows:[],checks:[]}});
+ expect(await screen.findByText('Incomplete assets excluded.')).toBeTruthy();
+ expect(screen.getByText('Scan comparison')).toBeTruthy();
+});

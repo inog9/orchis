@@ -13,6 +13,7 @@ import (
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/scancontrol"
 	"os"
 	"strings"
 )
@@ -184,6 +185,9 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 		id := ids.New()
 		version := 0
 		e := s.DB.InTenant(r.Context(), p.TenantID, func(tx pgx.Tx) error {
+			if err := scancontrol.Lock(r.Context(), tx, p.TenantID); err != nil {
+				return err
+			}
 			// Penguncian tenant menserialkan versi template tanpa sequence global.
 			if _, e := tx.Exec(r.Context(), `SELECT id FROM tenants WHERE id=$1 FOR UPDATE`, p.TenantID); e != nil {
 				return e

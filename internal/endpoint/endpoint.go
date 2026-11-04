@@ -193,13 +193,16 @@ func (s *Service) OrgSettings(ctx context.Context, p *auth.Principal, org uuid.U
 	return out, err
 }
 
-func (s *Service) SetOrg(ctx context.Context, p *auth.Principal, org uuid.UUID, key string, enabled bool, consent osquery.ConsentRef, ip, reqID string) error {
+func (s *Service) SetOrg(ctx context.Context, p *auth.Principal, org uuid.UUID, key string, enabled bool, expected *int64, consent osquery.ConsentRef, ip, reqID string) error {
 	q := osquery.Find(key)
 	if q == nil {
 		return httpx.NotFound("Query")
 	}
 	if enabled && !consent.Valid() {
 		return httpx.Validation(httpx.FieldError{Name: "consent", Message: "Review and accept the current endpoint collection document."})
+	}
+	if expected == nil || *expected < 0 {
+		return httpx.Validation(httpx.FieldError{Name: "version", Message: "Reload the collection choice before changing it."})
 	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var found uuid.UUID
@@ -210,18 +213,21 @@ func (s *Service) SetOrg(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 		if err != nil {
 			return err
 		}
+		if err := checkSettingVersions(ctx, tx, p.TenantID, org, []string{key}, map[string]int64{key: *expected}); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO osquery_org_settings (tenant_id, organization_id, query_key, enabled, updated_by, updated_at,consent_version,consent_sha256,consented_by,consented_at) VALUES ($1,$2,$3,$4,$5::uuid,now(),CASE WHEN $4 THEN $6::text ELSE NULL END,CASE WHEN $4 THEN $7::text ELSE NULL END,CASE WHEN $4 THEN $5::uuid ELSE NULL END,CASE WHEN $4 THEN now() ELSE NULL END)
 ON CONFLICT (tenant_id, organization_id, query_key) DO UPDATE SET enabled=EXCLUDED.enabled, updated_by=EXCLUDED.updated_by, updated_at=now(), version=osquery_org_settings.version+1,consent_version=CASE WHEN EXCLUDED.enabled THEN EXCLUDED.consent_version ELSE osquery_org_settings.consent_version END,consent_sha256=CASE WHEN EXCLUDED.enabled THEN EXCLUDED.consent_sha256 ELSE osquery_org_settings.consent_sha256 END,consented_by=CASE WHEN EXCLUDED.enabled THEN EXCLUDED.consented_by ELSE osquery_org_settings.consented_by END,consented_at=CASE WHEN EXCLUDED.enabled THEN EXCLUDED.consented_at ELSE osquery_org_settings.consented_at END`, p.TenantID, org, key, enabled, p.UserID, consent.Version, consent.SHA256); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "osquery.setting", ResourceType: "organization", ResourceID: &org, IP: ip, RequestID: reqID,
-			Detail: map[string]any{"query": key, "enabled": enabled, "consent": consent, "tables_read": q.TablesRead(), "sensitivity": q.Sensitivity}})
+			Detail: map[string]any{"query": key, "expected_version": *expected, "enabled": enabled, "consent": consent, "tables_read": q.TablesRead(), "sensitivity": q.Sensitivity}})
 	})
 }
 
 // SetOrgPack menyetujui/mencabut SELURUH query pack yang dapat dijalankan dalam satu transaksi. Audit memuat versi dan hash
 // pack serta tabel yang dibaca, sehingga persetujuan dapat ditelusuri. Query yang dilewati tidak pernah ikut diaktifkan.
-func (s *Service) SetOrgPack(ctx context.Context, p *auth.Principal, org uuid.UUID, pack string, enabled bool, consent osquery.ConsentRef, ip, reqID string) error {
+func (s *Service) SetOrgPack(ctx context.Context, p *auth.Principal, org uuid.UUID, pack string, enabled bool, expected map[string]int64, consent osquery.ConsentRef, ip, reqID string) error {
 	pk := osquery.FindPack(pack)
 	if pk == nil {
 		return httpx.NotFound("Pack")
@@ -230,6 +236,9 @@ func (s *Service) SetOrgPack(ctx context.Context, p *auth.Principal, org uuid.UU
 	if enabled && !consent.Valid() {
 		return httpx.Validation(httpx.FieldError{Name: "consent", Message: "Review and accept the current endpoint collection document."})
 	}
+	if err := validateSettingVersions(keys, expected); err != nil {
+		return err
+	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var found uuid.UUID
 		err := tx.QueryRow(ctx, `SELECT id FROM organizations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, org).Scan(&found)
@@ -237,6 +246,9 @@ func (s *Service) SetOrgPack(ctx context.Context, p *auth.Principal, org uuid.UU
 			return httpx.NotFound("Organization")
 		}
 		if err != nil {
+			return err
+		}
+		if err := checkSettingVersions(ctx, tx, p.TenantID, org, keys, expected); err != nil {
 			return err
 		}
 		for _, k := range keys {
@@ -246,7 +258,7 @@ ON CONFLICT (tenant_id, organization_id, query_key) DO UPDATE SET enabled=EXCLUD
 			}
 		}
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "osquery.pack", ResourceType: "organization", ResourceID: &org, IP: ip, RequestID: reqID,
-			Detail: map[string]any{"pack": pack, "enabled": enabled, "consent": consent, "osquery_version": osquery.Version, "pack_sha256": pk.SHA256, "queries": keys, "tables_read": packTables(pk)}})
+			Detail: map[string]any{"pack": pack, "expected_versions": expected, "enabled": enabled, "consent": consent, "osquery_version": osquery.Version, "pack_sha256": pk.SHA256, "queries": keys, "tables_read": packTables(pk)}})
 	})
 }
 
@@ -457,6 +469,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			return
 		}
 		var in struct {
+			Version *int64             `json:"version"`
 			Enabled *bool              `json:"enabled"`
 			Consent osquery.ConsentRef `json:"consent"`
 		}
@@ -468,7 +481,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			httpx.Write(w, r, httpx.Validation(httpx.FieldError{Name: "enabled", Message: "Choose on or off."}))
 			return
 		}
-		err = h.Svc.SetOrg(r.Context(), p, org, r.PathValue("key"), *in.Enabled, in.Consent, auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
+		err = h.Svc.SetOrg(r.Context(), p, org, r.PathValue("key"), *in.Enabled, in.Version, in.Consent, auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
 		if err != nil {
 			httpx.Write(w, r, err)
 			return
@@ -482,8 +495,9 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			return
 		}
 		var in struct {
-			Enabled *bool              `json:"enabled"`
-			Consent osquery.ConsentRef `json:"consent"`
+			Versions map[string]int64   `json:"versions"`
+			Enabled  *bool              `json:"enabled"`
+			Consent  osquery.ConsentRef `json:"consent"`
 		}
 		if err := httpx.Decode(w, r, &in); err != nil {
 			httpx.Write(w, r, err)
@@ -493,7 +507,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			httpx.Write(w, r, httpx.Validation(httpx.FieldError{Name: "enabled", Message: "Choose on or off."}))
 			return
 		}
-		if err := h.Svc.SetOrgPack(r.Context(), p, org, r.PathValue("pack"), *in.Enabled, in.Consent, auth.ClientIP(r), httpx.RequestIDFrom(r.Context())); err != nil {
+		if err := h.Svc.SetOrgPack(r.Context(), p, org, r.PathValue("pack"), *in.Enabled, in.Versions, in.Consent, auth.ClientIP(r), httpx.RequestIDFrom(r.Context())); err != nil {
 			httpx.Write(w, r, err)
 			return
 		}

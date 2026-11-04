@@ -8,7 +8,7 @@ import { AtomicTestDetailPage } from './AtomicTestDetailPage';
 import { AtomicTestsPage } from './AtomicTestsPage';
 import { FindingsPage } from './FindingsPage';
 
-const analyst = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['atomic.read', 'atomic.write', 'atomic.run', 'finding.read', 'asset.read'] };
+const analyst = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['organization.read', 'atomic.read', 'atomic.write', 'atomic.run', 'finding.read', 'asset.read'] };
 const viewer = { ...analyst, role: 'viewer', permissions: ['atomic.read', 'finding.read'] };
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
 
@@ -87,7 +87,7 @@ describe('AtomicTestsPage', () => {
   it('dialog hanya menawarkan aset yang diotorisasi dan menampilkan alasan penolakan server', async () => {
     const fetchMock = route(analyst, (u, init) => {
       if (u.endsWith('/atomic-tests') && init?.method === 'POST') {
-        return json({ title: 'Validation failed', status: 422, detail: 'x', fields: [{ name: 'params.ports', message: 'Use ports like 22,80,8000-8100 (at most 50 entries).' }] }, 422);
+        return json({ title: 'Validation failed', status: 422, detail: 'x', fields: [{ name: 'params.ports', message: 'Use ports like 22,80,8000-8100 (at most 50 entries).', code: 'ports_invalid' }] }, 422);
       }
       if (u.endsWith('/atomic-tests')) return json({ items: [] });
       if (u.endsWith('/contracts')) return json({ items: [contract('nmap.tcp_connect', 'Nmap TCP connect scan', 'nmap'), contract('nuclei.scan', 'Nuclei vulnerability scan', 'nuclei')] });
@@ -139,7 +139,7 @@ describe('AtomicTestDetailPage', () => {
   it('menampilkan penolakan server saat Run (aset belum diotorisasi)', async () => {
     const base = page();
     route(analyst, (u, init) => (u.endsWith('/run') && init?.method === 'POST'
-      ? json({ title: 'Validation failed', status: 422, detail: 'This asset is not authorized for testing.' }, 422) : base(u)));
+      ? json({ title: 'Validation failed', status: 422, detail: 'This asset is not authorized for testing.', code: 'testing_not_authorized' }, 422) : base(u)));
     const user = userEvent.setup();
     mount(<AtomicTestDetailPage />, '/atomic/t1', '/atomic/:id');
     await user.click(await screen.findByRole('button', { name: /^run$/i }));

@@ -368,7 +368,7 @@ export function useCreateUser() {
 export function usePatchUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...v }: { id: string; version: number; display_name?: string; role?: string; status?: string }) => api.patch<UserRow>(`/api/v1/users/${id}`, v),
+    mutationFn: ({ id, ...v }: { id: string; version: number; display_name?: string; role?: string; status?: string; accept_role_permissions?: boolean }) => api.patch<UserRow>(`/api/v1/users/${id}`, v),
     onSuccess: () => inv(qc, 'users', 'roles'),
   });
 }
@@ -486,11 +486,11 @@ export function useMitreImport() {
   return useMutation({ mutationFn: () => api.post<void>('/api/v1/mitre/import'), onSuccess: () => inv(qc, 'mitre') });
 }
 
-export function useAlerts(unreadOnly = false, limit = 30, enabled = true) {
+export function useAlerts(unreadOnly = false, limit = 30, enabled = true, organization = '') {
   return useQuery({
-    enabled, queryKey: ['alerts', unreadOnly, limit],
-    queryFn: () => api.get<AlertList>(`/api/v1/alerts?limit=${limit}${unreadOnly ? '&unread=1' : ''}`),
-    refetchInterval: 20_000,
+    enabled, queryKey: ['alerts', unreadOnly, limit, organization],
+    queryFn: () => api.get<AlertList>(`/api/v1/alerts?limit=${limit}${unreadOnly ? '&unread=1' : ''}${organization ? `&organization_id=${encodeURIComponent(organization)}` : ''}`),
+    refetchInterval: 10_000,
     retry: false,
   });
 }
@@ -538,14 +538,14 @@ export function useOrgOsquery(orgId: string, enabled = true) {
 export function useSetOrgOsquery(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { key: string; enabled: boolean; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery/${v.key}`, { enabled: v.enabled, consent: v.consent }),
+    mutationFn: (v: { key: string; enabled: boolean; version: number; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery/${v.key}`, { enabled: v.enabled, version: v.version, consent: v.consent }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['osquery-org', orgId] }),
   });
 }
 export function useSetOrgPack(orgId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (v: { pack: string; enabled: boolean; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery-packs/${v.pack}`, { enabled: v.enabled, consent: v.consent }),
+    mutationFn: (v: { pack: string; enabled: boolean; versions: Record<string,number>; consent?: Pick<EndpointConsent, 'version' | 'sha256'> }) => api.put<void>(`/api/v1/organizations/${orgId}/osquery-packs/${v.pack}`, { enabled: v.enabled, versions: v.versions, consent: v.consent }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['osquery-org', orgId] }),
   });
 }

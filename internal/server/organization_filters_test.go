@@ -11,7 +11,7 @@ import (
 func TestOrganizationFiltersScopePaginationSearchAndUntrustedIndexResults(t *testing.T) {
 	a, env := setup(t)
 	admin := a.login("admin@a.test")
-	viewer := a.login("viewer@a.test")
+	viewer := a.login("analyst@a.test")
 	oa := createOrg(t, a, admin, "filter-a")
 	ob := createOrg(t, a, admin, "filter-b")
 	makeAsset := func(org uuid.UUID, name string) string {

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Operate one explicitly selected production project; never discover/modify other stacks."""
-import argparse, contextlib, fcntl, base64, http.cookiejar, ipaddress, json, os, re, secrets, ssl, subprocess, time, urllib.request
+import argparse, contextlib, hashlib, fcntl, base64, http.cookiejar, ipaddress, json, os, re, secrets, ssl, subprocess, time, urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -78,9 +78,34 @@ def metrics_init(args):
 def compose(args,*tail,capture=False,input=None):
     cfg=json.loads((args.state/"operator.json").read_text())
     env={**os.environ,"ORCHIS_STATE":str(args.state),"ORCHIS_PROJECT":cfg["project"],"ORCHIS_HTTPS_PORT":cfg["port"],"ORCHIS_BIND":cfg["bind"],"ORCHIS_SITE":cfg["site"],"ORCHIS_PROXY_SUBNET":cfg["proxy_subnet"],"ORCHIS_PROXY_RANGE":cfg["proxy_range"],"ORCHIS_CADDY_IP":cfg["caddy_ip"]}
-    files=["-f",str(REPO/"deploy/prod/compose.yml"),"-f",str(REPO/"deploy/prod/compose.ops.yml")]
+    files=["-f",str(REPO/"docker-compose.yaml"),"-f",str(REPO/"deploy/prod/compose.ops.yml")]
     if cfg.get("smoke"):files += ["-f",str(REPO/"deploy/prod/compose.smoke.yml")]
-    return subprocess.run(["docker","compose","--project-directory",str(REPO/"deploy/prod"),*files,*tail],env=env,check=True,text=True,capture_output=capture,input=input,timeout=1200 if "build" in tail else 300)
+    return subprocess.run(["docker","compose","--project-directory",str(REPO),*files,*tail],env=env,check=True,text=True,capture_output=capture,input=input,timeout=1200 if "build" in tail else 300)
+
+def env_file(args):
+    """Print the non-secret values `docker compose` needs, for `.env`; secrets stay in the private state directory."""
+    cfg=json.loads((args.state/"operator.json").read_text())
+    print("\n".join(f"{k}={v}" for k,v in [("ORCHIS_STATE",args.state),("ORCHIS_PROJECT",cfg["project"]),("ORCHIS_BIND",cfg["bind"]),("ORCHIS_HTTPS_PORT",cfg["port"]),("ORCHIS_SITE",cfg["site"]),("ORCHIS_PROXY_SUBNET",cfg["proxy_subnet"]),("ORCHIS_PROXY_RANGE",cfg["proxy_range"]),("ORCHIS_CADDY_IP",cfg["caddy_ip"])]))
+
+def ca_fingerprint(args):
+    """SHA-256 of the self-signed installation's root CA, for pinning in install.sh (--ca-fingerprint)."""
+    pem=compose(args,"exec","-T","caddy","cat","/data/caddy/pki/authorities/local/root.crt",capture=True).stdout
+    print(hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest())
+
+def agent_trust(args):
+    """Publish the installation's own CA fingerprint to authenticated installer clients."""
+    pem=compose(args,"exec","-T","caddy","cat","/data/caddy/pki/authorities/local/root.crt",capture=True).stdout
+    fingerprint=hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest()
+    path=args.state/"server.json"
+    value=json.loads(path.read_text())
+    value["ORCHIS_AGENT_CA_FINGERPRINT"]=fingerprint
+    value.pop("ORCHIS_AGENT_TLS_PIN",None)
+    temporary=args.state/("server.json.trust-"+secrets.token_hex(4))
+    try:
+        private(temporary,value)
+        os.replace(temporary,path)
+    finally:temporary.unlink(missing_ok=True)
+    print("Internal CA fingerprint configured. Restart the server explicitly to apply.")
 
 def up(args):
     if (args.state/"ai-rekey.json").exists():raise RuntimeError("AI key rotation pending; resume ai-rekey before startup")
@@ -150,7 +175,7 @@ def state_lock(state):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","metrics-init","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"])
+    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status","env","ca-fingerprint"])
     p.add_argument("--state",type=Path,default=None)
     p.add_argument("--project")
     p.add_argument("--port",type=int)
@@ -178,7 +203,10 @@ def main():
             if not 0<=args.demo_seed<=1000000:raise RuntimeError("DEMO_SEED must be between 0 and 1000000")
             compose(args,"run","--rm","--no-deps","-e","DEMO_SEED="+str(args.demo_seed),"server",args.command)
         elif args.command=="probe":probe(args)
+        elif args.command=="env":env_file(args)
+        elif args.command=="ca-fingerprint":ca_fingerprint(args)
         elif args.command=="metrics-init":metrics_init(args)
+        elif args.command=="agent-trust":agent_trust(args)
         elif args.command=="mitre-config":
             from mitre_config import configure
             configure(args,REPO,private)
@@ -204,7 +232,7 @@ def main():
             from smoke import smoke
             smoke(args,compose,init,up,probe)
         else:compose(args,"ps","-a")
-    if args.command in {"up","down","build","backup-key","backup","metrics-init","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"}:
+    if args.command in {"up","down","build","backup-key","backup","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"}:
         with state_lock(args.state):execute()
     else:execute()
 

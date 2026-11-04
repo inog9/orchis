@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"orchis-go/internal/scancontrol"
 	"regexp"
 	"strings"
 	"time"
@@ -23,6 +24,7 @@ import (
 )
 
 type Service struct {
+	Now    func() time.Time
 	DB     *db.DB
 	Engine *simulation.Engine
 }
@@ -197,6 +199,9 @@ func (s *Service) Members(ctx context.Context, p *auth.Principal, org uuid.UUID,
 		return invalid("assets", "Select 1 to 100 assets.")
 	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var exists bool
 		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM organizations WHERE tenant_id=$1 AND id=$2)`, p.TenantID, org).Scan(&exists); err != nil {
 			return err

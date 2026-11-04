@@ -52,7 +52,7 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 	if r := f.a.do("GET", "/api/v1/home", nil, ""); r.Status != 401 {
 		t.Fatalf("tanpa login harus 401: %d", r.Status)
 	}
-	h := getHome(t, f, f.viewer)
+	h := getHome(t, f, f.analyst)
 	if h.Assets.Total != 1 || h.Assets.Authorized != 1 || h.Findings.Total != 0 || h.Atomic.Tests != 1 || h.Atomic.Runs7d != 0 || len(h.LatestRuns) != 0 || len(h.MostExposed) != 0 {
 		t.Fatalf("ringkasan awal salah: %+v", h)
 	}
@@ -83,7 +83,7 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 	f.inj("POST", "executions/"+e3.ID+"/claim", nil, f.token)
 	f.inj("POST", "executions/"+e3.ID+"/result", map[string]any{"exit_code": 1, "error": "boom"}, f.token)
 
-	h = getHome(t, f, f.viewer)
+	h = getHome(t, f, f.analyst)
 	fs := h.Findings
 	if fs.Total != 4 || fs.Vulnerabilities != 2 || fs.OpenPorts != 2 || fs.VulnerableAssets != 1 || fs.BySeverity["critical"] != 1 || fs.BySeverity["medium"] != 1 || fs.BySeverity["info"] != 0 {
 		t.Fatalf("statistik finding salah: %+v", fs)
@@ -102,12 +102,12 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 	if r := f.a.do("DELETE", "/api/v1/assets/"+f.asset, nil, f.admin); r.Status != 204 {
 		t.Fatalf("hapus aset: %d", r.Status)
 	}
-	h = getHome(t, f, f.viewer)
+	h = getHome(t, f, f.analyst)
 	if h.Assets.Total != 0 || h.Findings.Total != 0 || h.Findings.VulnerableAssets != 0 || len(h.MostExposed) != 0 {
 		t.Fatalf("aset terhapus harus hilang dari ringkasan: %+v %+v", h.Assets, h.Findings)
 	}
 	var list struct{ Items []struct{ ID string } }
-	f.a.do("GET", "/api/v1/findings", nil, f.viewer).JSON(&list)
+	f.a.do("GET", "/api/v1/findings", nil, f.analyst).JSON(&list)
 	if len(list.Items) != 0 {
 		t.Fatalf("finding aset terhapus tidak boleh tampil: %+v", list)
 	}
@@ -137,12 +137,12 @@ func TestHomeCountsScenariosAndSimulations(t *testing.T) {
 		Chains *struct{ Scenarios, Simulations, Running int } `json:"chains"`
 		Latest []struct{ Code, Name, Status string }          `json:"latest_simulations"`
 	}
-	c.a.do("GET", "/api/v1/home", nil, c.viewer).JSON(&h)
+	c.a.do("GET", "/api/v1/home", nil, c.analyst).JSON(&h)
 	if h.Chains == nil || h.Chains.Scenarios != 1 || h.Chains.Simulations != 1 || h.Chains.Running != 1 || len(h.Latest) != 1 || h.Latest[0].Code != "OP-0001" || h.Latest[0].Status != "running" {
 		t.Fatalf("ringkasan chain salah: %+v %+v", h.Chains, h.Latest)
 	}
 	c.finish(t, c.execsOf(t, sim.ID, "scan")[0], nmapC, okEmpty)
-	c.a.do("GET", "/api/v1/home", nil, c.viewer).JSON(&h)
+	c.a.do("GET", "/api/v1/home", nil, c.analyst).JSON(&h)
 	if h.Chains.Running != 0 || h.Latest[0].Status != "finished" {
 		t.Fatalf("setelah selesai: %+v %+v", h.Chains, h.Latest)
 	}

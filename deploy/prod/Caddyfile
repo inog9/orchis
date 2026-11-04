@@ -15,5 +15,13 @@
   Referrer-Policy no-referrer
   -Server
  }
- reverse_proxy server:8090
+ # Root CA of this installation, fetched by install.sh and accepted only when its SHA-256 matches the pinned fingerprint.
+ handle /ca.pem {
+  root * /data/caddy/pki/authorities/local
+  rewrite * /root.crt
+  file_server
+ }
+ handle {
+  reverse_proxy server:8090
+ }
 }

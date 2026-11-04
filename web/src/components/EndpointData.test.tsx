@@ -16,7 +16,7 @@ const q = (key: string, title: string, sensitivity: 'low' | 'medium', extra: obj
 const consent = { version: '2026-11-01.1', sha256: 'b'.repeat(64), text: 'Collection document: data, purpose, access, retention, stop and delete.' };
 const catalog = { consent, osquery_version: '5.24.0', license: 'Apache-2.0', proven_os: ['linux'], queries: [q('osquery.inventory', 'System inventory', 'low'), q('osquery.users', 'Local accounts', 'medium', { tables: ['users', 'groups'] }), q('osquery.pack.it_compliance.mounts', 'mounts', 'medium', { pack: 'it-compliance', tables: ['mounts'] })],
   packs: [{ name: 'it-compliance', description: 'Basic IT compliance facts.', file: 'it-compliance.conf', sha256: 'a'.repeat(64), platform: '', tables_read: ['mounts'], queries: [
-    { name: 'mounts', key: 'osquery.pack.it_compliance.mounts', description: '', status: 'runnable', reason: '', tables: ['mounts'] },
+    { name: 'mounts', platform: 'posix', key: 'osquery.pack.it_compliance.mounts', description: '', status: 'runnable', reason: '', tables: ['mounts'] },
     { name: 'chrome_extensions', description: '', status: 'sensitive', reason: 'Skipped: sensitive data (chrome_extensions).', tables: ['chrome_extensions'] }] }] };
 
 type Calls = { url: string; method: string; body?: unknown }[];
@@ -30,8 +30,8 @@ function stub(handler: (url: string, method: string) => Response | undefined, ca
   });
   return calls;
 }
-function mount(ui: React.ReactNode) {
-  return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
+function mount(ui: React.ReactNode, client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })) {
+  return render(<QueryClientProvider client={client}><MemoryRouter>{ui}</MemoryRouter></QueryClientProvider>);
 }
 afterEach(() => vi.restoreAllMocks());
 
@@ -129,7 +129,7 @@ describe('EndpointDataPanel', () => {
   it('runs a check now and explains why it could not start', async () => {
     const calls: Calls = [];
     stub((url, method) => {
-      if (url.endsWith('/assets/a1/endpoint-data/refresh') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'The agent on this asset is offline.' }, 409);
+      if (url.endsWith('/assets/a1/endpoint-data/refresh') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'The agent on this asset is offline.', code: 'agent_offline' }, 409);
       if (url.endsWith('/assets/a1/endpoint-data')) return json(data());
       return undefined;
     }, calls);
@@ -181,7 +181,7 @@ describe('Official packs', () => {
     expect(rows).toEqual(['mounts', 'chrome_extensions']);
   });
 
-  it('shows the tables in a dialog before an admin approves the whole pack, then turns it off directly', async () => {
+  it('includes POSIX checks and their versions when approving a Linux pack', async () => {
     const calls = stub((url, method) => {
       if (url.endsWith('/organizations/o1/osquery') && method === 'GET') return json({ items: [{ key: 'osquery.pack.it_compliance.mounts', enabled: false, explicit: false, updated_at: null }] });
       if (url.includes('/organizations/o1/osquery-packs/') && method === 'PUT') return new Response(null, { status: 204 });
@@ -196,7 +196,7 @@ describe('Official packs', () => {
     expect(calls.some((c) => c.method === 'PUT')).toBe(false);
     await userEvent.click(within(dlg).getByRole('button', { name: 'Approve pack' }));
     await vi.waitFor(() => expect(calls.find((c) => c.method === 'PUT')).toBeTruthy());
-    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ url: expect.stringContaining('/organizations/o1/osquery-packs/it-compliance'), body: { enabled: true, consent: {version: consent.version,sha256:consent.sha256} } });
+    expect(calls.find((c) => c.method === 'PUT')).toMatchObject({ url: expect.stringContaining('/organizations/o1/osquery-packs/it-compliance'), body: { enabled: true, versions: {'osquery.pack.it_compliance.mounts':0}, consent: {version: consent.version,sha256:consent.sha256} } });
   });
 
   it('hides the approve button from people who cannot manage settings', async () => {
@@ -229,4 +229,37 @@ describe('Endpoint dataset deletion',()=>{
   await screen.findByText(/This asset has no agent/);
   expect(screen.queryByRole('button',{name:'Delete collected data'})).toBeNull();
  });
+});
+
+
+describe('Collection review versions', () => {
+  it.each(['query', 'pack'])('keeps the %s version reviewed until a conflict is explicitly reloaded', async (kind) => {
+    const key = kind === 'pack' ? 'osquery.pack.it_compliance.mounts' : 'osquery.users';
+    let version = 2;
+    const calls = stub((url, method) => {
+      if (method === 'GET' && url.endsWith('/organizations/o1/osquery')) return json({ items: [{ key, version, enabled: false, explicit: true }] });
+      if (method === 'PUT') return version === 3 && calls.filter(c => c.method === 'PUT').length === 1
+        ? json({ title: 'Conflict', status: 409, detail: 'Collection choices changed; reload before saving.', code: 'collection_conflict' }, 409)
+        : new Response(null, { status: 204 });
+      return undefined;
+    });
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    mount(<EndpointCatalog orgId="o1" canManage />, client);
+    const article = await screen.findByRole('article', { name: kind === 'pack' ? 'it-compliance pack' : 'Local accounts' });
+    await userEvent.click(await within(article).findByRole('button', { name: 'Review and approve' }));
+    version = 3;
+    await client.invalidateQueries();
+    const button = kind === 'pack' ? 'Approve pack' : 'Approve';
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: button }));
+    const dialog = screen.getByRole('dialog');
+    expect(await within(dialog).findByText('Collection choices changed; reload before saving.')).toBeInTheDocument();
+    const sent = calls.filter(c => c.method === 'PUT')[0]!.body;
+    expect(sent).toMatchObject(kind === 'pack' ? { versions: { [key]: 2 } } : { version: 2 });
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Reload choices' }));
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await userEvent.click(await within(article).findByRole('button', { name: 'Review and approve' }));
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: button }));
+    await vi.waitFor(() => expect(calls.filter(c => c.method === 'PUT')).toHaveLength(2));
+    expect(calls.filter(c => c.method === 'PUT')[1]!.body).toMatchObject(kind === 'pack' ? { versions: { [key]: 3 } } : { version: 3 });
+  });
 });

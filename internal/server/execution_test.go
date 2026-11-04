@@ -354,8 +354,8 @@ func TestSweepTimesOutLostWorkersAndRepublishesStaleReady(t *testing.T) {
 func TestPermissionsAndIsolation(t *testing.T) {
 	f := newScanFixture(t, true)
 	a := f.a
-	if r := a.do("GET", "/api/v1/atomic-tests", nil, f.viewer); r.Status != 200 {
-		t.Errorf("viewer boleh membaca: %d", r.Status)
+	if r := a.do("GET", "/api/v1/atomic-tests", nil, f.viewer); r.Status != 403 {
+		t.Errorf("viewer cannot read Atomic tests: %d", r.Status)
 	}
 	if r := a.do("POST", "/api/v1/atomic-tests/"+f.test+"/run", nil, f.viewer); r.Status != 403 {
 		t.Errorf("viewer tidak boleh menjalankan: %d", r.Status)
@@ -437,7 +437,7 @@ func TestContractsReportInjectorStatus(t *testing.T) {
 			IntegrationStatus string `json:"integration_status"`
 		}
 	}
-	f.a.do("GET", "/api/v1/contracts", nil, f.viewer).JSON(&out)
+	f.a.do("GET", "/api/v1/contracts", nil, f.analyst).JSON(&out)
 	keys := map[string]bool{}
 	for _, c := range out.Items {
 		keys[c.Key] = true
@@ -463,7 +463,7 @@ func TestContractsReportInjectorStatus(t *testing.T) {
 	if r := f.inj("POST", "heartbeat", map[string]any{"version": "1.2.3"}, f.token); r.Status != 200 {
 		t.Fatalf("heartbeat: %d %s", r.Status, r.Body)
 	}
-	f.a.do("GET", "/api/v1/contracts", nil, f.viewer).JSON(&out)
+	f.a.do("GET", "/api/v1/contracts", nil, f.analyst).JSON(&out)
 	for _, c := range out.Items {
 		want := "offline"
 		if c.Key == "nmap.tcp_connect" {

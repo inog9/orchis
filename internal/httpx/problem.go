@@ -11,11 +11,13 @@ import (
 )
 
 type FieldError struct {
+	Code    string `json:"code,omitempty"`
 	Name    string `json:"name"`
 	Message string `json:"message"`
 }
 
 type Problem struct {
+	Code      string       `json:"code"`
 	Type      string       `json:"type"`
 	Title     string       `json:"title"`
 	Status    int          `json:"status"`
@@ -36,7 +38,7 @@ func newErrorID() string {
 }
 
 func NewProblem(status int, title, detail string) *Problem {
-	return &Problem{Type: "about:blank", Title: title, Status: status, Detail: detail, ErrorID: newErrorID()}
+	return &Problem{Code: problemCode(status, detail), Type: "about:blank", Title: title, Status: status, Detail: detail, ErrorID: newErrorID()}
 }
 
 func BadRequest(detail string) *Problem { return NewProblem(400, "Invalid request", detail) }
@@ -52,6 +54,14 @@ func NotFound(what string) *Problem {
 func Conflict(detail string) *Problem { return NewProblem(409, "Conflict", detail) }
 func Validation(f ...FieldError) *Problem {
 	p := NewProblem(422, "Invalid data", "Check the highlighted fields.")
+	for i := range f {
+		if f[i].Code == "" {
+			f[i].Code = knownMessageCode(f[i].Message)
+			if f[i].Code == "" {
+				f[i].Code = "field_invalid"
+			}
+		}
+	}
 	p.Fields = f
 	return p
 }

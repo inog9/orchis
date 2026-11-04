@@ -20,6 +20,7 @@ import (
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
 	"orchis-go/internal/simulation"
 	"sort"
@@ -27,6 +28,7 @@ import (
 )
 
 type Service struct {
+	Now         func() time.Time
 	DB          *db.DB
 	Guard       contract.Guard
 	Engine      *simulation.Engine
@@ -60,6 +62,7 @@ func invalid(field, msg string) error {
 }
 
 type Input struct {
+	Language       string      `json:"language,omitempty"`
 	OrganizationID uuid.UUID   `json:"organization_id"`
 	AssetIDs       []uuid.UUID `json:"asset_ids"`
 	RangeIDs       []uuid.UUID `json:"range_ids"`
@@ -67,15 +70,17 @@ type Input struct {
 	Preset         string      `json:"preset"`
 }
 type Scan struct {
-	ID             uuid.UUID  `json:"id"`
-	OrganizationID uuid.UUID  `json:"organization_id"`
-	Name           string     `json:"name"`
-	Status         string     `json:"status"`
-	Runner         string     `json:"runner"`
-	Options        Input      `json:"options"`
-	CreatedAt      time.Time  `json:"created_at"`
-	EndedAt        *time.Time `json:"ended_at"`
-	Jobs           []Job      `json:"jobs,omitempty"`
+	ResultsExpiredAt  *time.Time            `json:"results_expired_at,omitempty"`
+	ComparisonDetails *reporting.Comparison `json:"comparison_details,omitempty"`
+	ID                uuid.UUID             `json:"id"`
+	OrganizationID    uuid.UUID             `json:"organization_id"`
+	Name              string                `json:"name"`
+	Status            string                `json:"status"`
+	Runner            string                `json:"runner"`
+	Options           Input                 `json:"options"`
+	CreatedAt         time.Time             `json:"created_at"`
+	EndedAt           *time.Time            `json:"ended_at"`
+	Jobs              []Job                 `json:"jobs,omitempty"`
 }
 type Job struct {
 	ID           uuid.UUID           `json:"id"`
@@ -90,15 +95,26 @@ type Job struct {
 	Findings     []reporting.Finding `json:"findings"`
 }
 
-const scanCols = `id,organization_id,name,status,runner,scan_options,created_at,ended_at`
+const scanCols = `id,organization_id,name,status,runner,scan_options,created_at,ended_at,results_expired_at`
 
 func scanRow(row pgx.Row) (Scan, error) {
 	var out Scan
-	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt)
+	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt, &out.ResultsExpiredAt)
 	return out, err
 }
 
 func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, ip, req string) (*Scan, error) {
+	if in.Language != "" && in.Language != "en" && in.Language != "id" {
+		return nil, httpx.Validation(httpx.FieldError{Name: "language", Message: "Choose English or Indonesia."})
+	}
+	language := in.Language
+	if language == "" {
+		language = p.UILanguage
+	}
+	if language == "" {
+		language = "en"
+	}
+
 	if err := require(p, authz.OrganizationRead, authz.AssetRead, authz.AssessmentRun, authz.SimulationRun, authz.FindingRead); err != nil {
 		return nil, err
 	}
@@ -141,6 +157,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 	hash := hex.EncodeToString(sum[:])
 	id := ids.New()
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var name string
 		var demo bool
 		err := tx.QueryRow(ctx, `SELECT name,is_demo FROM organizations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, in.OrganizationID).Scan(&name, &demo)
@@ -162,6 +181,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			return nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if err := scancontrol.Check(ctx, tx, p.TenantID, &in.OrganizationID, scancontrol.Now(s.Now)); err != nil {
 			return err
 		}
 		type target struct {
@@ -248,7 +270,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 		if len(targets) > s.hostLimit() {
 			return invalid("targets", "The total selected scope exceeds the address limit.")
 		}
-		if _, err = tx.Exec(ctx, `INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by,is_scan,runner,scan_options) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true,'injector',$9)`, id, p.TenantID, in.OrganizationID, name, in.Preset, key, hash, p.UserID, body); err != nil {
+		if _, err = tx.Exec(ctx, `INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by,is_scan,runner,scan_options,report_language) VALUES($1,$2,$3,$4,$5,$6,$7,$8,true,'injector',$9,$10)`, id, p.TenantID, in.OrganizationID, name, in.Preset, key, hash, p.UserID, body, language); err != nil {
 			return err
 		}
 		seen := map[string]bool{}
@@ -356,6 +378,18 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 			j.Findings, e = jobFindings(ctx, tx, p.TenantID, *j.SimulationID)
 			if e != nil {
 				return e
+			}
+		}
+		if out.Status != "running" && authz.Has(p.Permissions, authz.ReportRead) {
+			var raw []byte
+			e = tx.QueryRow(ctx, `SELECT snapshot->'comparison_details' FROM reports WHERE tenant_id=$1 AND assessment_id=$2`, p.TenantID, id).Scan(&raw)
+			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+				return e
+			}
+			if len(raw) > 0 {
+				if e = json.Unmarshal(raw, &out.ComparisonDetails); e != nil {
+					return e
+				}
 			}
 		}
 		return nil

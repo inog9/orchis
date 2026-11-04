@@ -79,8 +79,19 @@ func TestSyntheticSnapshotTotalsCoverageAndComparisonsAgree(t *testing.T) {
 		}
 		if old, ok := previous[org]; ok {
 			expected := "DEMO / SYNTHETIC: " + reporting.Compare(snap, old)
-			if snap.Comparison != expected || !strings.Contains(expected, "Compared 3 fully tested assets") {
+			if snap.Comparison != expected || !strings.Contains(expected, "Compared 6 completed target/tool checks") {
 				t.Fatalf("misleading comparison: %s", snap.Comparison)
+			}
+		}
+		if snap.ComparisonDetails == nil {
+			t.Fatal("missing structured synthetic comparison")
+		}
+		if old, ok := previous[org]; ok {
+			b := reporting.NewComparison(snap)
+			b.Add(old, uuid.Nil)
+			want := b.Result()
+			if !reflect.DeepEqual(snap.ComparisonDetails.Totals, want.Totals) || !reflect.DeepEqual(snap.ComparisonDetails.BySeverity, want.BySeverity) {
+				t.Fatal("synthetic comparison totals diverge from frozen observations")
 			}
 		}
 		if !snap.IsDemo || !strings.Contains(snap.Label, "SYNTHETIC") {

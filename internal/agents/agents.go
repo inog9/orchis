@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/netip"
+	"orchis-go/internal/scancontrol"
 	"regexp"
 	"strings"
 	"time"
@@ -40,8 +41,9 @@ type Service struct {
 	Tenant  uuid.UUID
 	Release *Release
 	// AfterEnd dipanggil dalam transaksi yang sama saat eksekusi agent berakhir karena pencabutan (agar chain maju).
-	AfterEnd func(ctx context.Context, tx pgx.Tx, tenant, simulation uuid.UUID) error
-	Now      func() time.Time
+	AfterEnd   func(ctx context.Context, tx pgx.Tx, tenant, simulation uuid.UUID) error
+	Now        func() time.Time
+	CollectNow func(context.Context, *auth.Principal, uuid.UUID, string, string) ([]uuid.UUID, error)
 }
 
 func (s *Service) now() time.Time {
@@ -79,6 +81,7 @@ type EnrollmentToken struct {
 	Version   string    `json:"version"`   // versi agent yang akan terpasang
 	SHA256    string    `json:"sha256"`    // untuk diverifikasi pemasang sebelum menjalankan biner
 	FileName  string    `json:"file_name"` // nama berkas unduhan yang disarankan
+	InstallTrust
 }
 
 type TokenInput struct {
@@ -117,6 +120,9 @@ func (s *Service) CreateEnrollmentToken(ctx context.Context, p *auth.Principal, 
 	id := ids.New()
 	exp := s.now().Add(EnrollTTL)
 	err = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		if in.OrganizationID != nil {
 			if !authz.Has(p.Permissions, authz.OrganizationWrite) {
 				return httpx.Forbidden(authz.OrganizationWrite)
@@ -139,7 +145,7 @@ func (s *Service) CreateEnrollmentToken(ctx context.Context, p *auth.Principal, 
 	if err != nil {
 		return nil, err
 	}
-	return &EnrollmentToken{ID: id, Token: tok, OS: in.OS, Arch: in.Arch, Mode: in.Mode, ExpiresAt: exp, Version: m.Version, SHA256: tgt.SHA256, FileName: tgt.File}, nil
+	return &EnrollmentToken{ID: id, Token: tok, OS: in.OS, Arch: in.Arch, Mode: in.Mode, ExpiresAt: exp, Version: m.Version, SHA256: tgt.SHA256, FileName: tgt.File, InstallTrust: LoadInstallTrust(s.Release.Dir)}, nil
 }
 
 type TokenStatus struct {
@@ -224,6 +230,9 @@ func (s *Service) Enroll(ctx context.Context, in EnrollInput, ip string) (*Enrol
 	}
 	var out *Enrolled
 	err = s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, s.Tenant); err != nil {
+			return err
+		}
 		var tokID, createdBy uuid.UUID
 		var org *uuid.UUID
 		var tos, tarch, mode string
@@ -330,12 +339,17 @@ WHERE g.tenant_id=$1 AND g.secret_hash=$2 AND g.status<>'revoked' AND NOT g.is_d
 type HeartbeatInput struct {
 	Version         string `json:"version"`
 	ProtocolVersion int    `json:"protocol_version"`
-	LastUpdateError string `json:"last_update_error"`
+	LastUpdateError string `json:"last_update_error"` // legacy input ignored, never persisted
+	ControlProtocol int    `json:"control_protocol,omitempty"`
+	OsqueryVersion  string `json:"osquery_version,omitempty"`
+	DiagnosticCode  string `json:"diagnostic_code,omitempty"`
 }
 
 type HeartbeatReply struct {
-	LatestVersion string `json:"latest_version,omitempty"`
-	PollSeconds   int    `json:"poll_seconds"`
+	LatestVersion string                     `json:"latest_version,omitempty"`
+	PollSeconds   int                        `json:"poll_seconds"`
+	Paused        bool                       `json:"paused"`
+	Command       *agentproto.ControlCommand `json:"command,omitempty"`
 }
 
 // Heartbeat mencatat bahwa agent hidup dan memberi tahu bila ada rilis yang lebih baru untuk platformnya.
@@ -346,18 +360,54 @@ func (s *Service) Heartbeat(ctx context.Context, p *Principal, in HeartbeatInput
 	if in.ProtocolVersion != agentproto.ProtocolVersion {
 		return nil, httpx.NewProblem(426, "Agent too old", "Protocol version mismatch.")
 	}
+	if in.ControlProtocol < 0 || in.ControlProtocol > agentproto.ControlProtocol {
+		return nil, fe("control_protocol", "Unsupported control protocol.")
+	}
+	if in.OsqueryVersion != "" && !agentproto.ValidVersion(in.OsqueryVersion) {
+		return nil, fe("osquery_version", "Invalid osquery version.")
+	}
+	reply := &HeartbeatReply{PollSeconds: PollSeconds}
+	var requested string
+	var policy RolloutPolicy
 	var ipAddr *netip.Addr
 	if a, err := netip.ParseAddr(ip); err == nil {
 		ipAddr = &a
 	}
 	err := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE agents SET last_heartbeat_at=now(), last_ip=COALESCE($3, last_ip), version=$4, status='online', updated_at=now()
-WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, s.Tenant, p.AgentID, ipAddr, in.Version)
+		if err := scancontrol.Lock(ctx, tx, s.Tenant); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `UPDATE agents SET last_heartbeat_at=$5, last_ip=COALESCE($3, last_ip), version=$4, status='online', updated_at=now(),offline_episode=offline_episode+CASE WHEN status='offline' THEN 1 ELSE 0 END,update_failure_episode=update_failure_episode+CASE WHEN diagnostic_code NOT IN('update_failed','release_key_missing') AND $8 IN('update_failed','release_key_missing') THEN 1 ELSE 0 END,control_protocol=$6,osquery_version=$7,diagnostic_at=CASE WHEN diagnostic_code<>$8 THEN $5 ELSE diagnostic_at END,diagnostic_code=$8
+WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, s.Tenant, p.AgentID, ipAddr, in.Version, s.now(), in.ControlProtocol, in.OsqueryVersion, agentproto.DiagnosticCode(in.DiagnosticCode))
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
 			return httpx.Unauthorized()
+		}
+		if code := agentproto.DiagnosticCode(in.DiagnosticCode); code == "update_failed" || code == "release_key_missing" {
+			var episode int64
+			if err = tx.QueryRow(ctx, `SELECT update_failure_episode FROM agents WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.AgentID).Scan(&episode); err != nil {
+				return err
+			}
+			if err = alerts.Raise(ctx, tx, s.Tenant, alerts.New{Kind: "agent_update_failed", Severity: "warning", Title: "Agent update failed", ResourceType: "agent", ResourceID: &p.AgentID, Audience: authz.AgentRead, DedupeKey: "agent-update-failed:" + p.AgentID.String() + ":" + itoa(episode)}); err != nil {
+				return err
+			}
+		}
+		var command *uuid.UUID
+		var state string
+		if err = tx.QueryRow(ctx, `SELECT paused,requested_update_version,uninstall_id,uninstall_status FROM agents WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.AgentID).Scan(&reply.Paused, &requested, &command, &state); err != nil {
+			return err
+		}
+		if command != nil && (state == "queued" || state == "dispatched") && in.ControlProtocol == agentproto.ControlProtocol {
+			reply.Command = &agentproto.ControlCommand{ID: command.String(), Kind: "uninstall", AgentID: p.AgentID.String()}
+			if _, err = tx.Exec(ctx, `UPDATE agents SET uninstall_status='dispatched' WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.AgentID); err != nil {
+				return err
+			}
+		}
+		policy, err = rollout(ctx, tx, s.Tenant)
+		if err != nil {
+			return err
 		}
 		// Integrasi "Agent" terlihat hidup selama ada agent yang berdetak.
 		_, err = tx.Exec(ctx, `UPDATE integrations SET last_heartbeat_at=now(), status='running' WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.IntegrationID)
@@ -366,8 +416,7 @@ WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, s.Tenant, p.AgentID, ipAddr
 	if err != nil {
 		return nil, err
 	}
-	reply := &HeartbeatReply{PollSeconds: PollSeconds}
-	if m, err := s.Release.Manifest(); err == nil {
+	if m, err := s.Release.Manifest(); err == nil && reply.Command == nil && (policy.Mode == "automatic" || requested == m.Version) {
 		if _, ok := m.Find(p.OS, p.Arch); ok && agentproto.Newer(m.Version, in.Version) {
 			reply.LatestVersion = m.Version
 		}
@@ -378,26 +427,37 @@ WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, s.Tenant, p.AgentID, ipAddr
 // ---------- daftar dan pencabutan ----------
 
 type Agent struct {
-	OrganizationID  *uuid.UUID `json:"organization_id"`
-	InstanceName    *string    `json:"instance_name"`
-	ID              uuid.UUID  `json:"id"`
-	AssetID         uuid.UUID  `json:"asset_id"`
-	AssetName       string     `json:"asset_name"`
-	Hostname        *string    `json:"hostname"`
-	OS              string     `json:"os"`
-	Arch            string     `json:"arch"`
-	Mode            string     `json:"mode"`
-	Version         string     `json:"version"`
-	Status          string     `json:"status"` // online | offline | revoked (dihitung dari detak terakhir)
-	LastHeartbeatAt *time.Time `json:"last_heartbeat_at"`
-	EnrolledAt      time.Time  `json:"enrolled_at"`
-	UpdateAvailable bool       `json:"update_available"`
+	OrganizationID         *uuid.UUID `json:"organization_id"`
+	InstanceName           *string    `json:"instance_name"`
+	ID                     uuid.UUID  `json:"id"`
+	AssetID                uuid.UUID  `json:"asset_id"`
+	AssetName              string     `json:"asset_name"`
+	Hostname               *string    `json:"hostname"`
+	OS                     string     `json:"os"`
+	Arch                   string     `json:"arch"`
+	Mode                   string     `json:"mode"`
+	Version                string     `json:"version"`
+	Status                 string     `json:"status"` // online | offline | revoked (dihitung dari detak terakhir)
+	LastHeartbeatAt        *time.Time `json:"last_heartbeat_at"`
+	EnrolledAt             time.Time  `json:"enrolled_at"`
+	UpdateAvailable        bool       `json:"update_available"`
+	ControlVersion         int        `json:"control_version"`
+	Paused                 bool       `json:"paused"`
+	ControlProtocol        int        `json:"control_protocol"`
+	OsqueryVersion         string     `json:"osquery_version"`
+	DiagnosticCode         string     `json:"diagnostic_code"`
+	DiagnosticAt           *time.Time `json:"diagnostic_at"`
+	RequestedUpdateVersion string     `json:"requested_update_version"`
+	UninstallStatus        string     `json:"uninstall_status"`
+	UninstallRequestedAt   *time.Time `json:"uninstall_requested_at"`
+	UninstallCompletedAt   *time.Time `json:"uninstall_completed_at"`
+	UpdateStatus           string     `json:"update_status"`
 }
 
 func (s *Service) list(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, only *uuid.UUID) ([]Agent, error) {
 	q := `SELECT g.id, g.asset_id, a.name, g.hostname, g.os, g.arch, g.mode, g.version,
   CASE WHEN g.status='revoked' THEN 'revoked' WHEN g.last_heartbeat_at > $2::timestamptz - interval '90 seconds' THEN 'online' ELSE 'offline' END,
-  g.last_heartbeat_at, g.enrolled_at,g.organization_id,g.instance_name
+  g.last_heartbeat_at, g.enrolled_at,g.organization_id,g.instance_name, g.control_version,g.paused,g.control_protocol,g.osquery_version,g.diagnostic_code,g.diagnostic_at,g.requested_update_version,g.uninstall_status,g.uninstall_requested_at,g.uninstall_completed_at
 FROM agents g JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id WHERE g.tenant_id=$1`
 	args := []any{tenant, s.now()}
 	if only != nil {
@@ -413,13 +473,21 @@ FROM agents g JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id WHERE
 	m, _ := s.Release.Manifest()
 	for rows.Next() {
 		var a Agent
-		if err := rows.Scan(&a.ID, &a.AssetID, &a.AssetName, &a.Hostname, &a.OS, &a.Arch, &a.Mode, &a.Version, &a.Status, &a.LastHeartbeatAt, &a.EnrolledAt, &a.OrganizationID, &a.InstanceName); err != nil {
+		if err := rows.Scan(&a.ID, &a.AssetID, &a.AssetName, &a.Hostname, &a.OS, &a.Arch, &a.Mode, &a.Version, &a.Status, &a.LastHeartbeatAt, &a.EnrolledAt, &a.OrganizationID, &a.InstanceName, &a.ControlVersion, &a.Paused, &a.ControlProtocol, &a.OsqueryVersion, &a.DiagnosticCode, &a.DiagnosticAt, &a.RequestedUpdateVersion, &a.UninstallStatus, &a.UninstallRequestedAt, &a.UninstallCompletedAt); err != nil {
 			return nil, err
 		}
+		a.UpdateStatus = "unknown"
 		if m != nil && a.Status != "revoked" {
 			if _, ok := m.Find(a.OS, a.Arch); ok {
 				a.UpdateAvailable = agentproto.Newer(m.Version, a.Version)
+				a.UpdateStatus = "current"
+				if a.UpdateAvailable {
+					a.UpdateStatus = "behind"
+				}
 			}
+		}
+		if a.DiagnosticCode == "update_failed" || a.DiagnosticCode == "release_key_missing" {
+			a.UpdateStatus = "failed"
 		}
 		out = append(out, a)
 	}
@@ -439,93 +507,111 @@ func (s *Service) List(ctx context.Context, p *auth.Principal) ([]Agent, error) 
 // Revoke mencabut kredensial agent selamanya (pemulihan = pendaftaran ulang dengan token baru) dan menghentikan eksekusinya.
 func (s *Service) Revoke(ctx context.Context, p *auth.Principal, id uuid.UUID, ip, reqID string) error {
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, `UPDATE agents SET status='revoked', revoked_at=now(), revoked_by=$3, updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, p.TenantID, id, p.UserID)
-		if err != nil {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
-			var exists bool
-			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND id=$2)`, p.TenantID, id).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return httpx.NotFound("Agent")
-			}
-			return httpx.Conflict("This agent is already revoked.")
-		}
-		rows, err := tx.Query(ctx, `UPDATE executions SET state='ended', outcome='canceled', ended_at=now(), lease_until=NULL, version=version+1, updated_at=now()
-WHERE tenant_id=$1 AND agent_id=$2 AND state IN ('ready','running') RETURNING id, simulation_id`, p.TenantID, id)
-		if err != nil {
+		if err := s.revokeTx(ctx, tx, p.TenantID, id, &p.UserID); err != nil {
 			return err
-		}
-		type ended struct {
-			id  uuid.UUID
-			sim *uuid.UUID
-		}
-		var list []ended
-		for rows.Next() {
-			var e ended
-			if err := rows.Scan(&e.id, &e.sim); err != nil {
-				rows.Close()
-				return err
-			}
-			list = append(list, e)
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-		for _, e := range list {
-			if _, err := tx.Exec(ctx, `INSERT INTO execution_logs (tenant_id, execution_id, level, message) VALUES ($1,$2,'warn','Canceled: the agent was revoked.')`, p.TenantID, e.id); err != nil {
-				return err
-			}
-			if e.sim != nil && s.AfterEnd != nil {
-				if err := s.AfterEnd(ctx, tx, p.TenantID, *e.sim); err != nil {
-					return err
-				}
-			}
 		}
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "agent.revoke", ResourceType: "agent", ResourceID: &id, IP: ip, RequestID: reqID})
 	})
 }
+func (s *Service) revokeTx(ctx context.Context, tx pgx.Tx, tenant, id uuid.UUID, actor *uuid.UUID) error {
+	tag, err := tx.Exec(ctx, `UPDATE agents SET status='revoked', revoked_at=now(), revoked_by=$3, updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status<>'revoked'`, tenant, id, actor)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		var exists bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND id=$2)`, tenant, id).Scan(&exists); err != nil {
+			return err
+		}
+		if !exists {
+			return httpx.NotFound("Agent")
+		}
+		return httpx.Conflict("This agent is already revoked.")
+	}
+	if err := alerts.Raise(ctx, tx, tenant, alerts.New{Kind: "agent_revoked", Severity: "warning", Title: "Agent credentials revoked", ResourceType: "agent", ResourceID: &id, Audience: authz.AgentRead, DedupeKey: "agent-revoked:" + id.String()}); err != nil {
+		return err
+	}
+	rows, err := tx.Query(ctx, `UPDATE executions SET state='ended', outcome='canceled', ended_at=now(), lease_until=NULL, version=version+1, updated_at=now()
+WHERE tenant_id=$1 AND agent_id=$2 AND state IN ('ready','running') RETURNING id, simulation_id`, tenant, id)
+	if err != nil {
+		return err
+	}
+	type ended struct {
+		id  uuid.UUID
+		sim *uuid.UUID
+	}
+	var list []ended
+	for rows.Next() {
+		var e ended
+		if err := rows.Scan(&e.id, &e.sim); err != nil {
+			rows.Close()
+			return err
+		}
+		list = append(list, e)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, e := range list {
+		if _, err := tx.Exec(ctx, `INSERT INTO execution_logs (tenant_id, execution_id, level, message) VALUES ($1,$2,'warn','Canceled: the agent was revoked.')`, tenant, e.id); err != nil {
+			return err
+		}
+		if e.sim != nil && s.AfterEnd != nil {
+			if err := s.AfterEnd(ctx, tx, tenant, *e.sim); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
 
-// Sweep menandai agent yang senyap sebagai offline dan memberi alert (satu per episode senyap).
+// Sweep retains the 90-second contact indicator, separately notifies after the configured threshold.
 func (s *Service) Sweep(ctx context.Context) (int, error) {
 	n := 0
 	err := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `UPDATE agents g SET status='offline', updated_at=now() FROM assets a
-WHERE g.tenant_id=$1 AND NOT g.is_demo AND g.status='online' AND g.last_heartbeat_at < $2::timestamptz - interval '90 seconds' AND a.tenant_id=g.tenant_id AND a.id=g.asset_id
-RETURNING g.id, a.name, extract(epoch from g.last_heartbeat_at)::bigint`, s.Tenant, s.now())
-		if err != nil {
-			return err
+		if e := scancontrol.Lock(ctx, tx, s.Tenant); e != nil {
+			return e
+		}
+		tag, e := tx.Exec(ctx, `UPDATE agents SET status='offline',updated_at=now() WHERE tenant_id=$1 AND NOT is_demo AND status='online' AND last_heartbeat_at<$2::timestamptz-interval '90 seconds'`, s.Tenant, s.now())
+		if e != nil {
+			return e
+		}
+		n = int(tag.RowsAffected())
+		policy, e := alerts.CurrentPolicy(ctx, tx, s.Tenant)
+		if e != nil {
+			return e
+		}
+		rows, e := tx.Query(ctx, `SELECT g.id,g.offline_episode FROM agents g JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id AND a.deleted_at IS NULL WHERE g.tenant_id=$1 AND NOT g.is_demo AND g.status='offline' AND g.last_heartbeat_at<$2::timestamptz-make_interval(mins=>$3) ORDER BY g.id`, s.Tenant, s.now(), policy.OfflineMinutes)
+		if e != nil {
+			return e
 		}
 		type off struct {
-			id   uuid.UUID
-			name string
-			beat int64
+			id      uuid.UUID
+			episode int64
 		}
-		var list []off
+		list := []off{}
 		for rows.Next() {
 			var o off
-			if err := rows.Scan(&o.id, &o.name, &o.beat); err != nil {
+			if e = rows.Scan(&o.id, &o.episode); e != nil {
 				rows.Close()
-				return err
+				return e
 			}
 			list = append(list, o)
 		}
 		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
+		if e = rows.Err(); e != nil {
+			return e
 		}
 		for _, o := range list {
-			id := o.id
-			if err := alerts.Raise(ctx, tx, s.Tenant, alerts.New{Kind: "agent_offline", Severity: "warning", Title: "Agent on " + o.name + " went offline",
-				Body: "It has not checked in for over a minute and a half.", ResourceType: "agent", ResourceID: &id, DedupeKey: "agent-offline:" + id.String() + ":" + itoa(o.beat)}); err != nil {
-				return err
+			if e = alerts.Raise(ctx, tx, s.Tenant, alerts.New{Kind: "agent_offline", Severity: "warning", Title: "Agent is offline", ResourceType: "agent", ResourceID: &o.id, Audience: authz.AgentRead, DedupeKey: "agent-offline:" + o.id.String() + ":" + itoa(o.episode)}); e != nil {
+				return e
 			}
-			n++
 		}
-		return nil
+		return alerts.PendingApprovals(ctx, tx, s.Tenant)
 	})
 	return n, err
 }

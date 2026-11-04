@@ -1,7 +1,7 @@
 RELEASE_KEY ?= dist/release.key
 RELEASE_DIR ?= dist/agent
 
-.PHONY: osquery-packs mitre-fetch prod-mitre-config osquery-fetch mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check tokens injector-image
+.PHONY: osquery-packs mitre-fetch prod-mitre-config osquery-fetch mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check injector-image
 
 dev-up:      ## Jalankan PostgreSQL pengembangan
 	docker compose -f deploy/compose.yml up -d pg
@@ -40,8 +40,6 @@ e2e: build   ## Tes end-to-end di browser (database baru per putaran)
 	node e2e/ai-egress.mjs
 	node deploy/report/render.test.mjs
 
-tokens:      ## Sinkronkan token desain dari design/orchis.pen
-	npm --prefix web run tokens && npm --prefix web run raven
 
 demo-seed:   ## Isi data dummy bertanda is_demo (DEMO_SEED=n, bawaan 1); butuh server dev berjalan
 	go run ./cmd/server demo-seed

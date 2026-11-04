@@ -3,9 +3,12 @@ package testutil
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"github.com/pressly/goose/v3"
 	"io"
 	"log/slog"
+	"orchis-go/migrations"
 	"os"
 	"strings"
 	"testing"
@@ -42,7 +45,12 @@ func adminURL() string {
 }
 
 // New membuat database baru, menjalankan seluruh migrasi, dan menyiapkan dua tenant.
-func New(t *testing.T) *Env {
+func New(t *testing.T) *Env { return newSchema(t, 0) }
+
+// NewAtVersion creates an actual historical schema, before tenant bootstrap.
+func NewAtVersion(t *testing.T, version int64) *Env { return newSchema(t, version) }
+
+func newSchema(t *testing.T, version int64) *Env {
 	t.Helper()
 	ctx := context.Background()
 	admin, err := pgxpool.New(ctx, adminURL())
@@ -62,9 +70,31 @@ func New(t *testing.T) *Env {
 	})
 	ownerURL := strings.Replace(adminURL(), "/postgres", "/"+name, 1)
 	appURL := fmt.Sprintf("postgres://orchis_app:orchis_app@%s/%s", hostOf(adminURL()), name)
-	if err := db.Migrate(ctx, ownerURL, "orchis_app"); err != nil {
-		t.Fatal(err)
+	if version == 0 {
+		if err := db.Migrate(ctx, ownerURL, "orchis_app"); err != nil {
+			t.Fatal(err)
+		}
+	} else {
+		conn, err := sql.Open("pgx", ownerURL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Close()
+		goose.SetBaseFS(migrations.FS)
+		goose.SetLogger(goose.NopLogger())
+		if err = goose.SetDialect("postgres"); err != nil {
+			t.Fatal(err)
+		}
+		if err = goose.UpToContext(ctx, conn, ".", version); err != nil {
+			t.Fatal(err)
+		}
+		for _, q := range []string{"GRANT USAGE ON SCHEMA public TO orchis_app", "GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO orchis_app"} {
+			if _, err = conn.ExecContext(ctx, q); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
+
 	owner, err := pgxpool.New(ctx, ownerURL)
 	if err != nil {
 		t.Fatal(err)
@@ -75,6 +105,9 @@ func New(t *testing.T) *Env {
 		t.Fatal(err)
 	}
 	t.Cleanup(app.Close)
+	if version != 0 {
+		return &Env{Owner: owner, App: app}
+	}
 	a, err := bootstrap.EnsureTenant(ctx, app, "tenant-a")
 	if err != nil {
 		t.Fatal(err)

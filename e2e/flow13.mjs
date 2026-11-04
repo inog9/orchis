@@ -38,7 +38,6 @@ const axe = async (label) => {
     await p.setViewportSize({ width, height: width === 834 ? 1112 : 800 });
     await p.waitForLoadState('networkidle');
     if (label === 'profile token demo') await p.getByRole('heading',{name:'API tokens',exact:true}).scrollIntoViewIfNeeded();
-    if (label === 'roles demo') await p.getByText('Demo: admin',{exact:true}).scrollIntoViewIfNeeded();
     if (label === 'groups demo') await p.getByText('Demo: linux tagged endpoints',{exact:true}).scrollIntoViewIfNeeded();
 
     await p.screenshot({path:SHOTS+label.replace(/[^a-z0-9]+/gi,'-').toLowerCase()+'-'+width+'.png'});
@@ -91,7 +90,7 @@ try {
   await p.screenshot({ path: SHOTS + 'home-1280.png' });
   await axe('home dengan banner');
 
-  for (const table of ['roles','users','api_tokens','password_reset_links','people','teams','asset_groups','atomic_tests','action_presets','integrations']) {
+  for (const table of ['users','api_tokens','password_reset_links','people','teams','asset_groups','atomic_tests','action_presets','integrations']) {
     ok(seeded.counts[table]>0, `demo memiliki relasi ${table}`);
   }
   for (const path of ancillaryPaths) {
@@ -142,7 +141,7 @@ try {
     for(const a of r.snapshot.assets)for(const f of a.findings)if(f.type==='vulnerability')totals[f.severity]++;
     return Object.keys(totals).every(k=>totals[k]===r.snapshot.by_severity[k]);
   }), 'ringkasan severity sama dengan daftar temuan snapshot');
-  ok(reports.some(r=>r.snapshot.comparison.includes('Compared 3 fully tested assets')),'perbandingan sintetis mengecualikan aset gagal/dilewati');
+  ok(reports.some(r=>new Set((r.snapshot.comparison_details?.checks||[]).filter(c=>c.comparable).map(c=>c.asset_id)).size===3&&(r.snapshot.comparison_details?.checks||[]).some(c=>!c.comparable)),'perbandingan sintetis mengecualikan aset gagal/dilewati');
 
   const pdfResponse = await ctx.request.get(`${BASE}/api/v1/reports/${ready.id}/export/pdf`);
   const pdf = await pdfResponse.body();

@@ -239,7 +239,7 @@ func (w *Worker) execute(ctx context.Context, spec *execution.ClaimSpec) executi
 
 // watch memperpanjang lease dan menghentikan proses bila server memberi tahu eksekusi dibatalkan.
 func (w *Worker) watch(ctx context.Context, id uuid.UUID, stop context.CancelFunc, done <-chan struct{}) {
-	t := time.NewTicker(10 * time.Second)
+	t := time.NewTicker(2 * time.Second)
 	defer t.Stop()
 	for {
 		select {

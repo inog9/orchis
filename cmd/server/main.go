@@ -239,6 +239,7 @@ func serve(ctx context.Context, cfg *config.Config) error {
 		defer sched.Stop()
 	}
 	go server.DemoService(opts).RunCleanup(ctx, tenant)
+	go server.RetentionService(opts).Run(ctx, tenant)
 	go server.OrganizationService(opts).RunTicker(ctx, tenant)
 	go server.ScanService(opts).Run(ctx, tenant)
 	go server.EndpointService(opts).RunCollection(ctx, tenant, time.Duration(cfg.EndpointCollectionSeconds)*time.Second)

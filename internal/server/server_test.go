@@ -254,8 +254,8 @@ func TestAssetPermissionsPerRole(t *testing.T) {
 	body := map[string]any{"category": "host", "name": "srv-01", "platform": "linux", "arch": "x86_64",
 		"addresses": []map[string]any{{"kind": "ip", "value": "10.0.0.5"}}}
 
-	if r := a.do("GET", "/api/v1/assets", nil, viewer); r.Status != 200 {
-		t.Errorf("viewer boleh membaca: %d", r.Status)
+	if r := a.do("GET", "/api/v1/assets", nil, viewer); r.Status != 403 {
+		t.Errorf("Viewer cannot read live assets: %d", r.Status)
 	}
 	if r := a.do("POST", "/api/v1/assets", body, viewer); r.Status != 403 {
 		t.Errorf("viewer tidak boleh menulis: %d", r.Status)

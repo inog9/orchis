@@ -71,7 +71,7 @@ describe('ChainWorkspacePage', () => {
   });
   it('menampilkan masalah validasi dari server tanpa kehilangan suntingan', async () => {
     route(analyst, (u, init) => (u.endsWith('/graph') && init?.method === 'PUT'
-      ? json({ title: 'Validation failed', status: 422, detail: 'x', fields: [{ name: 'edges', message: 'Dependencies form a loop: a → b.' }] }, 422) : load()(u)));
+      ? json({ title: 'Validation failed', status: 422, detail: 'x', fields: [{ name: 'edges', message: 'Dependencies form a loop: a → b.', code: 'dependency_cycle' }] }, 422) : load()(u)));
     const user = userEvent.setup();
     mount(<ChainWorkspacePage />, '/chains/s1', '/chains/:id');
     await user.click(await screen.findByRole('button', { name: 'Action Step a' }));
@@ -83,7 +83,7 @@ describe('ChainWorkspacePage', () => {
     expect(screen.getByLabelText('Title')).toHaveValue('Edited');
   });
   it('bentrok versi (409) memberi tahu bahwa orang lain mengubah chain', async () => {
-    route(analyst, (u, init) => (u.endsWith('/graph') && init?.method === 'PUT' ? json({ title: 'Conflict', status: 409, detail: 'changed by someone else' }, 409) : load()(u)));
+    route(analyst, (u, init) => (u.endsWith('/graph') && init?.method === 'PUT' ? json({ title: 'Conflict', status: 409, detail: 'changed by someone else', code: 'asset_conflict' }, 409) : load()(u)));
     const user = userEvent.setup();
     mount(<ChainWorkspacePage />, '/chains/s1', '/chains/:id');
     await user.click(await screen.findByRole('button', { name: 'Action Step a' }));

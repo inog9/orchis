@@ -12,7 +12,7 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    volumes: [./fixture.mjs:/fixture/server.mjs:ro]
+    volumes: [./deploy/prod/fixture.mjs:/fixture/server.mjs:ro]
     networks: [backend]
     mem_limit: 96m
     cpus: 0.25

@@ -1,3 +1,4 @@
+import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { AssetFindings } from '../components/AssetFindings';
 import { EndpointDataPanel } from '../components/EndpointDataPanel';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
@@ -11,113 +12,91 @@ import { TagChips } from '../components/TagPicker';
 import { ConfirmDialog } from './ConfirmDialog';
 import { EditAssetDialog } from './EditAssetDialog';
 import { categoryOf, PLATFORM_LABEL } from './categories';
-
-const fmt = (iso: string) => new Date(iso).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-
+const fmt = (iso: string) => new Date(iso).toLocaleString(locale(), { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 export function AssetDetailPage() {
-  const { id = '' } = useParams();
-  const navigate = useNavigate();
-  const { data: me } = useMe();
-  const q = useAsset(id);
-  const del = useDeleteAsset(id);
-  const [editing, setEditing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-
-  if (q.isPending) return <div className="page" aria-busy="true"><span className="skeleton" style={{ height: 120 }} /></div>;
-  if (q.isError) {
-    const notFound = q.error instanceof ApiError && q.error.status === 404;
-    const d = describeError(q.error);
-    return (
-      <div className="state state--error" role="alert">
-        <h2>{notFound ? 'Asset not found' : 'Couldn’t load this asset'}</h2>
-        <p>{notFound ? 'It may have been removed.' : `${d.message} Your data is safe.`}</p>
-        {d.errorId && !notFound && <code className="mono">{d.errorId}</code>}
-        <Link className="btn btn--secondary btn--auto" to="/assets">Back to assets</Link>
-      </div>
-    );
-  }
-  const a = q.data;
-  const cat = categoryOf(a.category);
-  const Icon = cat.icon;
-
-  return (
-    <section className="page" aria-labelledby="asset-title">
+    useLocale();
+    const { id = '' } = useParams();
+    const navigate = useNavigate();
+    const { data: me } = useMe();
+    const q = useAsset(id);
+    const del = useDeleteAsset(id);
+    const [editing, setEditing] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    if (q.isPending)
+        return <div className="page" aria-busy="true"><span className="skeleton" style={{ height: 120 }}/></div>;
+    if (q.isError) {
+        const notFound = q.error instanceof ApiError && q.error.status === 404;
+        const d = describeError(q.error);
+        return (<div className="state state--error" role="alert">
+        <h2>{formatUI(notFound ? textUI("m_3965d1967e57") : textUI("m_cede667c6f14"))}</h2>
+        <p>{formatUI(notFound ? textUI("m_50c2d179722c") : textUI("m_19636dc199da", [d.message]))}</p>
+        {formatUI(d.errorId && !notFound && <code className="mono">{d.errorId}</code>)}
+        <Link className="btn btn--secondary btn--auto" to="/assets">{textUI("m_089fb64fac74")}</Link>
+      </div>);
+    }
+    const a = q.data;
+    const cat = categoryOf(a.category);
+    const Icon = cat.icon;
+    return (<section className="page" aria-labelledby="asset-title">
       <div className="page__head">
         <div>
-          <nav className="crumbs" aria-label="Breadcrumb">
-            <Link to="/assets">Assets</Link><ChevronRight size={12} aria-hidden="true" /><span className="crumbs__current">{a.name}</span>
+          <nav className="crumbs" aria-label={textUI("m_2bd873d6c734")}>
+            <Link to="/assets">{textUI("m_bd12731d7bc9")}</Link><ChevronRight size={12} aria-hidden="true"/><span className="crumbs__current">{formatUI(a.name)}</span>
           </nav>
           <div className="page__title-row">
-            <span className="asset-row__icon"><Icon size={17} /></span>
-            <h1 id="asset-title" className="page__title mono-title">{a.name}</h1>
+            <span className="asset-row__icon"><Icon size={17}/></span>
+            <h1 id="asset-title" className="page__title mono-title">{formatUI(a.name)}</h1>
           </div>
           <p className="page__sub">
-            {cat.label}{a.platform ? ` · ${PLATFORM_LABEL[a.platform] ?? a.platform}` : ''}{a.arch ? ` · ${a.arch}` : ''}
+            {formatUI(cat.label)}{formatUI(a.platform ? ` · ${PLATFORM_LABEL[a.platform] ?? a.platform}` : '')}{formatUI(a.arch ? ` · ${a.arch}` : '')}
           </p>
-          <TagChips tags={a.tags} />
+          <TagChips tags={a.tags}/>
         </div>
-        {can(me, 'asset.write') && (
-          <button type="button" className="btn btn--secondary btn--auto" onClick={() => setEditing(true)}><Pencil size={15} aria-hidden="true" /> Edit</button>
-        )}
+        {formatUI(can(me, 'asset.write') && (<button type="button" className="btn btn--secondary btn--auto" onClick={() => setEditing(true)}>{richUI("m_12a64771a7ec", [<Pencil size={15} aria-hidden="true"/>])}</button>))}
       </div>
 
-      <section className="prerequisites" aria-label="Asset testing readiness">
-        {a.organization_id ? <p>Organisation: <Link to={`/organizations/${a.organization_id}`}>Open organisation and its reports →</Link></p> : <p>Unassigned asset. <Link to="/organizations">Assign it from an organisation →</Link></p>}
-        {!a.testing_authorized && <p>{can(me,'asset.authorize')?'Testing is not authorized. Use Edit to approve testing only if you have permission to test this target.':'Testing is not authorized. Ask an administrator to approve it.'}</p>}
-        {a.addresses.length===0&&<p>No target address is configured. {can(me,'asset.write')?'Use Edit to add an approved IP address and web URL.':'Ask an administrator to add approved target addresses.'} Agents do not set trusted scan addresses automatically.</p>}
-        {a.agent_state!=='online'&&<p>Local endpoint checks need an active agent. Nmap/Nuclei use a separate scan worker and can scan reachable targets without an agent. <Link to="/assets/agents">Review agents →</Link></p>}
+      <section className="prerequisites" aria-label={textUI("m_98fbfab94ab1")}>
+        {formatUI(a.organization_id ? <p>{richUI("m_1d8905abad98", [<Link to={`/organizations/${a.organization_id}`}>{textUI("m_ba96d8c0fc0d")}</Link>])}</p> : <p>{richUI("m_9c2ee8a06957", [<Link to="/organizations">{textUI("m_a9e7421536b1")}</Link>])}</p>)}
+        {formatUI(!a.testing_authorized && <p>{formatUI(can(me, 'asset.authorize') ? textUI("m_305ea5d5b2c5") : textUI("m_755b4f54f75a"))}</p>)}
+        {formatUI(a.addresses.length === 0 && <p>{richUI("m_d11593d96866", [formatUI(can(me, 'asset.write') ? textUI("m_865fca90544a") : textUI("m_9f6dd4c28d7c"))])}</p>)}
+        {formatUI(a.agent_state !== 'online' && <p>{richUI("m_13d267b8d0a8", [<Link to="/assets/agents">{textUI("m_62bcf6663fd7")}</Link>])}</p>)}
       </section>
       <div className="grid-2">
         <section className="panel" aria-labelledby="details-h">
-          <h2 id="details-h" className="panel__title">Details</h2>
+          <h2 id="details-h" className="panel__title">{textUI("m_45989de49fb7")}</h2>
           <dl className="dl">
-            <dt>Criticality</dt><dd><span className={`crit crit--${a.criticality}`}>{a.criticality[0]!.toUpperCase() + a.criticality.slice(1)}</span></dd>
-            <dt>Internet-facing</dt><dd>{a.is_internet_facing ? 'Yes' : 'No'}</dd>
-            <dt>Executor</dt><dd>{a.agent_state === 'online' ? <span className="status status--ok">Agent online</span> : a.agent_state === 'offline' ? <span className="status status--bad">Agent offline</span> : <span className="status">Agentless</span>}</dd>
-            <dt>Testing</dt><dd>{a.testing_authorized ? <span className="status status--ok">Authorized</span> : <span className="status">Not authorized</span>}</dd>
-            <dt>Source</dt><dd>{a.source}</dd>
-            <dt>Added</dt><dd>{fmt(a.created_at)}</dd>
-            <dt>Updated</dt><dd>{fmt(a.updated_at)}</dd>
+            <dt>{textUI("m_afdc3ea3ef86")}</dt><dd><span className={`crit crit--${a.criticality}`}>{formatUI(a.criticality[0]!.toUpperCase() + a.criticality.slice(1))}</span></dd>
+            <dt>{textUI("m_8cc5257478f0")}</dt><dd>{formatUI(a.is_internet_facing ? textUI("m_85a39ab345d6") : textUI("m_1ea442a134b2"))}</dd>
+            <dt>{textUI("m_bb186757b4bf")}</dt><dd>{formatUI(a.agent_state === 'online' ? <span className="status status--ok">{textUI("m_2d59e6737ad8")}</span> : a.agent_state === 'offline' ? <span className="status status--bad">{textUI("m_8853f5f45fe6")}</span> : <span className="status">{textUI("m_1f0d3f74b799")}</span>)}</dd>
+            <dt>{textUI("m_e806a291cfc3")}</dt><dd>{formatUI(a.testing_authorized ? <span className="status status--ok">{textUI("m_67f542ba6d8f")}</span> : <span className="status">{textUI("m_52c79c7b5ba0")}</span>)}</dd>
+            <dt>{textUI("m_0e570ca6fabe")}</dt><dd>{formatUI(a.source)}</dd>
+            <dt>{textUI("m_6b02e0d363a4")}</dt><dd>{formatUI(fmt(a.created_at))}</dd>
+            <dt>{textUI("m_3a5ecca188c0")}</dt><dd>{formatUI(fmt(a.updated_at))}</dd>
           </dl>
         </section>
         <section className="panel" aria-labelledby="addr-h">
-          <h2 id="addr-h" className="panel__title">Addresses</h2>
-          {a.addresses.length === 0 ? <p className="muted">No addresses yet.</p> : (
-            <ul className="plain-list">
-              {a.addresses.map((ad) => (
-                <li key={ad.kind + ad.value}><span className="kind">{ad.kind}</span><span className="mono">{ad.value}</span>{ad.is_primary && <span className="muted small">primary</span>}</li>
-              ))}
-            </ul>
-          )}
+          <h2 id="addr-h" className="panel__title">{textUI("m_76179aafc43c")}</h2>
+          {formatUI(a.addresses.length === 0 ? <p className="muted">{textUI("m_79da1e76bc61")}</p> : (<ul className="plain-list">
+              {formatUI(a.addresses.map((ad) => (<li key={ad.kind + ad.value}><span className="kind">{formatUI(ad.kind)}</span><span className="mono">{formatUI(ad.value)}</span>{formatUI(ad.is_primary && <span className="muted small">{textUI("m_986a1b7135f4")}</span>)}</li>)))}
+            </ul>))}
         </section>
         <section className="panel" aria-labelledby="groups-h">
-          <h2 id="groups-h" className="panel__title">Groups</h2>
-          {(a.groups?.length ?? 0) === 0 ? <p className="muted">Not in any group.</p> : (
-            <ul className="plain-list">
-              {a.groups!.map((g) => (
-                <li key={g.id}><Link to={`/assets/groups/${g.id}`}>{g.name}</Link>{g.is_system && <span className="muted small">built-in</span>}</li>
-              ))}
-            </ul>
-          )}
-          <p className="muted small">Members join automatically when they match a group’s rules.</p>
+          <h2 id="groups-h" className="panel__title">{textUI("m_39bbb719fa2b")}</h2>
+          {formatUI((a.groups?.length ?? 0) === 0 ? <p className="muted">{textUI("m_7057c8895d13")}</p> : (<ul className="plain-list">
+              {formatUI(a.groups!.map((g) => (<li key={g.id}><Link to={`/assets/groups/${g.id}`}>{formatUI(g.name)}</Link>{formatUI(g.is_system && <span className="muted small">{textUI("m_5c73a5c73dc1")}</span>)}</li>)))}
+            </ul>))}
+          <p className="muted small">{textUI("m_850f42574055")}</p>
         </section>
-        <AssetFindings assetID={a.id} allowed={can(me,'finding.read')}/>
-        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'atomic.run')} canDelete={can(me,'asset.write') && can(me,'settings.manage')} />
+        <AssetFindings assetID={a.id} allowed={can(me, 'finding.read')}/>
+        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'atomic.run')} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
       </div>
 
-      {can(me, 'asset.delete') && (
-        <section className="danger" aria-labelledby="danger-h">
-          <div><h2 id="danger-h" className="panel__title">Danger zone</h2><p className="muted">Removing an asset hides it everywhere. Past runs keep their history.</p></div>
-          <button type="button" className="btn btn--danger btn--auto" onClick={() => setConfirming(true)}><Trash2 size={15} aria-hidden="true" /> Remove asset</button>
-        </section>
-      )}
+      {formatUI(can(me, 'asset.delete') && (<section className="danger" aria-labelledby="danger-h">
+          <div><h2 id="danger-h" className="panel__title">{textUI("m_fd8b8dae4421")}</h2><p className="muted">{textUI("m_128ede4e9e04")}</p></div>
+          <button type="button" className="btn btn--danger btn--auto" onClick={() => setConfirming(true)}>{richUI("m_bb0aee048315", [<Trash2 size={15} aria-hidden="true"/>])}</button>
+        </section>))}
 
-      {editing && <EditAssetDialog asset={a} onClose={() => setEditing(false)} onStale={() => { setEditing(false); q.refetch(); }} />}
-      {confirming && (
-        <ConfirmDialog title={`Remove ${a.name}?`} body="It will disappear from lists and groups. This can’t be undone from the console." confirmLabel="Remove asset"
-          busy={del.isPending} error={del.isError ? describeError(del.error).message : undefined}
-          onClose={() => setConfirming(false)} onConfirm={() => del.mutate(undefined, { onSuccess: () => navigate('/assets', { replace: true }) })} />
-      )}
-    </section>
-  );
+      {formatUI(editing && <EditAssetDialog asset={a} onClose={() => setEditing(false)} onStale={() => { setEditing(false); q.refetch(); }}/>)}
+      {formatUI(confirming && (<ConfirmDialog title={textUI("m_9d64ce84e2c3", [a.name])} body="It will disappear from lists and groups. This can’t be undone from the console." confirmLabel="Remove asset" busy={del.isPending} error={del.isError ? describeError(del.error).message : undefined} onClose={() => setConfirming(false)} onConfirm={() => del.mutate(undefined, { onSuccess: () => navigate('/assets', { replace: true }) })}/>))}
+    </section>);
 }

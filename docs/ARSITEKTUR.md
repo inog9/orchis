@@ -1,6 +1,6 @@
 # Arsitektur dan desain database: orchis-go
 
-Dokumen ini adalah pondasi proyek. Skemanya diturunkan dari skema **live** OpenAEV 3.261023.0 (176 tabel, dibaca dari database deployment pada 2026-10-29), dipangkas sesuai cakupan MVP di [RENCANA.md](RENCANA.md).
+Dokumen ini adalah pondasi proyek. Skemanya diturunkan dari skema **live** OpenAEV 3.261023.0 (176 tabel, dibaca dari database deployment pada 2026-10-29), dipangkas sesuai cakupan MVP.
 
 Status: **implementasi berjalan.** Skema awal terdiri dari 52 tabel dan telah diuji pada PostgreSQL 17; penambahan Fase 9 dijelaskan di bagian 19–24. Berkas migrasi adalah sumber kebenaran untuk skema yang diterapkan. Aturan RLS, FK komposit, dan CHECK diuji dengan data.
 
@@ -230,7 +230,7 @@ Catatan desain:
 - Token API mewarisi izin pemiliknya; tidak ada izin sendiri.
 - Aturan "minimal satu Admin aktif" dan "tidak menaikkan peran sendiri" ditegakkan di layanan, dengan tes.
 - Admin pertama dibuat dari variabel lingkungan saat boot pertama; perintah `server reset-admin` untuk keadaan darurat.
-- Seed peran bawaan: `admin`, `analyst`, `viewer` dengan permission sesuai matriks di RENCANA.md bagian 3.5.
+- Seed peran bawaan: `admin`, `analyst`, `viewer` dengan permission sesuai matriks di docs/ROLES.md.
 
 ---
 
@@ -1591,7 +1591,7 @@ Batasan: beranda menampilkan 12 organisasi terbaru, daftar lengkap tetap di Orga
 
 Pemeriksaan rilis `E2E_SCRIPT=flow8.mjs make check` lulus (status 0): go vet, seluruh tes Go, typecheck, **107 tes frontend**, build, dan **67 pemeriksaan Fase 9**. Termasuk dua agent nyata, assessment seluruh organisasi dan pilihan satu aset, Nmap/Nuclei sungguhan, satu laporan per assessment, ekspor PDF/HTML/JSON/CSV, snapshot tetap sesudah run berikutnya, serta perbandingan cakupan yang sebanding. Semua halaman/dialog/editor baru lolos axe dan pemeriksaan overflow pada 1280/834 px; tidak ada error JavaScript. Pintasan baru g a/o/r/l diuji melalui browser.
 
-Putaran `make check` default dengan seluruh delapan flow sebelumnya juga lulus. Putaran terakhir pada kode beku commit `b5fab31`: **lulus, status 0**; log `/tmp/orchis-phase9-complete-check.log`, status `/tmp/orchis-phase9-complete-check.status`. Perubahan sesudah commit itu hanya dokumentasi dan script reproduksi mutasi, tanpa perubahan runtime.
+Putaran `make check` default dengan seluruh delapan flow sebelumnya juga lulus. Putaran terakhir pada kode beku commit `b5fab31`: **lulus, status 0**. Perubahan sesudah commit itu hanya dokumentasi dan script reproduksi mutasi, tanpa perubahan runtime.
 
 PDF contoh E2E (dua aset diuji, satu dilewati) dirender ke PNG dan seluruh empat halamannya ditinjau: A4, teks utuh, tidak ada orphan footer/heading, nomor halaman, tagged PDF. Screenshot Home, organisasi, laporan, dan editor kondisi juga ditinjau manual.
 
@@ -1616,7 +1616,7 @@ Alur utama UI adalah organisation → aset/agent → alamat dan izin pengujian �
 
 Batasan: checklist pemilih maksimal 100 organisasi (tautan daftar berhalaman tetap ada). Readiness membaca maksimal 1000 target dan mengulang tiap 30 detik; perubahan scope/alamat sesudahnya bisa mengubah hasil Run. Status worker berbasis heartbeat dan enabled, tidak membuktikan jangkauan endpoint. Network scan tidak membutuhkan agent, local checks membutuhkannya. Fase 10/jadwal/produksi Fase 8 tetap terpisah. E2E memproksikan tugas pengguna baru; studi kegunaan dengan manusia belum dilakukan. Instalasi review lama tidak direstart atau dimigrasikan otomatis.
 
-Verifikasi akhir pada runtime `862511f`, tes `dd989c2`: `make check` default seluruh sembilan flow lulus status 0; 119 tes frontend, flow9 283 lulus/0 gagal, Go vet/test/typecheck/build lulus. Lima putaran audit: 9 Major/7 Minor baseline, 4 Major/2 Minor tambahan putaran kedua, satu Major cache pada ketiga, satu Major placeholder temuan aset dan satu Minor notifikasi pada keempat, nol Blocker/Major/Minor produk baru pada kelima. Replay 5a gagal pada pengukuran teks intrinsik meski screenshot membaik; asersi mengukur ruang yang tersedia lalu seluruh suite diulang pada 5b. Bukti log `/tmp/orchis-ux-round5b.log`, status `/tmp/orchis-ux-round5b.status = 0`. flow7 mencakup 116 pemeriksaan (29 halaman, 23 dialog, 3 menu, 3 publik × dua viewport), 0 temuan axe/responsif, rahasia dimask. Tiga mutasi Fase 9 dan empat mutasi UX terdeteksi/dipulihkan; renderer nol HTTP. Audit per halaman, bukti historis gagal, screenshot dan keterbatasan ada di `result.txt`. Tidak ada kode OpenAEV yang disalin atau dipakai sebagai referensi implementasi dalam audit UX ini.
+Verifikasi akhir pada runtime `862511f`, tes `dd989c2`: `make check` default seluruh sembilan flow lulus status 0; 119 tes frontend, flow9 283 lulus/0 gagal, Go vet/test/typecheck/build lulus. Lima putaran audit: 9 Major/7 Minor baseline, 4 Major/2 Minor tambahan putaran kedua, satu Major cache pada ketiga, satu Major placeholder temuan aset dan satu Minor notifikasi pada keempat, nol Blocker/Major/Minor produk baru pada kelima. Replay 5a gagal pada pengukuran teks intrinsik meski screenshot membaik; asersi mengukur ruang yang tersedia lalu seluruh suite diulang pada 5b. Putaran verifikasi 5b selesai dengan status 0. flow7 mencakup 116 pemeriksaan (29 halaman, 23 dialog, 3 menu, 3 publik × dua viewport), 0 temuan axe/responsif, rahasia dimask. Tiga mutasi Fase 9 dan empat mutasi UX terdeteksi/dipulihkan; renderer nol HTTP. Audit per halaman, bukti historis gagal, screenshot dan keterbatasan ada di `result.txt`. Tidak ada kode OpenAEV yang disalin atau dipakai sebagai referensi implementasi dalam audit UX ini.
 
 
 Tambahan ADR 077/078: perubahan izin, alamat dan membership harus menginvalidasi readiness, daftar aset organisasi dan Home segera setelah mutasi berhasil, bukan mengandalkan polling 30 detik. flow9 memeriksa hasil panel dalam 5 detik; reproduksi sebelum fix gagal dan sesudahnya lulus. Tidak mengubah izin backend atau keputusan scope, hanya kesegaran pembacaan UI.
@@ -1644,7 +1644,7 @@ Struktur: `internal/ai`, `cmd/{ai-worker,ai-proxy}`, `deploy/ai`, `migrations/00
 
 Batas konservatif: 500 observasi, 64.000 byte body, 128-4096 output tokens, 20 proposed checks. Payload/token lebih kecil dapat menolak laporan; tidak ada pemetaan parsial diam-diam. Budget memakai tarif batas atas administratif, bukan billing provider terverifikasi. Masa depan: batching, model nyata, key rotation, deployment network dan pengerasan produksi perlu pekerjaan tersendiri. Tidak ada AI live, scheduler atau remediasi endpoint otomatis pada milestone ini.
 
-Verifikasi akhir Fase 10: **LULUS**, status 0 pada runtime `f08acc4`: Go vet/test, typecheck/build, 124 tes frontend (16 berkas), seluruh sepuluh flow E2E, egress AI 6/0, preflight cleanup SIGTERM, 12 mutasi terdeteksi/dipulihkan (3 Fase 9 + 4 UX + 5 AI), dan renderer tanpa akses HTTP. Bukti `/tmp/orchis-phase10-complete.log` dan `.status`. Perubahan tata cetak berikutnya diuji ulang dengan flow10 68/0, egress 6/0, tes Go AI/server dan renderer; PDF contoh satu halaman ditinjau. Opsi harness `E2E_AMQP_URL` memungkinkan vhost disposable terpisah dari instalasi review; flow3 menguji jalur tersebut (38/0). Commit tata cetak `b2f1455`, opsi harness `ae31b7a`; pengujian terakhir terarah, tanpa mengulang seluruh suite sesudah perubahan kecil ini. Rincian cakupan commit dan percobaan gagal ada di `FASE10-HASIL.md`. Berikutnya migrasi **00014**, bagian **27+**, ADR **092+**, E2E `flow11.mjs`.
+Verifikasi akhir Fase 10: **LULUS**, status 0 pada runtime `f08acc4`: Go vet/test, typecheck/build, 124 tes frontend (16 berkas), seluruh sepuluh flow E2E, egress AI 6/0, preflight cleanup SIGTERM, 12 mutasi terdeteksi/dipulihkan (3 Fase 9 + 4 UX + 5 AI), dan renderer tanpa akses HTTP. Gerbang Fase 10 selesai dengan status 0. Perubahan tata cetak berikutnya diuji ulang dengan flow10 68/0, egress 6/0, tes Go AI/server dan renderer; PDF contoh satu halaman ditinjau. Opsi harness `E2E_AMQP_URL` memungkinkan vhost disposable terpisah dari instalasi review; flow3 menguji jalur tersebut (38/0). Commit tata cetak `b2f1455`, opsi harness `ae31b7a`; pengujian terakhir terarah, tanpa mengulang seluruh suite sesudah perubahan kecil ini. Rincian cakupan commit dan percobaan gagal ada di `FASE10-HASIL.md`. Berikutnya migrasi **00014**, bagian **27+**, ADR **092+**, E2E `flow11.mjs`.
 
 ## 27. Gerbang inti T0: kegagalan jangkauan dan perbandingan (31 Oktober 2026)
 
@@ -1660,9 +1660,9 @@ ADR 094: laporan membedakan nol kerentanan pada sekurangnya satu aset dengan sel
 
 ADR 095: `e2e/renderer-fixture.mjs` hanya dipilih oleh harness flow11 pada server disposable. Flag file sementara memaksa proses renderer keluar nonzero; retry kedua memakai renderer produk asli. Aplikasi produksi tidak mengenal flag fixture. Tes membuktikan status gagal dari proses nyata, snapshot tidak berubah dan executions tidak bertambah. Pause/unpause injector hanya pada container `orchis-e2e-nmap-*` milik run; umur heartbeat dimajukan di database disposable agar tes offline tidak menunggu satu menit. Pemulihan menunggu heartbeat nyata baru. Tes checklist menunggu kelima langkah lengkap dalam 5 detik; tidak menyamakan satu item selesai dengan lima respons sudah siap.
 
-Bukti penutup T0 dicatat terpisah di `result-infra.txt` dan `PROGRESS.md` (catatan kerja, tidak untuk cabang produk bersih). Gerbang manual bagian 0C.6 `PROMPT-INFRA-DUMMY.md` tetap berlaku: T1 dan push belum boleh dimulai sebelum pengguna mereview T0. Berikutnya bagian 28+, ADR 096+, migrasi tetap 00014, E2E flow12.
+Bukti penutup T0 dicatat pada catatan kerja internal yang tidak disertakan di repo ini. Berikutnya bagian 28+, ADR 096+, migrasi tetap 00014, E2E flow12.
 
-Verifikasi T0: kode/tes beku `f7cee76`, full `/tmp/orchis-infra-t0-final.log` dan `.status=0` pada 31 Oktober 2026. Go vet/test, typecheck/build, 126 tes web/17 berkas, seluruh 11 flow E2E (flow9 283/0, flow11 98/0), cleanup SIGTERM dan egress AI 6/0 lulus. Total 16 mutasi (3 Fase 9, 4 UX, 5 AI, 4 core) terdeteksi/restored; renderer tanpa HTTP. Audit tiga putaran mencatat perbaikan dan kegagalan harness; putaran 3b serta final tanpa Blocker/Major baru. Seluruh 26 screenshot core-round3 dan 12 halaman PDF dari tiga report ditinjau sebagai gambar, dengan bentuk data yang diulang pada full core-final. Snapshot tetap setelah assessment berikutnya dan retry PDF. Belum ada persetujuan manual untuk T1; tidak ada push atau deployment review/produksi.
+Verifikasi T0: kode/tes beku `f7cee76`, gerbang lengkap dengan status 0 pada 31 Oktober 2026. Go vet/test, typecheck/build, 126 tes web/17 berkas, seluruh 11 flow E2E (flow9 283/0, flow11 98/0), cleanup SIGTERM dan egress AI 6/0 lulus. Total 16 mutasi (3 Fase 9, 4 UX, 5 AI, 4 core) terdeteksi/restored; renderer tanpa HTTP. Audit tiga putaran mencatat perbaikan dan kegagalan harness; putaran 3b serta final tanpa Blocker/Major baru. Seluruh 26 screenshot core-round3 dan 12 halaman PDF dari tiga report ditinjau sebagai gambar, dengan bentuk data yang diulang pada full core-final. Snapshot tetap setelah assessment berikutnya dan retry PDF. Belum ada persetujuan manual untuk T1; tidak ada push atau deployment review/produksi.
 
 
 ## 28. Fondasi deployment T1 (31 Oktober 2026)
@@ -2474,7 +2474,7 @@ dan tidak tertutup. Laporan data endpoint menyediakan tabel bergulir pada layar
 sempit dengan petunjuk eksplisit. PDF nyata6halaman dan demo15halaman lulus QA
 teks/geometri/provenance dan setiap halaman ditinjau sebagaiPNG.
 
-Gerbang akhir /tmp/orchis-simplify-check2.status=0: go vet/test, frontend191tes pada
+Gerbang akhir penyederhanaan lulus dengan status 0: go vet/test, frontend191tes pada
 25berkas, seluruh16flowbrowser, egressAI6/0, dan renderer0HTTP. flow16=200/0;
 flow9=258/0; flow15=85/0. Empat puluh mutasi keamanan killed/restored pada source
 akhir (organisasi5, Scan17, koleksi10, snapshot2, otoritas alamat6). Putaran awal
@@ -2484,4 +2484,224 @@ Agent berhasil di-build untuk linux/darwin/windows × amd64/arm64. Bukti runtime
 agent/osquery hanya Linux amd64. Jangkauan pemindaian dibuktikan pada fixture
 milik tes; endpoint web sengaja ditutup menghasilkan kegagalan eksplisit, bukan
 klaim aman. Hasil, reproduksi, konfigurasi, dan batas milestone dijelaskan dalam
-SIMPLIFY-HASIL.md. Sisa produksi T4 dan audit akhir T6 tetap pekerjaan berikutnya.
+bagian ini. Sisa produksi T4 dan audit akhir T6 tetap pekerjaan berikutnya.
+
+## 56. Batas penghapusan fitur dan kompatibilitas inti
+
+ADR138: setelah pemetaan ketergantungan dan keputusan pengguna, pertahankan inti
+Scenario/Actions, simulation.Engine, dan penyimpanan assessment yang masih
+dipakai Chains/Atomic/Scan serta laporan historis. Penghapusan UI Scenarios/Actions
+pada567d6ea tetap berlaku. Flag advanced tidak mengembalikan route lama dan bukan
+pembatas otorisasi API. Kontrak API lama tetap memeriksa permission/scope/consent.
+
+API assessment legacy dipertahankan sebagai kompatibilitas: profil full/web/custom
+belum seluruhnya terwakili preset Scan quick/standard, dan laporan lama tetap
+mempunyai tautan detail serta pembatalan. Tidak ada bukti tabel sisa yang aman
+dihapus; tidak ada migrasi destruktif atau perubahan skema pada keputusan ini.
+Pemakai konkret dan batas penghapusan dijelaskan di FEATURE-COMPATIBILITY.md.
+Tidak ada klaim seluruh API assessment lama telah dihapus.
+
+## 57. Adaptasi halaman cetak CE dan font mandiri
+
+ADR139: halaman cetak laporan mengadaptasi struktur OpenAEV CE: sampul A4
+geometris, daftar isi bertaut, modul dengan aksen judul, kartu KPI dan footer
+berulang. Tipografi Geologica/IBM Plex Sans disisipkan dari aset WOFF2 yang
+dipatok; lisensi font OFL disertakan. Logo/warna identitas memakai Orchis.
+Attribution/daftar sumber ada pada NOTICE dan teks Apache-2.0 disertakan.
+Root lisensi OpenAEV mengklasifikasikan berkas tanpa header override sebagai CE;
+ketiadaan header saja bukan alasan menolak penggunaan, mengoreksi catatan lama.
+
+Data tetap snapshot yang sama: KPI memakai jumlah cakupan nyata, risiko tetap
+severity tertinggi menurut kebijakan Home, dan tidak mengarang skor prevention/
+detection yang tidak tersedia. JSON, redaksi, escaping dan daftar putih bukti
+tidak berubah. Font statis menjadi data URI sebelum parsing html/template; tidak
+ada CSS/path font dari pengguna. CSP font-src data: dan worker tetap offline,
+JavaScript mati serta seluruh permintaan jaringan diblokir. Uji egress mencakup
+font selain gambar/CSS/JavaScript.
+
+Geometri cetak memakai margin nol untuk sampul, gutter15mm, spacer thead/tfoot
+yang berulang untuk isi, footer bernomor yang sudah ada, dan lampiran metode
+per aset yang tidak terpotong bila muat satu halaman. Tabel data memakai header
+berulang dan lebar kolom terkontrol. Tidak menambahkan ekspor HTML publik.
+
+QA komponen:5halaman fixture scan lokal nyata yang dibekukan,16halaman fixture
+besar berlabel sintetis,8halaman dari demo-seed pada DB sementara. Semua29halaman
+ditinjau PNG; bounds/nomor/caption/cakupan/temuan/anchor lulus. Data demo tidak
+dianggap bukti scan nyata. Pemeriksaan komponen bukan gerbang penuh tahap.
+
+## 58. Kesiapan stylesheet dan pemulihan startup
+
+ADR140: aplikasi tidak dipasang sebelum stylesheet utama benar-benar diterapkan.
+Kegagalan stylesheet dicoba ulang maksimal dua kali memakai URL cache yang
+berbeda, termasuk bila jam klien tidak bergerak. Jika tetap gagal, tampilkan
+layar pemulihan mandiri dengan landmark main, kontras eksplisit dan tombol reload.
+Tidak ada API sesi atau kontrol workspace sebelum tampilan siap. Ini tidak
+mengubah izin API, scope target atau kebijakan CSP.
+
+Screenshot gerbang sebelumnya menunjukkan semua font/tata letak tidak diterapkan;
+HTTP status permintaan CSS pada run itu tidak terekam. Kegagalan CSS503 terkontrol
+mereproduksi tampilan native dan temuan color-contrast pada tiga lebar. Jadi
+kegagalan penanganan stylesheet terbukti, sedangkan pemicu transport pada run
+lama tetap tidak diketahui. Tidak mengubah palet untuk menutupi tampilan tanpaCSS.
+flow16 menyimpan node axe serta keadaan stylesheet sebelum/sesudah audit bila
+terjadi temuan lagi. Tidak ada rule axe yang dimatikan atau timeout yang dinaikkan.
+
+flow18 menguji pemulihan satu/dua kegagalan CSS, batas retry, jam tetap, galat
+persisten dan reload manual; axe0/overflow0 pada1280/834/390.26pemeriksaan lulus.
+Mutan kondisi kesiapan CSS berhasil dibangun dan tertangkap oleh regresi, lalu
+sumber asli yang tidak dimutasi diuji ulang26/0. Enam screenshot ditinjau.
+
+## 59. Tiga peran dan migrasi tanpa perluasan izin
+
+ADR141: Admin/Analyst/Viewer menjadi satu-satunya kunci peran. Viewer hanya
+`finding.read`/`report.read`; Analyst menjalankan scan yang sudah disetujui tanpa
+otorisasi target atau consent. Snapshot report dibaca dalam konteks report dan
+findings tanpa membuka inventaris hidup. Metadata nama/versi platform dan layanan
+akun sendiri tetap tersedia bagi setiap pengguna. UI memeriksa akses sebelum
+memasang halaman dan meminta data; penegakan API dan RLS tetap otoritatif.
+
+Migrasi30 membandingkan subset izin efektif lama dengan tiga peran baru, termasuk
+prasyarat report lama. Peran yang lebih sempit dipetakan ke Viewer disabled dengan
+flag tinjauan; sesi/token dicabut dan Admin harus menerima izin secara eksplisit
+untuk aktivasi. Constraint menolak role kustom, Viewer luas dan akun tinjauan
+active. Bootstrap tidak mengganti akun nyata tanpa Admin dengan Admin baru.
+Rollback membutuhkan pemulihan DB pra-upgrade, dan biner lama tidak boleh
+menyinkronkan Viewer luas ke skema baru. Kebijakan/pemetaan: `docs/ROLES.md`.
+
+Matriks kebijakan independen meliputi147endpoint dan ketiga peran. Fixture peran
+lama diuji pada skema29 sungguhan di dua tenant. Mutasi dijalankan pada salinan
+modul; kegagalan kompilasi tidak dihitung sebagai mutan terbunuh. Flow19 memakai
+akun nyata untuk navigasi, penolakan otorisasi dan tiga pilihan peran dengan
+axe0/overflow0 pada1280/834/390. Ini bukti komponen A-2.8, bukan gerbang penuh A-2.
+
+
+## 60. Jendela scan dan penghentian darurat
+
+Migrasi 31 menyimpan kebijakan per tenant/organisasi dengan RLS, FK komposit,
+kontrol versi, serta organisasi awal target dan execution yang dibekukan terpisah
+dari keanggotaan inventaris. Admin mengubah jendela mingguan berzona IANA dan
+melakukan stop/resume; Analyst membaca status kebijakan. Viewer tidak mengakses
+kontrol scan. Keadaan tanpa jendela tetap mengizinkan scan kapan saja.
+
+### ADR 142 — Kebijakan durable pada semua jalur scan jaringan
+
+Scan, Atomic, Chains dan assessment kompatibilitas memakai pemeriksaan yang sama
+pada pembuatan, claim, heartbeat, hasil dan pemulihan worker. Pembatasan berlaku
+pada organisasi awal sekaligus organisasi aset saat ini. Penguncian transaksi per
+tenant diperoleh sebelum row lock scan/execution untuk menyerialkan launch dan
+stop. Koleksi endpoint mengikuti urutan lock yang sama, tetapi kebijakan waktu
+scan jaringan tidak memberi maupun mencabut consent pengumpulan endpoint.
+
+Stop menyimpan hold, membatalkan antrean, dan menutup execution jaringan dengan
+outcome canceled serta kode alasan kebijakan. Resume hanya mengizinkan scan baru.
+Kode alasan membedakan penghentian kebijakan dari pencabutan agent agar semantik
+chain lama tetap dipertahankan. Batas akhir jendela eksklusif; jendela lintas tengah
+malam memakai hari mulainya. Jam dapat disuntikkan untuk pengujian.
+
+Injector memeriksa pembatalan setiap dua detik dan menghentikan seluruh grup proses
+scanner. Flow20 memeriksa PID Nmap/Nuclei sungguhan pada fixture loopback, bukan
+hanya status database. Audit mencatat perubahan kebijakan dan keputusan stop.
+Dokumen operasional: [SCAN-CONTROLS.md](SCAN-CONTROLS.md). Gerbang A-2 lengkap tetap
+dijalankan setelah seluruh butir fiturnya selesai; commit komponen belum berarti
+seluruh milestone selesai.
+
+## 61. Perbandingan Scan yang dibekukan
+
+### ADR 143 — Keputusan perubahan per pemeriksaan target/tool
+
+Snapshot menambah `comparison_details` versi 1 dan sumber `coverage` per finding.
+Pemilihan baseline memisahkan tenant, organisasi, jenis alur, profil, target,
+versi katalog dan parameter ternormalisasi. Baseline kegagalan terbaru tidak
+boleh digantikan diam-diam dengan sukses yang lebih lama. Semua sumber temuan
+harus diperiksa sampai selesai sebelum ketidakhadirannya menjadi Teratasi.
+Metode lain yang gagal pada aset yang sama tidak membatalkan bukti metode yang
+benar-benar selesai. Snapshot historis dengan asal ambigu tidak ditebak.
+
+Keputusan dan ringkasan disimpan ketika freeze dalam transaksi yang sama dengan
+penutupan Scan. UI hasil, Findings organisasi, PDF dan JSON membaca hasil beku,
+tanpa mengubah triase manual atau memperluas target. Baris perbandingan berisi
+ringkasan yang disunting, tanpa salinan evidence mentah. Laporan daftar tetap
+ringan; detail perbandingan dimuat melalui izin report dan finding yang ada.
+Dokumen kontrak dan batas bukti: [SCAN-COMPARISON.md](SCAN-COMPARISON.md).
+
+
+## 62. Retensi dan penghapusan organisasi
+
+### ADR 144 — Intent penghapusan persisten dan generasi identitas finding
+
+Kebijakan retensi tenant memiliki CAS, batas hari dan minimum audit di aplikasi
+serta database. Worker memakai jam yang dapat disuntikkan, batch terbatas dan
+checkpoint persisten. Umur dataset memakai sukses terakhir, bukan percobaan gagal.
+Hasil scan dan snapshot laporan memiliki umur berbeda; metadata assessment minimal
+menopang FK snapshot sampai keduanya berakhir. Worker freeze mengabaikan hasil
+atau laporan yang sudah kedaluwarsa agar tidak membuat ulang data yang dihapus.
+
+Penghapusan organisasi memperoleh advisory lock tenant sebelum row lock, membaca
+ulang nama/versi/jumlah, mencabut agent dan menghapus dependensi milik organisasi
+secara atomik. Enrollment, AI, membership dan report freeze mengikuti urutan lock
+yang sama. Referensi organisasi lain dan render aktif menahan penghapusan; target
+lain dalam Chain bersama dipertahankan. Tidak ada external I/O sebelum transaksi
+penghapusan database commit.
+
+Intent bertipe menyimpan tenant/UUID, bukan path pengguna. Cleanup menurunkan key
+MinIO yang persis dan menghapus dokumen ES dengan tenant AND finding IDs. Intent
+baru selesai setelah acknowledgment eksternal; outage, rollback dan restart aman
+diulang. Audit hanya menyimpan metadata/jumlah. Status pending terlihat oleh Admin.
+
+Expiry finding menaikkan findings_epoch organisasi. Freeze menyimpan generasi itu;
+perbandingan lintas generasi tidak boleh menyatakan Teratasi atau menganggap ID
+baru sebagai penemuan baru yang sebanding. Snapshot lama tetap beku. Dokumen
+consent diperbarui dan memerlukan persetujuan ulang karena model retensinya berubah.
+Kontrak operasional lengkap: [RETENTION.md](RETENTION.md).
+
+
+## 63. Kontrol agent dan rollout per endpoint
+
+### ADR 145 — Kontrol tetap melalui heartbeat dan helper service terpisah
+
+Kebijakan rollout tenant mempunyai CAS dan bawaan otomatis tanpa menulis row
+ketika dibaca. Mode manual hanya menawarkan versi rilis yang diminta untuk agent
+tertentu; anti-downgrade server dan verifikasi tanda tangan/smoke test agent tetap
+berlaku. Heartbeat tidak menaikkan versi konfigurasi kontrol. Jeda diperiksa di
+queue, claim, koleksi periodik/manual dan client; pekerjaan yang sudah berjalan
+boleh selesai. Collect now memakai query tetap dengan consent saat ini dan
+memakai ulang pekerjaan pending, bukan SQL atau parameter bebas.
+
+Uninstall adalah command bertipe, UUID dan identitas agent terikat, disampaikan
+melalui autentikasi bearer seperti tugas agent lain. Capability mencegah UI
+menganggap biner lama sudah mendukung perintah. Receipt privat mendahului helper,
+ACK mendahului pencabutan hanya setelah penghapusan fisik. ACK yang hilang tetap
+belum terkonfirmasi; offline bukan bukti penghapusan. File induk dan instance lain
+tidak dihapus. Helper service Linux dijalankan pada unit systemd sementara agar
+tidak ikut mati dalam cgroup service yang dihentikan. Update Unix memakai exec,
+menghindari deadlock synchronous restart service dari dirinya sendiri.
+
+Diagnostik hanya kode allowlist dan timestamp; log/path/error mentah agent tidak
+disimpan. Semua aksi Admin dan ACK diaudit; tabel kebijakan memakai RLS. Bukti
+runtime baru hanya Linux amd64. Windows remote removal belum diiklankan; enam
+platform biner tetap dibedakan antara hasil build dan pengujian perangkat nyata.
+Kontrak lengkap: [AGENT-CONTROLS.md](AGENT-CONTROLS.md).
+
+
+## 64. Notifikasi berdasarkan objek dan episode kejadian
+
+Inbox menggunakan tabel alerts/alert_states; organization_id diturunkan dari
+objek server, dengan FK komposit tenant dan RLS. Predicate yang sama melindungi
+list, hitungan, read, dismiss dan read-all: izin audiens, izin objek terkait,
+keberadaan dan asosiasi organisasi terkini. Viewer menggunakan izin baca temuan
+atau laporan untuk inbox tanpa memperluas perannya ke objek operasional.
+Kebijakan offline tenant memakai CAS dan bawaan15menit, terpisah dari indikator
+koneksi90detik. Episode offline/updatefailure bertahan restart dan deduplikasi
+ada dalam transaksi peristiwa. Peristiwa terminal Scan mengikuti snapshot atomik;
+PDF siap/gagal mengikuti penyelesaian render, termasuk pemulihan lease worker.
+Retry eksplisit menaikkan render_generation sehingga kegagalan berikutnya tetap
+terlihat. Protokol agent tidak pernah mengirim pesan diagnostik bebas.
+
+### ADR 146 — Notifikasi aman mengikuti objek, bukan hanya audiens
+
+Izin alert.read saja tidak membuktikan hak atas objek. Inbox memeriksa ulang
+objek dan izin terkait saat dibaca/ditandai; event lama yang kehilangan asosiasi
+organisasi disembunyikan. Filter organisasi bukan ACL baru: peran organisasi
+saat ini berlaku untuk semua organisasi dalam tenant. Polling10detik memakai
+kanal sesi/CSRF yang ada; tidak diperlukan email/webhook. Kode peristiwa mempunyai
+kamus EN/ID dan rute bertipe. Lihat docs/NOTIFICATIONS.md untuk batas dan operasi.

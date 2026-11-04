@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"orchis-go/internal/scancontrol"
 	"strings"
 	"time"
 
@@ -17,6 +18,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"orchis-go/internal/alerts"
+	"orchis-go/internal/audit"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
 	"orchis-go/internal/httpx"
@@ -33,6 +35,7 @@ const (
 
 // Runtime adalah sisi server untuk injector: autentikasi token, claim, heartbeat, hasil, dan reaper.
 type Runtime struct {
+	Now          func() time.Time
 	DB           *db.DB
 	Tenant       uuid.UUID
 	Guard        contract.Guard
@@ -147,6 +150,9 @@ func (r *Runtime) Claim(ctx context.Context, in *Injector, id uuid.UUID) (*Claim
 	var spec *ClaimSpec
 	var refusal error
 	err := r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, r.Tenant); err != nil {
+			return err
+		}
 		var (
 			ckey, target, state string
 			params              json.RawMessage
@@ -157,16 +163,26 @@ func (r *Runtime) Claim(ctx context.Context, in *Injector, id uuid.UUID) (*Claim
 			notBefore           time.Time
 			sim                 *uuid.UUID
 			agent               *uuid.UUID
+			frozen              *uuid.UUID
 		)
 		err := tx.QueryRow(ctx, `
-SELECT c.key, e.target_address, e.state, e.params, e.target_asset_id, c.default_timeout_seconds, e.integration_id, e.not_before, e.simulation_id, e.agent_id,e.contract_version
+SELECT c.key, e.target_address, e.state, e.params, e.target_asset_id, c.default_timeout_seconds, e.integration_id, e.not_before, e.simulation_id, e.agent_id,e.contract_version,e.scan_organization_id
 FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id
-WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, id).Scan(&ckey, &target, &state, &params, &asset, &timeout, &integ, &notBefore, &sim, &agent, &contractVersion)
+WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, id).Scan(&ckey, &target, &state, &params, &asset, &timeout, &integ, &notBefore, &sim, &agent, &contractVersion, &frozen)
 		if errors.Is(err, pgx.ErrNoRows) || (err == nil && (integ != in.ID || (in.AgentID != nil && (agent == nil || *agent != *in.AgentID)))) {
 			return httpx.NotFound("Execution")
 		}
 		if err != nil {
 			return err
+		}
+		if in.AgentID != nil {
+			var blocked bool
+			if err := tx.QueryRow(ctx, `SELECT paused OR uninstall_status IN('queued','dispatched') OR status='revoked' FROM agents WHERE tenant_id=$1 AND id=$2 FOR SHARE`, r.Tenant, *in.AgentID).Scan(&blocked); err != nil {
+				return err
+			}
+			if blocked {
+				return httpx.Conflict("The agent is paused or awaiting uninstall.")
+			}
 		}
 		if state != "ready" || notBefore.After(time.Now()) {
 			return httpx.Conflict("Execution is not ready (state: " + state + ").")
@@ -219,10 +235,28 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 				why = "Agent-reported target requires administrator confirmation."
 			}
 		}
+		refusedOutcome := "error"
+		refusedCode := ""
+		if !onAgent {
+			if e := scancontrol.CheckAsset(ctx, tx, r.Tenant, asset, frozen, scancontrol.Now(r.Now)); e != nil {
+				var b *scancontrol.Blocked
+				if !errors.As(e, &b) {
+					return e
+				}
+				why = e.Error()
+				refusedOutcome = "canceled"
+				refusedCode = b.Code
+			}
+		}
 		if why != "" {
-			if _, err := tx.Exec(ctx, `UPDATE executions SET state='ended', outcome='error', error=$3, ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`,
-				r.Tenant, id, why); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE executions SET state='ended', outcome=$4, error=$3,scan_stop_reason=$5, ended_at=now(), version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`,
+				r.Tenant, id, why, refusedOutcome, refusedCode); err != nil {
 				return err
+			}
+			if refusedCode != "" {
+				if err := audit.Write(ctx, tx, audit.Entry{Tenant: r.Tenant, Action: "scan.policy_stop", ResourceType: "execution", ResourceID: &id, Detail: map[string]any{"reason": refusedCode}}); err != nil {
+					return err
+				}
 			}
 			if err := logLine(ctx, tx, r.Tenant, id, "error", why); err != nil {
 				return err
@@ -270,6 +304,12 @@ UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, leas
 // Heartbeat memperpanjang lease dan memberi tahu injector bila eksekusi sudah dibatalkan.
 func (r *Runtime) Heartbeat(ctx context.Context, in *Injector, id uuid.UUID) (cancel bool, err error) {
 	err = r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, r.Tenant); err != nil {
+			return err
+		}
+		if err := scancontrol.Enforce(ctx, tx, r.Tenant, scancontrol.Now(r.Now), r.AfterEnd); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `UPDATE executions SET lease_until=now()+make_interval(secs => $4), updated_at=now()
 WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running' AND ($5::uuid IS NULL OR agent_id=$5)`, r.Tenant, id, in.ID, heartbeatLease.Seconds(), in.AgentID)
 		if err != nil {
@@ -309,7 +349,14 @@ func (r *Runtime) Complete(ctx context.Context, in *Injector, id uuid.UUID, res 
 	if len(res.Error) > 2000 {
 		res.Error = res.Error[:2000]
 	}
-	return r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+	var refusal error
+	err := r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Enforce(ctx, tx, r.Tenant, scancontrol.Now(r.Now), r.AfterEnd); err != nil {
+			return err
+		}
+		if err := scancontrol.Lock(ctx, tx, r.Tenant); err != nil {
+			return err
+		}
 		var asset uuid.UUID
 		var sim *uuid.UUID
 		var ckey string
@@ -323,7 +370,8 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND e.integration_id=$3 AND e.state='running'
   AND ($4::uuid IS NULL OR e.agent_id=$4)
 FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &contractVersion, &policyJSON, &agentID)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return httpx.Conflict("Execution is not running (already finished, canceled or timed out).")
+			refusal = httpx.Conflict("Execution is not running (already finished, canceled or timed out).")
+			return nil
 		}
 		if err != nil {
 			return err
@@ -422,6 +470,10 @@ lease_until=NULL, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=
 		}
 		return r.afterEnd(ctx, tx, sim)
 	})
+	if err != nil {
+		return err
+	}
+	return refusal
 }
 
 type pair struct {
@@ -447,6 +499,12 @@ func (r *Runtime) raiseFailed(ctx context.Context, tx pgx.Tx, exec, asset uuid.U
 // Idempoten, jadi aman dijalankan bersamaan oleh beberapa instance server.
 func (r *Runtime) Sweep(ctx context.Context) (retried, timedOut int, err error) {
 	err = r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, r.Tenant); err != nil {
+			return err
+		}
+		if err := scancontrol.Enforce(ctx, tx, r.Tenant, scancontrol.Now(r.Now), r.AfterEnd); err != nil {
+			return err
+		}
 		rows, err := tx.Query(ctx, `
 UPDATE executions e SET state='ready', lease_until=NULL, claimed_by=NULL, not_before=now(), version=e.version+1, updated_at=now()
 FROM integrations i

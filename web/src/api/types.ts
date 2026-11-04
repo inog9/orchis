@@ -1,4 +1,5 @@
 export type User = {
+  ui_language?: "en" | "id" | "";
   id: string;
   email: string;
   display_name: string;
@@ -259,7 +260,7 @@ export type PathEdge = { from: string; to: string; kind: 'targets' | 'found' | '
 export type AttackPath = { nodes: PathNode[]; edges: PathEdge[]; truncated: boolean };
 
 // ---------- Fase 7: akun, pengaturan, orang, MITRE, notifikasi ----------
-export type UserRow = { id: string; email: string; display_name: string; role: string; role_name: string; status: 'active' | 'disabled'; last_login_at: string | null; created_at: string; version: number; has_password: boolean };
+export type UserRow = { id: string; email: string; display_name: string; role: string; role_name: string; status: 'active' | 'disabled'; last_login_at: string | null; created_at: string; version: number; has_password: boolean; role_review_required?: boolean; previous_role_key?: string | null };
 export type RoleRow = { key: string; name: string; description: string | null; permissions: string[];
   features?: { advanced: boolean }; is_system: boolean; users: number };
 export type ResetLink = { token: string; expires_at: string };
@@ -289,7 +290,7 @@ export type MitreMatrix = {
 export type MitreMapping = { action: string; reason: string; basis: 'direct' | 'estimate'; via?: string };
 export type MitreDetail = { id: string; name: string; description: string; platforms: string[]; tactics: string[]; url: string; actions: string[]; runs: number; last_run_at: string | null; subs: MitreCell[]; mappings?: MitreMapping[]; mitigations?: { id: string; name: string; description: string }[]; parent?: string | null; deprecated?: boolean; simulated?: boolean; simulated_runs?: number; simulated_findings?: number };
 
-export type AlertRow = { id: string; kind: string; severity: 'info' | 'warning' | 'critical'; title: string; body: string | null; resource_type: string | null; resource_id: string | null; created_at: string; read: boolean };
+export type AlertRow = { resource_label?: string | null; organization_id?: string | null; id: string; kind: string; severity: 'info' | 'warning' | 'critical'; title: string; body: string | null; resource_type: string | null; resource_id: string | null; created_at: string; read: boolean };
 export type AlertList = { items: AlertRow[]; unread: number };
 
 // ---------- Fase 4: agent ----------
@@ -297,9 +298,10 @@ export type AgentRow = {
  is_demo?:boolean;
  organization_id?: string | null; instance_name?: string | null;
   id: string; asset_id: string; asset_name: string; hostname: string | null; os: 'windows' | 'linux' | 'macos'; arch: 'x86_64' | 'arm64'; mode: 'service' | 'user';
+  update_status?: 'unknown'|'current'|'behind'|'failed'; control_version?: number; paused?: boolean; control_protocol?: number; osquery_version?: string; diagnostic_code?: string; diagnostic_at?: string | null; requested_update_version?: string; uninstall_status?: 'none'|'queued'|'dispatched'|'failed'|'completed'; uninstall_requested_at?: string | null; uninstall_completed_at?: string | null;
   version: string; status: 'online' | 'offline' | 'revoked'; last_heartbeat_at: string | null; enrolled_at: string; update_available: boolean;
 };
-export type EnrollmentToken = { id: string; token: string; os: AgentRow['os']; arch: AgentRow['arch']; mode: AgentRow['mode']; expires_at: string; version: string; sha256: string; file_name: string };
+export type EnrollmentToken = { id: string; token: string; os: AgentRow['os']; arch: AgentRow['arch']; mode: AgentRow['mode']; expires_at: string; version: string; sha256: string; file_name: string; release_key?: string; ca_fingerprint?: string; tls_pin?: string };
 export type EnrollmentStatus = { used: boolean; expired: boolean; agent_id: string | null; agent: AgentRow | null };
 
 // ---------- T4: data endpoint dari osquery ----------
@@ -313,7 +315,7 @@ export type EndpointQueryMeta = {
 };
 export type EndpointPackQuery = { platform?:string; name: string; key?: string; description: string; status: 'runnable' | 'sensitive' | 'not_reviewed' | 'other_os' | 'unverified'; reason: string; tables: string[] };
 export type EndpointPack = { name: string; description: string; file: string; sha256: string; platform: string; tables_read: string[]; queries: EndpointPackQuery[] };
-export type EndpointConsent = { version: string; sha256: string; text: string };
+export type EndpointConsent = { version: string; sha256: string; text: string; translations?: Partial<Record<"en"|"id",string>> };
 export type EndpointCatalog = { collection_interval_seconds?:number; consent: EndpointConsent; osquery_version: string; license: string; proven_os: string[]; queries: EndpointQueryMeta[]; packs: EndpointPack[] };
 export type OrgOsquerySetting = { version?:number; key: string; enabled: boolean; explicit: boolean; updated_at: string | null; consent_version?: string | null; consent_sha256?: string | null; consented_by?: string | null; consented_at?: string | null };
 export type EndpointDataset = { supported?:boolean;

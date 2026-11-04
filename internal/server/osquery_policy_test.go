@@ -22,7 +22,7 @@ func TestOsqueryResultRechecksFrozenPolicyAndAuthorization(t *testing.T) {
 			}
 			setting := func(key string, enabled bool) {
 				t.Helper()
-				if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/"+key, map[string]any{"enabled": enabled, "consent": osquery.Consent().ConsentRef}, f.admin); r.Status != 204 {
+				if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/"+key, f.collectionChoice(t, org, key, enabled), f.admin); r.Status != 204 {
 					t.Fatalf("setting: %d %s", r.Status, r.Body)
 				}
 			}

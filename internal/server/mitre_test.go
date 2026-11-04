@@ -208,14 +208,14 @@ func (c *chainFixture) matrix(t *testing.T, cookie string) matrixJSON {
 
 func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	c := newChainFixture(t)
-	if m := c.matrix(t, c.viewer); m.Imported || len(m.Tactics) != 0 {
+	if m := c.matrix(t, c.analyst); m.Imported || len(m.Tactics) != 0 {
 		t.Fatalf("sebelum impor matriks kosong: %+v", m)
 	}
 	srv := fixtureServer(t, func() ([]byte, int) { return bundle(t), 200 })
 	if _, err := importer(nil, c, srv.URL).Import(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	m := c.matrix(t, c.viewer)
+	m := c.matrix(t, c.analyst)
 	if !m.Imported || len(m.Tactics) != 4 || m.Tactics[0].Name != "Reconnaissance" || m.Tactics[3].Name != "Discovery" {
 		t.Fatalf("kolom: %+v", m)
 	}
@@ -227,7 +227,7 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	e := c.run(t)
 	c.inj("POST", "executions/"+e.ID+"/claim", nil, c.token)
 	c.inj("POST", "executions/"+e.ID+"/result", okEmpty, c.token)
-	m = c.matrix(t, c.viewer)
+	m = c.matrix(t, c.analyst)
 	var discovery, recon bool
 	for _, col := range m.Tactics {
 		for _, tech := range col.Techniques {
@@ -246,7 +246,7 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	e2 := c.run(t)
 	c.inj("POST", "executions/"+e2.ID+"/claim", nil, c.token)
 	c.inj("POST", "executions/"+e2.ID+"/result", failed, c.token)
-	for _, col := range c.matrix(t, c.viewer).Tactics {
+	for _, col := range c.matrix(t, c.analyst).Tactics {
 		for _, tech := range col.Techniques {
 			if tech.ID == "T1046" && tech.Runs != 1 {
 				t.Fatalf("hanya eksekusi sukses yang dihitung: %+v", tech)
@@ -256,7 +256,7 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	// sub-teknik yang dilatih menandai induknya
 	e3 := c.runNuclei(t)
 	c.finish(t, e3, nucleiC, okEmpty)
-	for _, col := range c.matrix(t, c.viewer).Tactics {
+	for _, col := range c.matrix(t, c.analyst).Tactics {
 		for _, tech := range col.Techniques {
 			if tech.ID == "T1595" && !(tech.Exercised && tech.Runs == 1) {
 				t.Fatalf("induk harus ikut dilatih: %+v", tech)
@@ -269,18 +269,18 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 		Actions       []string
 		Runs          int
 	}
-	r := c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.viewer)
+	r := c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.analyst)
 	r.JSON(&d)
 	if r.Status != 200 || d.URL != "https://attack.mitre.org/techniques/T1595/" || d.Runs != 1 || len(d.Actions) != 1 || d.Actions[0] != "Nuclei vulnerability scan" {
 		t.Fatalf("detail: %d %s", r.Status, r.Body)
 	}
-	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595.002", nil, c.viewer)
+	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595.002", nil, c.analyst)
 	r.JSON(&d)
 	if d.URL != "https://attack.mitre.org/techniques/T1595/002/" {
 		t.Fatalf("URL sub-teknik: %s", d.URL)
 	}
 	for _, bad := range []string{"T1", "x", "T1595.2", "T1595;DROP", "T9998"} {
-		if r := c.a.do("GET", "/api/v1/mitre/techniques/"+bad, nil, c.viewer); r.Status != 404 {
+		if r := c.a.do("GET", "/api/v1/mitre/techniques/"+bad, nil, c.analyst); r.Status != 404 {
 			t.Fatalf("id %q: %d", bad, r.Status)
 		}
 	}
@@ -366,7 +366,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 		t.Fatal("impor yang ditolak mengubah data")
 	}
 
-	mx := c.matrix(t, c.viewer)
+	mx := c.matrix(t, c.analyst)
 	if !mx.Imported || len(mx.Tactics) != want.Tactics || mx.Total != want.Parents {
 		t.Fatalf("matriks: taktik=%d total=%d", len(mx.Tactics), mx.Total)
 	}
@@ -383,7 +383,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	if err := (&demo.Service{DB: c.a.env.App}).Seed(ctx, c.a.env.TenantA, 1, nil, "", "t"); err != nil {
 		t.Fatal(err)
 	}
-	mx = c.matrix(t, c.viewer)
+	mx = c.matrix(t, c.analyst)
 	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 8 {
 		t.Fatalf("setelah demo: mapped=%d exercised=%d simulated=%d (demo tidak boleh jadi trained/mapped)", mx.Mapped, mx.Exercised, mx.Simulated)
 	}
@@ -414,14 +414,14 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 		Mappings    []struct{ Action, Reason, Basis, Via string }
 		Subs        []struct{ ID string }
 	}
-	r := c.a.do("GET", "/api/v1/mitre/techniques/T1046", nil, c.viewer)
+	r := c.a.do("GET", "/api/v1/mitre/techniques/T1046", nil, c.analyst)
 	r.JSON(&det)
 	if r.Status != 200 || det.ID != "T1046" || det.URL != "https://attack.mitre.org/techniques/T1046" || len(det.Mitigations) == 0 ||
 		len(det.Mappings) < 1 || det.Mappings[0].Reason == "" || det.Mappings[0].Basis != "direct" {
 		t.Fatalf("detail T1046: %d %s", r.Status, r.Body)
 	}
 	det.Subs, det.Mappings = nil, nil
-	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.viewer)
+	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.analyst)
 	r.JSON(&det)
 	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) != 1 || det.Mappings[0].Via != "T1595.002" {
 		t.Fatalf("detail T1595 harus memuat 3 sub-teknik dan pemetaan via T1595.002: %d %s", r.Status, r.Body)

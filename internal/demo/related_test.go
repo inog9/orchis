@@ -38,6 +38,9 @@ func TestRelatedFixturesRoundTripAndNoUsableCredentials(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if n := count(t, env, `SELECT count(*) FROM roles WHERE tenant_id=$1`, env.TenantA); n != 3 {
+		t.Fatalf("expected exactly three built-in roles, got %d", n)
+	}
 	if n := count(t, env, `SELECT count(*) FROM executions WHERE tenant_id=$1 AND (NOT is_demo OR state<>'ended' OR raw_output_key IS NOT NULL)`, env.TenantA); n != 0 {
 		t.Fatal("demo created dispatchable or unmarked execution")
 	}
@@ -45,7 +48,7 @@ func TestRelatedFixturesRoundTripAndNoUsableCredentials(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, table := range []string{"roles", "users", "api_tokens", "password_reset_links", "people", "teams", "asset_groups", "atomic_tests", "action_presets", "integrations"} {
+	for _, table := range []string{"users", "api_tokens", "password_reset_links", "people", "teams", "asset_groups", "atomic_tests", "action_presets", "integrations"} {
 		if st.Counts[table] == 0 {
 			t.Fatalf("missing demo %s: %+v", table, st)
 		}

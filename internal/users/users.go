@@ -57,23 +57,25 @@ func fieldErr(name, msg string) error {
 // ---------- daftar ----------
 
 type UserRow struct {
-	ID          uuid.UUID  `json:"id"`
-	Email       string     `json:"email"`
-	DisplayName string     `json:"display_name"`
-	RoleKey     string     `json:"role"`
-	RoleName    string     `json:"role_name"`
-	Status      string     `json:"status"`
-	LastLoginAt *time.Time `json:"last_login_at"`
-	CreatedAt   time.Time  `json:"created_at"`
-	Version     int        `json:"version"`
-	HasPassword bool       `json:"has_password"` // false = belum pernah memakai link reset pertama
+	ID                 uuid.UUID  `json:"id"`
+	Email              string     `json:"email"`
+	DisplayName        string     `json:"display_name"`
+	RoleKey            string     `json:"role"`
+	RoleName           string     `json:"role_name"`
+	Status             string     `json:"status"`
+	LastLoginAt        *time.Time `json:"last_login_at"`
+	CreatedAt          time.Time  `json:"created_at"`
+	Version            int        `json:"version"`
+	RoleReviewRequired bool       `json:"role_review_required"`
+	PreviousRoleKey    *string    `json:"previous_role_key"`
+	HasPassword        bool       `json:"has_password"` // false = belum pernah memakai link reset pertama
 }
 
 func (s *Service) List(ctx context.Context, p *auth.Principal) ([]UserRow, error) {
 	out := []UserRow{}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
 		rows, err := tx.Query(ctx, `
-SELECT u.id, u.email::text, u.display_name, r.key, r.name, u.status, u.last_login_at, u.created_at, u.version, u.password_hash IS NOT NULL
+SELECT u.id, u.email::text, u.display_name, r.key, r.name, u.status, u.last_login_at, u.created_at, u.version, u.password_hash IS NOT NULL, u.role_review_required, u.previous_role_key
 FROM users u JOIN roles r ON r.tenant_id=u.tenant_id AND r.id=u.role_id
 WHERE u.tenant_id=$1 AND u.deleted_at IS NULL AND u.kind='human' ORDER BY u.created_at, u.id`, p.TenantID)
 		if err != nil {
@@ -82,7 +84,7 @@ WHERE u.tenant_id=$1 AND u.deleted_at IS NULL AND u.kind='human' ORDER BY u.crea
 		defer rows.Close()
 		for rows.Next() {
 			var u UserRow
-			if err := rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.RoleKey, &u.RoleName, &u.Status, &u.LastLoginAt, &u.CreatedAt, &u.Version, &u.HasPassword); err != nil {
+			if err := rows.Scan(&u.ID, &u.Email, &u.DisplayName, &u.RoleKey, &u.RoleName, &u.Status, &u.LastLoginAt, &u.CreatedAt, &u.Version, &u.HasPassword, &u.RoleReviewRequired, &u.PreviousRoleKey); err != nil {
 				return err
 			}
 			out = append(out, u)
@@ -201,10 +203,11 @@ func (s *Service) Create(ctx context.Context, p *auth.Principal, in CreateInput,
 }
 
 type PatchInput struct {
-	Version     int     `json:"version"`
-	DisplayName *string `json:"display_name"`
-	Role        *string `json:"role"`
-	Status      *string `json:"status"`
+	AcceptRolePermissions bool    `json:"accept_role_permissions"`
+	Version               int     `json:"version"`
+	DisplayName           *string `json:"display_name"`
+	Role                  *string `json:"role"`
+	Status                *string `json:"status"`
 }
 
 func (s *Service) Patch(ctx context.Context, p *auth.Principal, id uuid.UUID, in PatchInput, ip, reqID string) (*UserRow, error) {
@@ -220,8 +223,9 @@ WHERE u.tenant_id=$1 AND u.deleted_at IS NULL AND u.status='active' AND r.key='a
 		}
 		var cur int
 		var curRole, curStatus string
-		err := tx.QueryRow(ctx, `SELECT u.version, r.key, u.status FROM users u JOIN roles r ON r.tenant_id=u.tenant_id AND r.id=u.role_id
-WHERE u.tenant_id=$1 AND u.id=$2 AND u.deleted_at IS NULL AND u.kind='human' FOR UPDATE OF u`, p.TenantID, id).Scan(&cur, &curRole, &curStatus)
+		var reviewRequired bool
+		err := tx.QueryRow(ctx, `SELECT u.version, r.key, u.status, u.role_review_required FROM users u JOIN roles r ON r.tenant_id=u.tenant_id AND r.id=u.role_id
+WHERE u.tenant_id=$1 AND u.id=$2 AND u.deleted_at IS NULL AND u.kind='human' FOR UPDATE OF u`, p.TenantID, id).Scan(&cur, &curRole, &curStatus, &reviewRequired)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("User")
 		}
@@ -240,6 +244,9 @@ WHERE u.tenant_id=$1 AND u.id=$2 AND u.deleted_at IS NULL AND u.kind='human' FOR
 		}
 		if newStatus != "active" && newStatus != "disabled" {
 			return fieldErr("status", "Choose active or disabled.")
+		}
+		if reviewRequired && newStatus == "active" && !in.AcceptRolePermissions {
+			return fieldErr("accept_role_permissions", "Review the selected role permissions and explicitly accept them before enabling this migrated account.")
 		}
 		if id == p.UserID && (newRole != curRole || newStatus != curStatus) {
 			return fieldErr("role", "You can’t change your own role or status. Ask another administrator.")
@@ -268,8 +275,8 @@ WHERE u.tenant_id=$1 AND u.id<>$2 AND u.deleted_at IS NULL AND u.status='active'
 		} else if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE users SET display_name=COALESCE(NULLIF($3,''), display_name), role_id=$4, status=$5, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`,
-			p.TenantID, id, name, roleID, newStatus); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE users SET display_name=COALESCE(NULLIF($3,''), display_name), role_id=$4, status=$5, role_review_required=CASE WHEN $6 THEN false ELSE role_review_required END, previous_role_key=CASE WHEN $6 THEN NULL ELSE previous_role_key END, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`,
+			p.TenantID, id, name, roleID, newStatus, reviewRequired && in.AcceptRolePermissions); err != nil {
 			return err
 		}
 		if newStatus == "disabled" && curStatus != "disabled" {
@@ -279,7 +286,7 @@ WHERE u.tenant_id=$1 AND u.id<>$2 AND u.deleted_at IS NULL AND u.status='active'
 			}
 		}
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "user.update", ResourceType: "user", ResourceID: &id, IP: ip, RequestID: reqID,
-			Detail: map[string]any{"role": newRole, "status": newStatus}})
+			Detail: map[string]any{"role": newRole, "status": newStatus, "role_review_accepted": reviewRequired && in.AcceptRolePermissions}})
 	})
 	if err != nil {
 		return nil, err

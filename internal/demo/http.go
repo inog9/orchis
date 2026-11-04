@@ -13,7 +13,7 @@ type Handlers struct{ Svc *Service }
 // Register expose hanya status (semua pengguna login) dan purge (settings.manage). Seed TIDAK
 // diekspos lewat HTTP (hanya CLI `server demo-seed`): tidak ada endpoint seed publik/tak terotorisasi.
 func (h *Handlers) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/demo/status", auth.Require("", func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+	mux.HandleFunc("GET /api/v1/demo/status", auth.Require(authz.OrganizationRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		st, err := h.Svc.Status(r.Context(), p.TenantID)
 		if err != nil {
 			httpx.Write(w, r, err)

@@ -73,7 +73,7 @@ describe('AssetDetailPage', () => {
   it('konflik versi: menampilkan pesan dan memuat ulang versi terbaru', async () => {
     let gets = 0;
     api(perms(), (url, init) => {
-      if (init?.method === 'PATCH') return problem(409, { detail: 'This asset was changed by someone else. Reload and try again.' });
+      if (init?.method === 'PATCH') return problem(409, { detail: 'This asset was changed by someone else. Reload and try again.', code: 'asset_conflict' });
       gets++;
       return json(asset({ version: gets === 1 ? 3 : 4, name: gets === 1 ? 'WINTERFELL' : 'WINTERFELL-2' }));
     });
@@ -212,7 +212,7 @@ describe('ImportDialog', () => {
   });
 
   it('menampilkan galat server dengan pesan yang bisa dipahami', async () => {
-    api(perms(), (url) => (url.endsWith('/import/preview') ? problem(422, { fields: [{ name: 'csv', message: 'The file is empty.' }] }) : json({})));
+    api(perms(), (url) => (url.endsWith('/import/preview') ? problem(422, { fields: [{ name: 'csv', message: 'The file is empty.', code: 'file_empty' }] }) : json({})));
     mount(<ImportDialog onClose={() => {}} />);
     await userEvent.upload(screen.getByLabelText(/choose a csv file/i), file('x'));
     expect(await screen.findByText('The file is empty.')).toBeInTheDocument();

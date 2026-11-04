@@ -24,3 +24,19 @@ func TestConsentDocumentMatchesPublishedTemplateAndRef(t *testing.T) {
 		}
 	}
 }
+
+func TestBilingualConsentBindsBothLanguagesAndInvalidatesEarlierRef(t *testing.T) {
+	doc := Consent()
+	if !strings.Contains(doc.Translations["en"], "Purpose and timing") || !strings.Contains(doc.Translations["id"], "Tujuan dan waktu") {
+		t.Fatal("missing reviewed consent translation")
+	}
+	for _, lang := range []string{"en", "id"} {
+		if !strings.Contains(doc.Text, doc.Translations[lang]) {
+			t.Fatal("translation outside canonical hash", lang)
+		}
+	}
+	previous := ConsentRef{Version: "2026-11-03.1", SHA256: doc.SHA256}
+	if previous.Valid() {
+		t.Fatal("earlier document accepted without renewal")
+	}
+}

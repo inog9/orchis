@@ -87,11 +87,12 @@ type userDTO struct {
 	DisplayName string          `json:"display_name"`
 	Role        string          `json:"role"`
 	Permissions []string        `json:"permissions"`
+	UILanguage  string          `json:"ui_language"`
 	Features    map[string]bool `json:"features"`
 }
 
 func (h *Handlers) toDTO(p *Principal) userDTO {
-	return userDTO{ID: p.UserID.String(), Email: p.Email, DisplayName: p.DisplayName, Role: p.RoleKey, Permissions: p.Permissions, Features: map[string]bool{"advanced": h.AdvancedFeatures}}
+	return userDTO{ID: p.UserID.String(), Email: p.Email, DisplayName: p.DisplayName, Role: p.RoleKey, Permissions: p.Permissions, UILanguage: p.UILanguage, Features: map[string]bool{"advanced": h.AdvancedFeatures}}
 }
 
 func (h *Handlers) setCookie(w http.ResponseWriter, token string, remember bool) {
@@ -138,4 +139,5 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/auth/login", h.Login)
 	mux.HandleFunc("POST /api/v1/auth/logout", Require("", h.Logout))
 	mux.HandleFunc("GET /api/v1/auth/me", Require("", h.Me))
+	mux.HandleFunc("PATCH /api/v1/auth/preferences", Require("", h.Preferences))
 }

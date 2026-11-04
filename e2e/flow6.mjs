@@ -55,12 +55,12 @@ let dlg = p.getByRole('dialog');
 await dlg.getByLabel('Run as').selectOption('user');
 await dlg.getByRole('button', { name: 'Create install command' }).click();
 const cmd = (await dlg.getByTestId('install-command').innerText()).replace(/ \\\n\s*&& /g, ' && ');
-ok(/Authorization: Bearer oen_/.test(cmd) && /sha256sum -c -/.test(cmd) && !/\?token=/.test(cmd), 'perintah memakai token di header dan memeriksa SHA-256 sebelum menjalankan');
+ok(/curl -fsSL\b/.test(cmd) && /install\.sh/.test(cmd) && /--token 'oen_/.test(cmd) && /--sha256 '[0-9a-f]{64}'/.test(cmd) && /--release-key '[^']+'/.test(cmd) && !/\?token=/.test(cmd) && !/(\s-k\b|--insecure)/.test(cmd), 'perintah memakai /install.sh dengan token, SHA-256 dan kunci rilis (diverifikasi install.sh), tanpa token di URL dan tanpa mematikan TLS');
 ok(await dlg.getByText('Waiting for the agent…').isVisible(), 'dialog menunggu agent terhubung');
 await p.screenshot({ path: SHOTS + 'agent-install.png' });
 
 // 3. jalankan perintah itu SUNGGUHAN di folder sementara
-agent = spawn('bash', ['-c', cmd], { cwd: workdir, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+agent = spawn('bash', ['-c', `${cmd} --dir '${join(workdir, 'orchis-agent')}' && cd '${join(workdir, 'orchis-agent')}' && exec ./orchis-agent run`], { cwd: workdir, detached: true, stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, HOME: workdir } });
 agent.stdout.on('data', (d) => { agentOut += d; });
 agent.stderr.on('data', (d) => { agentOut += d; });
 await dlg.getByText('Agent connected.').waitFor({ timeout: 60000 });
@@ -171,7 +171,7 @@ await p.getByRole('button', { name: /Revoke agent on/ }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Revoke agent' }).click();
 await p.getByRole('row').filter({ hasText: 'Linux' }).getByText('Revoked').waitFor();
 ok(true, 'pencabutan dari konsol: status Revoked');
-const wiped = await waitFor(async () => { try { const c = JSON.parse(readFileSync(join(workdir, 'agent-config.json'), 'utf8')); return c.revoked === true && c.secret === ''; } catch { return false; } }, 40000, 1000);
+const wiped = await waitFor(async () => { try { const c = JSON.parse(readFileSync(join(workdir, 'orchis-agent', 'agent-config.json'), 'utf8')); return c.revoked === true && c.secret === ''; } catch { return false; } }, 40000, 1000);
 ok(!!wiped, 'agent yang dicabut menghapus kredensialnya dari disk');
 ok(/dicabut/.test(agentOut) && agent.exitCode === null, 'agent yang dicabut berhenti bekerja tetapi tidak keluar (tidak memicu restart berulang)');
 await p.goto(BASE + '/atomic');

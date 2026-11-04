@@ -46,7 +46,7 @@ type handler func(http.ResponseWriter, *http.Request, *auth.Principal)
 
 func access(next handler) handler {
 	return func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
-		for _, perm := range []string{authz.OrganizationRead, authz.AssessmentRead, authz.AssetRead, authz.FindingRead} {
+		for _, perm := range []string{authz.FindingRead} {
 			if !authz.Has(p.Permissions, perm) {
 				httpx.Write(w, r, httpx.Forbidden(perm))
 				return
@@ -81,7 +81,7 @@ func (h *Handlers) Register(m *http.ServeMux) {
 		items := []Report{}
 		var next *string
 		e := h.Svc.DB.InTenantRead(r.Context(), p.TenantID, func(tx pgx.Tx) error {
-			rows, e := tx.Query(r.Context(), `SELECT id,organization_id,assessment_id,version,status,error,created_at,snapshot-'assets' FROM reports WHERE tenant_id=$1 AND ($2::uuid IS NULL OR organization_id=$2) AND ($3::uuid IS NULL OR assessment_id=$3) AND ($4::uuid IS NULL OR id<$4) ORDER BY id DESC LIMIT 26`, p.TenantID, org, assessment, cur)
+			rows, e := tx.Query(r.Context(), `SELECT id,organization_id,assessment_id,version,status,error,created_at,snapshot-'assets'-'comparison_details' FROM reports WHERE tenant_id=$1 AND ($2::uuid IS NULL OR organization_id=$2) AND ($3::uuid IS NULL OR assessment_id=$3) AND ($4::uuid IS NULL OR id<$4) AND (NOT $5::boolean OR snapshot ? 'scan_id') ORDER BY id DESC LIMIT 26`, p.TenantID, org, assessment, cur, r.URL.Query().Get("scan_only") == "true")
 			if e != nil {
 				return e
 			}
@@ -176,7 +176,7 @@ func (h *Handlers) Register(m *http.ServeMux) {
 			return
 		}
 		e = h.Svc.DB.InTenant(r.Context(), p.TenantID, func(tx pgx.Tx) error {
-			tag, e := tx.Exec(r.Context(), `UPDATE reports SET status='queued',attempts=0,error='',lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='failed'`, p.TenantID, id)
+			tag, e := tx.Exec(r.Context(), `UPDATE reports SET status='queued',attempts=0,render_generation=render_generation+1,error='',lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='failed'`, p.TenantID, id)
 			if e != nil {
 				return e
 			}

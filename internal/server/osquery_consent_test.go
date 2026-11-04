@@ -27,7 +27,7 @@ func TestOsqueryConsentMustMatchDocumentAndRecordsActorAndTime(t *testing.T) {
 	if n := rowCount(t, f, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1`, org); n != 0 {
 		t.Fatal("persetujuan tidak sah membuat setting")
 	}
-	r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin)
+	r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", f.collectionChoice(t, org, "it-compliance", true), f.admin)
 	if r.Status != 204 {
 		t.Fatalf("persetujuan: %d %s", r.Status, r.Body)
 	}

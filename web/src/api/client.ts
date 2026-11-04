@@ -1,17 +1,26 @@
-export type FieldError = { name: string; message: string };
+import { apiErrorText } from '../i18n/errors';
+export type FieldError = { name: string; message: string; code?: string };
 
 export class ApiError extends Error {
+  private readonly serverFields: FieldError[];
   constructor(
     public status: number,
-    public title: string,
-    public detail: string,
+    _title: string,
+    _detail: string,
     public errorId?: string,
     public requestId?: string,
-    public fields: FieldError[] = [],
+    fields: FieldError[] = [],
     public retryAfter?: number,
+    public code?: string,
   ) {
-    super(`${status} ${title}`);
+    super();
+    this.name = 'ApiError';
+    this.serverFields = (Array.isArray(fields) ? fields : []).filter(field=>field && typeof field.name === 'string').map(field=>({name:field.name, code:typeof field.code === 'string'?field.code:undefined, message:''}));
   }
+  get message(): string { return apiErrorText(this.status,this.code); }
+  get title(): string { return apiErrorText(this.status,this.code); }
+  get detail(): string { return apiErrorText(this.status,this.code); }
+  get fields(): FieldError[] { return this.serverFields.map(field=>({...field,message:apiErrorText(422,field.code??'field_invalid')})); }
 }
 
 // Sesi yang berakhir di tengah penggunaan (mis. akun dinonaktifkan): beri tahu aplikasi agar kembali ke login.
@@ -47,6 +56,7 @@ async function request<T>(method: string, path: string, body?: unknown, idempote
       data.request_id as string | undefined,
       (data.fields as FieldError[] | undefined) ?? [],
       data.retry_after_seconds as number | undefined,
+            typeof data.code === "string" ? data.code : undefined,
     );
   }
   return data as T;
@@ -58,5 +68,5 @@ export const api = {
   post: <T>(path: string, body?: unknown) => request<T>('POST', path, body ?? {}),
   put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
-  del: (path: string) => request<void>('DELETE', path),
+  del: <T = void>(path: string, body?: unknown) => request<T>('DELETE', path, body),
 };

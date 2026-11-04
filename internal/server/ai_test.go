@@ -73,7 +73,7 @@ func aiOutput() json.RawMessage {
 func TestAIConsentTenantBudgetAndIdempotency(t *testing.T) {
 	f, org, report, pol := aiFixture(t)
 	base := "/api/v1/organizations/" + org.String() + "/ai"
-	r := f.a.do("GET", base, nil, f.viewer)
+	r := f.a.do("GET", base, nil, f.analyst)
 	var before ai.Policy
 	r.JSON(&before)
 	if r.Status != 200 || before.Enabled || before.HasKeys {
@@ -138,7 +138,7 @@ func TestAIConsentTenantBudgetAndIdempotency(t *testing.T) {
 	if r = f.a.do("POST", "/api/v1/ai/jobs/"+j.ID.String()+"/approve", map[string]int{"version": 3}, f.viewer); r.Status != 403 {
 		t.Fatal("viewer approved active checks")
 	}
-	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.viewer)
+	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.analyst)
 	r.JSON(&j)
 	var count int
 	f.a.env.Owner.QueryRow(context.Background(), `SELECT count(*) FROM executions WHERE atomic_test_id IN(SELECT atomic_test_id FROM ai_job_actions WHERE job_id=$1)`, j.ID).Scan(&count)
@@ -231,7 +231,7 @@ func TestAIRevocationCancellationLeaseAndInvalidOutput(t *testing.T) {
 	if r.Status != 204 {
 		t.Fatal(string(r.Body))
 	}
-	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.viewer)
+	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.analyst)
 	r.JSON(&j)
 	if j.Status != "failed" || strings.Contains(string(r.Body), "curl evil") {
 		t.Fatal("invalid model output persisted")
@@ -244,7 +244,7 @@ func TestAIRevocationCancellationLeaseAndInvalidOutput(t *testing.T) {
 	if r.Status != 204 {
 		t.Fatal("expired paid request retried")
 	}
-	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.viewer)
+	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.analyst)
 	r.JSON(&j)
 	if j.Status != "failed" {
 		t.Fatal("lost worker not recovered")
@@ -339,7 +339,7 @@ func TestAIAdviceWithoutActionsDoesNotClaimChecksWereQueued(t *testing.T) {
 	if r.Status != 204 {
 		t.Fatal(string(r.Body))
 	}
-	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.viewer)
+	r = f.a.do("GET", "/api/v1/ai/jobs/"+j.ID.String(), nil, f.analyst)
 	r.JSON(&j)
 	if j.Status != "completed" {
 		t.Fatal("empty plan incorrectly requests active approval")

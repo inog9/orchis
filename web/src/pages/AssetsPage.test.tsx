@@ -86,7 +86,7 @@ describe('AssetsPage', () => {
       const url = String(input);
       if (url.includes('/auth/me')) return json(me);
       if (init?.method === 'POST')
-        return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).' }] }, 422);
+        return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).', code: 'name_invalid' }] }, 422);
       return json({ items: [], next_cursor: null });
     });
     await userEvent.click(screen.getByRole('button', { name: /create asset/i }));
@@ -104,7 +104,7 @@ describe('AddAssetDialog', () => {
     spy.mockImplementation(async (input, init) => {
       const url = String(input);
       if (url.includes('/auth/me')) return json(me);
-      if (init?.method === 'POST') return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).' }] }, 422);
+      if (init?.method === 'POST') return json({ title: 'Invalid data', status: 422, error_id: 'err_1', fields: [{ name: 'name', message: 'Name is required (max 200 characters).', code: 'name_invalid' }] }, 422);
       return json({ items: [], next_cursor: null });
     });
     await userEvent.click(screen.getByRole('button', { name: /create asset/i }));

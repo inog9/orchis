@@ -124,7 +124,7 @@ func (c *chainFixture) launch(t *testing.T) simJSON {
 
 func (c *chainFixture) sim(t *testing.T, id string) simJSON {
 	t.Helper()
-	r := c.a.do("GET", "/api/v1/simulations/"+id, nil, c.viewer)
+	r := c.a.do("GET", "/api/v1/simulations/"+id, nil, c.analyst)
 	if r.Status != 200 {
 		t.Fatalf("get sim: %d %s", r.Status, r.Body)
 	}
@@ -258,7 +258,7 @@ func TestChainRunsThroughTriggersJoinsAndSkips(t *testing.T) {
 		}
 		Edges []struct{ From, To, Kind string }
 	}
-	r := c.a.do("GET", "/api/v1/simulations/"+sim.ID+"/attack-path", nil, c.viewer)
+	r := c.a.do("GET", "/api/v1/simulations/"+sim.ID+"/attack-path", nil, c.analyst)
 	if r.Status != 200 {
 		t.Fatalf("attack path: %d %s", r.Status, r.Body)
 	}
@@ -563,7 +563,7 @@ func TestScenarioGraphValidationAndLocking(t *testing.T) {
 	var d struct {
 		Steps []struct{ Params json.RawMessage }
 	}
-	c.a.do("GET", "/api/v1/scenarios/"+c.scenario, nil, c.viewer).JSON(&d)
+	c.a.do("GET", "/api/v1/scenarios/"+c.scenario, nil, c.analyst).JSON(&d)
 	if string(d.Steps[0].Params) != `{"profile":"top100","service_detection":false}` {
 		t.Fatalf("params harus kanonik: %s", d.Steps[0].Params)
 	}

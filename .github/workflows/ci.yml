@@ -1,0 +1,51 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install JavaScript dependencies
+        run: |
+          npm --prefix web ci
+          npm --prefix e2e ci
+          npm --prefix deploy/report ci
+
+      - name: Install browsers for E2E and the PDF renderer
+        run: |
+          (cd e2e && npx playwright install --with-deps chromium)
+          ./deploy/report/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Start PostgreSQL, RabbitMQ, Elasticsearch and MinIO
+        run: make dev-up-full
+
+      - name: Build scanner image and fetch pinned artefacts
+        run: |
+          make injector-image
+          make mitre-fetch osquery-fetch
+
+      # Runs vulnerability audits, make check (Go, web, all E2E flows), deploy tests,
+      # alert rule tests and the PDF renderer egress test, on a disposable RabbitMQ vhost.
+      - name: make ci
+        run: make ci

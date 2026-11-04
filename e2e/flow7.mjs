@@ -174,7 +174,7 @@ for (const vp of VIEWPORTS) {
     ['Remove asset confirmation', `/assets/${web.id}`, async()=>{await p.getByRole('button',{name:'Remove asset',exact:true}).click();await p.getByRole('dialog').waitFor();}],
     ['Worker disable confirmation', '/settings/integrations', async()=>{await p.locator('.card').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Disable',exact:true}).click();await p.getByRole('dialog').waitFor();}],
     ['Worker token secret dialog', '/settings/integrations', async()=>{await p.locator('.card').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('dialog').getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('heading',{name:'New token for Nmap',exact:true}).waitFor();}],
-    ['Command palette', '/', async () => { await p.keyboard.press('Control+k'); await p.getByRole('combobox').waitFor(); }],
+    ['Command palette', '/', async () => { await p.keyboard.press('Control+k'); await p.getByRole('combobox', {name: 'Search or jump to'}).waitFor(); }],
   ];
   dialogCount=dialogs.length;
   for (const [label, path, open] of dialogs) {

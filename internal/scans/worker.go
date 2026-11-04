@@ -14,6 +14,7 @@ import (
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
 	"time"
 )
@@ -21,6 +22,12 @@ import (
 // Tick menyimpan reservasi slot dan dispatch atomik; restart tidak menduplikasi pasangan target/tool.
 func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 	return s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+			return err
+		}
+		if err := scancontrol.Enforce(ctx, tx, tenant, scancontrol.Now(s.Now), s.Engine.Advance); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "scan-dispatch:"+tenant.String()); err != nil {
 			return err
 		}
@@ -86,7 +93,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 			}
 		}
 		// Penutupan dan snapshot satu transaksi; renderer boleh gagal/coba ulang tanpa scan baru.
-		rows, err = tx.Query(ctx, `UPDATE assessments a SET status='finished',ended_at=now() WHERE a.tenant_id=$1 AND a.is_scan AND a.status='running' AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=a.tenant_id AND j.assessment_id=a.id AND j.status IN ('waiting','running')) RETURNING id`, tenant)
+		rows, err = tx.Query(ctx, `UPDATE assessments a SET status=CASE WHEN EXISTS(SELECT 1 FROM scan_jobs stopped WHERE stopped.tenant_id=a.tenant_id AND stopped.assessment_id=a.id AND stopped.status='canceled') THEN 'canceled' ELSE 'finished' END,ended_at=now() WHERE a.tenant_id=$1 AND a.is_scan AND a.status='running' AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=a.tenant_id AND j.assessment_id=a.id AND j.status IN ('waiting','running')) RETURNING id`, tenant)
 		if err != nil {
 			return err
 		}
@@ -117,6 +124,9 @@ func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, i
 		return err
 	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var status string
 		err := tx.QueryRow(ctx, `SELECT status FROM assessments WHERE tenant_id=$1 AND id=$2 AND is_scan FOR UPDATE`, p.TenantID, id).Scan(&status)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -150,7 +160,7 @@ func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, i
 	})
 }
 func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
-	rows, err := tx.Query(ctx, `SELECT `+scanCols+` FROM assessments a WHERE tenant_id=$1 AND is_scan AND status<>'running' AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
+	rows, err := tx.Query(ctx, `SELECT `+scanCols+` FROM assessments a WHERE tenant_id=$1 AND is_scan AND status<>'running' AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
 	if err != nil {
 		return err
 	}
@@ -195,7 +205,6 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			return err
 		}
 		index := map[string]int{}
-		seen := map[string]bool{}
 		for _, j := range jobs {
 			group := contract.HostOf(j.target)
 			if j.asset != nil {
@@ -225,6 +234,9 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				}
 				m.Error = reporting.Redact(m.Error, 1000)
 			}
+			if j.status != "finished" {
+				m.Outcome = j.status
+			}
 			x.Methods = append(x.Methods, m)
 			if j.sim != nil {
 				findings, e := jobFindings(ctx, tx, tenant, *j.sim)
@@ -232,14 +244,16 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					return e
 				}
 				for _, f := range findings {
-					if seen[group+f.ID] {
-						continue
-					}
-					seen[group+f.ID] = true
+					f.Coverage = []string{reporting.CoverageKey(m)}
 					x.Findings = append(x.Findings, f)
-					if f.Type == "vulnerability" {
-						snap.BySeverity[f.Severity]++
-					}
+				}
+			}
+		}
+		for i := range snap.Assets {
+			snap.Assets[i].Findings = reporting.MergeFindings(snap.Assets[i].Findings)
+			for _, f := range snap.Assets[i].Findings {
+				if f.Type == "vulnerability" {
+					snap.BySeverity[f.Severity]++
 				}
 			}
 		}

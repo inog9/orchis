@@ -7,6 +7,7 @@ Alurnya sederhana:
 
 Keputusan desain dan batasan dicatat di [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
 Panduan operasi, upgrade, dan backup ada di [docs/OPERASI.md](docs/OPERASI.md).
+Persiapan dan daftar go/no-go pilot ada di [docs/PILOT.md](docs/PILOT.md).
 
 ## Status
 
@@ -72,7 +73,9 @@ sudah dihapus.
 `/scenarios` dan halaman Actions dihapus dari UI; data dan API lama tetap ada. Chains,
 Single tests/Atomic, AI, dan MITRE disembunyikan. Set `ORCHIS_ADVANCED_FEATURES=true` lalu
 restart server untuk membukanya lewat palet perintah (izin API dan consent tetap berlaku).
-Flag ini tidak mengembalikan Scenarios atau Actions.
+Flag ini tidak mengembalikan Scenarios atau Actions. Inti Scenario/Actions tetap dipakai
+Chains/Atomic/Scan. API assessment historis dan tabelnya dipertahankan untuk kompatibilitas;
+lihat [batas penghapusan dan pemakai aktif](docs/FEATURE-COMPATIBILITY.md).
 
 ## Menjalankan (pengembangan)
 
@@ -154,6 +157,11 @@ Lihat [operasi data demo](docs/OPERASI.md#data-demo).
 
 ## Deployment
 
+Instalasi server memakai satu `docker-compose.yaml` di root dan `.env.example`
+(layanan `migrate` berjalan sekali sebelum server). Langkahnya ada di
+[docs/DEPLOY.md](docs/DEPLOY.md). Agent dipasang dengan `install.sh` yang disajikan server di
+`/install.sh` (lihat [docs/PANDUAN.md](docs/PANDUAN.md) atau [docs/USER-GUIDE.md](docs/USER-GUIDE.md)).
+
 Image server, compose terisolasi, HTTPS lokal, renderer internal, backup terenkripsi dengan
 restore, dan metrik Prometheus/Grafana tersedia melalui target `make prod-*` dan
 `deploy/prod/ops.py`. Ikuti [docs/OPERASI.md](docs/OPERASI.md) untuk secret di luar repo,
@@ -195,3 +203,27 @@ python3 e2e/mutation-core.py
 
 `POST /api/v1/organizations/{id}/assessments` (profil `quick|full|web`, header `Idempotency-Key`
 wajib) masih tersedia untuk kompatibilitas. Alur baru memakai `POST /api/v1/scans`.
+
+### Peran pengguna
+
+Admin mengelola izin target, consent dan platform. Analyst mengelola inventaris,
+menjalankan scan pada target yang sudah diotorisasi dan membuat report. Viewer
+hanya membaca findings dan snapshot report. Migrasi peran lama tidak memperluas
+izin secara otomatis; akun yang terlalu sempit dinonaktifkan untuk ditinjau Admin.
+Lihat [kebijakan peran dan pemulihan upgrade](docs/ROLES.md).
+
+
+### Jendela scan dan stop darurat
+
+Admin mengatur jendela mingguan pada organisasi. **Stop all scans** pada detail
+organisasi atau Settings membatalkan antrean dan menghentikan scanner; scan baru
+ditahan sampai **Resume scanning**. Resume tidak mengulang job yang dihentikan.
+Lihat [aturan waktu, API dan pemulihan](docs/SCAN-CONTROLS.md).
+
+Perbandingan hasil Scan dan laporan: [aturan serta format snapshot](docs/SCAN-COMPARISON.md).
+
+Retensi data dan penghapusan organisasi: [docs/RETENTION.md](docs/RETENTION.md).
+
+Kontrol Admin, rollout dan uninstall agent: [docs/AGENT-CONTROLS.md](docs/AGENT-CONTROLS.md).
+
+Notifikasi: lihat [panduan notifikasi](docs/NOTIFICATIONS.md).

@@ -62,6 +62,13 @@ VALUES($1,$2,$3,$4,'quick',$5,$6,'finished',$7,$8,$9,true) ON CONFLICT(id) DO NO
 					{Action: "nmap.tcp_connect", Version: 1, Params: json.RawMessage(`{"profile":"web","service_detection":false}`), Target: "127.0.0.1", Outcome: "success", MITRE: []string{"T1046"}, StartedAt: &begin, EndedAt: &finish},
 					{Action: "nuclei.scan", Version: 1, Params: json.RawMessage(`{"severity":["info","low","medium","high","critical"],"tags":[]}`), Target: "http://127.0.0.1:80", Outcome: "success", MITRE: []string{"T1595.002"}, StartedAt: &begin, EndedAt: &finish},
 				}
+				for i := range entry.Findings {
+					method := entry.Methods[0]
+					if entry.Findings[i].Type == "vulnerability" {
+						method = entry.Methods[1]
+					}
+					entry.Findings[i].Coverage = []string{reporting.CoverageKey(method)}
+				}
 				if ai == 1 {
 					entry.Status = "failed"
 					entry.Methods[1].Outcome = "error"
@@ -102,9 +109,13 @@ VALUES($1,$2,$3,$4,'quick',$5,$6,'finished',$7,$8,$9,true) ON CONFLICT(id) DO NO
 			}
 			snap.Assets = append(snap.Assets, entry)
 		}
+		comparison := reporting.NewComparison(snap)
 		if previous != nil {
-			snap.Comparison = "DEMO / SYNTHETIC: " + reporting.Compare(snap, *previous)
+			comparison.Add(*previous, g.id("org", fmt.Sprint(oi), "report", fmt.Sprint(ri-1)))
 		}
+		details := comparison.Result()
+		snap.ComparisonDetails = &details
+		snap.Comparison = "DEMO / SYNTHETIC: " + details.Summary()
 		raw, err := json.Marshal(snap)
 		if err != nil {
 			return err

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"orchis-go/internal/scancontrol"
 	"sort"
 	"strings"
 	"time"
@@ -113,6 +114,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, scenarioID uuid
 	}
 	simID := ids.New()
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var scName string
 		err := tx.QueryRow(ctx, `SELECT name FROM scenarios WHERE tenant_id=$1 AND id=$2 AND deleted_at IS NULL FOR SHARE`, p.TenantID, scenarioID).Scan(&scName)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -240,6 +244,9 @@ WHERE st.tenant_id=$1 AND st.scenario_id=$2`, p.TenantID, scenarioID)
 						return fail(fmt.Sprintf("Step %s runs on the endpoint, but %s has no agent. Install one from Assets → Agents first.", x.key, t.Name))
 					}
 					continue
+				}
+				if err := scancontrol.CheckAsset(ctx, tx, p.TenantID, t.ID, nil, scancontrol.Now(s.Engine.Now)); err != nil {
+					return err
 				}
 				if _, err := s.Engine.Guard.Target(x.ckey, t.Addrs); err != nil {
 					return fail(fmt.Sprintf("Step %s cannot target %s: %v.", x.key, t.Name, err))
@@ -490,6 +497,9 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*De
 
 func (s *Service) transition(ctx context.Context, p *auth.Principal, id uuid.UUID, from []string, to, action, ip, reqID string, extra func(ctx context.Context, tx pgx.Tx) error) (*Detail, error) {
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var cur string
 		var synthetic bool
 		err := tx.QueryRow(ctx, `SELECT status,is_demo FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, id).Scan(&cur, &synthetic)
@@ -641,6 +651,9 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) (advanced, timedOu
 	}
 	for _, id := range expired {
 		err = s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
+			if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+				return err
+			}
 			var st string
 			if err := tx.QueryRow(ctx, `SELECT status FROM simulations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, tenant, id).Scan(&st); err != nil {
 				return err

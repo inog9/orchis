@@ -9,7 +9,7 @@ import (
 func TestOrganizationReadinessMatchesLaunchScopeAndTenant(t *testing.T) {
 	a, env := setup(t)
 	admin := a.login("admin@a.test")
-	viewer := a.login("viewer@a.test")
+	viewer := a.login("analyst@a.test")
 	o := createOrg(t, a, admin, "readiness")
 	specs := []struct {
 		name       string

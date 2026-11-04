@@ -10,8 +10,8 @@ services:
     security_opt: [no-new-privileges:true]
     command: ['--config.file=/etc/prometheus/prometheus.yml', '--storage.tsdb.path=/prometheus', '--storage.tsdb.retention.time=7d', '--storage.tsdb.retention.size=512MB', '--log.format=json']
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./deploy/prod/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prod/monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
       - ${ORCHIS_STATE}/metrics_token:/run/secrets/metrics_token:ro
       - prometheusdata:/prometheus
     networks: [backend, ai, ops]
@@ -39,8 +39,8 @@ services:
       GF_LOG_CONSOLE_FORMAT: json
     volumes:
       - ${ORCHIS_STATE}/grafana_password:/run/secrets/grafana_password:ro
-      - ./monitoring/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/dashboard.json:/etc/grafana/dashboards/orchis.json:ro
+      - ./deploy/prod/monitoring/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/prod/monitoring/dashboard.json:/etc/grafana/dashboards/orchis.json:ro
       - grafanadata:/var/lib/grafana
     tmpfs: ['/tmp:size=16m,mode=1777']
     ports: ['127.0.0.1:${ORCHIS_GRAFANA_PORT:-3000}:3000']

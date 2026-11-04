@@ -36,6 +36,7 @@ type Principal struct {
 	DisplayName string
 	RoleKey     string
 	Permissions []string
+	UILanguage  string
 }
 
 type Service struct {
@@ -78,13 +79,13 @@ func (s *Service) Login(ctx context.Context, tenant uuid.UUID, email, password, 
 
 		var uid uuid.UUID
 		var hash *string
-		var displayName, roleKey string
+		var displayName, roleKey, language string
 		var perms []string
 		var status string
 		uerr := tx.QueryRow(ctx, `
-SELECT u.id, u.password_hash, u.display_name, u.status, r.key, r.permissions
+SELECT u.id, u.password_hash, u.display_name, u.status, r.key, r.permissions, COALESCE(u.ui_language,'')
 FROM users u JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
-WHERE u.tenant_id=$1 AND u.email=$2 AND u.deleted_at IS NULL AND u.kind='human' AND NOT u.is_demo`, tenant, email).Scan(&uid, &hash, &displayName, &status, &roleKey, &perms)
+WHERE u.tenant_id=$1 AND u.email=$2 AND u.deleted_at IS NULL AND u.kind='human' AND NOT u.is_demo`, tenant, email).Scan(&uid, &hash, &displayName, &status, &roleKey, &perms, &language)
 		found := uerr == nil
 		if uerr != nil && !errors.Is(uerr, pgx.ErrNoRows) {
 			return uerr
@@ -173,7 +174,7 @@ ON CONFLICT (tenant_id, email) DO UPDATE SET failed_attempts=EXCLUDED.failed_att
 			return err
 		}
 		result = &LoginResult{Token: token, Remember: remember, Principal: &Principal{
-			TenantID: tenant, UserID: uid, SessionID: sid, Email: email, DisplayName: displayName, RoleKey: roleKey, Permissions: perms}}
+			TenantID: tenant, UserID: uid, SessionID: sid, Email: email, DisplayName: displayName, RoleKey: roleKey, Permissions: perms, UILanguage: language}}
 		return record("auth.login", "authenticated", &sid)
 	})
 	if err != nil {
@@ -232,14 +233,14 @@ func (s *Service) Authenticate(ctx context.Context, token string) (*Principal, e
 	var lastSeen time.Time
 	err = s.DB.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-SELECT s.id, s.last_seen_at, u.id, u.email::text, u.display_name, r.key, r.permissions
+SELECT s.id, s.last_seen_at, u.id, u.email::text, u.display_name, r.key, r.permissions, COALESCE(u.ui_language,'')
 FROM sessions s
 JOIN users u ON u.tenant_id = s.tenant_id AND u.id = s.user_id
 JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
 WHERE s.tenant_id=$1 AND s.token_hash=$2 AND s.revoked_at IS NULL
   AND s.idle_expires_at > $3 AND s.absolute_expires_at > $3
   AND u.status='active' AND u.deleted_at IS NULL AND NOT u.is_demo`, tenant, hashToken(token), now).
-			Scan(&p.SessionID, &lastSeen, &p.UserID, &p.Email, &p.DisplayName, &p.RoleKey, &p.Permissions)
+			Scan(&p.SessionID, &lastSeen, &p.UserID, &p.Email, &p.DisplayName, &p.RoleKey, &p.Permissions, &p.UILanguage)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, httpx.Unauthorized()
@@ -287,13 +288,13 @@ func (s *Service) AuthenticateToken(ctx context.Context, tenant uuid.UUID, token
 	var lastUsed *time.Time
 	err := s.DB.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `
-SELECT t.id, t.last_used_at, u.id, u.email::text, u.display_name, r.key, r.permissions
+SELECT t.id, t.last_used_at, u.id, u.email::text, u.display_name, r.key, r.permissions, COALESCE(u.ui_language,'')
 FROM api_tokens t
 JOIN users u ON u.tenant_id=t.tenant_id AND u.id=t.user_id
 JOIN roles r ON r.tenant_id=u.tenant_id AND r.id=u.role_id
 WHERE t.tenant_id=$1 AND t.token_hash=$2 AND NOT t.is_demo AND t.revoked_at IS NULL AND (t.expires_at IS NULL OR t.expires_at > $3)
   AND u.status='active' AND u.deleted_at IS NULL AND NOT u.is_demo`, tenant, hashToken(token), now).
-			Scan(&tokenID, &lastUsed, &p.UserID, &p.Email, &p.DisplayName, &p.RoleKey, &p.Permissions)
+			Scan(&tokenID, &lastUsed, &p.UserID, &p.Email, &p.DisplayName, &p.RoleKey, &p.Permissions, &p.UILanguage)
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, httpx.Unauthorized()

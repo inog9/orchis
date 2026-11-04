@@ -55,7 +55,7 @@ func (f *agentFixture) approvedAgent(t *testing.T, host string, keys ...string) 
 	secret, assetID = f.authorizedAgent(t, host)
 	org := f.joinOrg(t, assetID)
 	for _, k := range keys {
-		if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/"+k, map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin); r.Status != 204 {
+		if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/"+k, f.collectionChoice(t, org, k, true), f.admin); r.Status != 204 {
 			t.Fatalf("setujui %s: %d %s", k, r.Status, r.Body)
 		}
 	}
@@ -293,7 +293,7 @@ func TestOsqueryCatalogIsReadableAndDescribesWhatItReads(t *testing.T) {
 			ExampleFindings  []struct{ Rule, Severity, Title string } `json:"example_findings"`
 		}
 	}
-	r := f.a.do("GET", "/api/v1/osquery/catalog", nil, f.viewer)
+	r := f.a.do("GET", "/api/v1/osquery/catalog", nil, f.analyst)
 	if r.Status != 200 {
 		t.Fatalf("katalog: %d %s", r.Status, r.Body)
 	}
@@ -346,7 +346,7 @@ func TestOsqueryUnapprovedQueriesAreSkippedWithReasonAndApprovalIsAdminOnly(t *t
 	}
 	// Persetujuan: hanya admin.
 	put := func(cookie string, enabled bool) int {
-		return f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/osquery.users", map[string]any{"enabled": enabled, "consent": osquery.Consent().ConsentRef}, cookie).Status
+		return f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/osquery.users", f.collectionChoice(t, org, "osquery.users", enabled), cookie).Status
 	}
 	if put(f.analyst, true) != 403 || put(f.viewer, true) != 403 || put("", true) != 401 {
 		t.Fatal("persetujuan hanya untuk admin")
@@ -366,7 +366,7 @@ func TestOsqueryUnapprovedQueriesAreSkippedWithReasonAndApprovalIsAdminOnly(t *t
 			Enabled, Explicit bool
 		}
 	}
-	f.a.do("GET", "/api/v1/organizations/"+org+"/osquery", nil, f.viewer).JSON(&settings)
+	f.a.do("GET", "/api/v1/organizations/"+org+"/osquery", nil, f.analyst).JSON(&settings)
 	byKey := map[string][2]bool{}
 	for _, it := range settings.Items {
 		byKey[it.Key] = [2]bool{it.Enabled, it.Explicit}
@@ -444,7 +444,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 		}
 		Findings []struct{ Value, Query string }
 	}
-	if r := f.a.do("GET", "/api/v1/assets/"+asset+"/endpoint-data", nil, f.viewer); r.Status != 200 {
+	if r := f.a.do("GET", "/api/v1/assets/"+asset+"/endpoint-data", nil, f.analyst); r.Status != 200 {
 		t.Fatalf("data endpoint: %d %s", r.Status, r.Body)
 	} else {
 		r.JSON(&d)
@@ -460,7 +460,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	if r := f.a.do("GET", "/api/v1/assets/"+asset+"/endpoint-data", nil, ""); r.Status != 401 {
 		t.Fatalf("tanpa login: %d", r.Status)
 	}
-	if r := f.a.do("GET", "/api/v1/assets/00000000-0000-0000-0000-000000000000/endpoint-data", nil, f.viewer); r.Status != 404 {
+	if r := f.a.do("GET", "/api/v1/assets/00000000-0000-0000-0000-000000000000/endpoint-data", nil, f.analyst); r.Status != 404 {
 		t.Fatalf("aset tak ada: %d", r.Status)
 	}
 	// Tombol "jalankan sekarang": analyst boleh, viewer tidak, query tak dikenal 404.
@@ -470,7 +470,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	if refresh(f.viewer, "osquery.firewall").Status != 403 || refresh(f.analyst, "osquery.nope").Status != 404 {
 		t.Fatal("izin/validasi refresh")
 	}
-	if approval := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/osquery.firewall", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin); approval.Status != 204 {
+	if approval := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery/osquery.firewall", f.collectionChoice(t, org, "osquery.firewall", true), f.admin); approval.Status != 204 {
 		t.Fatalf("refresh approval: %d %s", approval.Status, approval.Body)
 	}
 	f.agentCall("POST", "heartbeat", map[string]any{"version": "1.0.0", "protocol_version": 1}, secret)
@@ -494,7 +494,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	if n := rowCount(t, f, `SELECT count(*) FROM atomic_tests WHERE target_asset_id=$1`, asset); n != 1 {
 		t.Fatalf("atomic test harus dipakai ulang: %d", n)
 	}
-	f.a.do("GET", "/api/v1/assets/"+asset+"/endpoint-data", nil, f.viewer).JSON(&d)
+	f.a.do("GET", "/api/v1/assets/"+asset+"/endpoint-data", nil, f.analyst).JSON(&d)
 	var fw string
 	for _, it := range d.Items {
 		if it.Key == "osquery.firewall" {
@@ -557,13 +557,13 @@ func TestOsqueryPackIsOptInPerOrganisationAndOnlyRunnableQueriesAreApproved(t *t
 		t.Fatalf("pack belum disetujui harus dilewati: %+v", got)
 	}
 	// Hanya admin (settings.manage) yang dapat menyetujui; query yang dilewati tidak pernah aktif.
-	if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.analyst); r.Status != 403 {
+	if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", f.collectionChoice(t, org, "it-compliance", true), f.analyst); r.Status != 403 {
 		t.Fatalf("analis tidak boleh menyetujui pack: %d", r.Status)
 	}
 	if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/nope", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin); r.Status != 404 {
 		t.Fatalf("pack tidak dikenal: %d", r.Status)
 	}
-	if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", map[string]any{"enabled": true, "consent": osquery.Consent().ConsentRef}, f.admin); r.Status != 204 {
+	if r := f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", f.collectionChoice(t, org, "it-compliance", true), f.admin); r.Status != 204 {
 		t.Fatalf("setujui pack: %d %s", r.Status, r.Body)
 	}
 	if n := rowCount(t, f, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND enabled AND query_key LIKE 'osquery.pack.it_compliance.%'`, org); n < 2 {
@@ -587,7 +587,7 @@ func TestOsqueryPackIsOptInPerOrganisationAndOnlyRunnableQueriesAreApproved(t *t
 		t.Fatalf("kolom di luar skema lolos: %s", rows)
 	}
 	// Mencabut menutup lagi.
-	f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", map[string]any{"enabled": false}, f.admin)
+	f.a.do("PUT", "/api/v1/organizations/"+org+"/osquery-packs/it-compliance", f.collectionChoice(t, org, "it-compliance", false), f.admin)
 	if n := rowCount(t, f, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND enabled`, org); n != 0 {
 		t.Fatalf("pencabutan harus menonaktifkan semua: %d", n)
 	}

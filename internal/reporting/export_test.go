@@ -33,7 +33,7 @@ func TestReportRedactionAndPrintEscaping(t *testing.T) {
 }
 func TestComparisonDoesNotResolveFailedOrChangedCoverage(t *testing.T) {
 	id := uuid.New()
-	old := Snapshot{Profile: "quick", Assets: []Asset{{ID: id, Status: "finished", Methods: []Method{{Action: "nuclei.scan", Version: 1, Target: "http://example.test", Params: []byte(`{}`), Outcome: "success"}}, Findings: []Finding{{ID: "old"}}}}}
+	old := Snapshot{Profile: "quick", Assets: []Asset{{ID: id, Status: "finished", Methods: []Method{{Action: "nuclei.scan", Version: 1, Target: "http://example.test", Params: []byte(`{}`), Outcome: "success"}}, Findings: []Finding{{ID: "old", Type: "vulnerability"}}}}}
 	current := old
 	current.Assets = append([]Asset(nil), old.Assets...)
 	current.Assets[0].Findings = nil

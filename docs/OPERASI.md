@@ -765,3 +765,17 @@ dibekukan, kemudian restore ke17:63 tabel cocok (selain transformasi izin demo
 yang memang diwajibkan), login/API/laporan lama lulus. Salinan sumber lain pada
 skema24 juga lulus24→26 dan restore ke24 dengan66 tabel cocok. Rehearsal memakai
 database disposable pada PostgreSQL dev; tidak memindahkan endpoint produksi.
+
+
+## Retensi dan penghapusan organisasi
+
+Admin mengatur masa simpan di Settings → Data retention. Bawaan findings 180 hari,
+hasil scan 90 hari, laporan PDF/JSON 180 hari, dataset endpoint 30 hari, dan audit
+365 hari (minimum 90). Definisi umur, status pending cleanup, dan langkah typed
+confirmation dijelaskan di [RETENTION.md](RETENTION.md).
+
+**Backup lama tetap berisi data organisasi sampai backup itu kedaluwarsa.**
+Penghapusan dari aplikasi tidak menghapus arsip backup. Operator harus menerapkan
+masa simpan backup tersendiri dan mengulang keputusan penghapusan/pencabutan pada
+hasil restore sebelum membuka akses pengguna. Jangan melaporkan penghapusan
+storage eksternal selesai selama status operasi masih pending.

@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -67,15 +68,16 @@ type program struct {
 }
 
 func (p *program) agent() *agent.Agent {
-	return &agent.Agent{Cfg: p.cfg, ConfigPath: cfgPath(), Version: version, PubKey: pubKey(), Exe: selfPath,
-		Restart: func() {
-			if p.svc != nil && !service.Interactive() {
-				if err := p.svc.Restart(); err == nil {
-					return
-				}
-			}
-			agent.Reexec(selfPath)
-		}}
+	a := &agent.Agent{Cfg: p.cfg, ConfigPath: cfgPath(), Version: version, PubKey: pubKey(), Exe: selfPath,
+		// Unix exec preserves the supervised PID without a blocking self-restart.
+		// Windows exits for the configured SCM recovery policy.
+		Restart: func() { agent.Reexec(selfPath) }}
+
+	if runtime.GOOS != "windows" {
+		a.ServiceManaged = p.svc != nil
+		a.StartUninstall = func() error { return agent.StartUninstallHelper(selfPath, p.cfg) }
+	}
+	return a
 }
 
 func (p *program) Start(s service.Service) error {
@@ -106,6 +108,9 @@ func main() {
 		cmd = os.Args[1]
 	}
 	cfg, cfgErr := agent.LoadConfig(cfgPath())
+	if cfg != nil && !agent.ValidInstanceName(cfg.Name) {
+		log.Fatal("invalid instance name")
+	}
 	prg := &program{cfg: cfg}
 	opt := service.KeyValue{"Restart": "always", "KeepAlive": true, "RunAtLoad": true, "OnFailure": "restart", "OnFailureDelayDuration": "5s"}
 	if cfg != nil && cfg.Mode == "user" {
@@ -122,20 +127,40 @@ func main() {
 	switch cmd {
 	case "version":
 		fmt.Println(version, runtime.GOOS+"/"+runtime.GOARCH)
+	case "remote-uninstall":
+		if cfg == nil || cfg.Uninstall == nil || !agent.ValidInstanceName(cfg.Name) {
+			log.Fatal("invalid uninstall receipt")
+		}
+		if err := prg.remoteUninstall(svc); err != nil {
+			log.Fatal("uninstall did not complete")
+		}
 	case "enroll":
 		fs := flag.NewFlagSet("enroll", flag.ExitOnError)
 		name := fs.String("name", "", "unique agent instance name")
 		server, token := fs.String("server", "", "URL server, mis. https://orchis.example.com"), fs.String("token", "", "token pendaftaran sekali pakai")
+		caFile := fs.String("ca-file", "", "PEM CA berkas untuk server dengan CA HTTPS sendiri")
 		_ = fs.Parse(os.Args[2:])
 		if *server == "" || *token == "" {
 			log.Fatal("--server dan --token wajib diisi")
 		}
+		var hc *http.Client
+		if *caFile != "" {
+			abs, err := filepath.Abs(*caFile)
+			if err != nil {
+				log.Fatal(err)
+			}
+			*caFile = abs
+			if hc, err = agent.NewHTTPClient(abs, 30*time.Second); err != nil {
+				log.Fatalf("CA tidak dapat dipakai: %v", err)
+			}
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 		defer cancel()
-		c, err := agent.EnrollNamed(ctx, *server, *token, version, *name, nil)
+		c, err := agent.EnrollNamed(ctx, *server, *token, version, *name, hc)
 		if err != nil {
 			log.Fatalf("enroll gagal: %v", err)
 		}
+		c.CAFile = *caFile
 		if err := c.Save(cfgPath()); err != nil {
 			log.Fatalf("tidak bisa menyimpan konfigurasi: %v", err)
 		}
@@ -162,4 +187,54 @@ func main() {
 			log.Fatal(err)
 		}
 	}
+}
+
+// Fixed detached helper; no shell or remotely supplied arguments/paths.
+func (p *program) remoteUninstall(svc service.Service) error {
+	lockPath := filepath.Join(filepath.Dir(selfPath), ".orchis-uninstall.lock")
+	unlock, err := agent.AcquireUninstallLock(lockPath)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	receipt := *p.cfg.Uninstall
+	a := p.agent()
+	fail := func(e error) error {
+		p.cfg.Uninstall = nil
+		_ = p.cfg.Save(cfgPath())
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		_ = a.UninstallAck(ctx, receipt, false)
+		if receipt.Managed {
+			_ = svc.Start()
+		}
+		return e
+	}
+	if receipt.Managed {
+		if err = svc.Stop(); err != nil {
+			// Status must prove it is stopped before unregistering. Never ignore a live
+			// service stop error or delete the executable underneath another worker.
+			status, e := svc.Status()
+			if e != nil || status != service.StatusStopped {
+				return fail(err)
+			}
+		}
+		if err = svc.Uninstall(); err != nil {
+			return fail(err)
+		}
+	}
+	if err = a.RemoveOwnedFiles(); err != nil {
+		return fail(err)
+	}
+	for attempt := 0; attempt < 3; attempt++ {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		err = a.UninstallAck(ctx, receipt, true)
+		cancel()
+		if err == nil {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	_ = os.Remove(lockPath)
+	return err
 }

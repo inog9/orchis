@@ -1,15 +1,23 @@
+import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { Link } from 'react-router-dom';
 import { useHome, useMe } from '../api/hooks';
 import { can } from '../api/types';
 import { useReadiness } from './OrganisationSetup';
 import { describeError } from './ErrorNote';
-export function AssessmentReadiness({id}:{id:string}) {
- const q=useReadiness(id);const h=useHome();const {data:me}=useMe();
- const v=q.data;const blocked=v?.items.filter(a=>a.reason)||[];const offline=h.data?.injectors?.filter(i=>i.status!=='online')||[];
- return <section className="prerequisites" aria-labelledby="readiness-title"><h2 id="readiness-title" className="panel__heading">Before you scan</h2><p>Nmap and Nuclei run from scan worker containers, not from endpoint agents. The worker must reach each approved target address.</p>
- {q.isPending&&<p role="status">Checking testing permission and target addresses…</p>}{q.error&&<div role="alert"><p>Could not check readiness: {describeError(q.error).message}</p><button className="link-quiet" onClick={()=>q.refetch()}>Check again</button></div>}
- {v&&<><p><strong>{v.ready} ready to scan / {v.total} assets.</strong> This preview does not run checks. Permission and scope are checked again when scans start.</p>{v.total===0&&<p>No assets yet. Install an agent above, <Link to={`/organizations/${id}?tab=assets&new=1`}>add an asset</Link>, or assign unassigned assets below.</p>}{v.total>1000&&<p>Preview shows the first 1000 assets. The new scan form applies the configured total address limit.</p>}{blocked.length>0&&<details open={v.ready===0}><summary>{blocked.length} assets need attention in this preview</summary><ul>{blocked.slice(0,20).map(a=><li key={a.id}><strong>{a.name}: {a.reason}</strong>{a.authorized?<span>Enter a reachable IP address and web URL on the asset. An address may still be refused by scope policy.</span>:<span>{can(me,'asset.authorize')?'Select this asset below and authorize testing, then set its target addresses.':'Ask an administrator to authorize testing and set its target addresses.'}</span>}<Link to={`/assets/${a.id}`}>Review asset and addresses →</Link></li>)}</ul>{blocked.length>20&&<p>Review the remaining assets in the list below.</p>}</details>}</>}
- {offline.length>0&&<div className="notice"><p><strong>Scan worker unavailable: {offline.map(i=>i.name).join(', ')}.</strong> Checks will wait in the queue; they have not succeeded while waiting.</p>{can(me,'integration.read')?<Link to="/settings/integrations">Check scan workers →</Link>:<p>Ask an administrator to reconnect the scan workers.</p>}</div>}
- {!can(me,'assessment.run')&&<p>Your role can review results. Ask an administrator or analyst to start a scan.</p>}
+export function AssessmentReadiness({ id }: {
+    id: string;
+}) {
+    useLocale();
+    const q = useReadiness(id);
+    const h = useHome();
+    const { data: me } = useMe();
+    const v = q.data;
+    const blocked = v?.items.filter(a => a.reason) || [];
+    const offline = h.data?.injectors?.filter(i => i.status !== 'online') || [];
+    return <section className="prerequisites" aria-labelledby="readiness-title"><h2 id="readiness-title" className="panel__heading">{textUI("m_a4db8b3dc734")}</h2><p>{textUI("m_43a22a06b2c5")}</p>
+ {formatUI(q.isPending && <p role="status">{textUI("m_6470b2b671b5")}</p>)}{formatUI(q.error && <div role="alert"><p>{richUI("m_86020aac288e", [formatUI(describeError(q.error).message)])}</p><button className="link-quiet" onClick={() => q.refetch()}>{textUI("m_fb7099ad8e81")}</button></div>)}
+ {formatUI(v && <><p>{richUI("m_125130956e38", [<strong>{richUI("m_0948f8f37f92", [formatUI(v.ready), formatUI(v.total)])}</strong>])}</p>{formatUI(v.total === 0 && <p>{richUI("m_2f5530eb6440", [<Link to={`/organizations/${id}?tab=assets&new=1`}>{textUI("m_cd72469a0b15")}</Link>])}</p>)}{formatUI(v.total > 1000 && <p>{textUI("m_8b8eded21875")}</p>)}{formatUI(blocked.length > 0 && <details open={v.ready === 0}><summary>{richUI("m_a48db6ac3189", [formatUI(blocked.length)])}</summary><ul>{formatUI(blocked.slice(0, 20).map(a => <li key={a.id}><strong>{formatUI(a.name)}: {formatUI(a.reason)}</strong>{formatUI(a.authorized ? <span>{textUI("m_abb1f09fa621")}</span> : <span>{formatUI(can(me, 'asset.authorize') ? textUI("m_8cf4bd3d02e5") : textUI("m_8c4590d01525"))}</span>)}<Link to={`/assets/${a.id}`}>{textUI("m_068a03233a3b")}</Link></li>))}</ul>{formatUI(blocked.length > 20 && <p>{textUI("m_5c15abb8be89")}</p>)}</details>)}</>)}
+ {formatUI(offline.length > 0 && <div className="notice"><p>{richUI("m_5f695bf84d4a", [<strong>{richUI("m_bb60e1dfc8f7", [formatUI(offline.map(i => i.name).join(', '))])}</strong>])}</p>{formatUI(can(me, 'integration.read') ? <Link to="/settings/integrations">{textUI("m_a95106196bce")}</Link> : <p>{textUI("m_545a0ca386d8")}</p>)}</div>)}
+ {formatUI(!can(me, 'assessment.run') && <p>{textUI("m_9cc6ceaeb689")}</p>)}
  </section>;
 }

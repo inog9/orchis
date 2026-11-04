@@ -1,0 +1,250 @@
+name: ${ORCHIS_PROJECT:-orchis-prod}
+x-app: &app
+  image: orchis-server:${ORCHIS_VERSION:-local}
+  build:
+    context: .
+    dockerfile: deploy/server/Dockerfile
+    args:
+      VERSION: ${ORCHIS_VERSION:-local}
+  user: "10001:10001"
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  tmpfs: ["/tmp:size=32m,mode=1777"]
+  pids_limit: 128
+  mem_limit: 384m
+  cpus: 1.0
+  environment:
+    ORCHIS_ENV_FILE: /run/secrets/app.json
+  networks: [backend]
+
+services:
+  pg:
+    image: postgres:17-alpine@sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: orchis
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    command: [postgres, -c, shared_buffers=128MB, -c, max_connections=80, -c, log_min_duration_statement=1000, -c, log_parameter_max_length=0, -c, log_parameter_max_length_on_error=0]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./deploy/prod/initdb.sh:/docker-entrypoint-initdb.d/10-roles.sh:ro
+      - ${ORCHIS_STATE:?run prod-init}/postgres_password:/run/secrets/postgres_password:ro
+      - ${ORCHIS_STATE}/owner_password:/run/secrets/owner_password:ro
+      - ${ORCHIS_STATE}/app_password:/run/secrets/app_password:ro
+      - ${ORCHIS_STATE}/maintenance_password:/run/secrets/maintenance_password:ro
+    networks: [backend]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres -d orchis]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  mq:
+    image: rabbitmq:4.4-management@sha256:d6e0b463f6b4e1e840da82f28aa117c00b1b6a3009b1f418bd270741de0d8871
+    hostname: mq
+    restart: unless-stopped
+    volumes:
+      - mqdata:/var/lib/rabbitmq
+      - ${ORCHIS_STATE}/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    networks: [backend]
+    mem_limit: 384m
+    cpus: 0.75
+    pids_limit: 256
+    environment:
+      RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS: +S 2:2 +SDcpu 1 +SDio 1 +A 4
+      RABBITMQ_CTL_ERL_ARGS: +S 1:1 +SDcpu 1 +SDio 1 +A 1
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, ping]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.23@sha256:4d0724bb8d78d7a2330693623e26ca4d621079d062ecc8a30b3e1fc180ec14c1
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: -Xms256m -Xmx256m
+    volumes: [esdata:/usr/share/elasticsearch/data]
+    networks: [backend]
+    mem_limit: 768m
+    cpus: 1.0
+    pids_limit: 256
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS http://localhost:9200/_cluster/health?wait_for_status=yellow > /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  minio:
+    image: pgsty/silo@sha256:7bb2aff6b89efe1cb1303c10fc21d579447434ed06649ac9ec05a5e2dbf30ad7
+    restart: unless-stopped
+    command: [server, /data, --console-address, ':9001']
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/s3_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/s3_password
+    volumes:
+      - s3data:/data
+      - ${ORCHIS_STATE}/s3_user:/run/secrets/s3_user:ro
+      - ${ORCHIS_STATE}/s3_password:/run/secrets/s3_password:ro
+    networks: [backend]
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:9000/minio/health/live]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+  migrate:
+    <<: *app
+    command: [migrate]
+    restart: "no"
+    volumes: ["${ORCHIS_STATE}/migrate.json:/run/secrets/app.json:ro"]
+    depends_on:
+      pg: {condition: service_healthy}
+    healthcheck: {disable: true}
+  provision:
+    <<: *app
+    command: [provision]
+    restart: "no"
+    volumes: ["${ORCHIS_STATE}/provision.json:/run/secrets/app.json:ro"]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+    healthcheck: {disable: true}
+  server:
+    <<: *app
+    restart: unless-stopped
+    volumes:
+      - ${ORCHIS_STATE}/server.json:/run/secrets/app.json:ro
+      - ${ORCHIS_STATE}/ai-master.key:/run/secrets/ai-master.key:ro
+      - ${ORCHIS_STATE}/agent-releases:/releases:ro
+      - ${ORCHIS_STATE}/ops-status:/run/ops-status:ro
+    networks: [backend, renderer, proxy]
+    depends_on:
+      provision: {condition: service_completed_successfully}
+      mq: {condition: service_healthy}
+      es: {condition: service_healthy}
+      minio: {condition: service_healthy}
+      renderer: {condition: service_healthy}
+  renderer:
+    image: orchis-renderer:${ORCHIS_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/report/Dockerfile
+    restart: unless-stopped
+    user: "1000:1000"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    shm_size: 128m
+    environment:
+      ORCHIS_RENDERER_TOKEN_FILE: /run/secrets/renderer_token
+    volumes: ["${ORCHIS_STATE}/renderer_token:/run/secrets/renderer_token:ro"]
+    networks: [renderer]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
+  caddy:
+    image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    user: "0:0"
+    cap_add: [NET_BIND_SERVICE]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, --no-check-certificate, https://localhost/api/healthz]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    environment:
+      ORCHIS_SITE: ${ORCHIS_SITE:-localhost}
+    ports: ["${ORCHIS_BIND:-127.0.0.1}:${ORCHIS_HTTPS_PORT:-8443}:443"]
+    volumes:
+      - ./deploy/prod/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    tmpfs: [/tmp:size=16m]
+    networks:
+      edge: {}
+      proxy:
+        ipv4_address: ${ORCHIS_CADDY_IP:?run prod-init}
+    depends_on:
+      server: {condition: service_healthy}
+    mem_limit: 128m
+    cpus: 0.5
+    pids_limit: 128
+  nmap:
+    image: orchis-injector-prod:${ORCHIS_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/prod/injector.Dockerfile
+      args:
+        VERSION: ${ORCHIS_VERSION:-local}
+    command: [--kind, nmap]
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:size=64m,mode=1777"]
+    environment:
+      ORCHIS_ENV_FILE: /run/secrets/app.json
+    volumes: ["${ORCHIS_STATE}/nmap.json:/run/secrets/app.json:ro"]
+    networks: [backend, scan]
+    depends_on:
+      server: {condition: service_healthy}
+    mem_limit: 192m
+    cpus: 0.5
+    pids_limit: 128
+  nuclei:
+    extends: nmap
+    command: [--kind, nuclei]
+    volumes: ["${ORCHIS_STATE}/nuclei.json:/run/secrets/app.json:ro"]
+    mem_limit: 384m
+    cpus: 0.75
+  ai-proxy:
+    <<: *app
+    restart: unless-stopped
+    entrypoint: [/usr/local/bin/ai-proxy]
+    environment: {}
+    networks: [ai, edge]
+    healthcheck: {disable: true}
+    mem_limit: 48m
+  ai-worker:
+    <<: *app
+    restart: unless-stopped
+    entrypoint: [/usr/local/bin/ai-worker]
+    volumes: ["${ORCHIS_STATE}/ai.json:/run/secrets/app.json:ro"]
+    networks: [backend, ai]
+    depends_on:
+      server: {condition: service_healthy}
+      ai-proxy: {condition: service_started}
+    healthcheck: {disable: true}
+    mem_limit: 96m
+networks:
+  proxy:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${ORCHIS_PROXY_SUBNET:?run prod-init}
+          ip_range: ${ORCHIS_PROXY_RANGE:?run prod-init}
+  backend: {internal: true}
+  renderer: {internal: true}
+  ai: {internal: true}
+  scan: {}
+  edge: {}
+volumes:
+  pgdata:
+  mqdata:
+  esdata:
+  s3data:
+  caddydata:
+  caddyconfig:

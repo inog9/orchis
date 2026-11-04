@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"orchis-go/internal/audit"
+	"orchis-go/internal/scancontrol"
 )
 
 // Rekey is an operator-only maintenance operation. API and workers must be
@@ -21,6 +22,9 @@ func (s *Service) Rekey(ctx context.Context, next []byte) (int, error) {
 	}
 	count := 0
 	err := s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, s.Tenant); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "ai-rekey/"+s.Tenant.String()); err != nil {
 			return err
 		}

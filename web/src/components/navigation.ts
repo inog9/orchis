@@ -1,14 +1,50 @@
+import { t as textUI } from "../i18n/runtime";
 import { Building2, FileText, Flag, Server, Settings, ShieldAlert } from 'lucide-react';
 import { can, type User } from '../api/types';
-
 // Menu utama tetap enam area; fitur lanjutan hanya tersedia melalui palet saat diaktifkan server.
 export const navigation = [
-  { id: 'organizations', label: 'Organisations', hint: 'Bring company assets together and review their scans and reports.', to: '/organizations', group: 'Workspace', icon: Building2, keys: 'o', perm: 'organization.read' },
-  { id: 'simulations', label: 'Simulations', hint: 'Start a scan and follow live target and tool results.', to: '/simulations', group: 'Workspace', icon: Flag, keys: 'm', perm: 'simulation.read' },
-  { id: 'findings', label: 'Findings', hint: 'Review vulnerabilities and open ports by organisation.', to: '/findings', group: 'Workspace', icon: ShieldAlert, keys: 'f', perm: 'finding.read' },
-  { id: 'assets', label: 'Assets', hint: 'Add machines, set target addresses and authorize testing.', to: '/assets', group: 'Workspace', icon: Server, keys: 'a', perm: 'asset.read' },
-  { id: 'reports', label: 'Reports', hint: 'Read frozen organisation results and export PDF or JSON.', to: '/reports', group: 'Workspace', icon: FileText, keys: 'r', perm: 'report.read' },
-  { id: 'settings', label: 'Settings', hint: 'Manage access, integrations, scan workers and platform settings.', to: '/settings', group: 'Manage', icon: Settings, perm: '' },
+    { id: 'organizations', get label() {
+            return textUI("m_7bd34abba2ae");
+        }, get hint() {
+            return textUI("m_20b6a4cbbb46");
+        }, to: '/organizations', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: Building2, keys: 'o', perm: 'organization.read' },
+    { id: 'simulations', get label() {
+            return textUI("m_078a864ea0f1");
+        }, get hint() {
+            return textUI("m_8ea1b108f3a2");
+        }, to: '/simulations', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: Flag, keys: 'm', perm: 'simulation.read' },
+    { id: 'findings', get label() {
+            return textUI("m_e171c2ff25b5");
+        }, get hint() {
+            return textUI("m_b751373ae214");
+        }, to: '/findings', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: ShieldAlert, keys: 'f', perm: 'finding.read' },
+    { id: 'assets', get label() {
+            return textUI("m_bd12731d7bc9");
+        }, get hint() {
+            return textUI("m_a331b8f605c4");
+        }, to: '/assets', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: Server, keys: 'a', perm: 'asset.read' },
+    { id: 'reports', get label() {
+            return textUI("m_dacca3cba3f3");
+        }, get hint() {
+            return textUI("m_d62c54575e79");
+        }, to: '/reports', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: FileText, keys: 'r', perm: 'report.read' },
+    { id: 'settings', get label() {
+            return textUI("m_74a883a037bc");
+        }, get hint() {
+            return textUI("m_d3f9e520ee1d");
+        }, to: '/settings', get group() {
+            return textUI("m_5a23444828db");
+        }, icon: Settings, perm: 'settings.manage' },
 ];
 export function advancedEnabled(me: User | null | undefined) { return me?.features?.advanced === true; }
 export function navigationFor(me: User | null | undefined) { return navigation.filter(n => !n.perm || can(me, n.perm)); }

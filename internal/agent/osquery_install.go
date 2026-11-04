@@ -227,7 +227,7 @@ func (a *Agent) osqueryInstaller() *OsqueryInstaller {
 				return nil, "", "", err
 			}
 			req.Header.Set("Authorization", "Bearer "+a.Cfg.Secret)
-			resp, err := (&http.Client{Timeout: 10 * time.Minute}).Do(req)
+			resp, err := clientFor(a.caFile(), 10*time.Minute).Do(req)
 			if err != nil {
 				return nil, "", "", err
 			}
@@ -255,11 +255,16 @@ func (a *Agent) runOsquery(ctx context.Context, key string) ([]osquery.Dataset, 
 	}
 	bin, err := a.osqueryInstaller().Ensure(ctx)
 	if err != nil {
+		a.setDiagnostic("collection_failed")
 		reason := "osquery could not be installed: " + err.Error()
 		return []osquery.Dataset{{Query: key, Status: osquery.StatusFailed, Reason: reason, Rows: []map[string]string{}, CollectedAt: time.Now().UTC()}}, errors.New(reason)
 	}
+	a.mu.Lock()
+	a.osqueryVersion = osquery.Version
+	a.mu.Unlock()
 	ds := (&osquery.Runner{Bin: bin}).Run(ctx, q)
 	if ds.Status == osquery.StatusFailed {
+		a.setDiagnostic("collection_failed")
 		return []osquery.Dataset{*ds}, errors.New(ds.Reason)
 	}
 	return []osquery.Dataset{*ds}, nil

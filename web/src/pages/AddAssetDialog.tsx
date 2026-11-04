@@ -1,3 +1,4 @@
+import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { X } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
@@ -8,166 +9,136 @@ import { Modal } from '../components/Modal';
 import { TagPicker } from '../components/TagPicker';
 import { describeError } from '../components/ErrorNote';
 import { CATEGORIES, categoryOf, inferKind } from './categories';
-
-export function AddAssetDialog({ onClose, organizationID }: { onClose: () => void; organizationID?: string }) {
-  const { data: me } = useMe();
-  const create = useCreateAsset();
-  const [category, setCategory] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [platform, setPlatform] = useState('');
-  const [arch, setArch] = useState('');
-  const [criticality, setCriticality] = useState('medium');
-  const [addresses, setAddresses] = useState('');
-  const [internet, setInternet] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
-  const [tagIds, setTagIds] = useState<string[]>([]);
-
-  const err = create.error;
-  // Galat server milik isian sebelumnya; hilangkan begitu pengguna mengubah sesuatu agar tidak menyesatkan.
-  const touch = () => create.isError && create.reset();
-  const fieldErr = (n: string) => (err instanceof ApiError ? err.fields.find((f) => f.name === n)?.message : undefined);
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    if (!category) return;
-    const lines = addresses.split(/[\n,]+/).map((l) => l.trim()).filter(Boolean);
-    create.mutate(
-      {
-        category,
-        ...(organizationID?{organization_id:organizationID}:{}),
-        name,
-        platform: platform || null,
-        arch: arch || null,
-        criticality,
-        is_internet_facing: internet,
-        testing_authorized: authorized,
-        addresses: lines.map((value) => ({ kind: inferKind(value), value })),
-        tag_ids: tagIds,
-      },
-      { onSuccess: onClose },
-    );
-  };
-
-  const cat = category ? categoryOf(category) : null;
-  return (
-    <Modal labelledBy="add-asset-title" onClose={onClose}>
+export function AddAssetDialog({ onClose, organizationID }: {
+    onClose: () => void;
+    organizationID?: string;
+}) {
+    useLocale();
+    const { data: me } = useMe();
+    const create = useCreateAsset();
+    const [category, setCategory] = useState<string | null>(null);
+    const [name, setName] = useState('');
+    const [platform, setPlatform] = useState('');
+    const [arch, setArch] = useState('');
+    const [criticality, setCriticality] = useState('medium');
+    const [addresses, setAddresses] = useState('');
+    const [internet, setInternet] = useState(false);
+    const [authorized, setAuthorized] = useState(false);
+    const [tagIds, setTagIds] = useState<string[]>([]);
+    const err = create.error;
+    // Galat server milik isian sebelumnya; hilangkan begitu pengguna mengubah sesuatu agar tidak menyesatkan.
+    const touch = () => create.isError && create.reset();
+    const fieldErr = (n: string) => (err instanceof ApiError ? err.fields.find((f) => f.name === n)?.message : undefined);
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        if (!category)
+            return;
+        const lines = addresses.split(/[\n,]+/).map((l) => l.trim()).filter(Boolean);
+        create.mutate({
+            category,
+            ...(organizationID ? { organization_id: organizationID } : {}),
+            name,
+            platform: platform || null,
+            arch: arch || null,
+            criticality,
+            is_internet_facing: internet,
+            testing_authorized: authorized,
+            addresses: lines.map((value) => ({ kind: inferKind(value), value })),
+            tag_ids: tagIds,
+        }, { onSuccess: onClose });
+    };
+    const cat = category ? categoryOf(category) : null;
+    return (<Modal labelledBy="add-asset-title" onClose={onClose}>
       <>
         <header className="dialog__head">
           <div>
-            <h2 id="add-asset-title">{cat ? `New ${cat.label.toLowerCase()}` : 'Create a new asset'}</h2>
-            <ol className="steps" aria-label="Progress">
-              <li className={category ? 'is-done' : 'is-current'}>1 Category</li>
-              <li className={category ? 'is-current' : ''}>2 Details</li>
+            <h2 id="add-asset-title">{formatUI(cat ? textUI("m_483166d9eabb", [cat.label.toLowerCase()]) : textUI("m_06cb0d31b1b7"))}</h2>
+            <ol className="steps" aria-label={textUI("m_4664827f8e89")}>
+              <li className={category ? 'is-done' : 'is-current'}>{textUI("m_c2888b84cba7")}</li>
+              <li className={category ? 'is-current' : ''}>{textUI("m_1a631d591dd7")}</li>
             </ol>
           </div>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-            <X size={18} />
+          <button type="button" className="icon-btn" aria-label={textUI("m_7d9eb7acb13e")} onClick={onClose}>
+            <X size={18}/>
           </button>
         </header>
 
-        {!cat ? (
-          <div className="category-grid">
-            {CATEGORIES.map((c) => {
-              const Icon = c.icon;
-              return (
-                <button key={c.key} type="button" className="category" onClick={() => setCategory(c.key)}>
+        {formatUI(!cat ? (<div className="category-grid">
+            {formatUI(CATEGORIES.map((c) => {
+                const Icon = c.icon;
+                return (<button key={c.key} type="button" className="category" onClick={() => setCategory(c.key)}>
                   <span className="category__icon">
-                    <Icon size={18} />
+                    <Icon size={18}/>
                   </span>
                   <span className="category__text">
-                    <strong>{c.label}</strong>
-                    <span>{c.description}</span>
+                    <strong>{formatUI(c.label)}</strong>
+                    <span>{formatUI(c.description)}</span>
                   </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <form className="dialog__form" onSubmit={submit} noValidate>
-            {err && !(err instanceof ApiError && err.status === 422) && (
-              <div className="alert" role="alert">
-                <strong>We couldn’t create the asset</strong>
+                </button>);
+            }))}
+          </div>) : (<form className="dialog__form" onSubmit={submit} noValidate>
+            {formatUI(err && !(err instanceof ApiError && err.status === 422) && (<div className="alert" role="alert">
+                <strong>{textUI("m_a4b51e19d81d")}</strong>
                 <span>
-                  {describeError(err).message}
-                  {describeError(err).errorId ? ` Error id: ${describeError(err).errorId}` : ''}
+                  {formatUI(describeError(err).message)}
+                  {formatUI(describeError(err).errorId ? textUI("m_488d61c8380b", [describeError(err).errorId]) : '')}
                 </span>
-              </div>
-            )}
-            <Field label="Name" value={name} onChange={(e) => { touch(); setName(e.target.value); }} error={fieldErr('name')} placeholder="srv-db-01" autoFocus />
+              </div>))}
+            <Field label={textUI("m_dcd1d5223f73")} value={name} onChange={(e) => { touch(); setName(e.target.value); }} error={fieldErr('name')} placeholder={textUI("m_368bcf1c9887")} autoFocus/>
             <div className="row">
               <div className="select">
-                <label htmlFor="asset-platform">Platform</label>
+                <label htmlFor="asset-platform">{textUI("m_c78ffe195710")}</label>
                 <select id="asset-platform" value={platform} onChange={(e) => { touch(); setPlatform(e.target.value); }}>
-                  <option value="">Not set</option>
-                  <option value="windows">Windows</option>
-                  <option value="linux">Linux</option>
-                  <option value="macos">macOS</option>
-                  <option value="ios">iOS</option>
-                  <option value="android">Android</option>
-                  <option value="other">Other</option>
+                  <option value="">{textUI("m_4895f73177ab")}</option>
+                  <option value="windows">{textUI("m_d598026a9cbc")}</option>
+                  <option value="linux">{textUI("m_4828e60247c1")}</option>
+                  <option value="macos">{textUI("m_aed6b7aa2a05")}</option>
+                  <option value="ios">{textUI("m_355f5e748485")}</option>
+                  <option value="android">{textUI("m_6d612a86bee4")}</option>
+                  <option value="other">{textUI("m_f97e9da0e3b8")}</option>
                 </select>
               </div>
               <div className="select">
-                <label htmlFor="asset-arch">Architecture</label>
+                <label htmlFor="asset-arch">{textUI("m_cd74053c5481")}</label>
                 <select id="asset-arch" value={arch} onChange={(e) => { touch(); setArch(e.target.value); }}>
-                  <option value="">Not set</option>
-                  <option value="x86_64">x86_64</option>
-                  <option value="arm64">arm64</option>
-                  <option value="other">Other</option>
+                  <option value="">{textUI("m_4895f73177ab")}</option>
+                  <option value="x86_64">{textUI("m_7520b5a1b312")}</option>
+                  <option value="arm64">{textUI("m_f69162950f23")}</option>
+                  <option value="other">{textUI("m_f97e9da0e3b8")}</option>
                 </select>
               </div>
               <div className="select">
-                <label htmlFor="asset-criticality">Criticality</label>
+                <label htmlFor="asset-criticality">{textUI("m_afdc3ea3ef86")}</label>
                 <select id="asset-criticality" value={criticality} onChange={(e) => { touch(); setCriticality(e.target.value); }}>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
+                  <option value="low">{textUI("m_f793de205ead")}</option>
+                  <option value="medium">{textUI("m_8e588cd18774")}</option>
+                  <option value="high">{textUI("m_c4ebc6d4a583")}</option>
+                  <option value="critical">{textUI("m_427dd2969bd1")}</option>
                 </select>
               </div>
             </div>
             <div className="textarea">
-              <label htmlFor="asset-addresses">Addresses</label>
-              <textarea
-                id="asset-addresses"
-                rows={3}
-                value={addresses}
-                onChange={(e) => { touch(); setAddresses(e.target.value); }}
-                placeholder={'10.0.0.5\nsrv-db-01.corp.local'}
-                aria-invalid={!!fieldErr('addresses')}
-                aria-describedby="asset-addresses-hint"
-              />
+              <label htmlFor="asset-addresses">{textUI("m_76179aafc43c")}</label>
+              <textarea id="asset-addresses" rows={3} value={addresses} onChange={(e) => { touch(); setAddresses(e.target.value); }} placeholder={'10.0.0.5\nsrv-db-01.corp.local'} aria-invalid={!!fieldErr('addresses')} aria-describedby="asset-addresses-hint"/>
               <small id="asset-addresses-hint" className={fieldErr('addresses') ? 'is-error' : ''} role={fieldErr('addresses') ? 'alert' : undefined}>
-                {fieldErr('addresses') ?? 'One per line: IP, CIDR, hostname, domain, URL or MAC.'}
+                {formatUI(fieldErr('addresses') ?? textUI("m_d105d1da575a"))}
               </small>
             </div>
-            <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate />
-            <label className="check">
-              <input type="checkbox" checked={internet} onChange={(e) => setInternet(e.target.checked)} />
-              <span className="check__box" aria-hidden="true" />
-              Reachable from the internet
-            </label>
-            {can(me, 'asset.authorize') && (
-              <label className="check">
-                <input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)} />
-                <span className="check__box" aria-hidden="true" />
-                <span>
-                  I confirm this asset may be tested
-                  <small className="check__sub">Only authorized assets can be targeted by scans and simulations.</small>
-                </span>
-              </label>
-            )}
+            <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate/>
+            <label className="check">{richUI("m_7a59eaa2b03d", [<input type="checkbox" checked={internet} onChange={(e) => setInternet(e.target.checked)}/>,
+                <span className="check__box" aria-hidden="true"/>])}</label>
+            {formatUI(can(me, 'asset.authorize') && (<label className="check">
+                <input type="checkbox" checked={authorized} onChange={(e) => setAuthorized(e.target.checked)}/>
+                <span className="check__box" aria-hidden="true"/>
+                <span>{richUI("m_dd8bf02dedb9", [<small className="check__sub">{textUI("m_cc2513acdabd")}</small>])}</span>
+              </label>))}
             <footer className="dialog__foot">
-              <button type="button" className="btn btn--secondary btn--auto" onClick={() => setCategory(null)}>
-                Back
-              </button>
+              <button type="button" className="btn btn--secondary btn--auto" onClick={() => setCategory(null)}>{textUI("m_76900f1bfd16")}</button>
               <button type="submit" className="btn btn--primary btn--auto" disabled={create.isPending}>
-                {create.isPending ? 'Creating…' : 'Create asset'}
+                {formatUI(create.isPending ? textUI("m_c79ed9492e3c") : textUI("m_c863672b457b"))}
               </button>
             </footer>
-          </form>
-        )}
+          </form>))}
       </>
-    </Modal>
-  );
+    </Modal>);
 }

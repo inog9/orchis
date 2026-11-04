@@ -281,7 +281,7 @@ WHERE e.tenant_id=$1 ORDER BY e.created_at DESC LIMIT 5`, t)
 type Handlers struct{ Svc *Service }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/v1/home", auth.Require("", func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+	mux.HandleFunc("GET /api/v1/home", auth.Require(authz.OrganizationRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		s, err := h.Svc.Summary(r.Context(), p)
 		if err != nil {
 			httpx.Write(w, r, err)

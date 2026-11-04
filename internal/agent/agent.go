@@ -29,12 +29,14 @@ import (
 
 // Config disimpan di samping biner (izin 0600). Secret adalah kredensial per agent yang diterbitkan saat pendaftaran.
 type Config struct {
-	Name      string `json:"name,omitempty"`
-	ServerURL string `json:"server_url"`
-	AgentID   string `json:"agent_id"`
-	Secret    string `json:"secret"`
-	Mode      string `json:"mode"`
-	Revoked   bool   `json:"revoked,omitempty"`
+	Name      string            `json:"name,omitempty"`
+	ServerURL string            `json:"server_url"`
+	AgentID   string            `json:"agent_id"`
+	Secret    string            `json:"secret"`
+	Mode      string            `json:"mode"`
+	Revoked   bool              `json:"revoked,omitempty"`
+	Uninstall *UninstallReceipt `json:"uninstall,omitempty"`
+	CAFile    string            `json:"ca_file,omitempty"` // PEM CA of an installation with its own HTTPS CA
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -75,11 +77,14 @@ type Agent struct {
 	HTTP       *http.Client
 	Exe        string // jalur biner yang berjalan, dihitung SEKALI saat proses mulai (lihat catatan spike)
 	// Restart dipanggil setelah update terpasang: service manager menghidupkan ulang, atau proses menjalankan diri lagi.
-	Restart func()
-	Logf    func(format string, a ...any)
+	StartUninstall func() error
+	ServiceManaged bool
+	Restart        func()
+	Logf           func(format string, a ...any)
 
-	mu              sync.Mutex
-	lastUpdateError string
+	mu             sync.Mutex
+	diagnosticCode string
+	osqueryVersion string
 }
 
 func (a *Agent) logf(f string, v ...any) {
@@ -94,7 +99,7 @@ func (a *Agent) client() *http.Client {
 	if a.HTTP != nil {
 		return a.HTTP
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	return clientFor(a.caFile(), 30*time.Second)
 }
 
 func (a *Agent) do(ctx context.Context, method, path string, in any, out any) (int, error) {
@@ -178,8 +183,10 @@ func EnrollNamed(ctx context.Context, server, token, version, name string, hc *h
 }
 
 type heartbeatReply struct {
-	LatestVersion string `json:"latest_version"`
-	PollSeconds   int    `json:"poll_seconds"`
+	LatestVersion string                     `json:"latest_version"`
+	PollSeconds   int                        `json:"poll_seconds"`
+	Paused        bool                       `json:"paused"`
+	Command       *agentproto.ControlCommand `json:"command,omitempty"`
 }
 
 // Run berjalan sampai ctx selesai: detak berkala, ambil tugas, jalankan, laporkan, dan perbarui diri bila ada rilis baru.
@@ -190,18 +197,69 @@ func (a *Agent) Run(ctx context.Context) error {
 		return nil
 	}
 	a.logf("agent %s versi %s (%s/%s) berjalan", a.Cfg.AgentID, a.Version, runtime.GOOS, runtime.GOARCH)
+	if a.Cfg.Uninstall != nil {
+		if a.StartUninstall == nil {
+			return errors.New("pending uninstall requires the supported helper")
+		}
+		return a.StartUninstall()
+	}
+	if inst := a.osqueryInstaller(); inst.installedOK(ctx) {
+		a.osqueryVersion = inst.version()
+	}
+	paused := false
 	poll := 5 * time.Second
 	backoff := time.Second
+	var working chan struct{}
+	var cancelWork context.CancelFunc
+	var pending *agentproto.ControlCommand
+	defer func() {
+		if cancelWork != nil {
+			cancelWork()
+		}
+		if working != nil {
+			<-working
+		}
+	}()
 	var lastBeat time.Time
 	for ctx.Err() == nil {
+		if working != nil {
+			select {
+			case <-working:
+				working = nil
+				cancelWork = nil
+			default:
+			}
+		}
+		if pending != nil {
+			if working != nil {
+				cancelWork()
+				sleep(ctx, poll)
+				continue
+			}
+			if err := a.beginUninstall(ctx, pending); err == nil {
+				return nil
+			} else {
+				a.setDiagnostic("uninstall_failed")
+				a.logf("uninstall helper could not start")
+				pending = nil
+			}
+		}
 		if time.Since(lastBeat) >= 15*time.Second {
 			var r heartbeatReply
 			a.mu.Lock()
-			lue := a.lastUpdateError
+			code := a.diagnosticCode
+			osqueryVersion := a.osqueryVersion
 			a.mu.Unlock()
-			_, err := a.do(ctx, http.MethodPost, "heartbeat", map[string]any{"version": a.Version, "protocol_version": agentproto.ProtocolVersion, "last_update_error": lue}, &r)
+			_, err := a.do(ctx, http.MethodPost, "heartbeat", map[string]any{"version": a.Version, "protocol_version": agentproto.ProtocolVersion, "control_protocol": a.controlProtocol(), "osquery_version": osqueryVersion, "diagnostic_code": code}, &r)
 			switch {
 			case errors.Is(err, ErrRevoked):
+				if cancelWork != nil {
+					cancelWork()
+				}
+				if working != nil {
+					<-working
+					working = nil
+				}
 				return a.revoked(ctx)
 			case err != nil:
 				a.logf("heartbeat gagal: %v", err)
@@ -211,15 +269,21 @@ func (a *Agent) Run(ctx context.Context) error {
 				sleep(ctx, backoff)
 				continue
 			}
+			paused = r.Paused
+			if r.Command != nil {
+				if r.Command.Kind == "uninstall" && r.Command.AgentID == a.Cfg.AgentID {
+					pending = r.Command
+					continue
+				}
+				a.setDiagnostic("uninstall_failed")
+			}
 			backoff, lastBeat = time.Second, time.Now()
 			if r.PollSeconds >= 2 && r.PollSeconds <= 60 {
 				poll = time.Duration(r.PollSeconds) * time.Second
 			}
-			if r.LatestVersion != "" && a.PubKey != nil {
+			if r.LatestVersion != "" && a.PubKey != nil && working == nil {
 				if err := a.selfUpdate(ctx, r.LatestVersion); err != nil {
-					a.mu.Lock()
-					a.lastUpdateError = err.Error()
-					a.mu.Unlock()
+					a.setDiagnostic("update_failed")
 					a.logf("update ditolak: %v", err)
 				} else {
 					a.logf("update ke %s terpasang; memulai ulang", r.LatestVersion)
@@ -228,14 +292,26 @@ func (a *Agent) Run(ctx context.Context) error {
 					}
 					return nil
 				}
-			} else if r.LatestVersion != "" {
+			} else if r.LatestVersion != "" && a.PubKey == nil {
+				a.setDiagnostic("release_key_missing")
 				a.logf("ada rilis %s, tetapi biner ini tidak membawa kunci rilis; update dimatikan", r.LatestVersion)
 			}
+		}
+		if paused || working != nil {
+			sleep(ctx, poll)
+			continue
 		}
 		var spec execution.ClaimSpec
 		code, err := a.do(ctx, http.MethodPost, "executions/claim", nil, &spec)
 		switch {
 		case errors.Is(err, ErrRevoked):
+			if cancelWork != nil {
+				cancelWork()
+			}
+			if working != nil {
+				<-working
+				working = nil
+			}
 			return a.revoked(ctx)
 		case err != nil:
 			a.logf("mengambil tugas gagal: %v", err)
@@ -243,7 +319,12 @@ func (a *Agent) Run(ctx context.Context) error {
 		case code == http.StatusNoContent:
 			sleep(ctx, poll)
 		default:
-			a.execute(ctx, &spec)
+			taskCtx, cancel := context.WithCancel(ctx)
+			cancelWork = cancel
+			working = make(chan struct{})
+			done := working
+			go func() { defer close(done); defer cancel(); a.execute(taskCtx, &spec) }()
+			sleep(ctx, poll)
 		}
 	}
 	return nil
@@ -311,6 +392,9 @@ func (a *Agent) execute(ctx context.Context, spec *execution.ClaimSpec) {
 		}
 	}
 	close(stop)
+	if ctx.Err() != nil {
+		return
+	}
 	res := execution.Result{Findings: findings, Datasets: datasets}
 	code := 0
 	if terr != nil {
@@ -344,7 +428,7 @@ func (a *Agent) selfUpdate(ctx context.Context, want string) error {
 	}
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(a.Cfg.ServerURL, "/")+"/api/v1/agent/download?version="+want, nil)
 	req.Header.Set("Authorization", "Bearer "+a.Cfg.Secret)
-	resp, err := (&http.Client{Timeout: 5 * time.Minute}).Do(req)
+	resp, err := clientFor(a.caFile(), 5*time.Minute).Do(req)
 	if err != nil {
 		return err
 	}
@@ -401,4 +485,11 @@ func (a *Agent) selfUpdate(ctx context.Context, want string) error {
 		return err
 	}
 	return nil
+}
+
+func (a *Agent) controlProtocol() int {
+	if a.StartUninstall != nil {
+		return agentproto.ControlProtocol
+	}
+	return 0
 }

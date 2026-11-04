@@ -35,19 +35,19 @@ func integrations(t *testing.T, a *app, cookie string) map[string]integJSON {
 
 func TestIntegrationsStatusTokenRotationAndEnableSwitch(t *testing.T) {
 	f := newScanFixture(t, true) // token nmap sudah diterbitkan
-	m := integrations(t, f.a, f.viewer)
+	m := integrations(t, f.a, f.analyst)
 	if len(m) != 3 || m["agent"].Kind != "executor" || m["nmap"].Status != "offline" || !m["nmap"].HasToken || m["nuclei"].HasToken {
 		t.Fatalf("keadaan awal: %+v", m)
 	}
 	if r := f.inj("POST", "heartbeat", map[string]any{"version": "1.2.3"}, f.token); r.Status != 200 {
 		t.Fatalf("heartbeat: %d", r.Status)
 	}
-	m = integrations(t, f.a, f.viewer)
+	m = integrations(t, f.a, f.analyst)
 	if m["nmap"].Status != "online" || len(m["nmap"].Logs) != 1 || !contains(m["nmap"].Logs[0].Message, "connected (version 1.2.3)") {
 		t.Fatalf("setelah heartbeat: %+v", m["nmap"])
 	}
 	f.inj("POST", "heartbeat", map[string]any{"version": "1.2.3"}, f.token)
-	if got := integrations(t, f.a, f.viewer)["nmap"]; len(got.Logs) != 1 {
+	if got := integrations(t, f.a, f.analyst)["nmap"]; len(got.Logs) != 1 {
 		t.Fatalf("heartbeat beruntun tidak boleh menggandakan log: %+v", got.Logs)
 	}
 	id := m["nmap"].ID
@@ -82,7 +82,7 @@ func TestIntegrationsStatusTokenRotationAndEnableSwitch(t *testing.T) {
 	if r := f.a.do("PATCH", "/api/v1/integrations/"+id, map[string]any{"enabled": false}, f.admin); r.Status != 204 {
 		t.Fatalf("nonaktifkan: %d", r.Status)
 	}
-	if got := integrations(t, f.a, f.viewer)["nmap"]; got.Status != "disabled" {
+	if got := integrations(t, f.a, f.analyst)["nmap"]; got.Status != "disabled" {
 		t.Fatalf("status: %+v", got)
 	}
 	if r := f.inj("POST", "heartbeat", map[string]any{}, nt.Token); r.Status != 401 {
@@ -98,7 +98,7 @@ func TestIntegrationsStatusTokenRotationAndEnableSwitch(t *testing.T) {
 	if r := f.inj("POST", "heartbeat", map[string]any{}, nt.Token); r.Status != 200 {
 		t.Fatalf("setelah diaktifkan: %d", r.Status)
 	}
-	logs := integrations(t, f.a, f.viewer)["nmap"].Logs
+	logs := integrations(t, f.a, f.analyst)["nmap"].Logs
 	if len(logs) < 3 {
 		t.Fatalf("log harus memuat rotasi, nonaktif, aktif: %+v", logs)
 	}

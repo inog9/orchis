@@ -58,11 +58,11 @@ func TestPeopleAndTeams(t *testing.T) {
 	}
 	// pencarian; wildcard di-escape
 	var l struct{ Items []personJSON }
-	a.do("GET", "/api/v1/people?q=corp.test", nil, viewer).JSON(&l)
+	a.do("GET", "/api/v1/people?q=corp.test", nil, analyst).JSON(&l)
 	if len(l.Items) != 1 || l.Items[0].FirstName != "Ada" {
 		t.Fatalf("cari email: %+v", l)
 	}
-	a.do("GET", "/api/v1/people?q=%25", nil, viewer).JSON(&l)
+	a.do("GET", "/api/v1/people?q=%25", nil, analyst).JSON(&l)
 	if len(l.Items) != 0 {
 		t.Fatalf("%% harus huruf biasa: %+v", l)
 	}
@@ -101,7 +101,7 @@ func TestPeopleAndTeams(t *testing.T) {
 		t.Fatalf("orang tak ada: %d", r.Status)
 	}
 	var one personJSON
-	a.do("GET", "/api/v1/people/"+ada.ID, nil, viewer).JSON(&one)
+	a.do("GET", "/api/v1/people/"+ada.ID, nil, analyst).JSON(&one)
 	if len(one.Teams) != 1 || one.Teams[0].Name != "Blue team" {
 		t.Fatalf("tim milik orang: %+v", one)
 	}
@@ -115,7 +115,7 @@ func TestPeopleAndTeams(t *testing.T) {
 		t.Fatalf("keanggotaan tim orang yang dihapus harus dibersihkan: %d", leftover)
 	}
 	var tl struct{ Items []teamJSON }
-	a.do("GET", "/api/v1/teams", nil, viewer).JSON(&tl)
+	a.do("GET", "/api/v1/teams", nil, analyst).JSON(&tl)
 	if len(tl.Items) != 1 || tl.Items[0].MemberCount != 1 {
 		t.Fatalf("jumlah anggota setelah hapus: %+v", tl)
 	}

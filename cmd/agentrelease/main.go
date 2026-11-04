@@ -98,6 +98,10 @@ func main() {
 	if err := os.MkdirAll(*out, 0o755); err != nil {
 		log.Fatal(err)
 	}
+	// Kunci publik (bukan rahasia) disajikan ke konsol supaya perintah pemasangan memuat --release-key.
+	if err := os.WriteFile(filepath.Join(*out, "release.pub"), []byte(pub+"\n"), 0o644); err != nil {
+		log.Fatal(err)
+	}
 	m := struct {
 		Version string            `json:"version"`
 		Targets map[string]target `json:"targets"`

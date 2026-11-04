@@ -1,7 +1,9 @@
 // E2E Fase 2: detail aset, ubah/hapus, tag, grup dinamis, impor CSV, fokus dialog.
 import { chromium } from 'playwright';
 import { fileURLToPath } from 'node:url';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 const SHOTS = fileURLToPath(new URL('./shots/', import.meta.url));
 mkdirSync(SHOTS, { recursive: true });
 const BASE = process.env.E2E_BASE ?? 'http://127.0.0.1:8090';
@@ -129,7 +131,7 @@ const csv = 'hostname,os,arch,criticality,tags\n' +
   'srv-app-02,Solaris,x86_64,low,\n' +
   'srv-app-01,linux,arm64,low,\n' +
   '10.1.2.3,macos,aarch64,critical,prod\n';
-const f = '/tmp/claude-0/-root/a21defa6-3e55-42d2-8d68-2655b5ff9f8c/scratchpad/e2e-assets.csv';
+const f = join(mkdtempSync(join(tmpdir(), 'orchis-e2e-')), 'e2e-assets.csv');
 writeFileSync(f, csv);
 await dlg.getByLabel(/choose a csv file/i).setInputFiles(f);
 await dlg.getByText('Match your columns').waitFor();

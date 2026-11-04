@@ -79,7 +79,8 @@ try {
   await dlg.getByLabel('Agent instance name (optional)').fill('alpha');
   await dlg.getByRole('button', { name: 'Create install command' }).click();
   const command = await dlg.getByTestId('install-command').innerText();
-  const proc = spawn('bash', ['-c', command], { cwd: dir, detached: true, stdio: 'ignore' });
+  ok(/\/install\.sh/.test(command) && !/(\s-k\b|--insecure)/.test(command), 'perintah memakai /install.sh tanpa mematikan TLS');
+  const proc = spawn('bash', ['-c', `${command} --dir '${join(dir, 'orchis-alpha')}' && cd '${join(dir, 'orchis-alpha')}' && exec ./orchis-agent run`], { cwd: dir, detached: true, stdio: 'ignore', env: { ...process.env, HOME: dir } });
   agents.push(proc);
   await dlg.getByText('Agent connected.', { exact: true }).waitFor({ timeout: 60000 });
   await dlg.getByRole('button', { name: 'Done' }).click();
@@ -103,9 +104,14 @@ try {
   ok(await p.getByText('Not approved for this organisation').count() === 7,'all seven built-in checks show the missing consent');
 
   // Jalankan inventory: agent MEMASANG osquery dari artefak bertanda tangan lalu menjalankannya.
+  const setCollection=async(key,enabled)=>{
+    const choices=await api('GET',`/organizations/${orgID}/osquery`);
+    const version=choices.items.find(i=>i.key===key)?.version??0;
+    return api('PUT',`/organizations/${orgID}/osquery/${key}`,{enabled,version,consent:consentRef});
+  };
   const consentDocument=(await api('GET','/osquery/catalog')).consent;
   const consentRef={version:consentDocument.version,sha256:consentDocument.sha256};
-  await api('PUT',`/organizations/${orgID}/osquery/osquery.inventory`,{enabled:true,consent:consentRef});
+  await setCollection('osquery.inventory',true);
   await p.reload();
   await p.getByRole('button', { name: 'Run System inventory now' }).click();
   const t0 = Date.now();
@@ -145,11 +151,11 @@ try {
   await p.screenshot({ path: SHOTS + 'approve-dialog-1280.png' });
   await dlg.getByRole('button', { name: 'Approve' }).click();
   await usersCard.getByText('Approved by an administrator').waitFor();
-  await api('PUT', `/organizations/${orgID}/osquery/osquery.network`, { enabled: true, consent:consentRef });
+  await setCollection('osquery.network',true);
 
   // Semua query: dijalankan nyata di mesin ini.
   for (const key of ['osquery.users', 'osquery.network', 'osquery.packages', 'osquery.hardening', 'osquery.firewall']) {
-    await api('PUT',`/organizations/${orgID}/osquery/${key}`,{enabled:true,consent:consentRef});
+    await setCollection(key,true);
     await api('POST', `/assets/${asset.id}/endpoint-data/refresh`, { query_key: key });
     d = await wait(async () => { const x = await endpoint(asset.id); const s = item(x, key).status; return s === 'ok' || s === 'failed' ? x : null; }, 120000, key);
   }
@@ -210,7 +216,11 @@ try {
   ok(await dlg.getByText('mounts', { exact: true }).isVisible(), 'dialog pack menampilkan tabel yang akan dibaca');
   ok((await dlg.getByRole('region',{name:'Collection document'}).textContent()).includes(consentRef.version),'dialog pack menampilkan versi dokumen');
   await axe('consent pack');
+  const packSaved=p.waitForResponse(r=>r.request().method()==='PUT'&&r.url().endsWith(`/organizations/${orgID}/osquery-packs/it-compliance`));
   await dlg.getByRole('button', { name: 'Approve pack' }).click();
+  const packResponse=await packSaved;
+  ok(packResponse.status()===204,'pack approval API accepts versions of every Linux/POSIX runnable query');
+  if(packResponse.status()!==204)throw new Error('pack approval: '+packResponse.status()+' '+await packResponse.text());
   await packCard.getByText('Approved by an administrator').waitFor();
   const approvals=(await api('GET',`/organizations/${orgID}/osquery`)).items.filter(i=>i.key.startsWith('osquery.pack.it_compliance.'));
   ok(approvals.every(i=>i.consent_version===consentRef.version && i.consent_sha256===consentRef.sha256 && i.consented_by && i.consented_at),'API merekam versi/hash, pemberi persetujuan dan waktu setiap query pack');
@@ -222,12 +232,12 @@ try {
   ok(item(d, 'osquery.pack.vuln_management.os_version').status === 'never', 'pack lain tetap tidak aktif');
 
   // Mencabut persetujuan: query itu keluar dari laporan BARU dan dilewati lagi.
-  await api('PUT', `/organizations/${orgID}/osquery/osquery.network`, { enabled: false });
+  await setCollection('osquery.network',false);
   await api('POST', `/assets/${asset.id}/endpoint-data/refresh`, { query_key: 'osquery.network' });
   d = await wait(async () => { const x = await endpoint(asset.id); return item(x, 'osquery.network').status === 'skipped' ? x : null; }, 60000, 'network dilewati lagi');
   ok(item(d, 'osquery.network').rows.length > 0 && item(d, 'osquery.network').reason === 'not approved for this organisation', 'dicabut: dilewati lagi, data baik terakhir tetap tersimpan');
   const findingsBefore=(await api('GET','/findings')).items.map(f=>f.id).sort();
-  for(const i of (await endpoint(asset.id)).items.filter(i=>i.enabled))await api('PUT',`/organizations/${orgID}/osquery/${i.key}`,{enabled:false});
+  for(const i of (await endpoint(asset.id)).items.filter(i=>i.enabled))await setCollection(i.key,false);
   await p.goto(BASE+`/assets/${asset.id}`);
   await p.getByRole('button',{name:'Delete collected data',exact:true}).click();
   dlg=p.getByRole('dialog',{name:'Delete collected endpoint data?'});

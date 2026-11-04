@@ -36,7 +36,7 @@ describe('AgentsPage', () => {
     expect(within(t).getByText('Online')).toBeInTheDocument();
     expect(within(t).getByText('Offline')).toBeInTheDocument();
     expect(within(t).getByText('Revoked')).toBeInTheDocument();
-    expect(within(t).getByText(/update pending/)).toBeInTheDocument();
+    expect(within(t).getByText(/release available/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /install agent|revoke/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Agents' })).toHaveAttribute('aria-current', 'page');
   });
@@ -71,7 +71,7 @@ describe('AgentsPage', () => {
   }, 15000);
   it('server tanpa rilis menjelaskan sebabnya, dan alamat yang tidak valid tidak bisa dikirim', async () => {
     route(admin, (u, init) => {
-      if (u.endsWith('/agents/enrollment-tokens') && init?.method === 'POST') return problem(409, { detail: 'This server has no agent release to install.' });
+      if (u.endsWith('/agents/enrollment-tokens') && init?.method === 'POST') return problem(409, { detail: 'This server has no agent release to install.', code: 'release_unavailable' });
       if (u.endsWith('/agents')) return json({ items: [] });
     });
     const user = userEvent.setup();
@@ -90,7 +90,7 @@ describe('AgentsPage', () => {
   });
   it('mencabut meminta konfirmasi dan menampilkan galat server', async () => {
     const f = route(admin, (u, init) => {
-      if (u.includes('/agents/g1/revoke') && init?.method === 'POST') return problem(409, { detail: 'This agent is already revoked.' });
+      if (u.includes('/agents/g1/revoke') && init?.method === 'POST') return problem(409, { detail: 'This agent is already revoked.', code: 'agent_revoked' });
       if (u.endsWith('/agents')) return json({ items: [agent()] });
     });
     const user = userEvent.setup();

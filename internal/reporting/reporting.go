@@ -10,11 +10,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"log/slog"
+	"orchis-go/internal/alerts"
 	"orchis-go/internal/audit"
 	"orchis-go/internal/db"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/osquery"
+	"orchis-go/internal/scancontrol"
 	"os/exec"
 	"sort"
 	"strings"
@@ -50,6 +52,7 @@ func EstimatedTechniques(f Finding) []FindingTechnique {
 }
 
 type Finding struct {
+	Coverage []string           `json:"coverage,omitempty"`
 	MITRE    []FindingTechnique `json:"mitre,omitempty"`
 	ID       string             `json:"id"`
 	Type     string             `json:"type"`
@@ -88,21 +91,24 @@ type Asset struct {
 	Methods    []Method         `json:"methods"`
 }
 type Snapshot struct {
-	SchemaVersion   string           `json:"schema_version,omitempty"`
-	ScanID          *uuid.UUID       `json:"scan_id,omitempty"`
-	EndpointSummary *EndpointSummary `json:"endpoint_summary,omitempty"`
-	IsDemo          bool             `json:"is_demo,omitempty"`
-	Label           string           `json:"label,omitempty"`
-	Organization    string           `json:"organization"`
-	AssessmentID    uuid.UUID        `json:"assessment_id"`
-	Profile         string           `json:"profile"`
-	CreatedAt       time.Time        `json:"created_at"`
-	Status          string           `json:"status"`
-	Risk            string           `json:"risk"`
-	BySeverity      map[string]int   `json:"by_severity"`
-	Assets          []Asset          `json:"assets"`
-	Remediation     string           `json:"remediation"`
-	Comparison      string           `json:"comparison"`
+	Language          string           `json:"language,omitempty"`
+	FindingsEpoch     int64            `json:"findings_epoch,omitempty"`
+	ComparisonDetails *Comparison      `json:"comparison_details,omitempty"`
+	SchemaVersion     string           `json:"schema_version,omitempty"`
+	ScanID            *uuid.UUID       `json:"scan_id,omitempty"`
+	EndpointSummary   *EndpointSummary `json:"endpoint_summary,omitempty"`
+	IsDemo            bool             `json:"is_demo,omitempty"`
+	Label             string           `json:"label,omitempty"`
+	Organization      string           `json:"organization"`
+	AssessmentID      uuid.UUID        `json:"assessment_id"`
+	Profile           string           `json:"profile"`
+	CreatedAt         time.Time        `json:"created_at"`
+	Status            string           `json:"status"`
+	Risk              string           `json:"risk"`
+	BySeverity        map[string]int   `json:"by_severity"`
+	Assets            []Asset          `json:"assets"`
+	Remediation       string           `json:"remediation"`
+	Comparison        string           `json:"comparison"`
 }
 type Report struct {
 	ID             uuid.UUID `json:"id"`
@@ -117,7 +123,10 @@ type Report struct {
 
 // Freeze selalu dalam transaksi yang sama: satu laporan per assessment, termasuk seluruh aset yang dilewati.
 func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
-	rows, err := tx.Query(ctx, `SELECT a.id,a.organization_id,a.name,a.profile,a.status,a.created_at FROM assessments a WHERE a.tenant_id=$1 AND a.status<>'running' AND NOT a.is_scan AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY a.id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
+	if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+		return err
+	}
+	rows, err := tx.Query(ctx, `SELECT a.id,a.organization_id,a.name,a.profile,a.status,a.created_at,a.report_language FROM assessments a WHERE a.tenant_id=$1 AND a.status<>'running' AND NOT a.is_scan AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL AND NOT EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.assessment_id=a.id) ORDER BY a.id LIMIT 10 FOR UPDATE OF a SKIP LOCKED`, tenant)
 	if err != nil {
 		return err
 	}
@@ -128,7 +137,7 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 	list := []pending{}
 	for rows.Next() {
 		var p pending
-		if err = rows.Scan(&p.id, &p.org, &p.snap.Organization, &p.snap.Profile, &p.snap.Status, &p.snap.CreatedAt); err != nil {
+		if err = rows.Scan(&p.id, &p.org, &p.snap.Organization, &p.snap.Profile, &p.snap.Status, &p.snap.CreatedAt, &p.snap.Language); err != nil {
 			rows.Close()
 			return err
 		}
@@ -175,14 +184,16 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			a.Methods = []Method{}
 			a.Findings = []Finding{}
 			if x.sim != nil {
-				mr, e := tx.Query(ctx, `SELECT c.key,e.contract_version,e.params,e.target_address,COALESCE(e.outcome,''),COALESCE(e.error,''),e.started_at,e.ended_at,ARRAY(SELECT ct.technique_id FROM contract_techniques ct WHERE ct.tenant_id=e.tenant_id AND ct.contract_id=e.contract_id ORDER BY ct.technique_id) FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id WHERE e.tenant_id=$1 AND e.simulation_id=$2 ORDER BY e.created_at,e.id`, tenant, *x.sim)
+				producers := map[uuid.UUID]string{}
+				mr, e := tx.Query(ctx, `SELECT e.id,c.key,e.contract_version,e.params,e.target_address,COALESCE(e.outcome,''),COALESCE(e.error,''),e.started_at,e.ended_at,ARRAY(SELECT ct.technique_id FROM contract_techniques ct WHERE ct.tenant_id=e.tenant_id AND ct.contract_id=e.contract_id ORDER BY ct.technique_id) FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id WHERE e.tenant_id=$1 AND e.simulation_id=$2 ORDER BY e.created_at,e.id`, tenant, *x.sim)
 				if e != nil {
 					return e
 				}
 				success := true
 				for mr.Next() {
 					var m Method
-					if e = mr.Scan(&m.Action, &m.Version, &m.Params, &m.Target, &m.Outcome, &m.Error, &m.StartedAt, &m.EndedAt, &m.MITRE); e != nil {
+					var executionID uuid.UUID
+					if e = mr.Scan(&executionID, &m.Action, &m.Version, &m.Params, &m.Target, &m.Outcome, &m.Error, &m.StartedAt, &m.EndedAt, &m.MITRE); e != nil {
 						mr.Close()
 						return e
 					}
@@ -192,6 +203,7 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 						success = false
 					}
 					a.Methods = append(a.Methods, m)
+					producers[executionID] = CoverageKey(m)
 				}
 				mr.Close()
 				if e = mr.Err(); e != nil {
@@ -200,14 +212,15 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				if !success {
 					a.Status = "incomplete"
 				}
-				fr, e := tx.Query(ctx, `SELECT DISTINCT ON(f.id) f.id,COALESCE(o.finding_snapshot->>'type',f.type),COALESCE(o.finding_snapshot->>'value',f.value),COALESCE(o.finding_snapshot->>'title',f.title),COALESCE(o.finding_snapshot->>'severity',f.severity),o.details FROM finding_occurrences o JOIN findings f ON f.tenant_id=o.tenant_id AND f.id=o.finding_id WHERE o.tenant_id=$1 AND o.simulation_id=$2 ORDER BY f.id,o.seen_at DESC`, tenant, *x.sim)
+				fr, e := tx.Query(ctx, `SELECT o.execution_id,f.id,COALESCE(o.finding_snapshot->>'type',f.type),COALESCE(o.finding_snapshot->>'value',f.value),COALESCE(o.finding_snapshot->>'title',f.title),COALESCE(o.finding_snapshot->>'severity',f.severity),o.details FROM finding_occurrences o JOIN findings f ON f.tenant_id=o.tenant_id AND f.id=o.finding_id WHERE o.tenant_id=$1 AND o.simulation_id=$2 ORDER BY f.id,o.seen_at DESC,o.execution_id`, tenant, *x.sim)
 				if e != nil {
 					return e
 				}
 				for fr.Next() {
 					var f Finding
+					var executionID uuid.UUID
 					var details map[string]any
-					if e = fr.Scan(&f.ID, &f.Type, &f.Value, &f.Title, &f.Severity, &details); e != nil {
+					if e = fr.Scan(&executionID, &f.ID, &f.Type, &f.Value, &f.Title, &f.Severity, &details); e != nil {
 						fr.Close()
 						return e
 					}
@@ -215,14 +228,18 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					f.Title = Redact(f.Title, 500)
 					f.Evidence = SafeEvidence(details)
 					f.MITRE = EstimatedTechniques(f)
+					f.Coverage = []string{producers[executionID]}
 					a.Findings = append(a.Findings, f)
-					if f.Type == "vulnerability" {
-						snap.BySeverity[f.Severity]++
-					}
 				}
 				fr.Close()
 				if e = fr.Err(); e != nil {
 					return e
+				}
+			}
+			a.Findings = MergeFindings(a.Findings)
+			for _, f := range a.Findings {
+				if f.Type == "vulnerability" {
+					snap.BySeverity[f.Severity]++
 				}
 			}
 			ranks := map[string]int{"critical": 4, "high": 3, "medium": 2, "low": 1, "info": 0}
@@ -240,17 +257,8 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 		}
 		snap.EndpointSummary = summarizeEndpoint(snap.Assets)
 		snap.Risk = exposureRisk(snap)
-		var previous []byte
-		e = tx.QueryRow(ctx, `SELECT r.snapshot FROM reports r JOIN assessments a ON a.tenant_id=r.tenant_id AND a.id=r.assessment_id WHERE r.tenant_id=$1 AND r.organization_id=$2 AND a.profile=$3 AND a.created_at<$4 ORDER BY a.created_at DESC,a.id DESC LIMIT 1`, tenant, p.org, snap.Profile, snap.CreatedAt).Scan(&previous)
-		if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+		if e = freezeComparison(ctx, tx, tenant, p.org, &snap, false); e != nil {
 			return e
-		}
-		if e == nil {
-			var old Snapshot
-			if e = json.Unmarshal(previous, &old); e != nil {
-				return e
-			}
-			snap.Comparison = Compare(snap, old)
 		}
 		snap.Organization = Redact(snap.Organization, 200)
 		data, e := json.Marshal(snap)
@@ -280,11 +288,34 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if e := s.Freeze(ctx, tx, tenant); e != nil {
 			return e
 		}
-		if _, e := tx.Exec(ctx, `UPDATE reports SET status='failed',error='The renderer repeatedly stopped before completion.',lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND status='rendering' AND lease_until<now() AND attempts>=3`, tenant); e != nil {
+		rows, e := tx.Query(ctx, `UPDATE reports SET status='failed',error='The renderer repeatedly stopped before completion.',lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND status='rendering' AND lease_until<now() AND attempts>=3 RETURNING id,attempts`, tenant)
+		if e != nil {
 			return e
 		}
+		type expired struct {
+			id      uuid.UUID
+			attempt int
+		}
+		expiredReports := []expired{}
+		for rows.Next() {
+			var x expired
+			if e = rows.Scan(&x.id, &x.attempt); e != nil {
+				rows.Close()
+				return e
+			}
+			expiredReports = append(expiredReports, x)
+		}
+		rows.Close()
+		if e = rows.Err(); e != nil {
+			return e
+		}
+		for _, x := range expiredReports {
+			if e = alerts.ReportEvent(ctx, tx, tenant, x.id, "failed", x.attempt); e != nil {
+				return e
+			}
+		}
 		var data []byte
-		e := tx.QueryRow(ctx, `UPDATE reports SET status='rendering',attempts=attempts+1,lease_until=now()+interval '2 minutes',updated_at=now() WHERE tenant_id=$1 AND id=(SELECT id FROM reports WHERE tenant_id=$1 AND attempts<3 AND (status='queued' OR (status='rendering' AND lease_until<now())) ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id,snapshot,attempts`, tenant).Scan(&id, &data, &attempt)
+		e = tx.QueryRow(ctx, `UPDATE reports SET status='rendering',attempts=attempts+1,lease_until=now()+interval '2 minutes',updated_at=now() WHERE tenant_id=$1 AND id=(SELECT id FROM reports WHERE tenant_id=$1 AND attempts<3 AND (status='queued' OR (status='rendering' AND lease_until<now())) ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED) RETURNING id,snapshot,attempts`, tenant).Scan(&id, &data, &attempt)
 		if errors.Is(e, pgx.ErrNoRows) {
 			return nil
 		}
@@ -317,8 +348,14 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		slog.Error("render laporan gagal", "report", id, "err", err)
 	}
 	return s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
-		_, e := tx.Exec(ctx, `UPDATE reports SET status=$3,pdf_key=$4,error=$5,lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='rendering' AND attempts=$6`, tenant, id, status, key, msg, attempt)
-		return e
+		tag, e := tx.Exec(ctx, `UPDATE reports SET status=$3,pdf_key=$4,error=$5,lease_until=NULL,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND status='rendering' AND attempts=$6`, tenant, id, status, key, msg, attempt)
+		if e != nil {
+			return e
+		}
+		if tag.RowsAffected() == 0 {
+			return nil
+		}
+		return alerts.ReportEvent(ctx, tx, tenant, id, status, attempt)
 	})
 }
 func (s *Service) render(ctx context.Context, html []byte) ([]byte, error) {

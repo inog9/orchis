@@ -58,7 +58,7 @@ func TestAdvancedGraphMapsPerAssetAndDryRunDoesNotExecute(t *testing.T) {
 	}
 	var before, after int
 	c.a.env.Owner.QueryRow(context.Background(), `SELECT count(*) FROM executions WHERE simulation_id=$1`, sim.ID).Scan(&before)
-	r = c.a.do("POST", "/api/v1/simulations/"+sim.ID+"/dry-run", nil, c.viewer)
+	r = c.a.do("POST", "/api/v1/simulations/"+sim.ID+"/dry-run", nil, c.analyst)
 	if r.Status != 200 {
 		t.Fatalf("dry run %d %s", r.Status, r.Body)
 	}

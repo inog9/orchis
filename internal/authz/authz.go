@@ -62,8 +62,8 @@ func concat(parts ...[]string) []string {
 // SystemRoles = peran bawaan; disinkronkan dari kode setiap kali server naik.
 var SystemRoles = []Role{
 	{Key: "admin", Name: "Admin", Description: "Full access, including users, integrations, agents and settings.", Permissions: concat(readPerms, analystExtra, adminExtra)},
-	{Key: "analyst", Name: "Analyst", Description: "Can create and run; cannot delete or manage the platform.", Permissions: concat(readPerms, analystExtra)},
-	{Key: "viewer", Name: "Viewer", Description: "Read-only.", Permissions: concat(readPerms)},
+	{Key: "analyst", Name: "Analyst", Description: "Manage assets, run authorized scans and generate reports; cannot authorize targets or consent.", Permissions: concat(readPerms, analystExtra)},
+	{Key: "viewer", Name: "Viewer", Description: "Read findings and frozen reports only.", Permissions: []string{FindingRead, ReportRead}},
 }
 
 func Has(perms []string, want string) bool {

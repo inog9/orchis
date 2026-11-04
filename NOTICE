@@ -6,7 +6,21 @@ Copyright (c) 2025 ProjectDiscovery, Inc. MIT License.
 Source: https://github.com/projectdiscovery/nuclei-templates/tree/v10.5.1
 The complete upstream LICENSE.md is retained alongside templates in the image.
 Pinned archive hashes and directory manifest: deploy/prod/scanner-manifest.json.
-Other image packages retain their upstream license notices in their distributions.
+The Nuclei engine v3.11.1 is separately MIT licensed, Copyright (c) 2025
+ProjectDiscovery, Inc. Full texts: docs/licenses/nuclei.LICENSE and
+docs/licenses/nuclei-templates.LICENSE.
+Source: https://github.com/projectdiscovery/nuclei/blob/v3.11.1/LICENSE.md
+
+The scanner also contains Debian nmap 7.93+dfsg1-1, Copyright 1996-2017
+Insecure.Com LLC (The Nmap Project), under its nmap-GPL-2 terms (GPL version 2
+with Nmap-specific terms and exceptions), not an unmodified GPL-2 license.
+The exact Debian copyright file and component notices are reproduced in
+docs/licenses/nmap-debian.copyright; its referenced GPL-2 text is in
+docs/licenses/GPL-2. Package notices remain in /usr/share/doc in the image.
+Source: https://sources.debian.org/src/nmap/7.93%2Bdfsg1-1/debian/copyright/
+This inventory does not relicense bundled third-party tools or establish that
+all distribution obligations have been fulfilled. Distribution packaging and
+source availability remain part of the clean-repository release review.
 
 Backup encryption uses filippo.io/age v1.3.2 and filippo.io/hpke v0.4.0, under
 BSD-3-Clause licenses. Complete notices: docs/licenses/age.LICENSE and
@@ -17,6 +31,9 @@ osquery
 -------
 Orchis agents can install and run osquery (https://osquery.io), release 5.24.0, from a pinned and signed artifact.
 osquery is dual-licensed under Apache-2.0 OR GPL-2.0-only; Orchis uses it under Apache-2.0.
+Full upstream selection notice: docs/licenses/osquery.LICENSE; the selected
+Apache text: docs/licenses/osquery-Apache-2.0.LICENSE.
+Source: https://github.com/osquery/osquery/tree/5.24.0
 Copyright (c) osquery contributors. osquery is a trademark of The Linux Foundation. Third-party components bundled in the
 osquery release carry their own licences; see the upstream release for details.
 
@@ -28,11 +45,35 @@ ATT&CK Terms of Use (https://attack.mitre.org/resources/terms-of-use/).
 The complete accompanying license and disclaimers are reproduced in docs/licenses/mitre.LICENSE (and /licenses in the server image).
 Source: https://github.com/mitre-attack/attack-stix-data/blob/master/LICENSE.txt
 
-Report layout provenance (simplification, 2026-11-01):
-The organisation report uses an original Orchis print template and the existing
-Orchis dot/wordmark and bronze palette. Cover/summary/results section concepts
-were reviewed in the locally supplied OpenAEV reporting render directory and
-PlaywrightReportingRenderer.java. The inspected files had no Apache licence
-header establishing permission for copying. No OpenAEV/Filigran source code,
-artwork, logo, fonts or brand colours were copied. Existing third-party notices
-above remain applicable to the components they describe.
+Report layout adaptation (2026-11-03)
+-------------------------------------
+Copyright (c) 2021-2026 Filigran SAS. Apache License, Version 2.0.
+The organisation report layout is adapted from the supplied OpenAEV CE source
+snapshot ee696b2b24c5de09cd1c7df035c2fd1ad9df5148, specifically:
+  openaev-front/src/admin/components/reporting/render/ReportingRenderPage.tsx
+  openaev-front/src/admin/components/reporting/render/ReportingRenderTheme.tsx
+  openaev-front/src/admin/components/reporting/render/modules/CoverModule.tsx
+  openaev-front/src/admin/components/reporting/render/modules/ModuleSection.tsx
+  openaev-front/src/admin/components/reporting/render/modules/ExecutiveSummaryModule.tsx
+  openaev-front/src/admin/components/reporting/render/modules/FindingsModule.tsx
+The supplied root LICENSE assigns files without an overriding license header to
+Community Edition under Apache-2.0. Each referenced file was checked for an
+Enterprise license header before adaptation. Full Apache terms and copyright:
+docs/licenses/openaev-Apache-2.0.LICENSE.
+Upstream license policy: https://github.com/OpenAEV-Platform/openaev/blob/main/LICENSE
+Modifications: standalone Go snapshot HTML, Orchis branding and palette, embedded
+local fonts, exposure/coverage metrics, bounded evidence, internal contents links,
+and pagination with the existing offline Chromium worker and numbered footer.
+No OpenAEV/Filigran logo or trademark is shown in the rendered report.
+This replaces the original Orchis-only layout used during simplification; the
+previous absence-of-header-only licensing assessment was incomplete because the
+root LICENSE default had not been considered.
+
+Geologica and IBM Plex Sans fonts
+--------------------------------
+The report embeds unmodified Latin WOFF2 font assets supplied by Google Fonts.
+Both are distributed under the SIL Open Font License, Version 1.1; complete
+copyright notices/terms: docs/licenses/geologica.OFL.txt and
+docs/licenses/ibmplexsans.OFL.txt. Original URLs, hashes, sizes and pinned license
+source revision: internal/reporting/fonts/manifest.json. Fonts require no network
+access at report render time.

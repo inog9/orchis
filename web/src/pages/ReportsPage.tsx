@@ -1,3 +1,6 @@
+import {displayLabel} from '../i18n/display';
+import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
+import { ScanComparison, type Comparison } from '../components/ScanComparison';
 import { OrganizationFilter } from '../components/OrganizationFilter';
 import { advancedEnabled } from '../components/navigation';
 import { useState } from 'react';
@@ -7,18 +10,130 @@ import { api } from '../api/client';
 import { useMe } from '../api/hooks';
 import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
-type Posture = { collected_at: string; source: string; osquery_version?: string; attributes: Record<string, unknown>; findings: { severity: string; title: string; query: string }[]; ports?: { both: number[]; scan_only: number[]; host_only: number[]; note: string } };
-type Finding = { id: string; type: string; value: string; title: string; severity: string; evidence: Record<string, unknown>; mitre?: { id: string; name: string; basis: string; reason: string }[] };
-type Snapshot = { scan_id?:string; organization: string; profile: string; status: string; risk: string; by_severity: Record<string, number>; comparison: string; remediation: string; endpoint_summary?: { assets_total: number; assets_with_data: number; by_severity: Record<string, number> }; assets: { id: string; name: string; status: string; skip_reason: string; endpoint?: Posture; findings: Finding[]; methods: { mitre?: string[]; action: string; version: number; target: string; outcome: string; error: string }[] }[] };
-type Report = { id: string; organization_id: string; assessment_id: string; status: string; error: string; version: number; created_at: string; snapshot: Snapshot };
-export function ReportsPage({organizationID,organizationName}:{organizationID?:string;organizationName?:string}={}) {
- const [params,setParams]=useSearchParams();const [cursor,setCursor]=useState('');const org=organizationID??params.get('org')??params.get('organization_id')??'';const filters=new URLSearchParams();if(org)filters.set('organization_id',org);if(!organizationID&&params.get('assessment_id'))filters.set('assessment_id',params.get('assessment_id')!);const filter=filters.toString();const Heading=organizationID?'h2':'h1';
- const q=useQuery({queryKey:['reports',filter,cursor],queryFn:()=>api.get<{items:Report[];next_cursor:string|null}>(`/api/v1/reports?${filter}&cursor=${encodeURIComponent(cursor)}`),refetchInterval:3000});
- return <section className="page"><div className="page__head"><div><p className="eyebrow">ORGANISATION REPORTS</p><Heading className="page__title">Reports</Heading><p className="page__sub">Frozen organisation results, ready to review as PDF or JSON.</p></div></div><OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={value=>{const next=new URLSearchParams(params);next.delete('organization_id');next.delete('assessment_id');if(value)next.set('org',value);else next.delete('org');setParams(next);setCursor('');}}/>{q.error&&<p role="alert">{describeError(q.error).message}</p>}{q.isPending&&<p role="status">Loading reports…</p>}<div className="org-grid">{q.data?.items.map(r=><article key={r.id} className="org-card"><p className="eyebrow">{r.snapshot.profile} · v{r.version}</p><h2><Link to={`/reports/${r.id}`}>{r.snapshot.organization}</Link></h2><p>{r.snapshot.risk}</p><p className="muted">{new Date(r.created_at).toLocaleString()} · PDF {r.status}</p></article>)}</div>{q.data?.items.length===0&&<div className="state"><h2>No reports yet</h2><p>Reports are created when an organisation scan finishes. Running scans may take several minutes.</p><Link to="/organizations">Open organisations</Link></div>}<div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={()=>setCursor('')}>First page</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={()=>setCursor(q.data!.next_cursor!)}>Older reports</button></div></section>;
+type Posture = {
+    collected_at: string;
+    source: string;
+    osquery_version?: string;
+    attributes: Record<string, unknown>;
+    findings: {
+        severity: string;
+        title: string;
+        query: string;
+    }[];
+    ports?: {
+        both: number[];
+        scan_only: number[];
+        host_only: number[];
+        note: string;
+    };
+};
+type Finding = {
+    id: string;
+    type: string;
+    value: string;
+    title: string;
+    severity: string;
+    evidence: Record<string, unknown>;
+    mitre?: {
+        id: string;
+        name: string;
+        basis: string;
+        reason: string;
+    }[];
+};
+type Snapshot = {
+    is_demo?: boolean;
+    label?: string;
+    comparison_details?: Comparison;
+    scan_id?: string;
+    organization: string;
+    profile: string;
+    status: string;
+    risk: string;
+    by_severity: Record<string, number>;
+    comparison: string;
+    remediation: string;
+    endpoint_summary?: {
+        assets_total: number;
+        assets_with_data: number;
+        by_severity: Record<string, number>;
+    };
+    assets: {
+        id: string;
+        name: string;
+        status: string;
+        skip_reason: string;
+        endpoint?: Posture;
+        findings: Finding[];
+        methods: {
+            mitre?: string[];
+            action: string;
+            version: number;
+            target: string;
+            outcome: string;
+            error: string;
+        }[];
+    }[];
+};
+type Report = {
+    id: string;
+    organization_id: string;
+    assessment_id: string;
+    status: string;
+    error: string;
+    version: number;
+    created_at: string;
+    snapshot: Snapshot;
+};
+export function ReportsPage({ organizationID, organizationName }: {
+    organizationID?: string;
+    organizationName?: string;
+} = {}) {
+    useLocale();
+    const { data: me } = useMe();
+    const [params, setParams] = useSearchParams();
+    const [cursor, setCursor] = useState('');
+    const org = organizationID ?? params.get('org') ?? params.get('organization_id') ?? '';
+    const filters = new URLSearchParams();
+    if (org)
+        filters.set('organization_id', org);
+    if (!organizationID && params.get('assessment_id'))
+        filters.set('assessment_id', params.get('assessment_id')!);
+    const filter = filters.toString();
+    const Heading = organizationID ? 'h2' : 'h1';
+    const q = useQuery({ queryKey: ['reports', filter, cursor], queryFn: () => api.get<{
+            items: Report[];
+            next_cursor: string | null;
+        }>(`/api/v1/reports?${filter}&cursor=${encodeURIComponent(cursor)}`), refetchInterval: 3000 });
+    return <section className="page"><div className="page__head"><div><p className="eyebrow">{textUI("m_3de3ebca8ffb")}</p><Heading className="page__title">{textUI("m_dacca3cba3f3")}</Heading><p className="page__sub">{textUI("m_3d289a285283")}</p></div></div>{formatUI(can(me, 'organization.read') && <OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={value => {
+                const next = new URLSearchParams(params);
+                next.delete('organization_id');
+                next.delete('assessment_id');
+                if (value)
+                    next.set('org', value);
+                else
+                    next.delete('org');
+                setParams(next);
+                setCursor('');
+            }}/>)}{formatUI(q.error && <p role="alert">{formatUI(describeError(q.error).message)}</p>)}{formatUI(q.isPending && <p role="status">{textUI("m_4ef739f597a4")}</p>)}<div className="org-grid">{formatUI(q.data?.items.map(r => <article key={r.id} className="org-card"><p className="eyebrow">{richUI("m_4c31e6bba070", [formatUI(displayLabel(r.snapshot.profile)), formatUI(r.version)])}</p><h2><Link to={`/reports/${r.id}`}>{formatUI(r.snapshot.organization)}</Link></h2><p>{formatUI(displayLabel(r.snapshot.risk))}</p><p className="muted">{richUI("m_e23eeba33c9a", [formatUI(new Date(r.created_at).toLocaleString(locale())), formatUI(displayLabel(r.status))])}</p></article>))}</div>{formatUI(q.data?.items.length === 0 && <div className="state"><h2>{textUI("m_c142ec36ff6e")}</h2><p>{textUI("m_62a1665b61e6")}</p>{formatUI(can(me, 'organization.read') && <Link to="/organizations">{textUI("m_d78c44ecc1be")}</Link>)}</div>)}<div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_0bdbb750609c")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_8b99e4a0a612")}</button></div></section>;
 }
-export function ReportDetailPage(){
- const {id=''}=useParams();const {data:me}=useMe();const q=useQuery({queryKey:['report',id],queryFn:()=>api.get<Report>(`/api/v1/reports/${id}`),refetchInterval:query=>query.state.data?.status==='ready'?false:3000});
- const retry=useMutation({mutationFn:()=>api.post(`/api/v1/reports/${id}/retry`),onSuccess:()=>q.refetch()});
- if(q.isPending)return <p role="status">Loading report…</p>;if(!q.data)return <p role="alert">{describeError(q.error).message}</p>;const r=q.data;const s=r.snapshot;const skipped=s.assets.filter(a=>a.status==='skipped'||!!a.skip_reason).length;const tested=s.assets.filter(a=>a.status==='finished'&&!a.skip_reason&&a.methods.length>0&&a.methods.every(m=>m.outcome==='success')).length;const incomplete=s.assets.length-skipped-tested;
- return <section className="page"><Link to="/reports">← Reports</Link><div className="page__head"><div><p className="eyebrow">{s.scan_id?'FROZEN SCAN':'FROZEN ASSESSMENT'} · VERSION {r.version}</p><h1 className="page__title">{s.organization}</h1><p className="page__sub">{new Date(r.created_at).toLocaleString()} · {s.profile}</p></div><div className="row">{['pdf','json'].map(format=><a className="btn btn--secondary btn--auto" key={format} href={`/api/v1/reports/${id}/export/${format}`} download aria-disabled={format==='pdf'&&r.status!=='ready'} onClick={e=>{if(format==='pdf'&&r.status!=='ready')e.preventDefault();}}>Download {format.toUpperCase()}</a>)}</div></div>{r.status!=='ready'&&<div className="notice" role="status"><p>PDF: {r.status}. {r.error} Your assessment snapshot is saved. JSON remains available; retrying PDF generation does not repeat scans.</p>{r.status==='failed'&&can(me,'report.generate')&&<button className="btn btn--secondary btn--auto" disabled={retry.isPending} onClick={()=>retry.mutate()}>Retry PDF generation</button>}</div>}{retry.error&&<p role="alert">{describeError(retry.error).message}</p>}<article className="org-card"><p className="eyebrow">EXECUTIVE SUMMARY</p><h2>{s.risk}</h2><p>{s.assets.length} assets in scope · {tested} fully tested · {skipped} skipped · {incomplete} incomplete</p><p>Exposure reflects observed vulnerabilities. Failed or skipped checks do not establish that an asset is safe.</p><h3>Vulnerabilities by severity</h3><div className="severity-strip">{['critical','high','medium','low','info'].map(severity=><p key={severity}><strong>{s.by_severity[severity]??0}</strong> {severity}</p>)}</div>{s.endpoint_summary&&<section aria-label="Endpoint posture"><h2>Endpoint posture</h2><p>{s.endpoint_summary.assets_with_data} of {s.endpoint_summary.assets_total} assets reported data from inside the machine (agent and osquery). A scan only sees a machine from outside.</p><p className="muted small">On narrow screens, scroll the table horizontally to review endpoint findings and ports.</p><div className="ed-scroll" role="region" aria-label="Endpoint posture by asset" tabIndex={0}><table className="org-table ed-report"><thead><tr><th>Asset</th><th>System</th><th>Endpoint findings</th><th>Ports: outside vs inside</th></tr></thead><tbody>{s.assets.filter(a=>a.endpoint).map(a=>{const e=a.endpoint!;const at=e.attributes;return <tr key={a.id}><td>{a.name}</td><td>{String(at.os_name??'')} {String(at.os_version??'')}{at.kernel?`, kernel ${String(at.kernel)}`:''}</td><td>{e.findings.length===0?'None':<ul className="stack-list">{e.findings.slice(0,8).map((f,i)=><li key={i}>{`${f.severity}: ${f.title}`}</li>)}{e.findings.length>8&&<li className="muted small">{`and ${e.findings.length-8} more (see the asset’s Endpoint data)`}</li>}</ul>}</td><td>{e.ports?`Both: ${e.ports.both.join(', ')||'none'}. Scan only: ${e.ports.scan_only.join(', ')||'none'}. Inside only: ${e.ports.host_only.join(', ')||'none'}.`:'No port data'}</td></tr>;})}</tbody></table></div><p className="muted small">Differences between the scan and the inside view are expected (firewalls, NAT, proxies, a limited scan profile). They are a prompt to check, not proof of a problem.</p></section>}<p>{s.comparison}</p><div className="report-relations"><Link to={`/organizations/${r.organization_id}`}>View organisation</Link><Link to={s.scan_id?`/simulations/${s.scan_id}`:`/assessments/${r.assessment_id}`}>{s.scan_id?'Scan results':'Assessment execution details'}</Link></div></article>{r.status==='ready'&&<p><a href={`/api/v1/reports/${id}/export/pdf?preview=1`} target="_blank" rel="noreferrer">Open PDF preview</a></p>}<h2>Assets and findings</h2>{s.assets.map(a=><article className="org-card" key={a.id}><h2>{a.name}</h2><p>{a.status}{a.skip_reason ? ` · ${a.skip_reason}` : ''}</p>{a.methods.some(m=>m.outcome!=='success')&&<div className="notice" role="status"><p>Some checks did not complete. This asset cannot establish resolved findings.</p><ul>{a.methods.filter(m=>m.outcome!=='success').map((m,i)=><li key={i}>{m.action}: {m.error||m.outcome||'Not completed'}</li>)}</ul></div>}{a.findings.map(f=><section className="org-card" key={f.id}><p className="eyebrow">{f.severity} · {f.type}</p><h3>{f.title}</h3><p className="mono">{f.value}</p>{(f.mitre ?? []).map((t)=><p key={t.id} className="muted small">MITRE ATT&amp;CK ({t.basis}): {t.id} {t.name}. {t.reason}</p>)}{Object.entries(f.evidence ?? {}).map(([key,value])=><p key={key}><strong>{key}:</strong> {String(value)}</p>)}</section>)}{a.findings.length===0&&<p>No findings recorded for this coverage.</p>}{a.methods.length>0&&<details><summary>Methodology and execution</summary>{a.methods.map((m,i)=><p key={i}>{m.action} v{m.version} · {m.target} · {m.outcome} · {m.error}{m.mitre?.length ? ` · MITRE ATT&CK: ${m.mitre.join(', ')}` : ''}</p>)}</details>}</article>)}<article className="org-card"><h2>Remediation</h2><p>{s.remediation}</p>{advancedEnabled(me)&&can(me,'ai.read')&&<Link to={`/organizations/${r.organization_id}/ai`}>Review AI advice or request a separate advisory supplement →</Link>}</article></section>;
+export function ReportDetailPage() {
+    useLocale();
+    const { id = '' } = useParams();
+    const { data: me } = useMe();
+    const q = useQuery({ queryKey: ['report', id], queryFn: () => api.get<Report>(`/api/v1/reports/${id}`), refetchInterval: query => query.state.data?.status === 'ready' ? false : 3000 });
+    const retry = useMutation({ mutationFn: () => api.post(`/api/v1/reports/${id}/retry`), onSuccess: () => q.refetch() });
+    if (q.isPending)
+        return <p role="status">{textUI("m_3b475fd2f1e9")}</p>;
+    if (!q.data)
+        return <p role="alert">{formatUI(describeError(q.error).message)}</p>;
+    const r = q.data;
+    const s = r.snapshot;
+    const skipped = s.assets.filter(a => a.status === 'skipped' || !!a.skip_reason).length;
+    const tested = s.assets.filter(a => a.status === 'finished' && !a.skip_reason && a.methods.length > 0 && a.methods.every(m => m.outcome === 'success')).length;
+    const incomplete = s.assets.length - skipped - tested;
+    return <section className="page"><Link to="/reports">{textUI("m_c912bea5a73c")}</Link><div className="page__head"><div><p className="eyebrow">{richUI("m_a8a0511b45e0", [formatUI(s.scan_id ? textUI("m_0fe8524d1d55") : textUI("m_e1cf71e6c627")), formatUI(r.version)])}</p><h1 className="page__title">{formatUI(s.organization)}</h1><p className="page__sub">{formatUI(new Date(r.created_at).toLocaleString(locale()))} · {formatUI(displayLabel(s.profile))}</p></div><div className="row">{formatUI(['pdf', 'json'].map(format => <a className="btn btn--secondary btn--auto" key={format} href={`/api/v1/reports/${id}/export/${format}`} download aria-disabled={format === 'pdf' && r.status !== 'ready'} onClick={e => {
+                if (format === 'pdf' && r.status !== 'ready')
+                    e.preventDefault();
+            }}>{richUI("m_465e0e809a40", [formatUI(format.toUpperCase())])}</a>))}</div></div>{formatUI(s.is_demo && <div className="notice" role="status">{formatUI(s.label || 'DEMO / SYNTHETIC DATA - not a real assessment.')}</div>)}{formatUI(r.status !== 'ready' && <div className="notice" role="status"><p>{richUI("m_43e72fde1467", [formatUI(displayLabel(r.status)), formatUI(r.error)])}</p>{formatUI(r.status === 'failed' && can(me, 'report.generate') && <button className="btn btn--secondary btn--auto" disabled={retry.isPending} onClick={() => retry.mutate()}>{textUI("m_2cdede71ecc0")}</button>)}</div>)}{formatUI(retry.error && <p role="alert">{formatUI(describeError(retry.error).message)}</p>)}<article className="org-card"><p className="eyebrow">{textUI("m_dbb54f6b8942")}</p><h2>{formatUI(displayLabel(s.risk))}</h2><p>{richUI("m_eb8d9e1bbe4c", [formatUI(s.assets.length), formatUI(tested), formatUI(skipped), formatUI(incomplete)])}</p><p>{textUI("m_12ae8050bc3e")}</p><h3>{textUI("m_22fe13ca6a2a")}</h3><div className="severity-strip">{formatUI(['critical', 'high', 'medium', 'low', 'info'].map(severity => <p key={severity}><strong>{formatUI(s.by_severity[severity] ?? 0)}</strong> {formatUI(displayLabel(severity))}</p>))}</div>{formatUI(s.endpoint_summary && <section aria-label={textUI("m_28c9aeab86c9")}><h2>{textUI("m_28c9aeab86c9")}</h2><p>{richUI("m_b692f52058c0", [formatUI(s.endpoint_summary.assets_with_data), formatUI(s.endpoint_summary.assets_total)])}</p><p className="muted small">{textUI("m_c0897afc8d4f")}</p><div className="ed-scroll" role="region" aria-label={textUI("m_d7800ca39df8")} tabIndex={0}><table className="org-table ed-report"><thead><tr><th>{textUI("m_80d298c9f240")}</th><th>{textUI("m_6725e7bbcd28")}</th><th>{textUI("m_7f7ecd155f4a")}</th><th>{textUI("m_c2584dfa6903")}</th></tr></thead><tbody>{formatUI(s.assets.filter(a => a.endpoint).map(a => { const e = a.endpoint!; const at = e.attributes; return <tr key={a.id}><td>{formatUI(a.name)}</td><td>{formatUI(String(at.os_name ?? ''))} {formatUI(String(at.os_version ?? ''))}{formatUI(at.kernel ? `, kernel ${String(at.kernel)}` : '')}</td><td>{formatUI(e.findings.length === 0 ? textUI("m_dc937b598926") : <ul className="stack-list">{formatUI(e.findings.slice(0, 8).map((f, i) => <li key={i}>{formatUI(`${displayLabel(f.severity)}: ${f.title}`)}</li>))}{formatUI(e.findings.length > 8 && <li className="muted small">{formatUI(textUI("m_cca2a7065289", [e.findings.length - 8]))}</li>)}</ul>)}</td><td>{formatUI(e.ports ? textUI("m_3bca60964638", [e.ports.both.join(', ') || 'none', e.ports.scan_only.join(', ') || 'none', e.ports.host_only.join(', ') || 'none']) : textUI("m_c7bcc01273bc"))}</td></tr>; }))}</tbody></table></div><p className="muted small">{textUI("m_303b527be639")}</p></section>)}{(locale() === 'en-US' || !s.comparison_details) && <p>{formatUI(displayLabel(s.comparison))}</p>}<ScanComparison comparison={s.comparison_details}/><div className="report-relations">{formatUI(can(me, 'organization.read') && <Link to={`/organizations/${r.organization_id}`}>{textUI("m_81acc0a4d1ff")}</Link>)}{formatUI(can(me, s.scan_id ? 'simulation.read' : 'assessment.read') && <Link to={s.scan_id ? `/simulations/${s.scan_id}` : `/assessments/${r.assessment_id}`}>{formatUI(s.scan_id ? textUI("m_b5e09d8b7d1e") : textUI("m_7cb1f270ab5b"))}</Link>)}</div></article>{formatUI(r.status === 'ready' && <p><a href={`/api/v1/reports/${id}/export/pdf?preview=1`} target="_blank" rel="noreferrer">{textUI("m_995032218e76")}</a></p>)}<h2>{textUI("m_36fb48e6a063")}</h2>{formatUI(s.assets.map(a => <article className="org-card" key={a.id}><h2>{formatUI(a.name)}</h2><p>{formatUI(displayLabel(a.status))}{formatUI(a.skip_reason ? ` · ${a.skip_reason}` : '')}</p>{formatUI(a.methods.some(m => m.outcome !== 'success') && <div className="notice" role="status"><p>{textUI("m_3f3e8a4c4961")}</p><ul>{formatUI(a.methods.filter(m => m.outcome !== 'success').map((m, i) => <li key={i}>{formatUI(m.action)}: {formatUI(m.error || m.outcome || textUI("m_0192502471c4"))}</li>))}</ul></div>)}{formatUI(a.findings.map(f => <section className="org-card" key={f.id}><p className="eyebrow">{formatUI(displayLabel(f.severity))} · {formatUI(displayLabel(f.type))}</p><h3>{formatUI(f.title)}</h3><p className="mono">{formatUI(f.value)}</p>{formatUI((f.mitre ?? []).map((t) => <p key={t.id} className="muted small">{richUI("m_446d40d8d310", [formatUI(t.basis), formatUI(t.id), formatUI(t.name), formatUI(t.reason)])}</p>))}{formatUI(Object.entries(f.evidence ?? {}).map(([key, value]) => <p key={key}><strong>{formatUI(key)}:</strong> {formatUI(String(value))}</p>))}</section>))}{formatUI(a.findings.length === 0 && <p>{textUI("m_12686d00c818")}</p>)}{formatUI(a.methods.length > 0 && <details><summary>{textUI("m_c9d16df2aa67")}</summary>{formatUI(a.methods.map((m, i) => <p key={i}>{richUI("m_2be959524133", [formatUI(m.action), formatUI(m.version), formatUI(m.target), formatUI(displayLabel(m.outcome)), formatUI(m.error), formatUI(m.mitre?.length ? ` · MITRE ATT&CK: ${m.mitre.join(', ')}` : '')])}</p>))}</details>)}</article>))}<article className="org-card"><h2>{textUI("m_5a0ee3452091")}</h2><p>{formatUI(displayLabel(s.remediation))}</p>{formatUI(advancedEnabled(me) && can(me, 'ai.read') && <Link to={`/organizations/${r.organization_id}/ai`}>{textUI("m_9f7b9389a0d3")}</Link>)}</article></section>;
 }

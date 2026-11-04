@@ -53,7 +53,7 @@ describe('UsersPanel', () => {
       if (u.endsWith('/roles')) return json(roles);
       if (u.endsWith('/users') && init?.method === 'POST') {
         posts++;
-        return posts === 1 ? problem(422, { fields: [{ name: 'email', message: 'An account with this email already exists.' }] })
+        return posts === 1 ? problem(422, { fields: [{ name: 'email', message: 'An account with this email already exists.', code: 'account_email_exists' }] })
           : json({ user: urow({ display_name: 'New Person' }), reset_link: { token: 'orl_secret123', expires_at: '2026-10-29T10:30:00Z' } }, 201);
       }
       if (u.endsWith('/users')) return json({ items: [] });
@@ -78,7 +78,7 @@ describe('UsersPanel', () => {
   it('mengubah akun mengirim versi yang dimuat; menolak ubah diri sendiri dari server ditampilkan', async () => {
     const f = route(admin, (u, init) => {
       if (u.endsWith('/roles')) return json(roles);
-      if (u.includes('/users/x1') && init?.method === 'PATCH') return problem(422, { fields: [{ name: 'role', message: 'You can’t change your own role or status. Ask another administrator.' }] });
+      if (u.includes('/users/x1') && init?.method === 'PATCH') return problem(422, { fields: [{ name: 'role', message: 'You can’t change your own role or status. Ask another administrator.', code: 'own_role_change' }] });
       if (u.endsWith('/users')) return json({ items: [urow({ version: 4 })] });
     });
     const user = userEvent.setup();
@@ -109,7 +109,7 @@ describe('ResetPage and ForgotPage', () => {
     let tries = 0;
     const f = route(admin, (u, init) => {
       if (u.includes('/auth/reset/check')) return new Response(null, { status: 204 });
-      if (u.endsWith('/auth/reset') && init?.method === 'POST') { tries++; return tries === 1 ? problem(422, { fields: [{ name: 'password', message: 'Use at least 12 characters.' }] }) : new Response(null, { status: 204 }); }
+      if (u.endsWith('/auth/reset') && init?.method === 'POST') { tries++; return tries === 1 ? problem(422, { fields: [{ name: 'password', message: 'Use at least 12 characters.', code: 'password_too_short' }] }) : new Response(null, { status: 204 }); }
     });
     const user = userEvent.setup();
     mount(<ResetPage />, '/reset?token=orl_ok');
@@ -171,7 +171,7 @@ describe('ProfilePage', () => {
   it('ganti password menampilkan galat kolom dari server', async () => {
     route(admin, (u, init) => {
       if (u.endsWith('/me/tokens')) return json({ items: [] });
-      if (u.endsWith('/me/password') && init?.method === 'POST') return problem(422, { fields: [{ name: 'current_password', message: 'That isn’t your current password.' }] });
+      if (u.endsWith('/me/password') && init?.method === 'POST') return problem(422, { fields: [{ name: 'current_password', message: 'That isn’t your current password.', code: 'current_password_wrong' }] });
     });
     const user = userEvent.setup();
     mount(<ProfilePage />, '/profile');
@@ -212,7 +212,7 @@ describe('PeoplePage', () => {
   const person = (extra = {}) => ({ id: 'p1', first_name: 'Ada', last_name: 'Lovelace', email: 'ada@co.test', organization: 'Corp', teams: [{ id: 't1', name: 'Blue' }], created_at: '2026-10-29T10:00:00Z', version: 2, ...extra });
   it('daftar orang dengan tim, dan galat email ganda tampil di kolomnya', async () => {
     const f = route(admin, (u, init) => {
-      if (u.includes('/people') && init?.method === 'POST') return problem(422, { fields: [{ name: 'email', message: 'Someone with this email already exists.' }] });
+      if (u.includes('/people') && init?.method === 'POST') return problem(422, { fields: [{ name: 'email', message: 'Someone with this email already exists.', code: 'person_email_exists' }] });
       if (u.includes('/people')) return json({ items: [person()] });
     });
     const user = userEvent.setup();
@@ -383,7 +383,7 @@ describe('NotificationsPage', () => {
 describe('CommandPalette', () => {
   it('entri mengikuti izin pengguna, dan pencarian menyaring label dan petunjuk', () => {
     const v = entriesFor({ ...viewer, permissions: ['atomic.read'] }).map((e) => e.id);
-    expect(v).not.toContain('overview'); expect(v).not.toContain('atomic'); expect(v).toContain('settings');
+    expect(v).not.toContain('overview'); expect(v).not.toContain('atomic'); expect(v).not.toContain('settings');
     expect(v).not.toContain('findings'); expect(v).not.toContain('new-asset'); expect(v).not.toContain('people');
     const all = entriesFor({...admin,features:{advanced:true}});
     expect(all.filter((e) => matches(e, 'vulnerabilities')).map((e) => e.id)).toEqual(['findings']);

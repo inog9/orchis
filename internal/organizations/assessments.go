@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"orchis-go/internal/scancontrol"
 	"sort"
 	"time"
 
@@ -21,20 +22,22 @@ import (
 )
 
 type AssessmentInput struct {
+	Language     string          `json:"language,omitempty"`
 	NmapParams   json.RawMessage `json:"nmap_params,omitempty"`
 	NucleiParams json.RawMessage `json:"nuclei_params,omitempty"`
 	Profile      string          `json:"profile"`
 	AssetIDs     []uuid.UUID     `json:"asset_ids"`
 }
 type Assessment struct {
-	ID             uuid.UUID          `json:"id"`
-	OrganizationID uuid.UUID          `json:"organization_id"`
-	Name           string             `json:"name"`
-	Profile        string             `json:"profile"`
-	Status         string             `json:"status"`
-	CreatedAt      time.Time          `json:"created_at"`
-	EndedAt        *time.Time         `json:"ended_at"`
-	Targets        []AssessmentTarget `json:"targets,omitempty"`
+	ResultsExpiredAt *time.Time         `json:"results_expired_at,omitempty"`
+	ID               uuid.UUID          `json:"id"`
+	OrganizationID   uuid.UUID          `json:"organization_id"`
+	Name             string             `json:"name"`
+	Profile          string             `json:"profile"`
+	Status           string             `json:"status"`
+	CreatedAt        time.Time          `json:"created_at"`
+	EndedAt          *time.Time         `json:"ended_at"`
+	Targets          []AssessmentTarget `json:"targets,omitempty"`
 }
 type AssessmentTarget struct {
 	AssetID      uuid.UUID          `json:"asset_id"`
@@ -45,11 +48,11 @@ type AssessmentTarget struct {
 	SkipReason   string             `json:"skip_reason"`
 }
 
-const assessmentCols = `id,organization_id,name,profile,status,created_at,ended_at`
+const assessmentCols = `id,organization_id,name,profile,status,created_at,ended_at,results_expired_at`
 
 func scanAssessment(row pgx.Row) (Assessment, error) {
 	var a Assessment
-	err := row.Scan(&a.ID, &a.OrganizationID, &a.Name, &a.Profile, &a.Status, &a.CreatedAt, &a.EndedAt)
+	err := row.Scan(&a.ID, &a.OrganizationID, &a.Name, &a.Profile, &a.Status, &a.CreatedAt, &a.EndedAt, &a.ResultsExpiredAt)
 	return a, err
 }
 func permitted(p *auth.Principal, perms ...string) error {
@@ -72,6 +75,17 @@ func assessmentParams(profile string) ([]json.RawMessage, error) {
 	return nil, invalid("profile", "Choose quick, full or web.")
 }
 func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, in AssessmentInput, key, ip, req string) (*Assessment, error) {
+	if in.Language != "" && in.Language != "en" && in.Language != "id" {
+		return nil, httpx.Validation(httpx.FieldError{Name: "language", Message: "Choose English or Indonesia."})
+	}
+	language := in.Language
+	if language == "" {
+		language = p.UILanguage
+	}
+	if language == "" {
+		language = "en"
+	}
+
 	if err := permitted(p, authz.OrganizationRead, authz.AssetRead, authz.SimulationRun); err != nil {
 		return nil, err
 	}
@@ -118,6 +132,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 	hash := hex.EncodeToString(sum[:])
 	id := ids.New()
 	err = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		// Kunci organisasi menyerialkan permintaan berulang sebelum penulisan idempotensi.
 		var name string
 		if e := tx.QueryRow(ctx, `SELECT name FROM organizations WHERE tenant_id=$1 AND id=$2 FOR UPDATE`, p.TenantID, org).Scan(&name); errors.Is(e, pgx.ErrNoRows) {
@@ -135,6 +152,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 		}
 		if !errors.Is(e, pgx.ErrNoRows) {
 			return e
+		}
+		if err := scancontrol.Check(ctx, tx, p.TenantID, &org, scancontrol.Now(s.Now)); err != nil {
+			return err
 		}
 		type target struct {
 			ID         uuid.UUID
@@ -165,7 +185,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 		if len(targets) > 1000 {
 			return invalid("asset_ids", "Select at most 1000 assets per assessment.")
 		}
-		if _, e = tx.Exec(ctx, `INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, id, p.TenantID, org, name, in.Profile, key, hash, p.UserID); e != nil {
+		if _, e = tx.Exec(ctx, `INSERT INTO assessments(id,tenant_id,organization_id,name,profile,idempotency_key,request_hash,created_by,report_language) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)`, id, p.TenantID, org, name, in.Profile, key, hash, p.UserID, language); e != nil {
 			return e
 		}
 		keys := []string{contract.KeyNmapTCP, contract.KeyNucleiVS}
@@ -240,7 +260,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 
 // Refresh aman diulang oleh worker; selesai tidak berarti semua pemindaian berhasil.
 func (s *Service) Refresh(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
-	_, err := tx.Exec(ctx, `UPDATE assessments a SET status='finished',ended_at=now() WHERE a.tenant_id=$1 AND a.status='running' AND NOT a.is_scan AND NOT EXISTS(SELECT 1 FROM assessment_targets t JOIN simulations s ON s.tenant_id=t.tenant_id AND s.id=t.simulation_id WHERE t.tenant_id=a.tenant_id AND t.assessment_id=a.id AND s.status IN ('running','paused','draft','scheduled'))`, tenant)
+	_, err := tx.Exec(ctx, `UPDATE assessments a SET status=CASE WHEN EXISTS(SELECT 1 FROM assessment_targets t JOIN executions x ON x.tenant_id=t.tenant_id AND x.simulation_id=t.simulation_id WHERE t.tenant_id=a.tenant_id AND t.assessment_id=a.id AND x.scan_stop_reason<>'') THEN 'canceled' ELSE 'finished' END,ended_at=now() WHERE a.tenant_id=$1 AND a.status='running' AND NOT a.is_scan AND NOT EXISTS(SELECT 1 FROM assessment_targets t JOIN simulations s ON s.tenant_id=t.tenant_id AND s.id=t.simulation_id WHERE t.tenant_id=a.tenant_id AND t.assessment_id=a.id AND s.status IN ('running','paused','draft','scheduled'))`, tenant)
 	return err
 }
 func (s *Service) Assessment(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Assessment, error) {

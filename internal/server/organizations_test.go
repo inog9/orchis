@@ -62,7 +62,7 @@ func TestOrganizationPermissionsVersionTenantAndMembership(t *testing.T) {
 			Authorized     bool       `json:"testing_authorized"`
 		}
 	}
-	r := a.do("GET", "/api/v1/assets?organization_id="+o.ID.String(), nil, viewer)
+	r := a.do("GET", "/api/v1/assets?organization_id="+o.ID.String(), nil, analyst)
 	r.JSON(&page)
 	if r.Status != 200 || len(page.Items) != 1 || page.Items[0].OrganizationID == nil || !page.Items[0].Authorized {
 		t.Fatalf("asset filter %d %s", r.Status, r.Body)
@@ -186,7 +186,7 @@ func TestAssessmentScopeIdempotencyFrozenTargetsAndCancel(t *testing.T) {
 	}
 	// Perubahan alamat aset tidak boleh mengganti snapshot assessment.
 	f.a.env.Owner.Exec(context.Background(), `UPDATE asset_addresses SET value='127.0.0.2' WHERE asset_id=$1`, f.asset)
-	r = f.a.do("GET", "/api/v1/assessments/"+a.ID.String(), nil, f.viewer)
+	r = f.a.do("GET", "/api/v1/assessments/"+a.ID.String(), nil, f.analyst)
 	if !strings.Contains(string(r.Body), "127.0.0.1") || strings.Contains(string(r.Body), "127.0.0.2") {
 		t.Fatalf("snapshot changed %s", r.Body)
 	}

@@ -17,6 +17,7 @@ import (
 
 	"orchis-go/internal/alerts"
 	"orchis-go/internal/auth"
+	"orchis-go/internal/authz"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 )
@@ -121,7 +122,7 @@ func ingest(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.UUID, sim
 				return 0, nil, err
 			}
 			if err = alerts.Raise(ctx, tx, tenant, alerts.New{Kind: "new_critical_finding", Severity: "critical", Title: "Critical finding on " + assetName,
-				Body: f.Title, ResourceType: "finding", ResourceID: &fid, DedupeKey: "finding:" + fid.String()}); err != nil {
+				Audience: authz.FindingRead, Body: f.Title, ResourceType: "finding", ResourceID: &fid, DedupeKey: "finding:" + fid.String()}); err != nil {
 				return 0, nil, err
 			}
 		}

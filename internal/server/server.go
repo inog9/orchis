@@ -32,6 +32,8 @@ import (
 	"orchis-go/internal/organizations"
 	"orchis-go/internal/people"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/retention"
+	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scans"
 	"orchis-go/internal/scenario"
 	"orchis-go/internal/settings"
@@ -41,6 +43,7 @@ import (
 )
 
 type Options struct {
+	Now                       func() time.Time
 	DB                        *db.DB
 	Tenant                    uuid.UUID
 	PublicRateLimit           bool
@@ -81,6 +84,8 @@ func New(o Options) http.Handler {
 	})
 	ah.Register(mux)
 	(&scans.Handlers{Svc: ScanService(o)}).Register(mux)
+	(&scancontrol.Handlers{Svc: ScanControlService(o)}).Register(mux)
+	(&retention.Handlers{Svc: RetentionService(o)}).Register(mux)
 	(&auditview.Handler{DB: o.DB}).Register(mux)
 	(&ai.Handlers{Svc: AIService(o), Reports: ReportService(o)}).Register(mux)
 	(&organizations.Handlers{Svc: OrganizationService(o)}).Register(mux)
@@ -90,7 +95,7 @@ func New(o Options) http.Handler {
 	(&assets.Handlers{Svc: &assets.Service{DB: o.DB}}).Register(mux)
 	(&groups.Handlers{Svc: &groups.Service{DB: o.DB}}).Register(mux)
 	(&tags.Handlers{Svc: &tags.Service{DB: o.DB}}).Register(mux)
-	(&execution.Handlers{Svc: &execution.Service{DB: o.DB, Guard: o.Guard}, Search: o.Search}).Register(mux)
+	(&execution.Handlers{Svc: &execution.Service{Now: o.Now, DB: o.DB, Guard: o.Guard}, Search: o.Search}).Register(mux)
 	(&scenario.Handlers{Svc: &scenario.Service{DB: o.DB}}).Register(mux)
 	(&simulation.Handlers{Svc: SimulationService(o)}).Register(mux)
 	(&alerts.Handlers{Svc: &alerts.Service{DB: o.DB}}).Register(mux)
@@ -101,6 +106,7 @@ func New(o Options) http.Handler {
 	(&mitre.Handlers{Svc: mitreService(o)}).Register(mux)
 	(&agents.Handlers{Svc: AgentService(o), RT: Runtime(o)}).Register(mux)
 	(&home.Handlers{Svc: &home.Service{DB: o.DB}}).Register(mux)
+	registerInstallScript(mux)
 	(&execution.InjectorHandlers{RT: Runtime(o)}).Register(mux)
 
 	// Semua jalur /api yang tidak dikenal -> 404 seragam; sisanya berkas statis SPA.
@@ -151,13 +157,13 @@ func spa(dir string) http.Handler {
 
 // Runtime membangun sisi server untuk injector dari opsi yang sama dengan handler HTTP.
 func Runtime(o Options) *execution.Runtime {
-	eng := &simulation.Engine{Guard: o.Guard}
-	return &execution.Runtime{DB: o.DB, Tenant: o.Tenant, Guard: o.Guard, Store: o.Store, ScanMaxHosts: o.ScanMaxHosts, AfterEnd: eng.Advance}
+	eng := &simulation.Engine{Guard: o.Guard, Now: o.Now}
+	return &execution.Runtime{Now: o.Now, DB: o.DB, Tenant: o.Tenant, Guard: o.Guard, Store: o.Store, ScanMaxHosts: o.ScanMaxHosts, AfterEnd: eng.Advance}
 }
 
 // SimulationService membangun layanan simulasi dengan mesin chain yang memakai penjaga scope yang sama.
 func SimulationService(o Options) *simulation.Service {
-	return &simulation.Service{DB: o.DB, Engine: &simulation.Engine{Guard: o.Guard}}
+	return &simulation.Service{DB: o.DB, Engine: &simulation.Engine{Guard: o.Guard, Now: o.Now}}
 }
 
 func mitreService(o Options) *mitre.Service {
@@ -170,12 +176,12 @@ func mitreService(o Options) *mitre.Service {
 
 // AgentService membangun layanan agent; AfterEnd menjaga chain maju saat eksekusi agent dibatalkan karena pencabutan.
 func AgentService(o Options) *agents.Service {
-	eng := &simulation.Engine{Guard: o.Guard}
-	return &agents.Service{DB: o.DB, Tenant: o.Tenant, Release: &agents.Release{Dir: o.AgentRelease}, AfterEnd: eng.Advance}
+	eng := &simulation.Engine{Guard: o.Guard, Now: o.Now}
+	return &agents.Service{Now: o.Now, CollectNow: EndpointService(o).CollectNow, DB: o.DB, Tenant: o.Tenant, Release: &agents.Release{Dir: o.AgentRelease}, AfterEnd: eng.Advance}
 }
 
 func OrganizationService(o Options) *organizations.Service {
-	return &organizations.Service{DB: o.DB, Engine: &simulation.Engine{Guard: o.Guard}}
+	return &organizations.Service{Now: o.Now, DB: o.DB, Engine: &simulation.Engine{Guard: o.Guard, Now: o.Now}}
 }
 
 func ReportService(o Options) *reporting.Service {
@@ -201,7 +207,7 @@ func AIService(o Options) *ai.Service {
 	if token == "" {
 		token = os.Getenv("ORCHIS_AI_WORKER_TOKEN")
 	}
-	return &ai.Service{DB: o.DB, Tenant: o.Tenant, Key: key, WorkerToken: token, Guard: o.Guard}
+	return &ai.Service{Now: o.Now, DB: o.DB, Tenant: o.Tenant, Key: key, WorkerToken: token, Guard: o.Guard}
 }
 
 // DemoService also wires cleanup capabilities; never report external cleanup on
@@ -218,7 +224,7 @@ func DemoService(o Options) *demo.Service {
 }
 
 func ScanService(o Options) *scans.Service {
-	return &scans.Service{DB: o.DB, Guard: o.Guard, Engine: &simulation.Engine{Guard: o.Guard}, Reports: ReportService(o), MaxHosts: o.ScanMaxHosts, Concurrency: o.ScanConcurrency}
+	return &scans.Service{Now: o.Now, DB: o.DB, Guard: o.Guard, Engine: &simulation.Engine{Guard: o.Guard, Now: o.Now}, Reports: ReportService(o), MaxHosts: o.ScanMaxHosts, Concurrency: o.ScanConcurrency}
 }
 
 func EndpointService(o Options) *endpoint.Service {
@@ -226,5 +232,21 @@ func EndpointService(o Options) *endpoint.Service {
 	if seconds == 0 {
 		seconds = 900
 	}
-	return &endpoint.Service{DB: o.DB, Exec: &execution.Service{DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
+	return &endpoint.Service{DB: o.DB, Exec: &execution.Service{Now: o.Now, DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
+}
+
+func ScanControlService(o Options) *scancontrol.Service {
+	eng := &simulation.Engine{Guard: o.Guard, Now: o.Now}
+	return &scancontrol.Service{DB: o.DB, Now: o.Now, Advance: eng.Advance}
+}
+
+func RetentionService(o Options) *retention.Service {
+	s := &retention.Service{DB: o.DB, Now: o.Now}
+	if b, ok := o.Store.(retention.BlobCleaner); ok {
+		s.Blob = b
+	}
+	if es, ok := o.Search.(retention.SearchCleaner); ok {
+		s.Search = es
+	}
+	return s
 }

@@ -59,3 +59,24 @@ class GeneratedSecrets(unittest.TestCase):
     self.assertEqual((state/'initial-admin.json').stat().st_mode&0o777,0o600)
     self.assertEqual((state/'server.json').stat().st_mode&0o777,0o600)
    self.assertEqual(len(all_values),len(set(all_values)))
+
+@unittest.skipUnless(os.geteuid()==0,'Production setup assigns container UIDs as root')
+class AgentTrustSetup(unittest.TestCase):
+ def test_fingerprint_comes_from_selected_caddy_and_preserves_private_config(self):
+  import hashlib
+  with tempfile.TemporaryDirectory() as directory:
+   state=Path(directory);args=types.SimpleNamespace(state=state)
+   ops.private(state/'server.json',{'existing':'kept','ORCHIS_AGENT_TLS_PIN':'old pin'})
+   with mock.patch.object(ops,'compose',return_value=types.SimpleNamespace(stdout='certificate')) as compose, mock.patch.object(ops.ssl,'PEM_cert_to_DER_cert',return_value=b'CA DER'):
+    ops.agent_trust(args)
+   compose.assert_called_once_with(args,'exec','-T','caddy','cat','/data/caddy/pki/authorities/local/root.crt',capture=True)
+   path=state/'server.json';value=json.loads(path.read_text())
+   self.assertEqual(value,{'existing':'kept','ORCHIS_AGENT_CA_FINGERPRINT':hashlib.sha256(b'CA DER').hexdigest()})
+   self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,10001)
+ def test_invalid_ca_leaves_configuration_unchanged(self):
+  with tempfile.TemporaryDirectory() as directory:
+   state=Path(directory);args=types.SimpleNamespace(state=state)
+   ops.private(state/'server.json',{'existing':'kept'});before=(state/'server.json').read_bytes()
+   with mock.patch.object(ops,'compose',return_value=types.SimpleNamespace(stdout='invalid')):
+    with self.assertRaises(ValueError):ops.agent_trust(args)
+   self.assertEqual((state/'server.json').read_bytes(),before)

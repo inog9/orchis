@@ -6,7 +6,7 @@ import { DemoBanner, type DemoStatus } from './DemoBanner';
 
 type Me = { id: string; email: string; display_name: string; role: string; permissions: string[] } | null;
 
-const admin: Me = { id: 'u1', email: 'admin@example.test', display_name: 'Admin', role: 'admin', permissions: ['settings.manage'] };
+const admin: Me = { id: 'u1', email: 'admin@example.test', display_name: 'Admin', role: 'admin', permissions: ['settings.manage','organization.read'] };
 const viewer: Me = { id: 'u2', email: 'viewer@example.test', display_name: 'Viewer', role: 'viewer', permissions: [] };
 
 function fetchMock({ me, status, onPurge }: { me: Me; status: DemoStatus; onPurge?: () => Response | Promise<Response> }) {
@@ -62,9 +62,11 @@ describe('DemoBanner visibility', () => {
 });
 
 describe('DemoBanner permissions', () => {
-  it('lets a viewer see the notice without any purge action', async () => {
-    mount({ me: viewer, status: { has_demo: true, counts: { assets: 1 } } });
-    expect(await screen.findByText('Demo data')).toBeInTheDocument();
+  it('does not fetch platform-wide demo counts for Viewer', async () => {
+    const {fetch}=mount({ me: viewer, status: { has_demo: true, counts: { assets: 1 } } });
+    await waitFor(()=>expect(fetch).toHaveBeenCalledWith('/api/v1/auth/me',expect.anything()));
+    expect(fetch.mock.calls.some(c=>String(c[0])==='/api/v1/demo/status')).toBe(false);
+    expect(screen.queryByText('Demo data')).toBeNull();
     expect(screen.queryByRole('button', { name: /purge/i })).toBeNull();
   });
 });
@@ -150,8 +152,8 @@ describe('Demo artifact cleanup', () => {
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   });
 
-  it('keeps pending cleanup visible to a viewer without granting retry permission', async () => {
-    mount({ me: viewer, status: { has_demo: false, cleanup_pending: 1, counts: {} } });
+  it('keeps pending cleanup visible to Analyst without granting retry permission', async () => {
+    mount({ me: {...viewer!,role:'analyst',permissions:['organization.read']}, status: { has_demo: false, cleanup_pending: 1, counts: {} } });
     expect(await screen.findByText('Demo cleanup pending')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /retry/i })).toBeNull();
   });

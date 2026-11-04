@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
+	"orchis-go/internal/scancontrol"
 	"strings"
 	"time"
 
@@ -27,6 +28,7 @@ const (
 )
 
 type Service struct {
+	Now   func() time.Time
 	DB    *db.DB
 	Guard contract.Guard
 }
@@ -357,6 +359,9 @@ func (s *Service) Run(ctx context.Context, p *auth.Principal, testID uuid.UUID, 
 
 // QueueTest memakai guard Run yang sama dalam transaksi pemanggil; dipakai persetujuan rencana AI atomik.
 func (s *Service) QueueTest(ctx context.Context, tx pgx.Tx, p *auth.Principal, testID, execID uuid.UUID, ip, reqID string) error {
+	if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+		return err
+	}
 	var (
 		ckey         string
 		contractID   uuid.UUID
@@ -404,20 +409,26 @@ WHERE t.tenant_id=$1 AND t.id=$2 AND t.deleted_at IS NULL FOR UPDATE OF t`, p.Te
 	if def != nil && def.NeedsAgent {
 		// Aksi agent berjalan di endpoint: butuh agent yang terpasang dan hidup, bukan alamat jaringan.
 		var aid uuid.UUID
-		var live bool
-		err := tx.QueryRow(ctx, `SELECT id, COALESCE(last_heartbeat_at > now() - interval '90 seconds', false) FROM agents
-WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, p.TenantID, *target).Scan(&aid, &live)
+		var live, paused bool
+		err := tx.QueryRow(ctx, `SELECT id, COALESCE(last_heartbeat_at > now() - interval '90 seconds', false),paused OR uninstall_status IN('queued','dispatched') FROM agents
+WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked' ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1`, p.TenantID, *target).Scan(&aid, &live, &paused)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.Validation(httpx.FieldError{Name: "target_asset_id", Message: "This asset has no agent. Install one from Assets → Agents first."})
 		}
 		if err != nil {
 			return err
 		}
+		if paused {
+			return httpx.Conflict("The agent is paused or awaiting uninstall.")
+		}
 		if !live {
 			return httpx.Conflict("The agent on this asset is offline. Start it and try again.")
 		}
 		execKind, addr, agentID = "agent", "local", &aid
 	} else {
+		if err := scancontrol.CheckAsset(ctx, tx, p.TenantID, *target, nil, scancontrol.Now(s.Now)); err != nil {
+			return err
+		}
 		addrs, err := loadAddresses(ctx, tx, p.TenantID, *target)
 		if err != nil {
 			return err
@@ -488,6 +499,9 @@ func logLine(ctx context.Context, tx pgx.Tx, tenant, exec uuid.UUID, level, msg 
 // Cancel menghentikan eksekusi yang masih ready/running. Injector mengetahuinya dari heartbeat berikutnya.
 func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, ip, reqID string) (*ExecutionDetail, error) {
 	err := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `
 UPDATE executions SET state='ended', outcome='canceled', ended_at=now(), lease_until=NULL, version=version+1, updated_at=now()
 WHERE tenant_id=$1 AND id=$2 AND state IN ('ready','running')`, p.TenantID, id)

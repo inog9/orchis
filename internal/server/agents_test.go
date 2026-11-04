@@ -160,7 +160,7 @@ func TestEnrollmentTokenIsAdminOnlyValidatedAndSingleUse(t *testing.T) {
 			Addresses         []struct{ Kind, Value string }
 		}
 	}
-	f.a.do("GET", "/api/v1/assets?q=box1", nil, f.viewer).JSON(&al)
+	f.a.do("GET", "/api/v1/assets?q=box1", nil, f.analyst).JSON(&al)
 	if len(al.Items) != 1 || al.Items[0].Source != "agent" || al.Items[0].TestingAuthorized || al.Items[0].AgentState != "online" ||
 		len(al.Items[0].Addresses) != 0 {
 		t.Fatalf("aset dari agent: %+v", al)
@@ -214,7 +214,7 @@ func TestAgentHeartbeatUpdateOfferAndRevocation(t *testing.T) {
 		t.Fatalf("token injector bukan kredensial agent: %d", r.Status)
 	}
 	// integrasi Agent terlihat hidup
-	if got := integrations(t, f.a, f.viewer)["agent"]; got.Status != "online" {
+	if got := integrations(t, f.a, f.analyst)["agent"]; got.Status != "online" {
 		t.Fatalf("integrasi agent: %+v", got)
 	}
 	// daftar agent untuk konsol
@@ -224,7 +224,7 @@ func TestAgentHeartbeatUpdateOfferAndRevocation(t *testing.T) {
 			UpdateAvailable     bool `json:"update_available"`
 		}
 	}
-	f.a.do("GET", "/api/v1/agents", nil, f.viewer).JSON(&list)
+	f.a.do("GET", "/api/v1/agents", nil, f.analyst).JSON(&list)
 	if len(list.Items) != 1 || list.Items[0].Status != "online" || list.Items[0].Version != "2.0.0" {
 		t.Fatalf("daftar: %+v", list)
 	}
@@ -241,7 +241,7 @@ func TestAgentHeartbeatUpdateOfferAndRevocation(t *testing.T) {
 	if r := f.a.do("POST", "/api/v1/agents/"+ag.AgentID+"/revoke", nil, f.admin); r.Status != 409 {
 		t.Fatalf("cabut dua kali: %d", r.Status)
 	}
-	f.a.do("GET", "/api/v1/agents", nil, f.viewer).JSON(&list)
+	f.a.do("GET", "/api/v1/agents", nil, f.analyst).JSON(&list)
 	if list.Items[0].Status != "revoked" {
 		t.Fatalf("status: %+v", list.Items[0])
 	}
@@ -473,14 +473,14 @@ func TestAgentSweepMarksOfflineAndRaisesOneAlertPerEpisode(t *testing.T) {
 	if n, err := svc.Sweep(ctx); err != nil || n != 0 {
 		t.Fatalf("agent segar: n=%d err=%v", n, err)
 	}
-	f.a.env.Owner.Exec(ctx, `UPDATE agents SET last_heartbeat_at = now() - interval '5 minutes' WHERE id=$1`, ag.AgentID)
+	f.a.env.Owner.Exec(ctx, `UPDATE agents SET last_heartbeat_at = now() - interval '20 minutes' WHERE id=$1`, ag.AgentID)
 	if n, err := svc.Sweep(ctx); err != nil || n != 1 {
 		t.Fatalf("agent senyap: n=%d err=%v", n, err)
 	}
 	if n, _ := svc.Sweep(ctx); n != 0 {
 		t.Fatalf("sudah offline: tidak diproses lagi: %d", n)
 	}
-	l := getAlerts(t, f.a, f.viewer, "")
+	l := getAlerts(t, f.a, f.analyst, "")
 	if len(l.Items) != 1 || l.Items[0].Kind != "agent_offline" {
 		t.Fatalf("satu alert offline: %+v", l)
 	}
@@ -491,14 +491,14 @@ func TestAgentSweepMarksOfflineAndRaisesOneAlertPerEpisode(t *testing.T) {
 	if st != "online" {
 		t.Fatalf("heartbeat harus mengembalikan online: %s", st)
 	}
-	f.a.env.Owner.Exec(ctx, `UPDATE agents SET last_heartbeat_at = now() - interval '4 minutes' WHERE id=$1`, ag.AgentID)
+	f.a.env.Owner.Exec(ctx, `UPDATE agents SET last_heartbeat_at = now() - interval '21 minutes' WHERE id=$1`, ag.AgentID)
 	svc.Sweep(ctx)
-	if n := len(getAlerts(t, f.a, f.viewer, "").Items); n != 2 {
+	if n := len(getAlerts(t, f.a, f.analyst, "").Items); n != 2 {
 		t.Fatalf("episode baru harus membuat alert baru: %d", n)
 	}
 	// status di daftar dihitung dari detak, bukan dari kolom yang bisa basi
 	var list struct{ Items []struct{ Status string } }
-	f.a.do("GET", "/api/v1/agents", nil, f.viewer).JSON(&list)
+	f.a.do("GET", "/api/v1/agents", nil, f.analyst).JSON(&list)
 	if list.Items[0].Status != "offline" {
 		t.Fatalf("daftar: %+v", list)
 	}

@@ -288,3 +288,34 @@ func (zeroReader) Read(p []byte) (int, error) { return len(p), nil }
 type countWriter struct{ n *int64 }
 
 func (c countWriter) Write(p []byte) (int, error) { *c.n += int64(len(p)); return len(p), nil }
+
+// Biner osquery lama milik administrator tidak boleh digunakan atau diganti oleh agent.
+func TestOsqueryInstallLeavesOlderAndSystemBinariesUntouched(t *testing.T) {
+	r := newRig(t)
+	old := filepath.Join(r.inst.Dir, "osquery", "1.2.3", "osqueryd")
+	systemDir := t.TempDir()
+	system := filepath.Join(systemDir, "osqueryd")
+	oldBody := []byte("#!/bin/sh\necho 'osqueryd version 1.2.3'\n")
+	for _, path := range []string{old, system} {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, oldBody, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", systemDir)
+	bin, err := r.inst.Ensure(context.Background())
+	if err != nil || bin != r.inst.BinPath() || r.fetches != 1 {
+		t.Fatalf("pinned install: %s %v fetch=%d", bin, err, r.fetches)
+	}
+	for _, path := range []string{old, system} {
+		body, err := os.ReadFile(path)
+		if err != nil || !bytes.Equal(body, oldBody) {
+			t.Fatalf("older binary changed: %s %v", path, err)
+		}
+	}
+	if out, err := exec.Command(bin, "--version").Output(); err != nil || !strings.Contains(string(out), "9.9.9") {
+		t.Fatalf("selected older binary: %s %v", out, err)
+	}
+}

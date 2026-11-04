@@ -10,6 +10,7 @@ import (
 	"orchis-go/internal/auth"
 	"orchis-go/internal/authz"
 	"orchis-go/internal/httpx"
+	"orchis-go/internal/scancontrol"
 	"strconv"
 	"time"
 )
@@ -155,6 +156,9 @@ func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, i
 		return e
 	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		tag, e := tx.Exec(ctx, `UPDATE assessments SET status='canceled',ended_at=now() WHERE tenant_id=$1 AND id=$2 AND status='running'`, p.TenantID, id)
 		if e != nil {
 			return e

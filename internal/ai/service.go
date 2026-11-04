@@ -18,10 +18,12 @@ import (
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
+	"orchis-go/internal/scancontrol"
 	"time"
 )
 
 type Service struct {
+	Now         func() time.Time
 	DB          *db.DB
 	Tenant      uuid.UUID
 	Key         []byte
@@ -127,6 +129,9 @@ func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UU
 		return Policy{}, httpx.BadRequest("Specify an exact model identifier for each enabled purpose.")
 	}
 	e := s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		if e := orgExists(ctx, tx, p.TenantID, org); e != nil {
 			return e
 		}
@@ -317,6 +322,9 @@ func (s *Service) Create(ctx context.Context, p *auth.Principal, org uuid.UUID, 
 	hash := digest(req)
 	id := ids.New()
 	e = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		pol, e := readPolicy(ctx, tx, p.TenantID, org, true)
 		if e != nil {
 			return e
@@ -399,6 +407,9 @@ func (s *Service) Cancel(ctx context.Context, p *auth.Principal, id uuid.UUID, v
 		return j, httpx.Forbidden(authz.AtomicRun)
 	}
 	e = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		tag, e := tx.Exec(ctx, `UPDATE ai_jobs SET status='canceled',claim_hash=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2 AND version=$3 AND NOT is_demo AND status IN('queued','running','review','approved')`, p.TenantID, id, version)
 		if e != nil {
 			return e
@@ -429,6 +440,9 @@ func (s *Service) Approve(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 		return j, e
 	}
 	e = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		pol, e := readPolicy(ctx, tx, p.TenantID, j.OrganizationID, true)
 		if e != nil {
 			return e
@@ -476,7 +490,7 @@ func (s *Service) Approve(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 			if e != nil {
 				return e
 			}
-			if e = (&execution.Service{DB: s.DB, Guard: s.Guard}).QueueTest(ctx, tx, p, testID, execID, "", ""); e != nil {
+			if e = (&execution.Service{DB: s.DB, Guard: s.Guard, Now: s.Now}).QueueTest(ctx, tx, p, testID, execID, "", ""); e != nil {
 				return e
 			}
 			if _, e = tx.Exec(ctx, `INSERT INTO ai_job_actions(tenant_id,job_id,ordinal,asset_id,atomic_test_id,execution_id) VALUES($1,$2,$3,$4,$5,$6)`, p.TenantID, id, i, asset, testID, execID); e != nil {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/groups"
@@ -15,20 +16,12 @@ import (
 // Existing built-in roles, contracts and integration health are left intact.
 func (g *generator) seedRelated(ctx context.Context, tx pgx.Tx) error {
 	for _, key := range []string{"admin", "analyst", "viewer"} {
-		role, user := g.id("role", key), g.id("user", key)
-		if tag, err := tx.Exec(ctx, `INSERT INTO roles(id,tenant_id,key,name,description,permissions,is_demo)
-SELECT $1,$2,$3,$4,'Synthetic role example; demo accounts cannot authenticate.',permissions,true
-FROM roles WHERE tenant_id=$2 AND key=$5 AND is_system ON CONFLICT(id) DO NOTHING`, role, g.tenant, "demo-"+key, "Demo: "+key, key); err != nil {
-			return err
-		} else if tag.RowsAffected() == 0 {
-			var exists bool
-			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM roles WHERE tenant_id=$1 AND id=$2 AND is_demo)`, g.tenant, role).Scan(&exists); err != nil {
-				return err
-			}
-			if !exists {
-				return fmt.Errorf("demo requires built-in role %s", key)
-			}
+		user := g.id("user", key)
+		var role uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT id FROM roles WHERE tenant_id=$1 AND key=$2 AND is_system`, g.tenant, key).Scan(&role); err != nil {
+			return fmt.Errorf("demo requires built-in role %s: %w", key, err)
 		}
+
 		if _, err := tx.Exec(ctx, `INSERT INTO users(id,tenant_id,email,display_name,role_id,status,password_hash,is_demo)
 VALUES($1,$2,$3,$4,$5,'disabled',NULL,true) ON CONFLICT(id) DO NOTHING`, user, g.tenant, "demo-"+key+"@example.invalid", "Demo: "+key, role); err != nil {
 			return err

@@ -13,6 +13,7 @@ import (
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/osquery"
+	"orchis-go/internal/scancontrol"
 	"time"
 )
 
@@ -46,6 +47,9 @@ func (s *Service) SetCollection(ctx context.Context, p *auth.Principal, org uuid
 		selected[key] = true
 	}
 	return s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
 		var locked uuid.UUID
 		if err := tx.QueryRow(ctx, `SELECT id FROM organizations WHERE tenant_id=$1 AND id=$2 AND NOT is_demo FOR UPDATE`, p.TenantID, org).Scan(&locked); errors.Is(err, pgx.ErrNoRows) {
 			return httpx.NotFound("Organisation")
@@ -90,6 +94,9 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 		return errors.New("invalid endpoint collection interval")
 	}
 	return s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "endpoint-collection:"+tenant.String()); err != nil {
 			return err
 		}
@@ -104,7 +111,7 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
    JOIN organizations o ON o.tenant_id=a.tenant_id AND o.id=a.organization_id
    JOIN osquery_org_settings s ON s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
    LEFT JOIN endpoint_collection_schedule d ON d.tenant_id=g.tenant_id AND d.agent_id=g.id AND d.query_key=s.query_key
-   WHERE g.tenant_id=$1 AND g.os='linux' AND g.arch='x86_64' AND g.status='online' AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
+   WHERE g.tenant_id=$1 AND g.os='linux' AND g.arch='x86_64' AND g.status='online' AND NOT g.paused AND g.uninstall_status NOT IN('queued','dispatched') AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
    AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT o.is_demo AND a.testing_authorized
    AND s.enabled AND s.consent_version=$2 AND s.consent_sha256=$3 AND s.consented_by IS NOT NULL AND s.consented_at IS NOT NULL
    AND (d.last_enqueued_at IS NULL OR d.last_enqueued_at<=now()-make_interval(secs=>$4))

@@ -69,12 +69,21 @@ func EnsureAdmin(ctx context.Context, d *db.DB, tenant uuid.UUID, email, passwor
 	var n int
 	if err = d.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
 		return tx.QueryRow(ctx, `SELECT count(*) FROM users u JOIN roles r ON r.id = u.role_id AND r.tenant_id = u.tenant_id
-WHERE r.key = 'admin' AND u.deleted_at IS NULL`).Scan(&n)
+WHERE r.key = 'admin' AND u.status='active' AND NOT u.is_demo AND u.kind='human' AND u.deleted_at IS NULL`).Scan(&n)
 	}); err != nil {
 		return false, "", err
 	}
 	if n > 0 {
 		return false, "", nil
+	}
+	var existing int
+	if err = d.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT count(*) FROM users WHERE tenant_id=$1 AND kind='human' AND NOT is_demo AND deleted_at IS NULL`, tenant).Scan(&existing)
+	}); err != nil {
+		return false, "", err
+	}
+	if existing > 0 {
+		return false, "", errors.New("no active administrator remains; restore administrator access through the documented operator recovery procedure, not first-user bootstrap")
 	}
 	if email == "" {
 		return false, "", errors.New("ORCHIS_ADMIN_EMAIL wajib diisi untuk membuat admin pertama")
