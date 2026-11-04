@@ -83,17 +83,19 @@ type ExecutionDetail struct {
 }
 
 type Finding struct {
-	ID              uuid.UUID       `json:"id"`
-	AssetID         *uuid.UUID      `json:"asset_id"`
-	AssetName       *string         `json:"asset_name"`
-	Type            string          `json:"type"`
-	Value           string          `json:"value"`
-	Title           string          `json:"title"`
-	Severity        string          `json:"severity"`
-	Details         json.RawMessage `json:"details"`
-	FirstSeenAt     time.Time       `json:"first_seen_at"`
-	LastSeenAt      time.Time       `json:"last_seen_at"`
-	OccurrenceCount int             `json:"occurrence_count"`
+	ID               uuid.UUID       `json:"id"`
+	AssetID          *uuid.UUID      `json:"asset_id"`
+	AssetName        *string         `json:"asset_name"`
+	Type             string          `json:"type"`
+	Value            string          `json:"value"`
+	Title            string          `json:"title"`
+	Severity         string          `json:"severity"`
+	Details          json.RawMessage `json:"details"`
+	FirstSeenAt      time.Time       `json:"first_seen_at"`
+	LastSeenAt       time.Time       `json:"last_seen_at"`
+	OccurrenceCount  int             `json:"occurrence_count"`
+	OrganizationID   *uuid.UUID      `json:"organization_id"`
+	OrganizationName *string         `json:"organization_name"`
 }
 
 type FindingPage struct {

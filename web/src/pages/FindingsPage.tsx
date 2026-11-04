@@ -10,10 +10,29 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useFindings, useMe } from '../api/hooks';
 import { describeError } from '../components/ErrorNote';
 import { SeverityBadge, when } from '../components/RunBadges';
+import { OrganizationGroup } from '../components/OrganizationGroup';
+import { groupByOrganization } from '../lib/groupByOrganization';
+import type { Finding } from '../api/types';
+const SEVERITY_ORDER: Finding['severity'][] = ['critical', 'high', 'medium', 'low', 'info'];
+// Di dalam satu organisasi, yang paling parah di atas; urutan waktu dipertahankan untuk tingkat yang sama.
+const bySeverity = (items: Finding[]) => [...items].sort((a, b) => SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity));
 function useDebounced<T>(value: T, ms: number) {
     const [v, setV] = useState(value);
     useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
     return v;
+}
+function FindingRows({ list, me }: { list: Finding[]; me: ReturnType<typeof useMe>['data'] }) {
+    useLocale();
+    return (<ul className="list finding-list" aria-label={textUI("m_e171c2ff25b5")} tabIndex={0}>
+    {formatUI(list.map((f) => (<li key={f.id} className="finding-row">
+        <SeverityBadge severity={f.severity}/>
+        <div className="finding-row__main">
+          <strong>{formatUI(f.title)}</strong>
+          <span className="muted small">{formatUI(f.asset_id && can(me, 'asset.read') ? <Link to={`/assets/${f.asset_id}`}>{formatUI(f.asset_name)}</Link> : f.asset_name || textUI("m_bedb7e61a067"))} · <code className="mono">{f.value}</code></span>
+        </div>
+        <span className="muted small">{richUI("m_dcf7003b8549", [formatUI(f.occurrence_count), formatUI(when(f.last_seen_at))])}</span>
+      </li>)))}
+  </ul>);
 }
 export function FindingsPage({ organizationID, organizationName }: {
     organizationID?: string;
@@ -46,6 +65,7 @@ export function FindingsPage({ organizationID, organizationName }: {
                 comparison_details?: Comparison;
             };
         }>(`/api/v1/reports/${latestID}`) });
+    const grouped = !organization;
     const filtered = !!(q || type || severity || assetID || organization);
     return (<section className="page" aria-labelledby="findings-title">
       <div className="page__head">
@@ -83,16 +103,12 @@ export function FindingsPage({ organizationID, organizationName }: {
           <p>{formatUI(filtered ? textUI("m_fff0463f16e2") : can(me, 'organization.read') ? textUI("m_af431b0a42ac") : textUI("m_dd629c0d9e7e"))}</p>
           {formatUI(!filtered && can(me, 'organization.read') && <Link className="btn btn--secondary btn--auto" to="/organizations">{textUI("m_d78c44ecc1be")}</Link>)}
         </div>) : (<>
-          <ul className="list finding-list" aria-label={textUI("m_e171c2ff25b5")} tabIndex={0}>
-            {formatUI(items.map((f) => (<li key={f.id} className="finding-row">
-                <SeverityBadge severity={f.severity}/>
-                <div className="finding-row__main">
-                  <strong>{formatUI(f.title)}</strong>
-                  <span className="muted small">{formatUI(f.asset_id && can(me, 'asset.read') ? <Link to={`/assets/${f.asset_id}`}>{formatUI(f.asset_name)}</Link> : f.asset_name || textUI("m_bedb7e61a067"))} · <code className="mono">{f.value}</code></span>
-                </div>
-                <span className="muted small">{richUI("m_dcf7003b8549", [formatUI(f.occurrence_count), formatUI(when(f.last_seen_at))])}</span>
-              </li>)))}
-          </ul>
+          {formatUI(grouped ? groupByOrganization(items).map((g) => (<OrganizationGroup key={g.key} id={g.id} name={g.name} linkable={can(me, 'organization.read')} summary={<>
+              <span>{richUI("m_grp_n_findings", [formatUI(g.items.length)])}</span>
+              {formatUI(SEVERITY_ORDER.map((sev) => { const n = g.items.filter((f) => f.severity === sev).length; return n ? <span key={sev} className="sev-count"><SeverityBadge severity={sev}/> {formatUI(n)}</span> : null; }))}
+            </>}>
+              <FindingRows list={bySeverity(g.items)} me={me}/>
+            </OrganizationGroup>)) : <FindingRows list={items} me={me}/>)}
           {formatUI(res.hasNextPage && <div className="more"><button type="button" className="btn btn--secondary btn--auto" onClick={() => res.fetchNextPage()} disabled={res.isFetchingNextPage}>{formatUI(res.isFetchingNextPage ? textUI("m_ba3bbbe10d8b") : textUI("m_ac8991ef0101"))}</button></div>)}
         </>)))}
     </section>);

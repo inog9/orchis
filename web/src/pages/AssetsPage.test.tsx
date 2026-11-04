@@ -44,6 +44,22 @@ describe('AssetsPage', () => {
     expect(screen.getAllByText('10.0.0.5')).toHaveLength(2);
   });
 
+  it('tanpa filter, aset dikelompokkan per organisasi dengan tautan ke organisasi', async () => {
+    route(() => json({ items: [
+      asset('srv-1', { organization_id: 'o2', organization_name: 'Zeta Corp' }),
+      asset('srv-2', { organization_id: 'o1', organization_name: 'Alpha Corp' }),
+      asset('srv-3', { organization_id: null, organization_name: null }),
+    ], next_cursor: null }));
+    mount();
+    const heads = await screen.findAllByRole('heading', { level: 2 });
+    expect(heads.map((h) => h.textContent)).toEqual(['Alpha Corp', 'Zeta Corp', 'Unassigned']);
+    const alpha = heads[0]!.closest('details')!;
+    expect(within(alpha).getByText('srv-2')).toBeInTheDocument();
+    expect(within(alpha).queryByText('srv-1')).toBeNull();
+    expect(within(alpha).getByRole('link', { name: /open organisation/i })).toHaveAttribute('href', '/organizations/o1');
+    expect(within(heads[2]!.closest('details')!).queryByRole('link', { name: /open organisation/i })).toBeNull();
+  });
+
   it('menampilkan keadaan kosong dengan ajakan menambah aset', async () => {
     route(() => json({ items: [], next_cursor: null }));
     mount();

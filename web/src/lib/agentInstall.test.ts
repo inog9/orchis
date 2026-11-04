@@ -89,11 +89,10 @@ describe('installCommand dengan /install.sh', () => {
   });
 });
 
- describe('user mode startup guidance',()=>{
- it('shows the named installed binary and leaves service mode alone',()=>{
+ describe('user mode command',()=>{
+ it('is pasteable as-is: no leading comment line (zsh does not accept # interactively)',()=>{
  const user=installCommand('https://h',tok({release_key:'A'.repeat(43)+'=',mode:'user'}),'lab');
- expect(user).toContain('without starting it');
- expect(user).toContain('"$HOME/orchis-agent-lab/orchis-agent" run');
- expect(installCommand('https://h',tok({release_key:'A'.repeat(43)+'='}),'lab')).not.toContain('without starting it');
+ expect(user.startsWith('curl ')).toBe(true);
+ expect(user).toContain('--mode user');
  });
  });

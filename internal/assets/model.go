@@ -67,6 +67,7 @@ type CreateInput struct {
 
 type Asset struct {
 	OrganizationID    *uuid.UUID      `json:"organization_id"`
+	OrganizationName  *string         `json:"organization_name"`
 	ID                uuid.UUID       `json:"id"`
 	Category          string          `json:"category"`
 	Name              string          `json:"name"`

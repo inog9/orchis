@@ -360,6 +360,10 @@ export const id:Record<keyof typeof en,string> = {
   "m_350be3643ce7": "Organisasi",
   "m_d75795799ab8": "Semua organisasi",
   "m_scan_choose_org": "Pilih organisasi",
+  "m_grp_n_findings": "{0} temuan",
+  "m_grp_n_assets": "{0} aset",
+  "m_grp_open_org": "Buka organisasi",
+  "m_addr_from_agent": "Opsional: aset ini dibuat oleh agent. Tambahkan alamat hanya bila host ini ingin dipindai lewat jaringan.",
   "m_ep_unsupported": "Data endpoint (osquery), pengumpulan data, dan rentang jaringan hanya tersedia untuk agent Linux amd64. Agent ini tetap melaporkan statusnya dan dapat diperbarui, dijeda, atau dihapus.",
   "m_ac_update_off": "Update now nonaktif: agent ini sudah memakai rilis terbaru.",
   "m_ac_collect_paused": "Collect data now nonaktif saat agent dijeda. Lanjutkan agent dulu.",
@@ -1978,7 +1982,6 @@ export const id:Record<keyof typeof en,string> = {
 "api_email_invalid": "Masukkan alamat email yang valid.",
 "api_asset_no_agent": "Aset ini belum memiliki agent. Pasang dahulu dari Assets → Agents.",
 "api_step_asset_no_agent": "Satu langkah berjalan di endpoint, tetapi ada aset target yang belum memiliki agent. Pasang dahulu dari Assets → Agents.",
-"install_user_run": "Mode user mendaftarkan agent tanpa menjalankannya. Setelah pemasangan, biarkan perintah ini berjalan di terminal: {0}",
 "install_ca_steps": "Server ini memakai CA internal. Unduh sertifikatnya dari {0}/ca.pem lewat browser, simpan sebagai ca.pem, lalu pastikan perintah ini mencetak {1}:\nopenssl x509 -in ca.pem -outform DER | openssl dgst -sha256",
 "install_pin_steps": "Server ini memakai sertifikat self-signed. Simpan sebagai server.pem (misalnya dari browser), lalu pastikan perintah ini mencetak bagian {1} setelah sha256//:\nopenssl x509 -in server.pem -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | openssl base64",
 };

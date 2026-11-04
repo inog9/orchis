@@ -10,6 +10,8 @@ import { describeError } from '../components/ErrorNote';
 import { TagChips } from '../components/TagPicker';
 import { ImportDialog } from './ImportDialog';
 import { AddAssetDialog } from './AddAssetDialog';
+import { OrganizationGroup } from '../components/OrganizationGroup';
+import { groupByOrganization } from '../lib/groupByOrganization';
 import { CATEGORIES, categoryOf, PLATFORM_LABEL } from './categories';
 function useDebounced<T>(value: T, ms: number) {
     const [v, setV] = useState(value);
@@ -148,9 +150,15 @@ export function AssetsPage({ organizationID, organizationName }: {
                 ? textUI("m_f69729a1d2dc") : textUI("m_33178926dc2b"))}
             </p>
             {formatUI(!filtered && canWrite && (<button type="button" className="btn btn--primary btn--auto" onClick={() => setAdding(true)}>{richUI("m_8a7bbf830b09", [<Plus size={16} aria-hidden="true"/>])}</button>))}
-          </div>) : (<ul className="list__body">
+          </div>) : organization ? (<ul className="list__body">
             {formatUI(items.map((a) => (<Row key={a.id} a={a}/>)))}
-          </ul>))}
+          </ul>) : (<div className="org-groups">
+            {formatUI(groupByOrganization(items).map((g) => (<OrganizationGroup key={g.key} id={g.id} name={g.name} linkable={can(me, 'organization.read')} summary={<span>{richUI("m_grp_n_assets", [formatUI(g.items.length)])}</span>}>
+                <ul className="list__body">
+                  {formatUI(g.items.map((a) => (<Row key={a.id} a={a}/>)))}
+                </ul>
+              </OrganizationGroup>)))}
+          </div>))}
       </div>
 
       {formatUI(list.hasNextPage && (<div className="more">

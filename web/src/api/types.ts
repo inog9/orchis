@@ -16,6 +16,7 @@ export type GroupRef = { id: string; name: string; is_system: boolean };
 export type Asset = {
  is_demo?:boolean;
  organization_id?: string | null;
+ organization_name?: string | null;
   id: string;
   category: string;
   name: string;
@@ -162,6 +163,8 @@ export type Finding = {
   first_seen_at: string;
   last_seen_at: string;
   occurrence_count: number;
+  organization_id?: string | null;
+  organization_name?: string | null;
 };
 
 export type FindingPage = { items: Finding[]; next_cursor: string | null; search: string };

@@ -112,6 +112,25 @@ describe('AssetDetailPage', () => {
     expect(body.testing_authorized).toBeUndefined(); // tanpa izin asset.authorize tidak dikirim
   });
 
+  it('aset dari agent boleh disimpan tanpa alamat (alamat bukan wajib)', async () => {
+    const spy = api(perms(), (url, init) => json(asset({ source: 'agent', testing_authorized: false, addresses: [] })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await userEvent.click(await screen.findByRole('button', { name: /edit/i }));
+    expect(screen.getByText(/created by an agent/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    await waitFor(() => expect(spy.mock.calls.some(([, i]) => i?.method === 'PATCH')).toBe(true));
+    expect(screen.queryByText(/add at least one address/i)).toBeNull();
+  });
+
+  it('aset manual tetap wajib punya alamat', async () => {
+    const spy = api(perms(), () => json(asset({ testing_authorized: false, addresses: [] })));
+    mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
+    await userEvent.click(await screen.findByRole('button', { name: /edit/i }));
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+    expect(await screen.findByText(/add at least one address/i)).toBeInTheDocument();
+    expect(spy.mock.calls.some(([, i]) => i?.method === 'PATCH')).toBe(false);
+  });
+
   it('hapus meminta konfirmasi lalu kembali ke daftar', async () => {
     const spy = api(perms(['asset.delete']), (url, init) => (init?.method === 'DELETE' ? new Response(null, { status: 204 }) : json(asset())));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');

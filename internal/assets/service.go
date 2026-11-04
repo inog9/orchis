@@ -28,7 +28,8 @@ const (
 	cols         = `a.id, a.category, a.name, a.description, a.platform, a.arch, a.criticality, a.is_internet_facing,
 a.testing_authorized, a.source, a.attributes, a.created_at, a.updated_at, a.version,
  COALESCE((SELECT CASE WHEN g.last_heartbeat_at > now() - interval '90 seconds' THEN 'online' ELSE 'offline' END FROM agents g
-  WHERE g.tenant_id=a.tenant_id AND g.asset_id=a.id AND g.status<>'revoked' ORDER BY g.last_heartbeat_at DESC NULLS LAST LIMIT 1), 'none'), a.organization_id`
+  WHERE g.tenant_id=a.tenant_id AND g.asset_id=a.id AND g.status<>'revoked' ORDER BY g.last_heartbeat_at DESC NULLS LAST LIMIT 1), 'none'), a.organization_id,
+ (SELECT o.name FROM organizations o WHERE o.tenant_id=a.tenant_id AND o.id=a.organization_id)`
 )
 
 type ListFilter struct {
@@ -77,7 +78,7 @@ func likePattern(q string) string {
 func scanAsset(row pgx.Row) (Asset, error) {
 	var a Asset
 	err := row.Scan(&a.ID, &a.Category, &a.Name, &a.Description, &a.Platform, &a.Arch, &a.Criticality, &a.IsInternetFacing,
-		&a.TestingAuthorized, &a.Source, &a.Attributes, &a.CreatedAt, &a.UpdatedAt, &a.Version, &a.AgentState, &a.OrganizationID)
+		&a.TestingAuthorized, &a.Source, &a.Attributes, &a.CreatedAt, &a.UpdatedAt, &a.Version, &a.AgentState, &a.OrganizationID, &a.OrganizationName)
 	a.Addresses = []Address{}
 	return a, err
 }

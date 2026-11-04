@@ -38,12 +38,11 @@ function installScriptCommand(server: string, t: EnrollmentToken, name: string):
     const trust = t.ca_fingerprint ? { cert: 'ca.pem', note: textUI('install_ca_steps', [server, t.ca_fingerprint]), flag: ['--ca-fingerprint', t.ca_fingerprint] }
         : t.tls_pin ? { cert: 'server.pem', note: textUI('install_pin_steps', [server, t.tls_pin]), flag: ['--pin', t.tls_pin] }
             : null;
-    const userNote = t.mode === 'user' ? '# ' + textUI('install_user_run', [`\"$HOME/orchis-agent${name ? '-' + name : ''}/orchis-agent\" run`]) : '';
     const fetch = `curl -fsSL${trust ? ` --cacert ${trust.cert}` : ''} -o install.sh ${SH_QUOTE(server + '/install.sh')}`;
     const run = ['sh install.sh', `--server ${SH_QUOTE(server)}`, `--token ${SH_QUOTE(t.token)}`, `--sha256 ${SH_QUOTE(t.sha256)}`,
         `--release-key ${SH_QUOTE(t.release_key ?? '')}`, ...(trust ? [`${trust.flag[0]} ${SH_QUOTE(trust.flag[1] ?? '')}`] : []),
         ...(name ? [`--name ${SH_QUOTE(name)}`] : []), `--mode ${t.mode}`].join(' ');
-    return [...(userNote ? [userNote] : []), ...(trust ? [trust.note.split('\n').map((line) => `# ${line}`).join('\n')] : []), `${fetch} \\\n  && ${run}`].join('\n');
+    return [...(trust ? [trust.note.split('\n').map((line) => `# ${line}`).join('\n')] : []), `${fetch} \\\n  && ${run}`].join('\n');
 }
 export const OS_LABEL = { get windows() {
         return textUI("m_d598026a9cbc");

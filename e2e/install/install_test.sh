@@ -84,9 +84,9 @@ expect_ok "fingerprint CA benar menerima server ber-CA sendiri" sh "$SCRIPT" --s
 expect_refused "fingerprint CA salah ditolak" "fingerprint does not match" sh "$SCRIPT" --server $CASRV --ca-fingerprint "$(printf '0%.0s' $(seq 64))" --token oen_testtoken --sha256 "$GOOD_SHA" --release-key "$RELKEY" --mode user --dir "$W/inst7f"
 [ ! -e "$W/inst7f/orchis-agent" ] && ok "CA tak dikenal: tidak ada yang terpasang" || bad "terpasang meski fingerprint CA salah"
 
-# User enrollment must explicitly tell the operator how to start the installed binary.
-expect_ok "user mode prints startup instructions" run --mode user --dir "$W/user-instructions"
-grep -Fq "Start it with: $W/user-instructions/orchis-agent run" "$W/out" && ok "user startup instruction names the installed binary" || bad "missing user startup instruction"
+# Mode user memasang layanan tingkat pengguna tanpa sudo; bila gagal, pengguna diberi perintah run manual.
+expect_ok "user mode installs a background service" run --mode user --dir "$W/user-instructions"
+grep -qx "install" "$W/user-instructions/calls.log" && grep -qx "start" "$W/user-instructions/calls.log" && grep -Fq "background service for this user" "$W/out" && ok "user mode runs install and start without sudo" || bad "user mode did not install/start the service"
 
 # 8. Mode service (uji sebagai root) dan token tidak muncul di URL
 expect_ok "mode service memanggil install dan start" run --mode service --dir "$W/inst8"

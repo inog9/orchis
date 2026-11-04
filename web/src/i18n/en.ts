@@ -359,6 +359,10 @@ export const en = {
   "m_350be3643ce7": "Organisation",
   "m_d75795799ab8": "All organisations",
   "m_scan_choose_org": "Choose an organisation",
+  "m_grp_n_findings": "{0} findings",
+  "m_grp_n_assets": "{0} assets",
+  "m_grp_open_org": "Open organisation",
+  "m_addr_from_agent": "Optional: this asset was created by an agent. Add an address only if you want to scan this host over the network.",
   "m_ep_unsupported": "Endpoint data (osquery), data collection and network ranges are only available for Linux amd64 agents. This agent still reports its status and can be updated, paused or uninstalled.",
   "m_ac_update_off": "Update now is off: this agent already runs the latest release.",
   "m_ac_collect_paused": "Collect data now is off while the agent is paused. Resume it first.",
@@ -1977,7 +1981,6 @@ export const en = {
 "api_email_invalid": "Enter a valid email address.",
 "api_asset_no_agent": "This asset has no agent. Install one from Assets → Agents first.",
 "api_step_asset_no_agent": "A step runs on the endpoint, but a target asset has no agent. Install one from Assets → Agents first.",
-"install_user_run": "User mode enrolls the agent without starting it. After installation, keep this command running in a terminal: {0}",
 "install_ca_steps": "This server uses an internal CA. Download its certificate from {0}/ca.pem in your browser, save it as ca.pem and check that this command prints {1}:\nopenssl x509 -in ca.pem -outform DER | openssl dgst -sha256",
 "install_pin_steps": "This server uses a self-signed certificate. Save it as server.pem (for example from your browser) and check that this command prints the part of {1} after sha256//:\nopenssl x509 -in server.pem -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | openssl base64",
 } as const;

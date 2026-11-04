@@ -45,10 +45,18 @@ func TestOrganizationFiltersScopePaginationSearchAndUntrustedIndexResults(t *tes
 	}
 	for _, name := range []string{"org", "organization_id"} {
 		r := a.do("GET", "/api/v1/assets?"+name+"="+oa.ID.String(), nil, viewer)
-		var page struct{ Items []struct{ ID string } }
+		var page struct {
+			Items []struct {
+				ID               string
+				OrganizationName *string `json:"organization_name"`
+			}
+		}
 		r.JSON(&page)
 		if r.Status != 200 || len(page.Items) != 1 || page.Items[0].ID != aa {
 			t.Fatalf("asset scope: %d %s", r.Status, r.Body)
+		}
+		if page.Items[0].OrganizationName == nil || *page.Items[0].OrganizationName != oa.Name {
+			t.Fatalf("asset list must carry the organisation name for grouping: %s", r.Body)
 		}
 		seen := map[uuid.UUID]bool{}
 		cursor := ""
@@ -62,6 +70,9 @@ func TestOrganizationFiltersScopePaginationSearchAndUntrustedIndexResults(t *tes
 			for _, f := range found.Items {
 				if f.AssetID == nil || f.AssetID.String() != aa || seen[f.ID] {
 					t.Fatal("finding escaped organisation or repeated across cursor")
+				}
+				if f.OrganizationID == nil || *f.OrganizationID != oa.ID || f.OrganizationName == nil || *f.OrganizationName != oa.Name {
+					t.Fatalf("finding must carry its organisation for grouping: %+v", f)
 				}
 				seen[f.ID] = true
 			}

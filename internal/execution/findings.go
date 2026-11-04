@@ -139,7 +139,8 @@ VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tenant_id, finding_id, execution_id) 
 	return accepted, rejected, nil
 }
 
-const findingCols = `f.id, f.asset_id, COALESCE(a.name,f.subject_address), f.type, f.value, f.title, f.severity, f.details, f.first_seen_at, f.last_seen_at, f.occurrence_count`
+const findingCols = `f.id, f.asset_id, COALESCE(a.name,f.subject_address), f.type, f.value, f.title, f.severity, f.details, f.first_seen_at, f.last_seen_at, f.occurrence_count,
+ COALESCE(f.organization_id,a.organization_id), (SELECT o.name FROM organizations o WHERE o.tenant_id=f.tenant_id AND o.id=COALESCE(f.organization_id,a.organization_id))`
 
 // queryFindings menjalankan SELECT finding. joinWhere harus diawali JOIN/WHERE yang membatasi tenant (f.tenant_id=$1).
 func queryFindings(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, joinWhere string, args []any, tail string) ([]Finding, error) {
@@ -156,7 +157,7 @@ func scanFindings(rows pgx.Rows) ([]Finding, error) {
 	out := []Finding{}
 	for rows.Next() {
 		var f Finding
-		if err := rows.Scan(&f.ID, &f.AssetID, &f.AssetName, &f.Type, &f.Value, &f.Title, &f.Severity, &f.Details, &f.FirstSeenAt, &f.LastSeenAt, &f.OccurrenceCount); err != nil {
+		if err := rows.Scan(&f.ID, &f.AssetID, &f.AssetName, &f.Type, &f.Value, &f.Title, &f.Severity, &f.Details, &f.FirstSeenAt, &f.LastSeenAt, &f.OccurrenceCount, &f.OrganizationID, &f.OrganizationName); err != nil {
 			return nil, err
 		}
 		out = append(out, f)

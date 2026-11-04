@@ -176,5 +176,11 @@ if [ "$mode" = service ]; then
 	run start
 	note "agent $version installed as a service in $dir"
 else
-	note "agent $version enrolled in $dir. Start it with: $dir/orchis-agent run"
+	# Mode user: layanan tingkat pengguna (LaunchAgent di macOS, systemd --user di Linux), tanpa sudo. Jalan di latar belakang
+	# dan hidup lagi saat login. Bila tidak bisa dipasang, agent tetap terdaftar dan pengguna diberi perintah run manual.
+	if "$dir/orchis-agent" install >/dev/null 2>&1 && "$dir/orchis-agent" start >/dev/null 2>&1; then
+		note "agent $version installed as a background service for this user in $dir (no sudo). It restarts at login."
+	else
+		note "agent $version enrolled in $dir, but the user service could not be started. Run it in a terminal with: $dir/orchis-agent run"
+	fi
 fi

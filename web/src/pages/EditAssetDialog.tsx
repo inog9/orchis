@@ -40,7 +40,7 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
         e.preventDefault();
         const lines = addresses.split(/[\n,]+/).map((l) => l.trim()).filter(Boolean);
         const problems = missingRequired(spec, values);
-        if (canEditAddresses && spec.address === 'required' && lines.length === 0)
+        if (canEditAddresses && spec.address === 'required' && asset.source !== 'agent' && lines.length === 0)
             problems.addresses = textUI("m_cf_err_addr_required", [kindsText(spec.kinds)]);
         const bad = canEditAddresses && spec.address !== 'hidden' ? badAddress(lines, spec.kinds, inferKind) : null;
         if (bad)
@@ -97,7 +97,7 @@ export function EditAssetDialog({ asset, onClose, onStale }: {
           <label htmlFor="ed-addresses">{formatUI(spec.addressLabel)}</label>
           <textarea id="ed-addresses" disabled={!canEditAddresses} rows={3} value={addresses} placeholder={spec.addressPlaceholder} aria-invalid={!!(clientErrors.addresses || fieldErr('addresses'))} aria-describedby="ed-addresses-hint" onChange={(e) => { touch(); setClientErrors((c) => ({ ...c, addresses: '' })); setAddresses(e.target.value); }}/>
           <small id="ed-addresses-hint" className={(clientErrors.addresses || fieldErr('addresses')) ? 'is-error' : ''} role={(clientErrors.addresses || fieldErr('addresses')) ? 'alert' : undefined}>
-            {formatUI(clientErrors.addresses || fieldErr('addresses') || (canEditAddresses ? spec.addressHint : textUI("m_3dce808e1410")))}
+            {formatUI(clientErrors.addresses || fieldErr('addresses') || (canEditAddresses ? (asset.source === 'agent' ? textUI("m_addr_from_agent") : spec.addressHint) : textUI("m_3dce808e1410")))}
           </small>
         </div>))}
         <TagPicker value={tagIds} onChange={(v) => { touch(); setTagIds(v); }} canCreate/>

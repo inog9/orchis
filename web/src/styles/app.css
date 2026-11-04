@@ -720,3 +720,14 @@ main.content:focus { outline: none; }
   .auth__form-panel { padding: 32px 24px 24px; }
   .auth__footer { flex-wrap: wrap; gap: 16px; }
 }
+
+.org-group { margin-bottom: 16px; border: 1px solid var(--ring); border-radius: 12px; overflow: hidden; }
+.org-group__head { display: flex; align-items: center; gap: 12px; padding: 14px 20px; cursor: pointer; list-style: none; background: var(--surface-2, transparent); flex-wrap: wrap; }
+.org-group__head::-webkit-details-marker { display: none; }
+.org-group__chev { transition: transform .15s; flex: none; }
+.org-group[open] > .org-group__head .org-group__chev { transform: rotate(90deg); }
+.org-group__title { font-size: 16px; margin: 0; overflow-wrap: anywhere; }
+.org-group__summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; color: var(--muted, inherit); font-size: 13px; }
+.org-group__open { margin-left: auto; font-size: 13px; }
+.org-group > .list, .org-group > .finding-list { border: 0; border-radius: 0; margin: 0; }
+.org-group[open] > .org-group__head { border-bottom: 1px solid var(--ring); }
