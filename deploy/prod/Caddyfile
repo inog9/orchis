@@ -16,6 +16,15 @@
   Referrer-Policy no-referrer
   -Server
  }
+ # HTML dan rute aplikasi (mis. /assets/agents) selalu divalidasi ulang agar rilis baru langsung terlihat;
+ # hanya berkas ber-ekstensi di /assets/ (hasil build ber-hash) yang aman di-cache lama.
+ @hashed path_regexp ^/assets/[^/]+\.[A-Za-z0-9]+$
+ header @hashed >Cache-Control "public, max-age=31536000, immutable"
+ @page {
+  not path_regexp ^/assets/[^/]+\.[A-Za-z0-9]+$
+  not path /api/*
+ }
+ header @page >Cache-Control "no-cache"
  # Root CA of this installation, fetched by install.sh and accepted only when its SHA-256 matches the pinned fingerprint.
  handle /ca.pem {
   root * /data/caddy/pki/authorities/local

@@ -126,6 +126,16 @@ describe('EndpointDataPanel', () => {
     expect(screen.getByText(/3 listening ports/)).toBeInTheDocument();
   });
 
+  it('for an agent that cannot collect shows only the explanation, with no dead controls or links', async () => {
+    stub((url) => (url.endsWith('/assets/a1/endpoint-data') ? json(data({ supported: false, findings: [], items: [ds('osquery.network', 'Network interfaces and routes', { synthetic: true, enabled: false })] })) : undefined));
+    mount(<EndpointDataPanel assetID="a1" allowed canRun canDelete />);
+    expect(await screen.findByText(/Endpoint collection is not supported on this agent yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Delete collected data/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Run .* now/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /Review collection consent/ })).toBeNull();
+    expect(screen.queryByText('Network interfaces and routes')).toBeNull();
+  });
+
   it('runs a check now and explains why it could not start', async () => {
     const calls: Calls = [];
     stub((url, method) => {

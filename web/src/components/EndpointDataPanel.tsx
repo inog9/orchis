@@ -76,6 +76,7 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false,
       <p className="muted small">{textUI("m_cec34285e425")}</p>
       {formatUI(!allowed ? <p className="muted">{textUI("m_d0cecb60890e")}</p> : q.isPending ? <span className="skeleton"/> : q.isError || !q.data ? <p role="alert">{formatUI(describeError(q.error).message)}</p> : (<>
           {formatUI(q.data.supported === false && q.data.has_agent && <p className="notice">{textUI("m_0792ed61b4fd")}</p>)}
+          {formatUI(!(q.data.supported === false && q.data.has_agent) && (<>
           {formatUI(!q.data.has_agent && <p className="muted">{richUI("m_95aa34854904", [<Link to="/assets/agents">{textUI("m_703e4ff0e367")}</Link>])}</p>)}
           {formatUI(!inOrganization && q.data.organization_id && <p><Link to={`/organizations/${q.data.organization_id}?tab=agents&asset=${assetID}`}>{textUI("m_c78beab0b1be")}</Link></p>)}
           {formatUI(refresh.isError && <div className="alert" role="alert"><strong>{textUI("m_1aa6f68b7d75")}</strong><span>{formatUI(describeError(refresh.error).message)}</span></div>)}
@@ -100,6 +101,7 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false,
           </ul>
           <h3 className="ed-h4">{textUI("m_74edc5d7939b")}</h3>
           {formatUI((q.data.findings ?? []).length === 0 ? <p className="muted small">{textUI("m_df9622651de4")}</p> : (<ul className="stack-list">{formatUI((q.data.findings ?? []).map((f) => <li key={f.id}><span className={`sev sev--${f.severity}`}>{formatUI(f.severity)}</span> {formatUI(f.title)}</li>))}</ul>))}
+          </>))}
         </>))}
     </section>);
 }
