@@ -58,11 +58,13 @@ function RowsTable({ d }: {
       </div>
     </details>);
 }
-export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false }: {
+export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false, inOrganization = false }: {
     assetID: string;
     canRun: boolean;
     allowed: boolean;
     canDelete?: boolean;
+    // Dipakai di halaman organisasi yang sama: tautan ke halaman itu sendiri disembunyikan.
+    inOrganization?: boolean;
 }) {
     useLocale();
     const q = useAssetEndpoint(assetID, allowed);
@@ -75,7 +77,7 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false 
       {formatUI(!allowed ? <p className="muted">{textUI("m_d0cecb60890e")}</p> : q.isPending ? <span className="skeleton"/> : q.isError || !q.data ? <p role="alert">{formatUI(describeError(q.error).message)}</p> : (<>
           {formatUI(q.data.supported === false && q.data.has_agent && <p className="notice">{textUI("m_0792ed61b4fd")}</p>)}
           {formatUI(!q.data.has_agent && <p className="muted">{richUI("m_95aa34854904", [<Link to="/assets/agents">{textUI("m_703e4ff0e367")}</Link>])}</p>)}
-          {formatUI(q.data.organization_id && <p><Link to={`/organizations/${q.data.organization_id}?tab=agents&asset=${assetID}`}>{textUI("m_c78beab0b1be")}</Link></p>)}
+          {formatUI(!inOrganization && q.data.organization_id && <p><Link to={`/organizations/${q.data.organization_id}?tab=agents&asset=${assetID}`}>{textUI("m_c78beab0b1be")}</Link></p>)}
           {formatUI(refresh.isError && <div className="alert" role="alert"><strong>{textUI("m_1aa6f68b7d75")}</strong><span>{formatUI(describeError(refresh.error).message)}</span></div>)}
           {formatUI(canDelete && !q.data.read_only && <button className="btn btn--secondary btn--auto" type="button" onClick={() => setConfirmDelete(true)}>{textUI("m_e39b83b0b4b3")}</button>)}
           {formatUI(remove.isError && <p role="alert">{formatUI(describeError(remove.error).message)}</p>)}

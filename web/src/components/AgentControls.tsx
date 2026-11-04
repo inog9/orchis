@@ -73,14 +73,26 @@ export function AgentControls({ agent: a }: {
     const uninstallPending = a.uninstall_status === 'queued' || a.uninstall_status === 'dispatched';
     const busy = control.isPending || collect.isPending;
     const unavailable = a.status === 'revoked' || uninstallPending;
+    const collectSupported = a.os === 'linux' && a.arch === 'x86_64';
+    // Setiap tombol yang mati harus punya alasan yang terlihat di dekatnya.
+    const reasons: string[] = [];
+    if (a.status !== 'revoked' && !unavailable && !a.update_available)
+        reasons.push(textUI("m_ac_update_off"));
+    if (a.status !== 'revoked' && !unavailable && collectSupported && a.paused)
+        reasons.push(textUI("m_ac_collect_paused"));
+    else if (a.status !== 'revoked' && !unavailable && collectSupported && a.status !== 'online')
+        reasons.push(textUI("m_ac_collect_offline"));
+    if (unavailable && a.status !== 'revoked')
+        reasons.push(textUI("m_ac_busy"));
     return <div className="agent-controls">
   <AgentDiagnostics agent={a}/>
   {formatUI(a.status !== 'revoked' && <div className="row" style={{ flexWrap: 'wrap' }}>
    <button className="btn btn--secondary btn--sm btn--auto" disabled={busy || unavailable || !a.update_available} onClick={() => control.mutate('update')}>{textUI("m_63bf045213ce")}</button>
    <button className="btn btn--secondary btn--sm btn--auto" disabled={busy || unavailable} onClick={() => control.mutate(a.paused ? 'resume' : 'pause')}>{formatUI(a.paused ? textUI("m_0bb60c450191") : textUI("m_51ca75d39c87"))}</button>
-   <button className="btn btn--secondary btn--sm btn--auto" disabled={busy || unavailable || !!a.paused || a.status !== 'online' || a.os !== 'linux' || a.arch !== 'x86_64'} onClick={() => { setCollected(false); collect.mutate(); }}>{textUI("m_f084daccd993")}</button>
+   {formatUI(collectSupported && <button className="btn btn--secondary btn--sm btn--auto" disabled={busy || unavailable || !!a.paused || a.status !== 'online'} onClick={() => { setCollected(false); collect.mutate(); }}>{textUI("m_f084daccd993")}</button>)}
    <button className="btn btn--danger btn--sm btn--auto" disabled={busy || unavailable || a.control_protocol !== 1} onClick={() => { control.reset(); setTyped(''); setConfirming(true); }}>{textUI("m_ccc8b738a170")}</button>
   </div>)}
+  {formatUI(reasons.length > 0 && <ul className="muted small" role="note">{formatUI(reasons.map(r => <li key={r}>{formatUI(r)}</li>))}</ul>)}
   {formatUI(a.status !== 'revoked' && a.control_protocol !== 1 && <p className="muted small">{textUI("m_34b487fcc0e4")}</p>)}
   {formatUI(collected && <p role="status">{textUI("m_86e72d6825d5")}</p>)}
   {formatUI((control.isError || collect.isError) && <div className="alert" role="alert"><p>{formatUI(describeError(control.error ?? collect.error).message)}</p><button className="btn btn--secondary btn--auto" onClick={() => { control.reset(); collect.reset(); void qc.invalidateQueries({ queryKey: ['agents'] }); }}>{textUI("m_c39ad7760707")}</button></div>)}

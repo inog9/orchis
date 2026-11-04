@@ -41,3 +41,19 @@ it('shows confirmed removal without obsolete pause or update instructions',()=>{
  expect(screen.queryByText(/Release status is unknown/)).not.toBeInTheDocument();
  expect(screen.queryByRole('button',{name:'Update now'})).not.toBeInTheDocument();
 });
+it('does not offer data collection on an agent type that cannot collect', () => {
+ mount(<AgentControls agent={{ ...agent, os: 'macos' }} />);
+ expect(screen.queryByRole('button', { name: 'Collect data now' })).toBeNull();
+ expect(screen.getByRole('button', { name: 'Pause agent' })).toBeEnabled();
+ expect(screen.getByRole('button', { name: 'Uninstall remotely' })).toBeEnabled();
+});
+it('explains next to the buttons why a control is off', () => {
+ mount(<AgentControls agent={{ ...agent, paused: true, update_available: false }} />);
+ const note = screen.getByRole('note');
+ expect(note).toHaveTextContent('Update now is off: this agent already runs the latest release.');
+ expect(note).toHaveTextContent('Collect data now is off while the agent is paused. Resume it first.');
+});
+it('says the agent is offline when collection is unavailable for that reason', () => {
+ mount(<AgentControls agent={{ ...agent, status: 'offline', update_available: true }} />);
+ expect(screen.getByRole('note')).toHaveTextContent('Collect data now is off while the agent is offline.');
+});
