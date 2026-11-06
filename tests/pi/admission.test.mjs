@@ -1,0 +1,55 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { Controller } from "../../pi-runtime/controller.mjs";
+import { createAttempt, bindingsFor, childBinding, claimAttempt, assertAttempt } from "../../pi-runtime/admission.mjs";
+import { Budget } from "../../pi-runtime/budget.mjs";
+import { atomicJSON, readJSON } from "../../pi-runtime/storage.mjs";
+
+test("native child claims a single admitted task/session and cannot replay or drift", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-admission-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const workspace = path.join(root, "workspace");
+  fs.mkdirSync(path.join(workspace, ".pi/skills/pentest/references"), { recursive: true });
+  fs.writeFileSync(path.join(workspace, ".pi/skills/pentest/references/checklist.md"), "## 0. Scope\n- [ ] Fixture authorization\n");
+  fs.mkdirSync(path.join(workspace, ".pi/skills/pentest-exploration"), { recursive: true });
+  fs.writeFileSync(path.join(workspace, ".pi/skills/pentest-exploration/SKILL.md"), "# Local fixture\n");
+  const controller = new Controller(root, workspace);
+  const task = controller.createTask({ id: "local-audit", phase: "recon", question: "Read a local fixture", skill: ".pi/skills/pentest-exploration/SKILL.md", network: false });
+  controller.startTask(task.id);
+  const attempt = createAttempt({ root, task, parentSessionId: "parent-fixture", parentPid: process.pid, launchFile: "fixture-launch" });
+  const binding = childBinding({ PI_SUBAGENT_CHILD: "1", PI_SUBAGENT_EXTENSION_BINDINGS: JSON.stringify(bindingsFor(attempt)) });
+  const child = { root, launchFile: "fixture-launch", controller, binding, sessionId: "child-fixture", sessionFile: path.join(root, "specialists", task.id, "native", "child.jsonl"), pid: process.pid + 1000000 };
+  const claim = claimAttempt(child);
+  assert.equal(claim.claim.sessionId, "child-fixture");
+  assert.doesNotThrow(() => assertAttempt({ ...child }));
+  controller.state.phase = "exploration";
+  assert.doesNotThrow(() => assertAttempt({ ...child }), "offline work stays admitted while earlier phases advance");
+  controller.state.phase = "auth";
+  assert.throws(() => assertAttempt({ ...child }), /no longer valid/);
+  controller.state.phase = "setup";
+  assert.throws(() => claimAttempt({ ...child, sessionId: "replay" }), /already been claimed/);
+  assert.throws(() => claimAttempt({ ...child, pid: process.pid }), /distinct runner/);
+  controller.state.tasks[task.id].question = "Changed after launch";
+  assert.throws(() => assertAttempt(child), /no longer valid/);
+  assert.throws(() => childBinding({ PI_SUBAGENT_CHILD: "1" }), /authorized task binding/);
+});
+
+test("estimate spending records usage above the reference without a hard monetary cutoff", t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "harness-estimate-"));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const ledger = path.join(root, "launch.json");
+  atomicJSON(ledger, { budgetMode: "estimate", budgetUSD: 15, spentUSD: 20, reservations: {}, events: {} });
+  const budget = new Budget(ledger, root);
+  const model = { provider: "fixture", id: "estimate", contextWindow: 1000, maxTokens: 1000, cost: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0 } };
+  const reservation = budget.reserve(model, {});
+  budget.settle(reservation, { usage: { input: 100, output: 100, cacheRead: 0, cacheWrite: 0 }, stopReason: "stop" });
+  assert.ok(budget.status().spentUSD > 20);
+  assert.equal(budget.status().remainingUSD, null);
+  assert.equal(budget.status().estimated, true);
+  const unknown = budget.reserve({ ...model, id: "unpriced", cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }, {});
+  budget.settle(unknown, { usage: { input: 100, output: 10, cacheRead: 0, cacheWrite: 0 }, stopReason: "stop" });
+  assert.equal(readJSON(ledger).events[unknown].pricingUnknown, true);
+});

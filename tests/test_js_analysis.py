@@ -7,7 +7,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNNER = ROOT / 'pentest-js-analysis/scripts/analyze.py'
+RUNNER = ROOT / 'skills/pentest-js-analysis/scripts/analyze.py'
 
 
 @unittest.skipUnless(shutil.which('jsluice'), 'jsluice is not installed')

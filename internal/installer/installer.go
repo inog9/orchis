@@ -1,4 +1,4 @@
-// Package installer plans and installs project-local skills.
+// Package installer plans and installs project-local orchestrator instructions and skills.
 package installer
 
 import (
@@ -9,12 +9,14 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 var targetDirs = map[string]string{
 	"agent":  ".agent/skills",
 	"codex":  ".agents/skills",
 	"claude": ".claude/skills",
+	"pi":     ".pi/skills",
 }
 
 // Entry describes one bundled file and the change it needs.
@@ -27,15 +29,16 @@ type Entry struct {
 
 // Plan is fully checked for conflicts before any directories or files are made.
 type Plan struct {
-	Root    string
-	Skills  []string
-	Targets []string
-	Entries []Entry
+	Root         string
+	Skills       []string
+	Targets      []string
+	Instructions []string
+	Entries      []Entry
 }
 
-// SkillNames lists the immediate skill directories in the bundle.
+// SkillNames lists the directories under skills/ in the bundle.
 func SkillNames(source fs.FS) ([]string, error) {
-	entries, err := fs.ReadDir(source, ".")
+	entries, err := fs.ReadDir(source, "skills")
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +47,7 @@ func SkillNames(source fs.FS) ([]string, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		if _, err := fs.ReadFile(source, entry.Name()+"/SKILL.md"); err != nil {
+		if _, err := fs.ReadFile(source, "skills/"+entry.Name()+"/SKILL.md"); err != nil {
 			return nil, fmt.Errorf("invalid bundled skill %s: %w", entry.Name(), err)
 		}
 		names = append(names, entry.Name())
@@ -56,7 +59,7 @@ func SkillNames(source fs.FS) ([]string, error) {
 	return names, nil
 }
 
-// NewPlan accepts all, agent, codex, or claude as the destination selector.
+// NewPlan accepts all, agent, codex, claude, or pi as the destination selector.
 // An existing file with different content is a conflict unless force is true.
 func NewPlan(source fs.FS, root, agent string, force bool) (*Plan, error) {
 	absolute, err := filepath.Abs(root)
@@ -65,11 +68,11 @@ func NewPlan(source fs.FS, root, agent string, force bool) (*Plan, error) {
 	}
 	var targets []string
 	if agent == "all" {
-		targets = []string{"agent", "codex", "claude"}
+		targets = []string{"agent", "codex", "claude", "pi"}
 	} else if _, ok := targetDirs[agent]; ok {
 		targets = []string{agent}
 	} else {
-		return nil, fmt.Errorf("unknown agent %q: choose all, agent, codex, or claude", agent)
+		return nil, fmt.Errorf("unknown agent %q: choose all, agent, codex, claude, or pi", agent)
 	}
 	names, err := SkillNames(source)
 	if err != nil {
@@ -77,11 +80,54 @@ func NewPlan(source fs.FS, root, agent string, force bool) (*Plan, error) {
 	}
 	plan := &Plan{Root: absolute, Skills: names}
 	var conflicts []string
+	addFile := func(relative string, data []byte) error {
+		if err := checkPath(absolute, relative); err != nil {
+			return err
+		}
+		entry := Entry{Path: relative, Action: "create", data: data}
+		existing, err := os.ReadFile(filepath.Join(absolute, relative))
+		switch {
+		case err == nil:
+			entry.before = existing
+			if bytes.Equal(existing, data) {
+				entry.Action = "unchanged"
+			} else if force {
+				entry.Action = "replace"
+			} else {
+				conflicts = append(conflicts, relative)
+			}
+		case errors.Is(err, fs.ErrNotExist):
+		case err != nil:
+			return fmt.Errorf("inspect %s: %w", relative, err)
+		}
+		plan.Entries = append(plan.Entries, entry)
+		return nil
+	}
+	orchestrator, err := fs.ReadFile(source, "AGENTS.md")
+	if err != nil {
+		return nil, fmt.Errorf("read bundled orchestrator: %w", err)
+	}
+	// Keep the source document useful in this checkout while routing installed
+	// links to a selected skill folder. All-agent installs use the compatibility folder.
+	instructions := string(orchestrator)
+	for _, name := range names {
+		instructions = strings.ReplaceAll(instructions, "](skills/"+name+"/", "]("+targetDirs[targets[0]]+"/"+name+"/")
+	}
+	if err := addFile("AGENTS.md", []byte(instructions)); err != nil {
+		return nil, err
+	}
+	plan.Instructions = append(plan.Instructions, "AGENTS.md")
+	if agent == "all" || agent == "claude" {
+		if err := addFile("CLAUDE.md", []byte("@AGENTS.md\n")); err != nil {
+			return nil, err
+		}
+		plan.Instructions = append(plan.Instructions, "CLAUDE.md")
+	}
 	for _, target := range targets {
 		targetDir := targetDirs[target]
 		plan.Targets = append(plan.Targets, targetDir)
 		for _, name := range names {
-			err = fs.WalkDir(source, name, func(path string, d fs.DirEntry, walkErr error) error {
+			err = fs.WalkDir(source, "skills/"+name, func(path string, d fs.DirEntry, walkErr error) error {
 				if walkErr != nil {
 					return walkErr
 				}
@@ -91,32 +137,12 @@ func NewPlan(source fs.FS, root, agent string, force bool) (*Plan, error) {
 				if !d.Type().IsRegular() {
 					return fmt.Errorf("unsupported bundled file: %s", path)
 				}
-				relative := filepath.Join(filepath.FromSlash(targetDir), filepath.FromSlash(path))
-				if err := checkPath(absolute, relative); err != nil {
-					return err
-				}
+				relative := filepath.Join(filepath.FromSlash(targetDir), filepath.FromSlash(strings.TrimPrefix(path, "skills/")))
 				data, err := fs.ReadFile(source, path)
 				if err != nil {
 					return err
 				}
-				entry := Entry{Path: relative, Action: "create", data: data}
-				existing, err := os.ReadFile(filepath.Join(absolute, relative))
-				switch {
-				case err == nil:
-					entry.before = existing
-					if bytes.Equal(existing, data) {
-						entry.Action = "unchanged"
-					} else if force {
-						entry.Action = "replace"
-					} else {
-						conflicts = append(conflicts, relative)
-					}
-				case errors.Is(err, fs.ErrNotExist):
-				case err != nil:
-					return fmt.Errorf("inspect %s: %w", relative, err)
-				}
-				plan.Entries = append(plan.Entries, entry)
-				return nil
+				return addFile(relative, data)
 			})
 			if err != nil {
 				return nil, err
