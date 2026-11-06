@@ -8,11 +8,21 @@ import { AssetsPage } from './AssetsPage';
 import { FindingsPage } from './FindingsPage';
 import { OrganizationEndpoints } from '../components/OrganizationEndpoints';
 import { AssessmentReadiness } from '../components/AssessmentReadiness';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import './orgs.css';
+import { EmptyState } from '../components/orgs/EmptyState';
+import { OrgCard, OrgCardSkeleton, SeverityBar } from '../components/orgs/OrgCard';
+import { OrgToolbar, type SortKey, type ViewMode } from '../components/orgs/OrgToolbar';
+import { PageHeader } from '../components/orgs/PageHeader';
+import { Pagination } from '../components/orgs/Pagination';
+import { StatCard } from '../components/orgs/StatCard';
+import { totalFindings, useAllOrganizations, useOrgReports, useStoredChoice } from '../components/orgs/useOrgData';
+import { relativeTime } from '../lib/relativeTime';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { useAgents, useMe } from '../api/hooks';
+import { useAgents, useHome, useMe } from '../api/hooks';
 import { can, type Asset } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { Modal } from '../components/Modal';
@@ -63,18 +73,84 @@ function OrgForm({ current, onClose }: {
         setSlugEdited(true); setForm({ ...form, [key]: e.target.value, ...(key === 'name' && !slugEdited ? { slug: e.target.value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') } : {}) }); }}/></div></div>))}
     <p className="field__hint">{textUI("m_505233cf57b9")}</p><ErrorMessage error={save.error}/><footer className="dialog__foot"><button type="button" className="btn btn--secondary btn--auto" onClick={onClose}>{textUI("m_19766ed6ccb2")}</button><button className="btn btn--primary btn--auto" disabled={save.isPending}>{textUI("m_f55d1a1c73b8")}</button></footer></form></Modal>;
 }
+const PAGE_SIZE = 12;
+const SORTS = ['name', 'assets', 'last', 'findings'] as const;
+
 export function OrganizationsPage() {
     useLocale();
     const { data: me } = useMe();
-    const [cursor, setCursor] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     const [create, setCreate] = useState(searchParams.get('new') === '1' && can(me, 'organization.write'));
-    const q = useQuery({ queryKey: ['organizations', cursor], queryFn: () => api.get<Page<Org>>(`/api/v1/organizations?cursor=${encodeURIComponent(cursor)}`) });
-    return <section className="page"><div className="page__head"><div><p className="eyebrow">{textUI("m_5493ff8e9397")}</p><h1 className="page__title">{textUI("m_7bd34abba2ae")}</h1><p className="page__sub">{textUI("m_a5577299d5a1")}</p></div>{formatUI(can(me, 'organization.write') && <button className="btn btn--primary btn--auto" onClick={() => setCreate(true)}>{textUI("m_1c3b4bf6ffd9")}</button>)}</div>
-    <ErrorMessage error={q.error}/>{formatUI(q.isPending ? <p role="status">{textUI("m_8be87068539e")}</p> : <div className="org-grid">{formatUI(q.data?.items.map(o => <Link className="org-card" aria-label={o.name} key={o.id} to={`/organizations/${o.id}`}><span className="eyebrow">{formatUI(o.industry || textUI("org_eyebrow_default"))}</span><h2>{formatUI(o.name)}</h2><p>{formatUI(o.description || textUI("m_a352158377b2"))}</p><span className="link-quiet">{textUI("m_91020e1cae44")}</span></Link>))}</div>)}
-    {formatUI(q.data?.items.length === 0 && <div className="state"><h2>{textUI("m_f95a4411a949")}</h2><p>{textUI("m_de3ad10af78c")}</p><Link to="/assets?org=unassigned">{textUI("m_929c0876caac")}</Link></div>)}
-    <div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_0bdbb750609c")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_c08ac736a5e2")}</button></div>
-    {formatUI(create && <OrgForm onClose={() => { setCreate(false); setSearchParams({}, { replace: true }); }}/>)}</section>;
+    const all = useAllOrganizations();
+    const home = useHome(can(me, 'organization.read'));
+    const agents = useAgents(can(me, 'agent.read'));
+    const canReport = can(me, 'report.read');
+    const [q, setQ] = useState('');
+    const [industry, setIndustry] = useState('');
+    const [sort, setSort] = useStoredChoice<SortKey>('orchis.orgs.sort', 'name', SORTS);
+    const [view, setView] = useStoredChoice<ViewMode>('orchis.orgs.view', 'grid', ['grid', 'list']);
+    const [page, setPage] = useState(1);
+    useEffect(() => setPage(1), [q, industry, sort]);
+
+    const items = all.data ?? [];
+    const overview = new Map((home.data?.organizations ?? []).map((o) => [o.id, o]));
+    const agentStats = new Map<string, { agents: number; online: number }>();
+    (agents.data ?? []).forEach((a) => {
+        if (!a.organization_id || a.status === 'revoked') return;
+        const s = agentStats.get(a.organization_id) ?? { agents: 0, online: 0 };
+        s.agents += 1;
+        if (a.status === 'online') s.online += 1;
+        agentStats.set(a.organization_id, s);
+    });
+    const industries = [...new Set(items.map((o) => o.industry.trim().toLowerCase()).filter(Boolean))].sort();
+    const needle = q.trim().toLowerCase();
+    const matched = items.filter((o) => (!industry || o.industry.trim().toLowerCase() === industry) && (!needle || [o.name, o.slug, o.industry, o.description].some((f) => f.toLowerCase().includes(needle))));
+    // Urutan "terakhir" dan "temuan" butuh laporan semua organisasi yang cocok; selain itu cukup halaman yang tampil.
+    const needAllReports = sort === 'last' || sort === 'findings';
+    const reports = useOrgReports((needAllReports ? matched : matched.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)).map((o) => o.id), canReport);
+    const sorted = [...matched].sort((x, y) => {
+        if (sort === 'assets') return (overview.get(y.id)?.assets ?? 0) - (overview.get(x.id)?.assets ?? 0) || x.name.localeCompare(y.name);
+        if (sort === 'last') return Date.parse(reports[y.id]?.created_at ?? '') - Date.parse(reports[x.id]?.created_at ?? '') || x.name.localeCompare(y.name);
+        if (sort === 'findings') return totalFindings(reports[y.id]) - totalFindings(reports[x.id]) || x.name.localeCompare(y.name);
+        return x.name.localeCompare(y.name);
+    });
+    const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+    const pageReports = useOrgReports(pageItems.map((o) => o.id), canReport && !needAllReports);
+    const reportOf = (id: string) => (needAllReports ? reports[id] : pageReports[id] ?? reports[id]);
+    const stats = home.data;
+    const filtered = !!(needle || industry);
+    const header = <PageHeader titleId="orgs-title" crumbs={[{ label: textUI("m_87bb59ba2f92") }, { label: textUI("m_7bd34abba2ae") }]} title={textUI("m_7bd34abba2ae")} subtitle={textUI("m_a5577299d5a1")} actions={<>
+        {canReport && <Link className="btn btn--secondary btn--sm" to="/reports">{textUI("m_orgs_reports_btn")}</Link>}
+        {can(me, 'organization.write') && <button type="button" className="btn btn--primary btn--sm" onClick={() => setCreate(true)}><Plus size={14} aria-hidden="true"/>{textUI("m_1c3b4bf6ffd9")}</button>}
+      </>}/>;
+    return <section className="page orgs" aria-labelledby="orgs-title">
+      {header}
+      {!all.isError && (all.isPending || items.length > 0) && <div className="stats">
+        <StatCard label={textUI("m_7bd34abba2ae")} value={items.length} loading={all.isPending}/>
+        {(home.isPending || stats?.assets) && <StatCard label={textUI("m_orgs_stat_assets")} value={stats?.assets?.total} loading={home.isPending}/>}
+        {(home.isPending || stats?.findings) && <StatCard label={textUI("m_orgs_stat_findings")} value={stats?.findings?.total} loading={home.isPending}>
+          {stats?.findings && <div className="stat__sev"><SeverityBar by={stats.findings.by_severity}/><span className="sr-only">{textUI("m_orgs_stat_sev")}</span></div>}
+        </StatCard>}
+        {(home.isPending || stats?.latest_runs?.[0]) && <StatCard label={textUI("m_orgs_stat_last")} text={stats?.latest_runs?.[0] ? relativeTime(stats.latest_runs[0].created_at) : undefined} loading={home.isPending}/>}
+      </div>}
+      {all.isError && <div className="banner banner--error" role="alert"><span>{formatUI(describeError(all.error).message)}</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => all.refetch()}>{textUI("m_d8b8392e2c54")}</button></div>}
+      {!all.isError && items.length > 0 && <OrgToolbar q={q} onQ={setQ} industries={industries} industry={industry} onIndustry={setIndustry} sort={sort} onSort={setSort} view={view} onView={setView} showFindingsSort={canReport}/>}
+      {all.isPending && <ul className={`orgs__list orgs__list--${view}`} aria-busy="true" aria-label={textUI("m_orgs_loading")}>{[0, 1, 2].map((i) => <OrgCardSkeleton key={i}/>)}</ul>}
+      {all.isSuccess && items.length === 0 && <EmptyState title={textUI("m_f95a4411a949")} body={textUI("m_de3ad10af78c")}>
+        {can(me, 'organization.write') && <button type="button" className="btn btn--primary btn--sm" onClick={() => setCreate(true)}><Plus size={14} aria-hidden="true"/>{textUI("m_1c3b4bf6ffd9")}</button>}
+        <Link className="link-quiet" to="/assets?org=unassigned">{textUI("m_929c0876caac")}</Link>
+      </EmptyState>}
+      {all.isSuccess && items.length > 0 && matched.length === 0 && <EmptyState title={textUI("m_orgs_nomatch_t")} body={textUI("m_orgs_nomatch_b")}>
+        <button type="button" className="btn btn--secondary btn--sm" onClick={() => { setQ(''); setIndustry(''); }}>{textUI("m_orgs_clear")}</button>
+      </EmptyState>}
+      {pageItems.length > 0 && <ul className={`orgs__list orgs__list--${view}`} aria-label={textUI("m_orgs_list_aria")}>
+        {formatUI(pageItems.map((o, i) => <li className="oc-wrap" key={o.id} style={{ ['--i' as string]: i }}>
+          <OrgCard org={o} metrics={{ assets: overview.get(o.id)?.assets, agents: agents.data ? (agentStats.get(o.id)?.agents ?? 0) : undefined, online: agentStats.get(o.id)?.online ?? 0 }}
+            report={reportOf(o.id)} reportKnown={reportOf(o.id) !== undefined || !canReport ? true : false} canReport={canReport} canRun={can(me, 'assessment.run') && can(me, 'simulation.run')}/>
+        </li>))}
+      </ul>}
+      {filtered && pageItems.length === 0 ? null : <Pagination page={page} total={sorted.length} pageSize={PAGE_SIZE} onPage={setPage}/>}
+      {formatUI(create && <OrgForm onClose={() => { setCreate(false); setSearchParams({}, { replace: true }); }}/>)}</section>;
 }
 export function OrganizationDetailPage() {
     useLocale();

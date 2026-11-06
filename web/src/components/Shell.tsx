@@ -3,37 +3,92 @@ import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/ru
 import { useScans } from '../api/scans';
 import { advancedEnabled, navigationFor } from './navigation';
 import { PageAccess, PageGuide } from './PageGuide';
-import { Bell, ChevronUp, LogOut, Plus, Search, Settings, Server, UserRound, Users } from 'lucide-react';
-import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Bell, ChevronUp, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Server, UserRound, Users, X } from 'lucide-react';
+import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useAlertAction, useAlerts, useLogout, useMe, useSettings, useSimulations } from '../api/hooks';
+import { useAlertAction, useAlerts, useHome, useLogout, useMe, useSettings, useSimulations } from '../api/hooks';
 import { AlertItem, alertTarget } from '../pages/NotificationsPage';
 import { CommandPalette, useCommandPalette } from './CommandPalette';
 import { can } from '../api/types';
 import { DemoBanner } from './DemoBanner';
+import './shell.css';
 import { Wordmark } from './Wordmark';
-export function NavDock() {
+// Jumlah run yang sedang berjalan (simulasi + pindai), dipakai indikator di bilah atas dan lencana di bilah samping.
+function useLiveRuns() {
+    const { data: me } = useMe();
+    const liveQuery = useSimulations('running', can(me, 'simulation.read'));
+    const live = liveQuery.data?.filter(s => !s.is_demo);
+    const scans = useScans('', '', can(me, 'simulation.read') && can(me, 'assessment.read') && can(me, 'asset.read') && can(me, 'organization.read'));
+    const runningScans = scans.data?.items.filter(s => s.status === 'running') ?? [];
+    const n = (can(me, 'simulation.read') ? (live?.length ?? 0) : 0) + runningScans.length;
+    return { n, first: runningScans[0]?.name ?? live?.[0]?.name };
+}
+const NAV_COLLAPSED_KEY = 'orchis.nav.collapsed';
+export function NavDock({ collapsed = false, onToggle, open = false, onClose }: {
+    collapsed?: boolean;
+    onToggle?: () => void;
+    open?: boolean;
+    onClose?: () => void;
+}) {
     useLocale();
     const { data: me } = useMe();
     const [tip, setTip] = useState<string | null>(null);
     const items = navigationFor(me);
     const { pathname } = useLocation();
+    const home = useHome(can(me, 'organization.read'));
+    const { n: running } = useLiveRuns();
     const active = (n: typeof items[number]) => n.to === '/' ? pathname === '/' : pathname === n.to || pathname.startsWith(n.to + '/') || (n.id === 'organizations' && pathname.startsWith('/ai/jobs/'));
-    return <nav className="dock dock--nav" aria-label={textUI("m_efe10c80ec8a")} onKeyDown={e => {
-            if (e.key === 'Escape')
+    const navRef = useRef<HTMLElement>(null);
+    const links = useRef<Record<string, HTMLAnchorElement | null>>({});
+    const [bar, setBar] = useState<{ y: number; h: number } | null>(null);
+    const activeId = items.find(active)?.id;
+    // Penanda emas geser ke item aktif: hanya transform yang dianimasikan.
+    useLayoutEffect(() => {
+        const el = activeId ? links.current[activeId] : null;
+        const nav = navRef.current;
+        if (!el || !nav) { setBar(null); return; }
+        const measure = () => { const r = el.getBoundingClientRect(); setBar({ y: r.top - nav.getBoundingClientRect().top, h: r.height }); };
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(measure);
+        ro.observe(nav);
+        return () => ro.disconnect();
+    }, [activeId, collapsed, items.length]);
+    const sev = home.data?.findings?.by_severity ?? {};
+    const badge = (id: string) => {
+        if (id === 'findings') {
+            const total = home.data?.findings?.total ?? 0;
+            if (!total) return null;
+            const hot = (sev.critical ?? 0) + (sev.high ?? 0) > 0;
+            return { text: total > 99 ? '99+' : String(total), tone: hot ? 'hot' : 'warm', label: textUI("m_shell_badge_findings", [total]) };
+        }
+        if (id === 'simulations' && running > 0)
+            return { text: String(running), tone: 'live', label: textUI("m_shell_badge_running", [running]) };
+        return null;
+    };
+    const degraded = (home.data?.injectors ?? []).some(i => i.status === 'offline');
+    return <nav ref={navRef} className={`dock dock--nav${collapsed ? ' is-collapsed' : ''}${open ? ' is-open' : ''}`} aria-label={textUI("m_efe10c80ec8a")} onKeyDown={e => {
+            if (e.key === 'Escape') {
                 setTip(null);
+                onClose?.();
+            }
         }}>
-    <span className="nav-brand">{textUI("m_5493ff8e9397")}</span>
+    {formatUI(bar && <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${bar.y}px)`, height: bar.h }}/>)}
     {formatUI([textUI("m_87bb59ba2f92"), textUI("m_5a23444828db")].filter(group => items.some(n => n.group === group)).map(group => <div className="nav-group" key={group}>
       <span className="nav-group__title">{formatUI(group)}</span>
       {formatUI(items.filter(n => n.group === group).map(n => {
                 const Icon = n.icon;
+                const b = badge(n.id);
                 return <div className="nav-entry" key={n.id} onMouseEnter={() => setTip(n.id)} onMouseLeave={() => setTip(null)}>
-        <Link to={n.to} className={`dock__item ${active(n) ? 'is-active' : ''}`} aria-current={active(n) ? 'page' : undefined} aria-label={n.label} aria-describedby={tip === n.id ? `nav-tip-${n.id}` : undefined} onFocus={() => setTip(n.id)} onBlur={() => setTip(null)}><Icon size={17} aria-hidden="true"/><span>{formatUI(n.label)}</span></Link>
+        <Link ref={el => { links.current[n.id] = el; }} to={n.to} className={`dock__item ${active(n) ? 'is-active' : ''}`} aria-current={active(n) ? 'page' : undefined} aria-label={b ? `${n.label}, ${b.label}` : n.label} aria-describedby={tip === n.id ? `nav-tip-${n.id}` : undefined} onClick={onClose} onFocus={() => setTip(n.id)} onBlur={() => setTip(null)}><Icon size={17} aria-hidden="true"/><span className="nav-label">{formatUI(n.label)}</span>{formatUI(b && <span className={`nav-badge nav-badge--${b.tone} mono`} aria-hidden="true">{b.text}</span>)}</Link>
         {formatUI(tip === n.id && <span id={`nav-tip-${n.id}`} role="tooltip" className="nav-tip"><strong>{formatUI(n.label)}</strong>{formatUI(n.hint)}</span>)}
       </div>;
             }))}
     </div>))}
+    <div className="nav-foot">
+      {formatUI(home.data?.injectors && home.data.injectors.length > 0 && <p className={`nav-status${degraded ? ' is-degraded' : ''}`}><span className="nav-status__dot" aria-hidden="true"/><span className="nav-label">{degraded ? textUI("m_shell_degraded") : richUI("m_fd77d85f4ce0", [''])}</span></p>)}
+      {formatUI(onToggle && <button type="button" className="nav-toggle" aria-label={collapsed ? textUI("m_shell_expand") : textUI("m_shell_collapse")} aria-expanded={!collapsed} onClick={onToggle}>{collapsed ? <PanelLeftOpen size={16} aria-hidden="true"/> : <PanelLeftClose size={16} aria-hidden="true"/>}<span className="nav-label">{collapsed ? textUI("m_shell_expand") : textUI("m_shell_collapse")}</span></button>)}
+    </div>
   </nav>;
 }
 function useDismiss(open: boolean, close: () => void) {
@@ -67,9 +122,11 @@ function WorkspaceMenu() {
         .slice(0, 2)
         .join('')
         .toUpperCase();
-    return (<><LanguagePreference /><div className="ws" ref={ref}>
+    const role = me?.role ? me.role.charAt(0).toUpperCase() + me.role.slice(1) : '';
+    const platform = settings.data?.platform_name ?? textUI("m_7d2364431c1a");
+    return (<><div className="ws" ref={ref}>
       <button type="button" className="ws__button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span>{formatUI(settings.data?.platform_name ?? textUI("m_7d2364431c1a"))}</span>
+        <span className="ws__label">{formatUI(role ? textUI("m_shell_account", [role, platform]) : platform)}</span>
         <span className="ws__avatar" aria-hidden="true">
           {formatUI(initials)}
         </span>
@@ -80,6 +137,7 @@ function WorkspaceMenu() {
             <span>{formatUI(me?.email)}</span>
             <span className="menu__role">{formatUI(me?.role)}</span>
           </div>
+          <div className="menu__lang"><LanguagePreference /></div>
           <p className="menu__group">{textUI("m_5493ff8e9397")}</p>
           {formatUI(can(me, 'asset.read') && <button role="menuitem" className="menu__item" onClick={() => go('/assets')}>{richUI("m_fca1d1970b2b", [<Server size={15}/>])}</button>)}
           {formatUI(can(me, 'people.read') && <button role="menuitem" className="menu__item" onClick={() => go('/people')}>{richUI("m_2c1ba97edb9b", [<Users size={15}/>])}</button>)}
@@ -130,17 +188,14 @@ function ActionDock({ openPalette }: {
     const navigate = useNavigate();
     const [open, setOpen] = useState(false);
     const ref = useDismiss(open, () => setOpen(false));
-    const liveQuery = useSimulations('running', can(me, 'simulation.read'));
-    const live = { ...liveQuery, data: liveQuery.data?.filter(s => !s.is_demo) };
+    const { n, first } = useLiveRuns();
     const canCreate = ['organization.write', 'asset.write', 'simulation.run'].some(perm => can(me, perm));
-    const scans = useScans('', '', can(me, 'simulation.read') && can(me, 'assessment.read') && can(me, 'asset.read') && can(me, 'organization.read'));
-    const runningScans = scans.data?.items.filter(s => s.status === 'running') ?? [];
-    const n = (can(me, 'simulation.read') ? (live.data?.length ?? 0) : 0) + runningScans.length;
     const item = (label: string, to: string, perm: string) => can(me, perm) ? (<button role="menuitem" className="menu__item" disabled={!can(me, perm)} onClick={() => { setOpen(false); navigate(to); }}><Plus size={15}/> {formatUI(label)}</button>) : null;
     return (<div className="dock dock--action" ref={ref} role="region" aria-label={textUI("m_1810407f5ab7")}>
       {formatUI(can(me, 'simulation.read') && <button type="button" className="dock__idle" onClick={() => navigate('/simulations')} aria-label={n > 0 ? textUI("m_c77817bd05a8", [n, n === 1 ? textUI("m_acba25512100") : textUI("m_1f64fff08d78")]) : textUI("m_d9390a6f6519")}>
+        <span className={`live-dot${n > 0 ? ' is-on' : ''}`} aria-hidden="true"/>
         <span className="dock__idle-title">{formatUI(n > 0 ? textUI("m_c77817bd05a8", [n, n === 1 ? textUI("m_acba25512100") : textUI("m_1f64fff08d78")]) : textUI("m_d9390a6f6519"))}</span>
-        <span className="dock__idle-sub">{formatUI(n > 0 ? (runningScans[0]?.name ?? live.data?.[0]?.name ?? textUI("m_f4ccae29e1bb")) : textUI("m_38e67fb129a3"))}</span>
+        <span className="dock__idle-sub">{formatUI(n > 0 ? (first ?? textUI("m_f4ccae29e1bb")) : textUI("m_38e67fb129a3"))}</span>
       </button>)}
       {formatUI(can(me, 'simulation.read') && <span className="dock__sep" aria-hidden="true"/>)}
       {formatUI(canCreate && <div className="dock__new-wrap">
@@ -165,14 +220,28 @@ export function Shell({ children }: {
     const { pathname } = useLocation();
     useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
     const [paletteOpen, setPalette] = useCommandPalette();
-    return (<div className="shell">
+    const { n: running } = useLiveRuns();
+    const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem(NAV_COLLAPSED_KEY) === '1'; } catch { return false; } });
+    const [drawer, setDrawer] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+    const toggle = () => setCollapsed(c => { const next = !c; try { localStorage.setItem(NAV_COLLAPSED_KEY, next ? '1' : '0'); } catch { /* abaikan */ } return next; });
+    useEffect(() => setDrawer(false), [pathname]);
+    useEffect(() => {
+        const on = () => setScrolled(window.scrollY > 4);
+        on();
+        window.addEventListener('scroll', on, { passive: true });
+        return () => window.removeEventListener('scroll', on);
+    }, []);
+    return (<div className={`shell${collapsed ? ' is-collapsed' : ''}`}>
       <a className="skip-link" href="#main">{textUI("m_ac576a66d456")}</a>
-      <header className="topbar">
-        <Wordmark />
+      <header className={`topbar${scrolled ? ' is-scrolled' : ''}`}>
+        <button type="button" className="topbar__menu dock__icon" aria-label={drawer ? textUI("m_shell_close_menu") : textUI("m_shell_menu")} aria-expanded={drawer} onClick={() => setDrawer(d => !d)}>{drawer ? <X size={16} aria-hidden="true"/> : <Menu size={16} aria-hidden="true"/>}</button>
+        <Wordmark live={running > 0}/>
         <ActionDock openPalette={() => setPalette(true)}/>
         <WorkspaceMenu />
       </header>
-      <NavDock />
+      {formatUI(drawer && <div className="nav-scrim" aria-hidden="true" onClick={() => setDrawer(false)}/>)}
+      <NavDock collapsed={collapsed} onToggle={toggle} open={drawer} onClose={() => setDrawer(false)}/>
       <main className="content" id="main" tabIndex={-1}><DemoBanner /><PageAccess><PageGuide /><Suspense fallback={<div className="page" role="status" aria-label={textUI("m_91bf928d3527")}><span className="skeleton"/></div>}>{formatUI(children ?? <Outlet />)}</Suspense></PageAccess></main>
       {formatUI(paletteOpen && <CommandPalette onClose={() => setPalette(false)}/>)}
     </div>);

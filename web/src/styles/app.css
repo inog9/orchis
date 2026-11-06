@@ -716,3 +716,6 @@ main.content:focus { outline: none; }
 .org-group__open { margin-left: auto; font-size: 13px; }
 .org-group > .list, .org-group > .finding-list { border: 0; border-radius: 0; margin: 0; }
 .org-group[open] > .org-group__head { border-bottom: 1px solid var(--ring); }
+.page-guide { position: relative; padding-right: 40px; }
+.page-guide__x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--ink-3); }
+.page-guide__x:hover { color: var(--ink); background: #ffffff0f; }

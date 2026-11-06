@@ -1,4 +1,6 @@
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
+import { X } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useMe } from '../api/hooks';
 import { can } from '../api/types';
@@ -113,14 +115,26 @@ export const guides = [
 export function guideFor(path: string) { if (/^\/organizations\/[^/]+\/ai$/.test(path) || path.startsWith('/ai/jobs/'))
     return { path, purpose: textUI("m_c7f3ccedd57b"), perm: 'ai.read', next: '/organizations', label: textUI("m_dfc4813b10d2"), nextPerm: 'organization.read' }; return guides.find(g => path === g.path || path.startsWith(g.path + '/')); }
 function guideAllowed(me: Parameters<typeof can>[0], g: ReturnType<typeof guideFor>) { return !g?.perm || can(me, g.perm) || g.path === '/notifications' && (can(me, 'finding.read') || can(me, 'report.read')); }
+const DISMISS_KEY = 'orchis.guides.dismissed';
+function dismissedPaths(): string[] {
+    try { const v = JSON.parse(localStorage.getItem(DISMISS_KEY) ?? '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch { return []; }
+}
+// Tips halaman bisa ditutup; pilihan diingat per halaman di peramban.
 export function PageGuide() {
     useLocale();
     const { pathname } = useLocation();
     const { data: me } = useMe();
     const g = guideFor(pathname);
-    if (!g || !guideAllowed(me, g))
+    const [dismissed, setDismissed] = useState<string[]>(dismissedPaths);
+    if (!g || !guideAllowed(me, g) || dismissed.includes(g.path))
         return null;
+    const dismiss = () => {
+        const next = [...dismissed, g.path];
+        setDismissed(next);
+        try { localStorage.setItem(DISMISS_KEY, JSON.stringify(next)); } catch { /* abaikan */ }
+    };
     return <aside className="page-guide" aria-label={textUI("m_b571ace9f5f5")}><p>{formatUI(g.purpose)}</p>{formatUI((!g.nextPerm || can(me, g.nextPerm)) && <Link to={g.next}>{formatUI(g.label)} →</Link>)}
+    <button type="button" className="page-guide__x" aria-label={textUI("m_guide_dismiss")} onClick={dismiss}><X size={14} aria-hidden="true"/></button>
   </aside>;
 }
 export function PageAccess({ children }: {

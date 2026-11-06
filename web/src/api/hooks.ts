@@ -236,8 +236,9 @@ export function useTargetAssets() {
   });
 }
 
-export function useHome() {
+export function useHome(enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ['home'],
     queryFn: () => api.get<HomeSummary>('/api/v1/home'),
     // Selama ada run aktif, angka berubah; selain itu cukup sesekali.

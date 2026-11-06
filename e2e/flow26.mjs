@@ -66,6 +66,8 @@ const api = async (method, path, data, headers = {}) => {
 };
 
 // Tiap langkah ditinjau di tiga lebar: axe harus nol, tidak ada overflow halaman, modal muat di layar.
+// Pemilih bahasa ada di menu akun; buka menu bila belum terbuka.
+async function openLang(pg){ if(!(await pg.locator('#language-preference').count())) await pg.locator('.ws__button').click(); return pg.locator('#language-preference'); }
 async function review(label) {
   for (const width of [1280, 834, 390]) {
     await p.setViewportSize({ width, height: width === 834 ? 1112 : 900 });
@@ -88,7 +90,7 @@ async function signIn(password) {
   await p.getByRole('button', { name: /sign in/i }).click();
 }
 async function chooseLanguage(language) {
-  await p.locator('#language-preference').selectOption(language);
+  await (await openLang(p)).selectOption(language);
   await wait(async () => (await api('GET', '/auth/me')).ui_language === language, `account language ${language}`, 30000);
   await p.waitForFunction(l => document.documentElement.lang === l, language);
 }
@@ -252,7 +254,7 @@ try {
   await review('13-organisations-id');
   await p.reload();
   await p.getByRole('heading', { name: 'Organisasi', exact: true }).waitFor();
-  ok(await p.locator('#language-preference').inputValue() === 'id', 'Indonesian survives a reload');
+  ok(await (await openLang(p)).inputValue() === 'id', 'Indonesian survives a reload');
   await signOut();
   await signIn(NEW_PASSWORD);
   await p.getByRole('heading', { name: 'Organisasi', exact: true }).waitFor();
