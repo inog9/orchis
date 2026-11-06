@@ -5,9 +5,10 @@ type Props = InputHTMLAttributes<HTMLInputElement> & {
     hint?: string;
     error?: string;
     trailing?: ReactNode;
+    leading?: ReactNode;
     labelRight?: ReactNode;
 };
-export function Field({ label, hint, error, trailing, labelRight, className, ...input }: Props) {
+export function Field({ label, hint, error, trailing, leading, labelRight, className, ...input }: Props) {
     useLocale();
     const id = useId();
     const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
@@ -19,6 +20,7 @@ export function Field({ label, hint, error, trailing, labelRight, className, ...
         {formatUI(labelRight)}
       </div>
       <div className={`field__input ${error ? 'is-error' : ''} ${className ?? ''}`}>
+        {formatUI(leading && <span className="field__lead" aria-hidden="true">{formatUI(leading)}</span>)}
         <input id={id} aria-invalid={!!error} aria-describedby={describedBy} {...input}/>
         {formatUI(trailing)}
       </div>

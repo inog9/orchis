@@ -1,34 +1,12 @@
-import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
-import { ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { t as textUI, useLocale, fv as formatUI } from "../i18n/runtime";
+import { ArrowRight, Eye, EyeOff, Lock, Mail, TriangleAlert } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useForgot, useLogin } from '../api/hooks';
-import { RavenMark } from '../components/RavenMark';
+import { LoginHeroPanel } from '../components/login/LoginHeroPanel';
+import './auth.css';
 import { Field } from '../components/Field';
-import { Wordmark } from '../components/Wordmark';
-function BrandPanel() {
-    useLocale();
-    return (<aside className="auth__brand" aria-hidden="false">
-      <div className="auth__brand-top">
-        <Wordmark size={20}/>
-        <div className="pill">{richUI("m_fd77d85f4ce0", [<span className="pill__dot"/>])}</div>
-      </div>
-      <div className="orbit" aria-hidden="true">
-        <div className="orbit__glow"/>
-        <div className="orbit__ring orbit__ring--1"/>
-        <div className="orbit__ring orbit__ring--2"/>
-        <div className="orbit__ring orbit__ring--3"/>
-        <span className="orbit__dot orbit__dot--a"/>
-        <span className="orbit__dot orbit__dot--b"/>
-        <RavenMark className="orbit__raven" size={260}/>
-      </div>
-      <div className="auth__copy">
-        <h2 className="auth__headline">{richUI("m_52a079eafe32", [<br />])}</h2>
-        <div className="auth__meta">{richUI("m_54f0c67845c1", [<span className="auth__rule"/>])}</div>
-      </div>
-    </aside>);
-}
 function Countdown({ seconds }: {
     seconds: number;
 }) {
@@ -52,7 +30,7 @@ export function AuthLayout({ children }: {
 }) {
     useLocale();
     return (<div className="auth">
-      <BrandPanel />
+      <LoginHeroPanel />
       <main className="auth__form-panel">
         <div className="auth__help">
           <span className="muted">{textUI("m_0176cea22163")}</span>
@@ -79,13 +57,13 @@ export function LoginPage() {
     const login = useLogin();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [remember, setRemember] = useState(true);
     const [show, setShow] = useState(false);
+    const [caps, setCaps] = useState(false);
     const err = login.error instanceof ApiError ? login.error : null;
     const locked = err?.status === 429;
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        login.mutate({ email, password, remember_me: remember }, { onSuccess: () => navigate('/', { replace: true }) });
+        login.mutate({ email, password, remember_me: false }, { onSuccess: () => navigate('/', { replace: true }) });
     };
     if (locked) {
         return (<AuthLayout>
@@ -117,15 +95,17 @@ export function LoginPage() {
                 ? textUI("m_ab3bd31a11e4", [err.errorId ? textUI("m_488d61c8380b", [err.errorId]) : '']) : textUI("m_3ea2033cd311"))}
             </span>
           </div>))}
-        <Field label={textUI("m_969ccbd3cf63")} type="email" name="email" autoComplete="username" placeholder={textUI("m_35d973d92927")} value={email} onChange={(e) => setEmail(e.target.value)} error={err?.fields.find((f) => f.name === 'email') ? 'Enter your email and password.' : undefined} autoFocus/>
-        <Field label={textUI("m_e7cf3ef4f17c")} type={show ? 'text' : 'password'} name="password" autoComplete="current-password" placeholder={textUI("m_c06bf9670174")} value={password} onChange={(e) => setPassword(e.target.value)} labelRight={<Link to="/forgot" className="link-subtle">
-              Forgot password?
+        <Field label={textUI("m_969ccbd3cf63")} type="email" name="email" autoComplete="username" placeholder={textUI("m_35d973d92927")} value={email} onChange={(e) => setEmail(e.target.value)} error={err?.fields.find((f) => f.name === 'email') ? textUI("m_login_need_both") : undefined} leading={<Mail size={16}/>} autoFocus/>
+        <Field label={textUI("m_e7cf3ef4f17c")} type={show ? 'text' : 'password'} name="password" autoComplete="current-password" placeholder={textUI("m_c06bf9670174")} value={password} onChange={(e) => setPassword(e.target.value)} leading={<Lock size={16}/>}
+          onKeyDown={(e) => setCaps(e.getModifierState('CapsLock'))} onKeyUp={(e) => setCaps(e.getModifierState('CapsLock'))} onBlur={() => setCaps(false)}
+          labelRight={<Link to="/forgot" className="link-subtle">
+              {textUI("m_login_forgot")}
             </Link>} trailing={<button type="button" className="icon-btn" aria-label={show ? textUI("m_a60a56c584b3") : textUI("m_6aeaa6a53d09")} onClick={() => setShow((s) => !s)}>
               {show ? <EyeOff size={16}/> : <Eye size={16}/>}
             </button>}/>
-        <label className="check">{richUI("m_10fbf9646a05", [<input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}/>,
-            <span className="check__box" aria-hidden="true"/>])}</label>
+        {formatUI(caps && <p className="auth__caps" role="status"><TriangleAlert size={14} aria-hidden="true"/>{textUI("m_login_caps")}</p>)}
         <button type="submit" className="btn btn--primary" disabled={login.isPending}>
+          {formatUI(login.isPending && <span className="btn__spin" aria-hidden="true"/>)}
           {formatUI(login.isPending ? textUI("m_8b9d3de8ae00") : textUI("m_bfd402b2f6f3"))}
           {formatUI(!login.isPending && <ArrowRight size={18} aria-hidden="true"/>)}
         </button>

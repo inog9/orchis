@@ -78,21 +78,6 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
   background: radial-gradient(130% 110% at 50% 48%, #16181C 0%, var(--bg) 100%);
   border-right: 1px solid var(--ring);
 }
-.auth__brand-top { display: flex; align-items: center; justify-content: space-between; }
-.orbit { position: relative; width: 440px; height: 440px; align-self: center; flex: none; }
-.orbit__glow { position: absolute; inset: 70px; border-radius: 50%; background: radial-gradient(circle, #C19A5B2E 0%, #C19A5B00 100%); }
-.orbit__ring { position: absolute; border-radius: 50%; border: 1px solid; }
-.orbit__ring--1 { inset: 0; border-color: #1F2227; }
-.orbit__ring--2 { inset: 58px; border-color: #262A30; }
-.orbit__ring--3 { inset: 114px; border-color: #2E3239; }
-.orbit__dot { position: absolute; border-radius: 50%; }
-.orbit__dot--a { left: 375px; top: 73px; width: 10px; height: 10px; background: var(--bronze); }
-.orbit__dot--b { left: 56px; top: 272px; width: 6px; height: 6px; background: var(--ink-3); }
-.orbit__raven { position: absolute; left: 90px; top: 90px; }
-.auth__copy { display: flex; flex-direction: column; gap: 20px; }
-.auth__headline { width: 520px; max-width: 100%; font-family: var(--font-display); font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; }
-.auth__meta { display: flex; align-items: center; gap: 16px; font-size: 13px; letter-spacing: 0.04em; color: var(--ink-3); }
-.auth__rule { width: 32px; height: 1px; background: var(--bronze); }
 .auth__form-panel { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 56px 56px 40px; background: var(--bg); }
 .auth__help { width: 100%; display: flex; justify-content: flex-end; gap: 6px; font-size: 14px; }
 .auth__column { width: 380px; max-width: 100%; display: flex; flex-direction: column; gap: 36px; }

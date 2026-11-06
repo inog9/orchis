@@ -1,0 +1,56 @@
+/* Sisi kanan layar masuk: hanya penyempurnaan tampilan. Logika formulir tidak berubah. */
+.auth__form-panel {
+  position: relative; isolation: isolate;
+  background:
+    radial-gradient(70% 38% at 50% 0%, rgba(184,149,95,.075), transparent 72%),
+    radial-gradient(50% 30% at 90% 100%, rgba(184,149,95,.04), transparent 70%),
+    var(--bg);
+}
+.auth__form-panel::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background-image: radial-gradient(circle, rgba(237,237,237,.05) 1px, transparent 1.4px); background-size: 28px 28px;
+  -webkit-mask-image: radial-gradient(70% 55% at 50% 45%, #000 0%, transparent 100%); mask-image: radial-gradient(70% 55% at 50% 45%, #000 0%, transparent 100%);
+}
+.auth__help strong { color: var(--ink); }
+.auth__help strong::after { content: ''; display: block; height: 1px; margin-top: 2px; background: linear-gradient(90deg, var(--bronze), transparent); transform-origin: left; transition: transform .25s ease; transform: scaleX(.35); }
+.auth__help:hover strong::after { transform: scaleX(1); }
+
+/* Ikon di dalam kolom: berubah emas saat kolom difokus. */
+.field__lead { display: flex; color: var(--ink-3); transition: color .2s ease; }
+.field__input:focus-within .field__lead { color: var(--bronze); }
+.auth .field__input { transition: border-color .2s ease, box-shadow .25s ease, background-color .2s ease; }
+.auth .field__input:hover { border-color: #3A3F47; }
+.auth .field__input:focus-within { border-color: var(--bronze); box-shadow: 0 0 0 4px rgba(193,154,91,.13); background: #14171B; }
+.auth .field__input.is-error:focus-within { border-color: var(--error); box-shadow: 0 0 0 4px rgba(255,138,138,.12); }
+.auth .link-subtle { transition: color .2s ease; }
+.auth .link-subtle:hover { color: var(--bronze); }
+
+.auth__caps { display: flex; align-items: center; gap: 8px; margin: -8px 0 0; font-size: 12px; color: var(--warn); }
+
+.auth .btn--primary { position: relative; transition: transform .15s ease, filter .15s ease, box-shadow .25s ease; }
+.auth .btn--primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px -12px rgba(193,154,91,.7); }
+.auth .btn--primary:active:not(:disabled) { transform: translateY(0); box-shadow: none; }
+.auth .btn--primary svg { transition: transform .2s ease; }
+.auth .btn--primary:hover:not(:disabled) svg { transform: translateX(3px); }
+.btn__spin { width: 14px; height: 14px; margin-right: 8px; border: 2px solid rgba(10,11,13,.3); border-top-color: var(--bg); border-radius: 50%; animation: auth-spin .7s linear infinite; }
+.auth .alert { animation: auth-in .3s ease both; }
+
+/* Masuk bertahap, selaras dengan panel kiri. */
+.auth__column > .heading, .auth__column > .lock, .auth__column > .btn { animation: auth-in .6s cubic-bezier(.2,.7,.2,1) .2s both; }
+.auth__column .form > * { animation: auth-in .55s cubic-bezier(.2,.7,.2,1) both; }
+.auth__column .form > :nth-child(1) { animation-delay: .32s; }
+.auth__column .form > :nth-child(2) { animation-delay: .4s; }
+.auth__column .form > :nth-child(3) { animation-delay: .48s; }
+.auth__column .form > :nth-child(4) { animation-delay: .56s; }
+.auth__column .form > :nth-child(n+5) { animation-delay: .64s; }
+.auth__column .form > .alert, .auth__column .form > .auth__caps { animation-delay: 0s; }
+.auth__help, .auth__footer { animation: auth-fade .8s ease .5s both; }
+
+@keyframes auth-in { from { opacity: 0; transform: translateY(12px); } }
+@keyframes auth-fade { from { opacity: 0; } }
+@keyframes auth-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth__column > *, .auth__column .form > *, .auth__help, .auth__footer, .auth .alert, .btn__spin { animation: none !important; }
+  .auth .btn--primary, .auth .btn--primary svg, .auth .field__input { transition: none; }
+  .auth .btn--primary:hover:not(:disabled), .auth .btn--primary:hover:not(:disabled) svg { transform: none; }
+}
