@@ -8,6 +8,7 @@ Alurnya sederhana:
 Keputusan desain dan batasan dicatat di [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
 Panduan operasi, upgrade, dan backup ada di [docs/OPERASI.md](docs/OPERASI.md).
 Persiapan dan daftar go/no-go pilot ada di [docs/PILOT.md](docs/PILOT.md).
+Dokumentasi API dengan **Swagger UI / OpenAPI** ada di [docs/API.md](docs/API.md).
 
 ## Status
 

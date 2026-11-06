@@ -77,3 +77,9 @@ copyright notices/terms: docs/licenses/geologica.OFL.txt and
 docs/licenses/ibmplexsans.OFL.txt. Original URLs, hashes, sizes and pinned license
 source revision: internal/reporting/fonts/manifest.json. Fonts require no network
 access at report render time.
+
+Swagger UI (documentation assets)
+Swagger UI 5.34.1 is distributed in docs/api/swagger-ui under Apache-2.0.
+Upstream: https://github.com/swagger-api/swagger-ui
+The upstream LICENSE, NOTICE and bundled dependency license notices are retained
+in docs/api/swagger-ui/.
