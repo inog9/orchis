@@ -4,7 +4,7 @@
   "file": "enterprise-attack-20.0.json",
   "sha256": "81113ba98afa2928f3dcff62022539f7ce30c315c32e14422f11ff95ce534352",
   "bytes": 55271014,
-  "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-20.0.json",
+  "source_url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/20664a889568dce884a1dac0ec7b12ae3a199f51/enterprise-attack/enterprise-attack-20.0.json",
   "counts": {
     "tactics": 15,
     "techniques": 227,
