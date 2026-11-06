@@ -137,7 +137,6 @@ function WorkspaceMenu() {
             <span>{formatUI(me?.email)}</span>
             <span className="menu__role">{formatUI(me?.role)}</span>
           </div>
-          <div className="menu__lang"><LanguagePreference /></div>
           <p className="menu__group">{textUI("m_5493ff8e9397")}</p>
           {formatUI(can(me, 'asset.read') && <button role="menuitem" className="menu__item" onClick={() => go('/assets')}>{richUI("m_fca1d1970b2b", [<Server size={15}/>])}</button>)}
           {formatUI(can(me, 'people.read') && <button role="menuitem" className="menu__item" onClick={() => go('/people')}>{richUI("m_2c1ba97edb9b", [<Users size={15}/>])}</button>)}
@@ -238,6 +237,7 @@ export function Shell({ children }: {
         <button type="button" className="topbar__menu dock__icon" aria-label={drawer ? textUI("m_shell_close_menu") : textUI("m_shell_menu")} aria-expanded={drawer} onClick={() => setDrawer(d => !d)}>{drawer ? <X size={16} aria-hidden="true"/> : <Menu size={16} aria-hidden="true"/>}</button>
         <Wordmark live={running > 0}/>
         <ActionDock openPalette={() => setPalette(true)}/>
+        <LanguagePreference />
         <WorkspaceMenu />
       </header>
       {formatUI(drawer && <div className="nav-scrim" aria-hidden="true" onClick={() => setDrawer(false)}/>)}

@@ -45,11 +45,10 @@ describe('Shell', () => {
     expect(link.querySelector('.nav-badge--hot')?.textContent).toBe('12');
   });
 
-  it('bahasa ada di menu akun, bukan di bilah atas', async () => {
+  it('pemilih bahasa tetap terlihat di bilah atas, tanpa membuka menu', async () => {
     const { container } = mount();
     await screen.findByRole('link', { name: /organisations/i });
-    expect(container.querySelector('#language-preference')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: /Admin · /i }));
-    expect(container.querySelector('#language-preference')).not.toBeNull();
+    expect(container.querySelector('.topbar #language-preference')).not.toBeNull();
+    expect(screen.getByRole('combobox', { name: 'Language' })).toBeVisible();
   });
 });

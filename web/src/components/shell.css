@@ -11,8 +11,9 @@
 
 /* Akun */
 .ws__label { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu__lang { padding: 6px 8px 8px; border-bottom: 1px solid #23252C; margin-bottom: 4px; }
-.menu__lang .language-preference { justify-content: space-between; }
+.topbar .language-preference label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.topbar .language-preference select { height: 32px; border-radius: 9px; padding: 0 8px; }
+.topbar .ws { margin-left: 8px; }
 .dock__badge { animation: shell-badge-ping 2.4s ease-out infinite; }
 
 /* Bilah samping */
