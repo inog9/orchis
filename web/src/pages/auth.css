@@ -19,7 +19,7 @@
 .field__lead { display: flex; color: var(--ink-3); transition: color .2s ease; }
 .field__input:focus-within .field__lead { color: var(--bronze); }
 .auth .field__input { transition: border-color .2s ease, box-shadow .25s ease, background-color .2s ease; }
-.auth .field__input:hover { border-color: #3A3F47; }
+.auth .field__input:hover { border-color: var(--ink-2); }
 .auth .field__input:focus-within { border-color: var(--bronze); box-shadow: 0 0 0 4px rgba(193,154,91,.13); background: #14171B; }
 .auth .field__input.is-error:focus-within { border-color: var(--error); box-shadow: 0 0 0 4px rgba(255,138,138,.12); }
 .auth .link-subtle { transition: color .2s ease; }

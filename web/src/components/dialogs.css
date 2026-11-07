@@ -10,7 +10,7 @@
 .dialog .icon-btn:hover { background: var(--v2-surface-2); color: var(--v2-text); }
 .dialog button:focus-visible, .dialog a:focus-visible, .dialog input:focus-visible, .dialog select:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
 .dialog .alert { border-color: var(--v2-critical); background: var(--v2-critical-soft); color: var(--v2-text); }
-.dialog select { background: var(--v2-surface); border-color: var(--v2-border); color: var(--v2-text); }
+.dialog select { background: var(--v2-surface); border-color: var(--v2-control-border); color: var(--v2-text); }
 
 .steps { counter-reset: step; list-style: none; margin: 12px 0 0; padding: 0; display: flex; gap: 8px; align-items: center; font-size: 13px; }
 .steps li { counter-increment: step; display: inline-flex; align-items: center; gap: 8px; color: var(--v2-text-3); }

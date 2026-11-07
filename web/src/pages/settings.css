@@ -14,7 +14,7 @@
 .settings .status { border-color: var(--v2-border); color: var(--v2-text-3); }
 .settings .status--ok { color: var(--v2-success); background: var(--v2-success-soft); border-color: transparent; }
 .settings .status--bad { color: var(--v2-critical); background: var(--v2-critical-soft); border-color: transparent; }
-.settings .audit-filter, .settings select, .settings .field__input { background: var(--v2-surface); border-color: var(--v2-border); color: var(--v2-text); }
+.settings .audit-filter, .settings select, .settings .field__input { background: var(--v2-surface); border-color: var(--v2-control-border); color: var(--v2-text); }
 .settings .org-card { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 
 .set-int { border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); overflow: hidden; }

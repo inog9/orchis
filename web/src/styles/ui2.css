@@ -1,32 +1,32 @@
 /* Token desain v2 (dari orchisv2.pen). Gelap bawaan; terang hanya lewat data-theme="light" (shell lama belum mengikuti preferensi sistem, jadi tidak otomatis). */
 :root {
-  --v2-bg: #09090B; --v2-surface: #111113; --v2-surface-2: #18181B; --v2-border: #232328;
-  --v2-text: #F4F4F5; --v2-text-2: #A8A8B3; --v2-text-3: #80808C;
+  --v2-bg: #09090B; --v2-surface: #111113; --v2-surface-2: #18181B; --v2-border: #35353E; --v2-control-border: #73737F;
+  --v2-text: #F4F4F5; --v2-text-2: #A8A8B3; --v2-text-3: #A1A1AD;
   --v2-accent: #E2B65C; --v2-accent-soft: #E2B65C1A; --v2-accent-line: #E2B65C40; --v2-accent-ink: #1A1306;
   --v2-success: #34D399; --v2-success-soft: #34D3991F;
-  --v2-critical: #F43F5E; --v2-high: #FB923C; --v2-medium: #FACC15; --v2-low: #38BDF8; --v2-info: #8E9AB5;
+  --v2-critical: #FF8096; --v2-high: #FB923C; --v2-medium: #FACC15; --v2-low: #38BDF8; --v2-info: #8E9AB5;
   --v2-critical-soft: #F43F5E24; --v2-high-soft: #FB923C24; --v2-medium-soft: #FACC1522; --v2-low-soft: #38BDF824; --v2-info-soft: #8E9AB51F;
   --v2-scrim: #000000A6;
 }
 :root[data-theme='light'] {
-  --v2-bg: #FAFAF9; --v2-surface: #FFFFFF; --v2-surface-2: #F4F4F5; --v2-border: #E4E4E7;
-  --v2-text: #18181B; --v2-text-2: #52525B; --v2-text-3: #6B6B76;
-  --v2-accent: #8F6208; --v2-accent-soft: #8F62081A; --v2-accent-line: #8F620840; --v2-accent-ink: #FFFFFF;
-  --v2-success: #047857; --v2-success-soft: #0478571A;
-  --v2-critical: #C81E43; --v2-high: #C2570C; --v2-medium: #8A6A00; --v2-low: #0369A1; --v2-info: #475569;
+  --v2-bg: #FAFAF9; --v2-surface: #FFFFFF; --v2-surface-2: #F4F4F5; --v2-border: #D4D4D8; --v2-control-border: #82828C;
+  --v2-text: #18181B; --v2-text-2: #52525B; --v2-text-3: #5F5F6B;
+  --v2-accent: #7A5206; --v2-accent-soft: #8F62081A; --v2-accent-line: #8F620840; --v2-accent-ink: #FFFFFF;
+  --v2-success: #036749; --v2-success-soft: #0478571A;
+  --v2-critical: #B7193C; --v2-high: #A84708; --v2-medium: #755900; --v2-low: #0369A1; --v2-info: #475569;
   --v2-critical-soft: #C81E4318; --v2-high-soft: #C2570C18; --v2-medium-soft: #8A6A0018; --v2-low-soft: #0369A118; --v2-info-soft: #47556918;
   --v2-scrim: #18181B80;
 }
 /* Mode terang untuk shell dan komponen lama: petakan token lama ke palet v2 (hanya bila tema terang dipilih). */
 :root[data-theme='light'] {
-  --bg: #FAFAF9; --ink: #18181B; --ink-2: #52525B; --ink-3: #6B6B76; --line: #A1A1AA; --ring: #E4E4E7;
-  --bronze: #8F6208; --error: #C81E43; --tile: #F4F4F5; --input-bg: #FFFFFF; --input-line: #A1A1AA; --panel: #FFFFFF;
-  --success: #047857; --warn: #8A6A00; color-scheme: light;
+  --bg: #FAFAF9; --ink: #18181B; --ink-2: #52525B; --ink-3: #5F5F6B; --line: #A1A1AA; --ring: #E4E4E7;
+  --bronze: #7A5206; --on-bronze: #FFFFFF; --control-border: #82828C; --severity-medium: #755900; --error: #B7193C; --tile: #F4F4F5; --input-bg: #FFFFFF; --input-line: #82828C; --panel: #FFFFFF;
+  --success: #036749; --warn: #755900; color-scheme: light;
   --edge-0: #E4E4E7; --edge-1: #D4D4D8; --edge-2: #A1A1AA;
   --hover: #00000010; --hover-soft: #0000000A;
   --surface-0: #F4F4F5; --surface-1: #FFFFFF; --surface-2: #F4F4F5; --dialog-bg: #FFFFFF; --skel-hi: #E4E4E7;
 }
 /* Halaman masuk dan hero-nya dirancang gelap; tetap gelap di tema terang. */
-:root[data-theme='light'] .auth, :root[data-theme='light'] .auth * { --bg: #0A0B0D; --ink: #ECEEF1; --ink-2: #A3A8B1; --ink-3: #8C919A; --line: #7A7F88; --ring: #1D2024; --bronze: #C19A5B; --error: #FF8A8A; --tile: #1E2227; --input-bg: #121417; --input-line: #6E737B; --panel: #0F1114; --success: #6FCF97; --warn: #E8B86A; color-scheme: dark; }
+:root[data-theme='light'] .auth, :root[data-theme='light'] .auth * { --bg: #0A0B0D; --ink: #ECEEF1; --ink-2: #A3A8B1; --ink-3: #A1A6B0; --line: #7A7F88; --ring: #1D2024; --bronze: #C19A5B; --on-bronze: #0A0B0D; --control-border: #737985; --error: #FF8A8A; --tile: #1E2227; --input-bg: #121417; --input-line: #737985; --panel: #0F1114; --success: #6FCF97; --warn: #E8B86A; color-scheme: dark; }
 
-:root[data-theme='light'] .orgs { --surface: #FFFFFF; --elev: #F4F4F5; --edge: #E4E4E7; --muted: #6B6B76; --gold: #8F6208; --gold-hi: #8F6208; --gold-dim: #8F620866; }
+:root[data-theme='light'] .orgs { --surface: #FFFFFF; --elev: #F4F4F5; --edge: #E4E4E7; --muted: #5F5F6B; --gold: #7A5206; --gold-hi: #7A5206; --gold-dim: #8F620866; }

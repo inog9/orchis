@@ -105,7 +105,7 @@
 /* ---- Bilah atas v2 (orchisv2.pen): pencarian kiri; status run, Tambah, notifikasi, bahasa, akun kanan ---- */
 .shell .topbar { height: auto; min-height: 72px; display: flex; align-items: center; gap: 16px; padding: 16px 40px; background: var(--v2-bg); border-bottom: 1px solid var(--v2-border); -webkit-backdrop-filter: none; backdrop-filter: none; }
 .shell .topbar .wordmark__text { color: var(--v2-text); }
-.gsearch { display: flex; align-items: center; gap: 10px; flex: 1 1 440px; max-width: 440px; min-width: 0; height: 40px; padding: 0 14px; border: 1px solid var(--v2-border); border-radius: 10px; background: var(--v2-surface); color: var(--v2-text-3); font-size: 14px; text-align: left; white-space: nowrap; overflow: hidden; transition: border-color .15s, color .15s; }
+.gsearch { display: flex; align-items: center; gap: 10px; flex: 1 1 440px; max-width: 440px; min-width: 0; height: 40px; padding: 0 14px; border: 1px solid var(--v2-control-border); border-radius: 10px; background: var(--v2-surface); color: var(--v2-text-3); font-size: 14px; text-align: left; white-space: nowrap; overflow: hidden; transition: border-color .15s, color .15s; }
 .gsearch:hover { border-color: var(--v2-accent-line); color: var(--v2-text-2); }
 .gsearch:focus-visible, .topbar__actions button:focus-visible, .topbar__actions select:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
 .gsearch kbd { margin-left: auto; padding: 2px 6px; border: 0; border-radius: 6px; background: var(--v2-surface-2); color: var(--v2-text-3); font: inherit; font-size: 12px; }
@@ -119,17 +119,17 @@
 .topbar__actions .btn-new { height: 40px; gap: 8px; padding: 0 14px 0 16px; border-radius: 10px; background: var(--v2-accent); color: var(--v2-accent-ink); font-size: 14px; font-weight: 600; transition: filter .15s; }
 .topbar__actions .btn-new:hover { filter: brightness(1.08); }
 .topbar__actions .menu--up { top: calc(100% + 8px); bottom: auto; right: 0; left: auto; background: var(--v2-surface); border-color: var(--v2-border); }
-.topbar__actions .dock__icon { width: 40px; height: 40px; border: 1px solid var(--v2-border); border-radius: 10px; color: var(--v2-text-2); background: transparent; transition: border-color .15s, color .15s; }
+.topbar__actions .dock__icon { width: 40px; height: 40px; border: 1px solid var(--v2-control-border); border-radius: 10px; color: var(--v2-text-2); background: transparent; transition: border-color .15s, color .15s; }
 .topbar__actions .dock__icon:hover { border-color: var(--v2-accent-line); color: var(--v2-text); }
 .topbar__actions .dock__icon svg { width: 18px; height: 18px; }
 .topbar__actions .dock__badge { top: -3px; right: -3px; min-width: 0; width: 8px; height: 8px; padding: 0; border: 2px solid var(--v2-bg); border-radius: 50%; background: var(--v2-accent); font-size: 0; box-sizing: content-box; overflow: hidden; }
-.topbar .language-preference { position: relative; height: 40px; padding: 0 10px; gap: 6px; border: 1px solid var(--v2-border); border-radius: 10px; color: var(--v2-text-2); transition: border-color .15s; }
+.topbar .language-preference { position: relative; height: 40px; padding: 0 10px; gap: 6px; border: 1px solid var(--v2-control-border); border-radius: 10px; color: var(--v2-text-2); transition: border-color .15s; }
 .topbar .language-preference:hover, .topbar .language-preference:focus-within { border-color: var(--v2-accent-line); }
 .language-preference__icon { flex: none; pointer-events: none; }
 .topbar .language-preference select { height: 38px; padding: 0 4px; border: 0; background: transparent; color: var(--v2-text-2); font-size: 13px; font-weight: 500; max-width: 120px; cursor: pointer; }
 .topbar .language-preference select option { color: #18181B; background: #FFFFFF; }
 .topbar .ws { margin-left: 0; }
-.topbar .ws__button { height: 40px; gap: 10px; padding: 4px 14px 4px 4px; border: 1px solid var(--v2-border); border-radius: 999px; background: transparent; transition: border-color .15s; }
+.topbar .ws__button { height: 40px; gap: 10px; padding: 4px 14px 4px 4px; border: 1px solid var(--v2-control-border); border-radius: 999px; background: transparent; transition: border-color .15s; }
 .topbar .ws__button:hover { border-color: var(--v2-accent-line); }
 .topbar .ws__avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--v2-accent); color: var(--v2-accent-ink); font-size: 13px; font-weight: 700; }
 .topbar .ws__label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; max-width: 180px; line-height: 1.2; }

@@ -1,5 +1,5 @@
 /* Halaman Organisations: kartu, statistik, toolbar, paginasi. Hanya transform/opacity yang dianimasikan. */
-.orgs { --gold: #B8955F; --gold-hi: #D4B07A; --gold-dim: #6B5A3E; --surface: #121318; --elev: #181A20; --edge: var(--edge-0); --muted: #5C5F68; display: flex; flex-direction: column; gap: 20px; }
+.orgs { --gold: #B8955F; --gold-hi: #D4B07A; --gold-dim: #6B5A3E; --surface: #121318; --elev: #181A20; --edge: var(--edge-0); --muted: var(--ink-3); display: flex; flex-direction: column; gap: 20px; }
 
 /* Header halaman */
 .phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; animation: orgs-in .3s ease-out both; }

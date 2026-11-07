@@ -9,7 +9,7 @@
 .newscan .stack-list li:hover { border-color: var(--v2-accent-line); }
 .newscan .notice, .newscan .small, .newscan .field__hint { color: var(--v2-text-2); }
 .newscan .alert { border-color: var(--v2-critical); background: var(--v2-critical-soft); color: var(--v2-text); }
-.newscan select { background: var(--v2-surface); border-color: var(--v2-border); color: var(--v2-text); }
+.newscan select { background: var(--v2-surface); border-color: var(--v2-control-border); color: var(--v2-text); }
 .newscan button[type='submit'], .newscan .btn--secondary { margin-right: 8px; }
 .newscan .btn { text-decoration: none; display: inline-flex; align-items: center; }
 .newscan a:focus-visible, .newscan button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }

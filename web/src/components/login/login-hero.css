@@ -77,9 +77,9 @@
 .tele__bar { display: flex; gap: 5px; margin-bottom: 6px; }
 .tele__bar i { width: 6px; height: 6px; border-radius: 50%; background: #2A2C33; }
 .tele__line { white-space: pre; animation: tele-in .3s ease both; }
-.tele__line:nth-last-child(2) { opacity: .6; }
-.tele__line:nth-last-child(3) { opacity: .32; }
-.tele__t { color: #5E626B; }
+.tele__line:nth-last-child(2) { opacity: 1; }
+.tele__line:nth-last-child(3) { opacity: 1; }
+.tele__t { color: #A1A6B0; }
 .tele__k { color: var(--gold); }
 .tele__v { color: #C9CBD1; }
 .tele__v--ok { color: #4ADE80; }
