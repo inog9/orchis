@@ -358,7 +358,12 @@ The bridge checkpoints delivered assets and suppresses identical repeats.
 
 Proxy environment variables apply only to jxscout; model-provider calls and local
 ingestion do not pass through Gori. Each origin is translated into a full-URL
-scope pattern, preserving explicit ports. Scope limits, request budgets, and
+scope pattern, preserving explicit ports. For a subdomain origin, JXScout also
+receives the registrable domain and its subdomains using the Public Suffix List:
+`https://sub.example.co.id` becomes `https://sub.example.co.id/*`,
+`https://example.co.id/*`, and `https://*.example.co.id/*`. This is JXScout's
+collection scope; the Pi task controller still checks exact authorized origins.
+Scope limits, request budgets, and
 role verification still belong to the orchestrator; the container is not an
 engagement-wide network firewall.
 

@@ -36,7 +36,7 @@ COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 ENV PATH="/usr/local/go/bin:${PATH}" \
     PENTEST_HARNES_STACK=/opt/pentest/docker/stack.py
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      chromium libnss3-tools ca-certificates python3 curl git \
+      chromium libnss3-tools ca-certificates python3 python3-publicsuffix2 curl git \
       jq ripgrep unzip zip xz-utils file openssl bash coreutils findutils diffutils \
       procps gawk sed grep tar gzip bzip2 \
       libssl3 libsqlite3-0 libpcre2-8-0 libevent-2.1-7 libgc1 libbrotli1 libzstd1 \

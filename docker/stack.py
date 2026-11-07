@@ -11,6 +11,31 @@ import socket
 import subprocess
 import sys
 import time
+from urllib.parse import urlsplit
+
+from publicsuffix2 import get_sld
+
+
+def jxscout_scopes(origins):
+    """Expand a subdomain through its PSL registrable domain, preserving scheme and port."""
+    patterns = []
+    for origin in origins:
+        url = urlsplit(origin)
+        exact = origin.rstrip("/") + "/*"
+        if exact not in patterns:
+            patterns.append(exact)
+        host = url.hostname
+        if not host:
+            continue
+        registered = get_sld(host, strict=True)
+        if not registered or registered == host:
+            continue
+        port = f":{url.port}" if url.port is not None else ""
+        for pattern in (f"{url.scheme}://{registered}{port}/*",
+                        f"{url.scheme}://*.{registered}{port}/*"):
+            if pattern not in patterns:
+                patterns.append(pattern)
+    return [argument for pattern in patterns for argument in ("--scope", pattern)]
 
 
 def configure_native_host(profile, manifest_source=Path("/opt/interceptor/daemon/com.interceptor.host.json")):
@@ -174,7 +199,7 @@ class Stack:
                    JXSCOUT_PROXY_URL="http://127.0.0.1:8070",
                    NO_PROXY="", no_proxy="", SSL_CERT_FILE=str(self.root / "trust.pem"),
                    JXSCOUT_DATA_DIR=str(self.root / "jxscout-data"))
-        scopes = [argument for origin in origins for argument in ("--scope", origin.rstrip("/") + "/*")]
+        scopes = jxscout_scopes(origins)
         self.run(["jxscout", "init", "--project", self.session.name, "--force", *scopes], env=env, cwd=project,
                  stdout=subprocess.DEVNULL)
         self.start("jxscout", ["jxscout", "serve", "--headless", "--project", self.session.name,
