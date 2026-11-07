@@ -13,6 +13,18 @@ import sys
 import time
 
 
+def configure_native_host(profile, manifest_source=Path("/opt/interceptor/daemon/com.interceptor.host.json")):
+    # Chromium resolves user-level native hosts under --user-data-dir, not HOME.
+    hosts = Path(profile) / "NativeMessagingHosts"
+    hosts.mkdir(parents=True, exist_ok=True, mode=0o700)
+    manifest = json.loads(Path(manifest_source).read_text())
+    manifest["path"] = "/opt/interceptor/daemon/interceptor-daemon"
+    destination = hosts / "com.interceptor.host.json"
+    destination.write_text(json.dumps(manifest))
+    destination.chmod(0o600)
+    return destination
+
+
 class Stack:
     def __init__(self, session):
         self.session = Path(session).resolve()
@@ -107,12 +119,8 @@ class Stack:
         subprocess.run(["certutil", "-D", "-d", "sql:" + str(nss), "-n", "Gori engagement CA"],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         self.run(["certutil", "-A", "-d", "sql:" + str(nss), "-n", "Gori engagement CA", "-t", "C,,", "-i", str(self.root / "ca.pem")])
-        hosts = browser_home / ".config/chromium/NativeMessagingHosts"
-        hosts.mkdir(parents=True, exist_ok=True)
-        manifest = json.loads(Path("/opt/interceptor/daemon/com.interceptor.host.json").read_text())
-        manifest["path"] = "/opt/interceptor/daemon/interceptor-daemon"
-        (hosts / "com.interceptor.host.json").write_text(json.dumps(manifest))
         profile = self.root / "chromium"
+        configure_native_host(profile)
         (profile / "Default").mkdir(parents=True, exist_ok=True)
         preferences = profile / "Default/Preferences"
         settings = json.loads(preferences.read_text()) if preferences.exists() else {}
@@ -183,7 +191,11 @@ class Stack:
             self.stop(name)
         # This daemon belongs exclusively to this container engagement.
         if self.owns_lock:
-            subprocess.run(["interceptor", "daemon", "stop"], env=self.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+            try:
+                subprocess.run(["interceptor", "daemon", "stop", "--timeout", "8000"], env=self.env,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=15)
+            except subprocess.TimeoutExpired:
+                print("Interceptor cleanup timed out; inspect private stack diagnostics.", file=sys.stderr)
         for handle in self.handles:
             handle.close()
 

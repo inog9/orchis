@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 import tempfile
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -20,6 +21,27 @@ class StackScopeTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.session = Path(self.temp.name)
         self.stack = self.module.Stack(self.session)
+
+    def test_native_host_follows_the_actual_chromium_profile(self):
+        source = self.session / "manifest-source.json"
+        origins = ["chrome-extension://trusted-extension/"]
+        source.write_text(json.dumps({"name": "com.interceptor.host", "path": "__DAEMON_PATH__", "type": "stdio", "allowed_origins": origins}))
+        profile = self.stack.root / "chromium"
+        destination = self.module.configure_native_host(profile, source)
+        self.assertEqual(destination, profile / "NativeMessagingHosts/com.interceptor.host.json")
+        manifest = json.loads(destination.read_text())
+        self.assertEqual(manifest["allowed_origins"], origins)
+        self.assertEqual(manifest["path"], "/opt/interceptor/daemon/interceptor-daemon")
+        self.assertEqual(destination.stat().st_mode & 0o777, 0o600)
+        self.assertFalse((self.stack.root / "browser-home/.config/chromium/NativeMessagingHosts").exists())
+
+    def test_daemon_cleanup_timeout_does_not_mask_the_job_result(self):
+        self.stack.owns_lock = True
+        handle = open(self.session / "test.log", "w")
+        self.stack.handles.append(handle)
+        with patch.object(self.module.subprocess, "run", side_effect=subprocess.TimeoutExpired("interceptor", 15)):
+            self.stack.close()
+        self.assertTrue(handle.closed)
 
     def state(self, mode="running", **scope):
         data = {"mode": mode, "scope": {"origins": ["https://example.test:8443"], "methods": ["GET"], **scope}}

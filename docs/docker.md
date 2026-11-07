@@ -315,7 +315,7 @@ accounts remain explicit coverage limits rather than successful negative tests.
 After session selection the launcher starts `docker/stack.py`. Gori captures into
 `private/stack/gori.db`; Pi's generated Gori MCP entry opens the same database.
 The proxy listens only on container loopback at port 8070. MCP uses stdio.
-Chromium uses a session-specific profile, a native messaging host, and the
+Chromium uses a session-specific profile, a native messaging host registered under that same profile’s `NativeMessagingHosts/` directory, and the
 unpacked Interceptor extension. The launcher waits for confirmed extension
 reachability before starting Pi.
 
