@@ -14,6 +14,24 @@ Rilis stabil pertama. Alur utama:
 
 #### Ditambahkan
 
+- **Alur produk ujung-ke-ujung (flow-clarity):** navigasi dan judul kini menjabarkan dua engine —
+  **Pentest web (Hackbot)** dan **Periksa aplikasi terpasang (DefenseBot)**; "Simulasi" menjadi **Pindai**
+  (`/simulations` tetap jalan), halaman lama "Run pentest" diganti wizard **Pindai baru** empat langkah
+  (Organisasi → Yang dijalankan → Sasaran → Tinjauan) yang menampilkan **semua** aset — aset yang belum siap
+  tetap terlihat dengan alasan dan tautan perbaikan, bukan disembunyikan. Nama Nmap dan Nuclei dicabut dari UI;
+  keduanya tetap berjalan sebagai langkah persiapan Hackbot. **Penilaian penuh** (Full assessment) menjalankan
+  kedua engine pada aset yang sama dan DefenseBot menunggu Nmap selesai agar tag "seen by scanner" terisi.
+- **Checklist kesiapan aset:** tujuh langkah (organisasi, otorisasi, agent, platform, consent, URL, jendela)
+  dengan tautan perbaikan, tombol run per engine beserta alasannya, dan hint langkah berikutnya.
+- **Retest finding:** tombol Retest menjalankan ulang hanya engine yang menemukan temuan pada aset yang sama.
+- **Triage per finding:** terbuka, risiko diterima (dengan alasan + tanggal kedaluwarsa, otomatis kembali
+  aktif setelahnya), positif palsu, diperbaiki-menunggu-verifikasi — siapa/kapan tercatat di kolom dan audit;
+  filter "Perlu ditangani" menyembunyikan risiko yang masih diterima.
+- **Dashboard cakupan organisasi:** aset tanpa agent, agent offline, koleksi belum disetujui, tanpa pindai
+  terbaru, run terakhir belum lengkap — tiap baris punya tautan perbaikannya ([docs/FLOW.md](docs/FLOW.md)).
+- **Diperbaiki:** penanda "also found by" (konfirmasi luar pada temuan DefenseBot) kini benar-benar mengenali
+  Hackbot/Nuclei — sebelumnya tak pernah cocok karena cakupan disimpan sebagai hash.
+
 - **DefenseBot:** memetakan perangkat lunak terpasang di endpoint (paket Ubuntu/Debian, npm, pip, Cursor/VS Code lewat CPE)
   ke kerentanan yang sudah dikenal (OSV, NVD, CISA KEV, EPSS), ditambah celah hardening. Dijalankan per aset oleh pengguna;
   hasilnya temuan bertanda `method`, versi perbaikan, KEV/EPSS, status paparan "terlihat scanner", dan bab laporan
