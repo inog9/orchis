@@ -1,4 +1,5 @@
 import test from "node:test";
+import crypto from "node:crypto";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -11,7 +12,7 @@ import { parseArguments } from "../../docker/run-job.mjs";
 const runner = fileURLToPath(new URL("../../docker/run-job.mjs", import.meta.url));
 const secret = "authorized-fixture-password-do-not-print";
 
-function fixture(t, scenario, { resumed = false, stdin = false } = {}) {
+function fixture(t, scenario, { resumed = false, stdin = false, scannerInputs = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pentest-job-test-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const harness = path.join(dir, "harness.mjs");
@@ -19,12 +20,18 @@ function fixture(t, scenario, { resumed = false, stdin = false } = {}) {
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
+import crypto from "node:crypto";
 let buffer = "";
 const root = ${JSON.stringify(path.join(dir, "session"))};
 const scenario = ${JSON.stringify(scenario)};
 fs.mkdirSync(path.join(root,"workspace"),{recursive:true});
 fs.writeFileSync(path.join(root,"args.json"),JSON.stringify({args:process.argv.slice(2),unattended:process.env.PENTEST_HARNES_UNATTENDED}));
 const state = { mode:${JSON.stringify(resumed ? "paused" : "running")}, phase:"setup",revision:4,tasks:{worker:{status:"running"}}, pauseReason:${JSON.stringify(secret)} };
+const outputs = ['fixture_PENTEST_REPORT.md','fixture_VALIDATION_REASON.md'].map(name=>{
+ const content='Fixture report: no target requests';fs.writeFileSync(path.join(root,'workspace',name),content);
+ return {path:name,sha256:crypto.createHash('sha256').update(content).digest('hex')};
+});
+state.phases={report:{completedAt:'2026-11-07T00:00:00Z',outputs}};
 const save = () => fs.writeFileSync(path.join(root,"state.json"),JSON.stringify(state));
 save();
 if(scenario==="force-cancel"){
@@ -69,6 +76,11 @@ setInterval(()=>{},1000);
   const promptFile = path.join(dir, "request.txt");
   fs.writeFileSync(promptFile, `Test https://fixture.test with supplied credentials ${secret}`);
   const args = [runner, "--harness", harness, "--dir", dir, "--prompt-file", stdin ? "-" : promptFile, "--poll-ms", "20", "--startup-timeout-ms", scenario==="no-handshake"?"300":"3000", "--shutdown-timeout-ms", "500"];
+  if (scannerInputs) {
+    const source=path.join(dir,'scanner-source');fs.mkdirSync(source);
+    const sources=['nmap','nuclei'].map(tool=>{const name=tool+'.json',data=Buffer.from(JSON.stringify({tool,status:'finished',findings:[{title:tool+' seed'}]}));fs.writeFileSync(path.join(source,name),data);return {name,bytes:data.length,sha256:crypto.createHash('sha256').update(data).digest('hex')}});
+    fs.writeFileSync(path.join(source,'manifest.json'),JSON.stringify({schema:1,sources}));args.push('--inputs-dir',source);
+  }
   if (resumed) args.push("--session", "job-fixture");
   else args.push("--name", "Offline job test", "--pi", "/test/pi");
   const child = spawn(process.execPath, args, { stdio: ["pipe", "pipe", "pipe"] });
@@ -202,4 +214,12 @@ test("hard cancellation stops the launcher's process group",{timeout:5000,skip:p
   }
   if(alive) process.kill(pid,"SIGKILL");
   assert.equal(alive,false,"unresponsive descendant survived forced job cancellation");
+});
+
+test('scanner handoff is present in the actual Pi workspace before engagement delivery',async t=>{
+ const result=await fixture(t,'complete',{scannerInputs:true}).completion;
+ assert.equal(result.code,0,result.output);
+ const started=result.events.find(e=>e.event==='started');
+ assert.equal(started.scannerInputs,path.join(fs.realpathSync(result.root),'workspace','inputs','scanners'));
+ assert.equal(JSON.parse(fs.readFileSync(path.join(started.scannerInputs,'nuclei.json'))).findings[0].title,'nuclei seed');
 });

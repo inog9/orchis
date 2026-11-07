@@ -399,3 +399,19 @@ interrupted-task reconciliation instructions before resuming.
 The `--offline` harness option does not start the browser/proxy stack. Native
 installations can continue using their existing optional Burp/Caido imports;
 the Docker path configures Gori automatically.
+
+### Orchis structured result export
+
+Terminal lifecycle events include `resultFile` when session metadata is available. This points to the private, atomically written `private/service-result.json` inside that session, using schema 1. The export includes disposition, completed phases, verified task count, blockers, bounded summary, validated findings, and the controller-verified report artifacts. It is intended for a trusted local worker, not direct exposure to job submitters.
+
+The exporter checks artifact hashes and proof references. It never parses report prose to invent findings. Missing/changed terminal reports fail the job. Input-required and interrupted work receive an explicitly integration-generated partial report without advancing controller gates. Different validated issues on one URL retain distinct finding identities.
+
+Orchis consumes the structured findings and coverage through its existing PDF pipeline, saves the PDF automatically, and displays the report and summary inside Orchis. Raw HTTP/identity evidence and the validation ledger remain private; neither a Markdown viewer nor a Markdown download is part of the user workflow.
+
+### Import preliminary scanner findings
+
+`pentest-job --inputs-dir /private/scanner-inputs --prompt-file -` imports the two preliminary scanner observation files into the actual engagement workspace at `inputs/scanners/` before emitting `started` and sending the engagement prompt. The `started` event includes `scannerInputs` when supplied.
+
+The source directory must contain a schema-1 `manifest.json` with exactly two `sources` entries for `nmap.json` and `nuclei.json`, each declaring `name`, `sha256` and `bytes`. Each observation file contains `tool`, terminal `status`, `target`, `params`, `findings` and optional `execution_id` / `error`. Files are private, bounded to 32 MiB each, hash-verified and copied without following symlinks. Changed existing imports are refused on continuation.
+
+Imports supply untrusted reconnaissance observations; they do not grant target authorization or bypass workflow/evidence gates. Scanner errors stay explicit. Orchis uses them as leads for Hackbot and keeps the final PDF and summary in its native report interface.

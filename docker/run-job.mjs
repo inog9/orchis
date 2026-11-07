@@ -2,6 +2,8 @@
 // Service-friendly RPC client. Public stdout is lifecycle JSONL only; complete
 // model/tool traffic is retained in the engagement's private job directory.
 import fs from "node:fs";
+import { exportResult } from "./export-result.mjs";
+import { importScannerInputs } from "./scanner-inputs.mjs";
 import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -15,7 +17,7 @@ const autoRun = `Execute the engagement request below now. Use the supplied targ
 
 export function parseArguments(args) {
   const values = { dir: "/data", harness: "pentest-harnes", startupTimeoutMs: 120000, shutdownTimeoutMs: 60000, pollMs: 500 };
-  const flags = new Map([["--prompt-file", "promptFile"], ["--dir", "dir"], ["--session", "session"], ["--name", "name"], ["--pi", "pi"], ["--harness", "harness"], ["--startup-timeout-ms", "startupTimeoutMs"], ["--shutdown-timeout-ms", "shutdownTimeoutMs"], ["--poll-ms", "pollMs"]]);
+  const flags = new Map([["--inputs-dir", "inputsDir"], ["--prompt-file", "promptFile"], ["--dir", "dir"], ["--session", "session"], ["--name", "name"], ["--pi", "pi"], ["--harness", "harness"], ["--startup-timeout-ms", "startupTimeoutMs"], ["--shutdown-timeout-ms", "shutdownTimeoutMs"], ["--poll-ms", "pollMs"]]);
   for (let i = 0; i < args.length; i++) {
     const key = flags.get(args[i]);
     if (!key || args[i + 1] === undefined) throw new Error("invalid_arguments");
@@ -155,7 +157,8 @@ export async function runJob(options) {
       if (!prompted && metadata && readyRPC) {
         const statePath = path.join(metadata.root, "state.json");
         baselineRevision = fs.existsSync(statePath) ? JSON.parse(fs.readFileSync(statePath, "utf8")).revision : undefined;
-        emit("started", paths());
+        const scannerInputs = importScannerInputs(options.inputsDir, metadata.workspace);
+        emit("started", { ...paths(), ...(scannerInputs && { scannerInputs }) });
         prompted = true;
         send({ id: "job-prompt", type: "prompt", message: autoRun + prompt });
       }
@@ -200,10 +203,18 @@ export async function runJob(options) {
     if (!stopping) stopping = { event: "failed", code: 1, reason: code === 0 && !signal ? "launcher_exited_before_delivery" : "launcher_failed" };
     else if ([0, 2].includes(stopping.code) && (code !== 0 || signal)) stopping = { event: "failed", code: 1, reason: "launcher_shutdown_failed" };
     if (metadata) {
-      fs.writeFileSync(path.join(logs, "result.json"), JSON.stringify({ schema: 1, jobId, sessionId: metadata.sessionId, ...stopping, launcherCode: code, launcherSignal: signal }), { mode: 0o600 });
       fs.rmSync(temporary, { recursive: true, force: true });
     }
-    emit(stopping.event, { reason: stopping.reason, ...(stopping.forced && { forced: true }), ...paths() });
+    let resultFile;
+    if (metadata) {
+      try { resultFile = exportResult(metadata, stopping.event, stopping.reason); }
+      catch (error) {
+        append("stderr.log", String(error) + "\n");
+        stopping = { event: "failed", code: 1, reason: "result_export_failed" };
+      }
+    }
+    if (metadata) fs.writeFileSync(path.join(logs, "result.json"), JSON.stringify({ schema: 1, jobId, sessionId: metadata.sessionId, ...stopping, launcherCode: code, launcherSignal: signal }), { mode: 0o600 });
+    emit(stopping.event, { ...(resultFile && { resultFile }), reason: stopping.reason, ...(stopping.forced && { forced: true }), ...paths() });
     finish(stopping.code);
   });
   send({ id: "job-state", type: "get_state" });
