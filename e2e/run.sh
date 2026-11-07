@@ -52,7 +52,7 @@ run_one() (
     mitre_url="$PWD/deploy/mitre/$mfile"
     infra_env=(ORCHIS_MITRE_SHA256="$msha" ORCHIS_AMQP_URL="$AMQP_URL" ORCHIS_ALLOW_LOOPBACK_TARGETS=true)
   fi
-  if [ "$script" = "flow24.mjs" ] || [ "$script" = "flow23.mjs" ] || [ "$script" = "flow6.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ] || [ "$script" = "flow15.mjs" ] || [ "$script" = "flow16.mjs" ]; then
+  if [ "$script" = "flow26.mjs" ] || [ "$script" = "flow24.mjs" ] || [ "$script" = "flow23.mjs" ] || [ "$script" = "flow6.mjs" ] || [ "$script" = "flow8.mjs" ] || [ "$script" = "flow9.mjs" ] || [ "$script" = "flow10.mjs" ] || [ "$script" = "flow11.mjs" ] || [ "$script" = "flow15.mjs" ] || [ "$script" = "flow16.mjs" ]; then
     # Fase 4: rilis agent sungguhan (linux/amd64) bertanda tangan: 1.0.0, 1.1.0 (kunci sama), dan 1.2.0 yang ditandatangani kunci LAIN.
     reldir="$(mktemp -d)"
     for v in 1.0.0 1.1.0; do
