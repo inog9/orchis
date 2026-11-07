@@ -18,6 +18,9 @@ import (
 	"orchis-go/internal/reporting"
 	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
+	"regexp"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -298,6 +301,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			}
 		}
 		for i := range snap.Assets {
+			linkOutsideConfirmation(&snap.Assets[i])
 			snap.Assets[i].Findings = reporting.MergeFindings(snap.Assets[i].Findings)
 			for _, f := range snap.Assets[i].Findings {
 				if f.Type == "vulnerability" {
@@ -310,4 +314,52 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 		}
 	}
 	return nil
+}
+
+var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)
+
+// linkOutsideConfirmation marks a DefenseBot finding when another method (Nuclei, Hackbot) reported the same CVE on the same
+// asset: the weakness was seen from inside and from outside. Findings are never merged or dropped, only annotated.
+func linkOutsideConfirmation(a *reporting.Asset) {
+	outside := map[string]map[string]bool{}
+	for _, f := range a.Findings {
+		if f.Evidence["method"] == "osv-distro" || f.Evidence["method"] == "osv-exact" {
+			continue
+		}
+		raw, _ := f.Evidence["cve"].(string)
+		if tpl, _ := f.Evidence["template_id"].(string); tpl != "" {
+			raw += " " + tpl // Nuclei template ids are usually the CVE id
+		}
+		for _, cve := range cveRe.FindAllString(strings.ToUpper(raw), -1) {
+			if outside[cve] == nil {
+				outside[cve] = map[string]bool{}
+			}
+			for _, c := range f.Coverage {
+				switch {
+				case strings.Contains(c, contract.KeyNucleiVS):
+					outside[cve]["Nuclei"] = true
+				case strings.Contains(c, contract.KeyHackbot):
+					outside[cve]["Hackbot"] = true
+				}
+			}
+		}
+	}
+	for i := range a.Findings {
+		f := &a.Findings[i]
+		method, _ := f.Evidence["method"].(string)
+		if method != "osv-distro" && method != "osv-exact" {
+			continue
+		}
+		cve, _ := f.Evidence["cve"].(string)
+		seen := outside[strings.ToUpper(cve)]
+		if len(seen) == 0 {
+			continue
+		}
+		names := make([]string, 0, len(seen))
+		for n := range seen {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		f.Evidence["confirmed_by"] = strings.Join(names, ", ")
+	}
 }

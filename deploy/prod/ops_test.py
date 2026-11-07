@@ -9,11 +9,11 @@ class MetricsSetup(unittest.TestCase):
  def test_upgrade_preserves_credentials_and_is_idempotent(self):
   with tempfile.TemporaryDirectory() as directory:
    state=Path(directory);args=types.SimpleNamespace(state=state)
-   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:ops.private(state/name,{'ORCHIS_EXISTING_SECRET':'unchanged'})
+   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','defensebot.json','ai.json']:ops.private(state/name,{'ORCHIS_EXISTING_SECRET':'unchanged'})
    ops.metrics_init(args);token=(state/'metrics_token').read_bytes();password=(state/'grafana_password').read_bytes()
    ops.metrics_init(args)
    self.assertEqual((state/'metrics_token').read_bytes(),token);self.assertEqual((state/'grafana_password').read_bytes(),password)
-   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:
+   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','defensebot.json','ai.json']:
     path=state/name;data=json.loads(path.read_text());self.assertEqual(data['ORCHIS_EXISTING_SECRET'],'unchanged');self.assertEqual(data['ORCHIS_METRICS_TOKEN'],token.decode().strip());self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,1001 if name=="hackbot.json" else 10001)
    self.assertEqual((state/'metrics_token').stat().st_uid,65534);self.assertEqual((state/'grafana_password').stat().st_uid,472)
  def test_symlink_token_is_rejected(self):
@@ -72,7 +72,7 @@ class AgentTrustSetup(unittest.TestCase):
    compose.assert_called_once_with(args,'exec','-T','caddy','cat','/data/caddy/pki/authorities/local/root.crt',capture=True)
    path=state/'server.json';value=json.loads(path.read_text())
    self.assertEqual(value,{'existing':'kept','ORCHIS_AGENT_CA_FINGERPRINT':hashlib.sha256(b'CA DER').hexdigest()})
-   self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,1001 if name=="hackbot.json" else 10001)
+   self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,10001)
  def test_invalid_ca_leaves_configuration_unchanged(self):
   with tempfile.TemporaryDirectory() as directory:
    state=Path(directory);args=types.SimpleNamespace(state=state)

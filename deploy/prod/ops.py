@@ -39,8 +39,8 @@ def init(args):
     caddy_ip=str(subnet.network_address+10)
     args.state.mkdir(mode=0o700,parents=True)
     random=lambda:secrets.token_urlsafe(32)
-    owner,app,maint,postgres,mq,s3,admin,renderer,ai,nmap,nuclei,hackbot,metrics=[random() for _ in range(13)]
-    nmap="oij_"+nmap; nuclei="oij_"+nuclei; hackbot="oij_"+hackbot
+    owner,app,maint,postgres,mq,s3,admin,renderer,ai,nmap,nuclei,hackbot,metrics,defensebot=[random() for _ in range(14)]
+    nmap="oij_"+nmap; nuclei="oij_"+nuclei; hackbot="oij_"+hackbot; defensebot="oij_"+defensebot
     for name,value,uid in [("postgres_password",postgres,70),("owner_password",owner,70),("app_password",app,70),("maintenance_password",maint,70),("s3_user","orchis",0),("s3_password",s3,0),("renderer_token",renderer,1000),("ai-master.key",base64.b64encode(secrets.token_bytes(32)).decode(),10001)]:
         private(args.state/name,value,uid)
     private(args.state/"metrics_token",metrics,65534)
@@ -51,10 +51,10 @@ def init(args):
     url=lambda role,pw:f"postgres://{role}:{pw}@pg:5432/orchis?sslmode=disable"
     appbase={**base,"ORCHIS_DATABASE_URL":url("orchis_app",app)}
     private(args.state/"migrate.json",{**base,"ORCHIS_MIGRATE_URL":url("orchis",owner)})
-    private(args.state/"provision.json",{**appbase,"ORCHIS_PROVISION_NMAP_TOKEN":nmap,"ORCHIS_PROVISION_NUCLEI_TOKEN":nuclei,"ORCHIS_PROVISION_HACKBOT_TOKEN":hackbot})
+    private(args.state/"provision.json",{**appbase,"ORCHIS_PROVISION_NMAP_TOKEN":nmap,"ORCHIS_PROVISION_NUCLEI_TOKEN":nuclei,"ORCHIS_PROVISION_HACKBOT_TOKEN":hackbot,"ORCHIS_PROVISION_DEFENSEBOT_TOKEN":defensebot})
     mqurl=f"amqp://orchis:{mq}@mq:5672/"
     private(args.state/"server.json",{**appbase,"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_OPS_STATUS_FILE":"/run/ops-status/backup.json","ORCHIS_HTTP_ADDR":"0.0.0.0:8090","ORCHIS_WEB_DIR":"/web","ORCHIS_ADMIN_EMAIL":args.email,"ORCHIS_ADMIN_PASSWORD":admin,"ORCHIS_AMQP_URL":mqurl,"ORCHIS_ES_URL":"http://es:9200","ORCHIS_S3_ENDPOINT":"minio:9000","ORCHIS_S3_ACCESS_KEY":"orchis","ORCHIS_S3_SECRET_KEY":s3,"ORCHIS_AI_WORKER_TOKEN":ai,"ORCHIS_AI_ENCRYPTION_KEY_FILE":"/run/secrets/ai-master.key","ORCHIS_RENDERER_URL":"http://renderer:8091/render","ORCHIS_RENDERER_TOKEN":renderer,"ORCHIS_AGENT_RELEASE_DIR":"/releases"})
-    for kind,token in [("nmap",nmap),("nuclei",nuclei),("hackbot",hackbot)]:private(args.state/(kind+".json"),{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_INJECTOR_TOKEN":token,"ORCHIS_AMQP_URL":mqurl},1001 if kind=="hackbot" else 10001)
+    for kind,token in [("nmap",nmap),("nuclei",nuclei),("hackbot",hackbot),("defensebot",defensebot)]:private(args.state/(kind+".json"),{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_INJECTOR_TOKEN":token,"ORCHIS_AMQP_URL":mqurl},1001 if kind=="hackbot" else 10001)
     private(args.state/"ai.json",{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_AI_WORKER_TOKEN":ai,"ORCHIS_AI_PROXY":"http://ai-proxy:8080"})
     private(args.state/"initial-admin.json",{"email":args.email,"password":admin},0)
     private(args.state/"operator.json",{"project":args.project,"port":str(args.port),"bind":bind,"site":site,"proxy_subnet":str(subnet),"proxy_range":str(subnet.network_address+128)+"/25","caddy_ip":caddy_ip,"smoke":args.command=="smoke"},0)
@@ -70,7 +70,7 @@ def hackbot_init(args):
         if path.is_symlink() or not path.is_file() or path.stat().st_mode&0o077 or path.stat().st_size>65536:raise RuntimeError('Invalid private setup file')
         return json.loads(path.read_text())
     server=read_private('server.json');provision=read_private('provision.json')
-    for kind in ['nmap','nuclei','hackbot']:
+    for kind in ['nmap','nuclei','hackbot','defensebot']:
         path=args.state/(kind+'.json')
         if path.exists():
             config=read_private(kind+'.json');token=config.get('ORCHIS_INJECTOR_TOKEN','')
@@ -96,8 +96,9 @@ def metrics_init(args):
     token=token_path.read_text().strip()
     if len(token)<32:raise RuntimeError('Metrics token is too short')
     os.chown(token_path,65534,65534)
-    for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:
+    for name in ['server.json','nmap.json','nuclei.json','hackbot.json','defensebot.json','ai.json']:
         path=args.state/name
+        if name=='defensebot.json' and not path.exists():continue
         if path.is_symlink() or not path.is_file() or path.stat().st_mode&0o077 or path.stat().st_size>65536:raise RuntimeError('Application configuration must be a private regular file')
         value=json.loads(path.read_text());value['ORCHIS_METRICS_TOKEN']=token
         if name=='server.json':value['ORCHIS_OPS_STATUS_FILE']='/run/ops-status/backup.json'
@@ -141,13 +142,16 @@ def agent_trust(args):
     value.pop("ORCHIS_AGENT_TLS_PIN",None)
     temporary=args.state/("server.json.trust-"+secrets.token_hex(4))
     try:
-        private(temporary,value,1001 if name=="hackbot.json" else 10001)
+        private(temporary,value,10001)
         os.replace(temporary,path)
     finally:temporary.unlink(missing_ok=True)
     print("Internal CA fingerprint configured. Restart the server explicitly to apply.")
 
 def up(args):
     if (args.state/"ai-rekey.json").exists():raise RuntimeError("AI key rotation pending; resume ai-rekey before startup")
+    if not (args.state/"defensebot.json").exists():
+        # Installations created before DefenseBot get their worker credentials here, without rotating any existing secret.
+        hackbot_init(args)
     compose(args,"up","-d","--no-build")
     deadline=time.monotonic()+180
     while time.monotonic()<deadline:
@@ -167,9 +171,9 @@ def up(args):
             pending.append(service)
         if states and not pending:
             tenant=json.loads((args.state/"server.json").read_text())["ORCHIS_TENANT"].replace("'","''")
-            sql="SELECT count(*) FROM integrations i JOIN tenants t ON t.id=i.tenant_id WHERE t.name='"+tenant+"' AND i.key IN ('nmap','nuclei','hackbot') AND (NOT i.enabled OR i.last_heartbeat_at>now()-interval '45 seconds')"
+            sql="SELECT count(*) FROM integrations i JOIN tenants t ON t.id=i.tenant_id WHERE t.name='"+tenant+"' AND i.key IN ('nmap','nuclei','hackbot','defensebot') AND (NOT i.enabled OR i.last_heartbeat_at>now()-interval '45 seconds')"
             count=compose(args,"exec","-T","pg","psql","-U","postgres","-d","orchis","-At","-v","ON_ERROR_STOP=1","-c",sql,capture=True).stdout.strip()
-            if count=="3":
+            if count=="4":
                 print("Project readiness: OK (core health and authenticated injector heartbeats; explicitly disabled integrations excluded)")
                 return
             pending=["authenticated injector heartbeats"]
@@ -255,7 +259,7 @@ def main():
         elif args.command=="build":
             compose(args,"build","server","renderer")
             subprocess.run(["python3",str(REPO/"deploy/hackbot/build.py")],check=True)
-            compose(args,"build","nmap","hackbot")
+            compose(args,"build","nmap","hackbot","defensebot")
         elif args.command=="up":up(args)
         elif args.command=="down":compose(args,"down","--timeout","30")
         elif args.command=="backup-key":
