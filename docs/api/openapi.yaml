@@ -1,13 +1,11 @@
 openapi: 3.0.3
 info:
   title: Orchis API
-  version: source-84392fc
-  description: 'Dokumentasi API dari source main 84392fcb7b33aa2fc59be4188a2495bfb50b323b (6 November 2026). 167
-    operasi. Role adalah matriks dasar; service memeriksa scope/tenant/permission tambahan. Model diekstrak dari
-    Go: required hanya ditambahkan untuk request utama yang diperiksa. Validasi bisnis tidak seluruhnya direpresentasikan
-    oleh schema. UI lokal memerlukan CORS dari server untuk Try it out lintas origin; cookie login bergantung kebijakan
-    browser. Panduan lengkap: guide.html.'
-  x-source-commit: 84392fcb7b33aa2fc59be4188a2495bfb50b323b
+  version: source-66d3ae4-pipeline
+  description: Orchis API snapshot with the Nmap/Nuclei → Hackbot pipeline extension on UI v2 (66d3ae4).
+    170 operations. Role, permission and tenant guards remain enforced by the services. Engine reports
+    are private inputs to the native Orchis PDF reporting workflow.
+  x-source-commit: 66d3ae486602624bbafb2b24fa93dc99fa4d664e
 servers:
 - url: '{baseUrl}'
   variables:
@@ -54,6 +52,111 @@ tags:
 - name: teams
 - name: users
 paths:
+  /api/v1/injector/executions/{id}/progress:
+    post:
+      operationId: post_injector_execution_progress
+      summary: Hackbot progress
+      description: Authenticated worker metadata only. This does not launch target activity.
+      tags:
+      - injector
+      x-roles:
+      - machine
+      x-source:
+        file: internal/execution/injector_http.go
+        line: 48
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '204':
+          description: Progress recorded
+        '401':
+          $ref: '#/components/responses/Problem'
+        '409':
+          $ref: '#/components/responses/Problem'
+      security:
+      - InjectorBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/hackbot.Progress'
+  /api/v1/injector/executions/{id}/retention:
+    post:
+      operationId: post_injector_execution_retention
+      summary: Check private workspace retention
+      description: Authenticated worker metadata only. This does not launch target activity.
+      tags:
+      - injector
+      x-roles:
+      - machine
+      x-source:
+        file: internal/execution/injector_http.go
+        line: 39
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Retain the private workspace while its owning execution exists.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  retained:
+                    type: boolean
+                required:
+                - retained
+        '401':
+          $ref: '#/components/responses/Problem'
+      security:
+      - InjectorBearer: []
+  /api/v1/scan-jobs/{id}/validation:
+    get:
+      operationId: get_scan_job_validation
+      summary: Read internal validation ledger
+      description: Requires audit.read, report.read and finding.read. Tenant-scoped, audited JSON access;
+        no client-facing Markdown download.
+      tags:
+      - scan-jobs
+      x-roles:
+      - admin
+      x-source:
+        file: internal/scans/http.go
+        line: 31
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: Redacted internal validation ledger.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  validation:
+                    type: string
+                required:
+                - validation
+        '403':
+          $ref: '#/components/responses/Problem'
+        '404':
+          $ref: '#/components/responses/Problem'
+      security:
+      - UserBearer: []
+      - SessionCookie: []
   /api/v1/asset-groups/{id}:
     delete:
       operationId: delete_api_v1_asset_groups_id
@@ -2795,8 +2898,8 @@ paths:
     get:
       operationId: get_api_v1_scans
       summary: Baca scans
-      description: 'Role dasar: **admin, analyst**. Sumber: `internal/scans/http.go:37`. Scope objek dan permission
-        tambahan tetap diperiksa oleh service.'
+      description: 'Role dasar: **admin, analyst**. Sumber: `internal/scans/http.go:37`. Scope objek dan
+        permission tambahan tetap diperiksa oleh service.'
       tags:
       - scans
       x-roles:
@@ -2835,8 +2938,9 @@ paths:
     post:
       operationId: post_api_v1_scans
       summary: Buat / jalankan scans
-      description: 'Role dasar: **admin, analyst**. Sumber: `internal/scans/http.go:28`. Validasi dan bentuk respons
-        lengkap lihat source/panduan; status job asinkron perlu dipoll.'
+      description: Runs preliminary Nmap and Nuclei jobs for each approved web asset, followed by Hackbot
+        after both finish. Partial tool selections and range-only targets are rejected. Uses existing launch
+        permissions, tenant scope and idempotency.
       tags:
       - scans
       x-roles:
@@ -2884,12 +2988,7 @@ paths:
               organization_id: 00000000-0000-4000-8000-000000000001
               asset_ids:
               - 00000000-0000-4000-8000-000000000002
-              range_ids: []
-              tools:
-              - nmap
-              - nuclei
-              preset: quick
-              language: id
+              language: en
   /api/v1/scans/{id}:
     get:
       operationId: get_api_v1_scans_id
@@ -5980,6 +6079,143 @@ components:
       scheme: bearer
       description: Token worker AI internal.
   schemas:
+    hackbot.ScannerInput:
+      type: object
+      properties:
+        tool:
+          type: string
+          enum:
+          - nmap
+          - nuclei
+        status:
+          type: string
+          enum:
+          - finished
+          - failed
+          - incomplete
+        target:
+          type: string
+        error:
+          type: string
+        execution_id:
+          type: string
+        params: {}
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/execution.NewFinding'
+      required:
+      - tool
+      - status
+      - target
+      - params
+      - findings
+    hackbot.Progress:
+      type: object
+      properties:
+        session_id:
+          type: string
+          maxLength: 80
+        phase:
+          type: string
+          enum:
+          - setup
+          - exploration
+          - recon
+          - auth
+          - authz
+          - injection
+          - fuzzing
+          - endpoint-fuzz-full
+          - gadgets
+          - reflection
+          - evidence
+          - report
+      required:
+      - phase
+    hackbot.Finding:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+          maxLength: 300
+        severity:
+          type: string
+          enum:
+          - info
+          - low
+          - medium
+          - high
+          - critical
+        value:
+          type: string
+          maxLength: 500
+        details:
+          type: object
+      required:
+      - id
+      - title
+      - severity
+      - value
+      - details
+    hackbot.Result:
+      type: object
+      properties:
+        schema:
+          type: integer
+          enum:
+          - 1
+        session_id:
+          type: string
+          maxLength: 80
+        disposition:
+          type: string
+          enum:
+          - complete
+          - limited
+          - input_required
+          - failed
+          - cancelled
+        phase:
+          type: string
+        summary:
+          type: string
+          description: Maximum 300 words; enforced by the service.
+        phases:
+          type: array
+          items:
+            type: string
+          maxItems: 13
+        verified_tasks:
+          type: integer
+          minimum: 0
+        blockers:
+          type: array
+          items:
+            type: string
+          maxItems: 100
+        findings:
+          type: array
+          items:
+            $ref: '#/components/schemas/hackbot.Finding'
+          maxItems: 2000
+        report:
+          type: string
+          maxLength: 1048576
+          description: Private engine report artifact; users receive the native Orchis PDF.
+        validation:
+          type: string
+          maxLength: 1048576
+          description: Private validation ledger.
+      required:
+      - schema
+      - session_id
+      - disposition
+      - phase
+      - report
+      - validation
     agent.Config:
       properties:
         agent_id:
@@ -7427,6 +7663,12 @@ components:
           type: string
         timeout_seconds:
           type: integer
+        scanner_inputs:
+          type: array
+          maxItems: 2
+          items:
+            $ref: '#/components/schemas/hackbot.ScannerInput'
+          description: Server-selected immutable sibling scanner snapshots; never supplied by a browser.
       type: object
     execution.ContractView:
       properties:
@@ -7628,6 +7870,10 @@ components:
           type: string
         timed_out:
           type: boolean
+        hackbot:
+          allOf:
+          - $ref: '#/components/schemas/hackbot.Result'
+          nullable: true
       type: object
     execution.TestInput:
       properties:
@@ -9049,6 +9295,16 @@ components:
           type: string
         status:
           type: string
+        summary:
+          type: string
+        completed_phases:
+          type: array
+          items:
+            type: string
+        coverage_limitations:
+          type: array
+          items:
+            type: string
       type: object
     reporting.ChangeCounts:
       properties:
@@ -9277,6 +9533,8 @@ components:
           type: string
         status:
           type: string
+        summary:
+          type: string
       type: object
     retention.Counts:
       properties:
@@ -9426,6 +9684,7 @@ components:
             format: uuid
             type: string
           type: array
+          minItems: 1
         language:
           type: string
           enum:
@@ -9437,26 +9696,37 @@ components:
           type: string
         preset:
           type: string
-          enum:
-          - quick
-          - standard
+          default: standard
+          deprecated: true
+          description: The web pipeline applies the standard preset server-side.
         range_ids:
           items:
             format: uuid
             type: string
           type: array
+          maxItems: 0
         tools:
+          type: array
           items:
             type: string
             enum:
             - nmap
             - nuclei
-          type: array
+            - hackbot
+          oneOf:
+          - maxItems: 0
+          - minItems: 3
+            maxItems: 3
+            uniqueItems: true
+          default:
+          - nmap
+          - nuclei
+          - hackbot
+          description: Omit to run the complete Nmap/Nuclei → Hackbot pipeline. Partial selections are rejected.
       type: object
       required:
       - organization_id
-      - tools
-      - preset
+      - asset_ids
     scans.Job:
       properties:
         asset_id:
@@ -9487,6 +9757,12 @@ components:
         target:
           type: string
         tool:
+          type: string
+        summary:
+          type: string
+        phase:
+          type: string
+        disposition:
           type: string
       type: object
     scans.Networks:
@@ -9558,6 +9834,15 @@ components:
         runner:
           type: string
         status:
+          type: string
+        summary:
+          type: string
+          description: Activity summary, capped at 300 words.
+        report_id:
+          type: string
+          format: uuid
+          nullable: true
+        report_status:
           type: string
       type: object
     scenario.Detail:

@@ -42,6 +42,20 @@ type Worker struct {
 
 // Run: heartbeat berkala + konsumen antrean exec.<kind>, consumer paralel terbatas, masing-masing satu tugas pada satu waktu.
 func (w *Worker) Run(ctx context.Context) {
+	if w.Kind == "hackbot" {
+		go func() {
+			ticker := time.NewTicker(time.Hour)
+			defer ticker.Stop()
+			for {
+				w.pruneHackbot(ctx)
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+			}
+		}()
+	}
 	go func() {
 		t := time.NewTicker(15 * time.Second)
 		defer t.Stop()
@@ -153,6 +167,9 @@ func (w *Worker) execute(ctx context.Context, spec *execution.ClaimSpec) executi
 	if err := w.Guard.CheckHost(host); err != nil {
 		return fail("refused by the injector scope guard: %v", err)
 	}
+	if w.Kind == "hackbot" && def.Adapter == "hackbot" {
+		return w.executeHackbot(ctx, spec)
+	}
 	var bin string
 	var args []string
 	err = nil
@@ -254,6 +271,9 @@ func (w *Worker) watch(ctx context.Context, id uuid.UUID, stop context.CancelFun
 				if errors.As(err, &ae) && ae.Status == http.StatusNotFound {
 					cancel = true
 				}
+			}
+			if err != nil && w.Kind == "hackbot" {
+				cancel = true
 			}
 			if cancel {
 				slog.Info("eksekusi dibatalkan oleh server, proses dihentikan", "execution", id)

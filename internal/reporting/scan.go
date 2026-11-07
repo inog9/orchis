@@ -50,7 +50,7 @@ func (s *Service) FreezeScanSnapshot(ctx context.Context, tx pgx.Tx, tenant, org
 	}
 	kind, title, severity := "scan_finished", "Scan finished", "info"
 	var incomplete bool
-	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scan_jobs WHERE tenant_id=$1 AND assessment_id=$2 AND status IN('failed','skipped'))`, tenant, scan).Scan(&incomplete); err != nil {
+	if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scan_jobs WHERE tenant_id=$1 AND assessment_id=$2 AND status IN('failed','skipped','incomplete'))`, tenant, scan).Scan(&incomplete); err != nil {
 		return err
 	}
 	if incomplete {

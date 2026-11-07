@@ -4,6 +4,12 @@ services:
     networks: !override [backend]
   nuclei:
     networks: !override [backend]
+  hackbot:
+    environment:
+      ORCHIS_HACKBOT_BINARY: /opt/orchis-smoke-job
+    volumes:
+      - ./deploy/hackbot/smoke-job.py:/opt/orchis-smoke-job:ro
+    networks: !override [backend]
   fixture:
     image: node:24.22.0-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
     command: [node, /fixture/server.mjs]

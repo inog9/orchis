@@ -164,6 +164,8 @@ func (h *Handlers) Register(m *http.ServeMux) {
 		disposition := "attachment"
 		if format == "pdf" && r.URL.Query().Get("preview") == "1" {
 			disposition = "inline"
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'self'")
 		}
 		w.Header().Set("Content-Disposition", disposition+"; filename=\"orchis-report-"+id.String()+"."+format+"\"")
 		w.Header().Set("Content-Length", strconv.Itoa(len(data)))

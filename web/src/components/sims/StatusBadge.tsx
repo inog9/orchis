@@ -6,6 +6,7 @@ export function scanStatusLabel(status: string): string {
     switch (status) {
         case 'running': return textUI("m_sim_s_running");
         case 'finished': case 'done': return textUI("m_sim_s_finished");
+        case 'incomplete': return textUI('hackbot_incomplete');
         case 'failed': return textUI("m_sim_s_failed");
         case 'canceled': return textUI("m_sim_s_canceled");
         case 'waiting': return textUI("m_sim_s_waiting");

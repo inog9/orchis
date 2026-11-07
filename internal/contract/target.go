@@ -100,8 +100,11 @@ func (g Guard) CheckHost(host string) error {
 // nmap: butuh host (ip/hostname/domain, atau host dari url). nuclei: lebih suka url, lalu nama, lalu ip.
 func (g Guard) Target(key string, addrs []Address) (string, error) {
 	pref := []string{"ip", "hostname", "domain", "url"}
-	if Adapter(key) == "nuclei" {
+	if Adapter(key) == "nuclei" || Adapter(key) == "hackbot" {
 		pref = []string{"url", "hostname", "domain", "ip"}
+	}
+	if Adapter(key) == "hackbot" {
+		pref = []string{"url"}
 	}
 	var lastErr error = errors.New("the asset has no address this action can use (needs an IP, host name or URL)")
 	for _, kind := range pref {
@@ -131,7 +134,7 @@ func normalizeTarget(key string, ad Address) (target, host string, err error) {
 		if perr != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil {
 			return "", "", errors.New("URL must be http or https without credentials")
 		}
-		if Adapter(key) == "nuclei" {
+		if Adapter(key) == "nuclei" || Adapter(key) == "hackbot" {
 			return u.String(), u.Hostname(), nil
 		}
 		return u.Hostname(), u.Hostname(), nil

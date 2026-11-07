@@ -43,3 +43,11 @@ class ArchiveSafety(unittest.TestCase):
                     backup.restore(args,None,lambda args:init_calls.append(args),None,None)
             self.assertFalse(state.exists());self.assertEqual(init_calls,[])
 if __name__=='__main__':unittest.main()
+
+class HackbotBackup(unittest.TestCase):
+    def test_private_engine_archive_has_read_access_and_excludes_seeded_package_link(self):
+        command=backup.volume_read('fixture-image','private-home','project',True,True)
+        self.assertIn('DAC_READ_SEARCH',command)
+        self.assertIn('--exclude=./.pi/agent/node_modules',command)
+        self.assertIn('none',command)
+        self.assertIn('--read-only',command)

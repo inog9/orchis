@@ -37,7 +37,7 @@ func collectMetrics(ctx context.Context, m *telemetry.Registry, d *db.DB, tenant
 				}
 				sample[name] = value
 			}
-			for _, kind := range []string{"nmap", "nuclei"} {
+			for _, kind := range []string{"nmap", "nuclei", "hackbot"} {
 				var age float64
 				var missing float64
 				if err := tx.QueryRow(sampleCtx, "SELECT COALESCE(max(extract(epoch FROM now()-last_heartbeat_at)),0)::float8,count(*) FILTER(WHERE last_heartbeat_at IS NULL)::float8 FROM integrations WHERE key=$1 AND enabled", kind).Scan(&age, &missing); err != nil {

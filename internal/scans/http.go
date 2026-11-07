@@ -2,10 +2,13 @@ package scans
 
 import (
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"net/http"
+	"orchis-go/internal/audit"
 	"orchis-go/internal/auth"
 	"orchis-go/internal/authz"
 	"orchis-go/internal/httpx"
+	"orchis-go/internal/reporting"
 )
 
 type Handlers struct{ Svc *Service }
@@ -25,6 +28,33 @@ func pathID(r *http.Request, key string) (uuid.UUID, error) {
 	return id, nil
 }
 func (h *Handlers) Register(m *http.ServeMux) {
+	m.HandleFunc("GET /api/v1/scan-jobs/{id}/validation", auth.Require(authz.AuditRead, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+		if !authz.Has(p.Permissions, authz.ReportRead) || !authz.Has(p.Permissions, authz.FindingRead) {
+			httpx.Write(w, r, httpx.Forbidden(authz.ReportRead))
+			return
+		}
+		id, e := pathID(r, "id")
+		if e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		var text string
+		e = h.Svc.DB.InTenant(r.Context(), p.TenantID, func(tx pgx.Tx) error {
+			err := tx.QueryRow(r.Context(), `SELECT x.hackbot_result->>'validation' FROM executions x JOIN scan_jobs j ON j.tenant_id=x.tenant_id AND j.simulation_id=x.simulation_id JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id WHERE j.tenant_id=$1 AND j.id=$2 AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL AND x.hackbot_result IS NOT NULL`, p.TenantID, id).Scan(&text)
+			if err == pgx.ErrNoRows {
+				return httpx.NotFound("Validation ledger")
+			}
+			if err != nil {
+				return err
+			}
+			return audit.Write(r.Context(), tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "report.validation_read", ResourceType: "scan_job", ResourceID: &id, IP: auth.ClientIP(r), RequestID: httpx.RequestIDFrom(r.Context())})
+		})
+		if e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		httpx.JSON(w, 200, map[string]string{"validation": reporting.Redact(text, 1<<20)})
+	}))
 	m.HandleFunc("POST /api/v1/scans", auth.Require(authz.AssessmentRun, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		var in Input
 		if err := httpx.Decode(w, r, &in); err != nil {

@@ -1,7 +1,7 @@
 # API Orchis — Swagger / OpenAPI
 
 Dokumentasi API tersedia sebagai Swagger UI offline dan spesifikasi OpenAPI 3.0.3.
-Cakupan: **167 operasi HTTP**, berdasarkan source commit `84392fc`.
+Cakupan: **170 operasi HTTP**, termasuk ekstensi pipeline Nmap/Nuclei → Hackbot di atas UI v2 (`66d3ae4`).
 
 Dari root checkout, jalankan:
 
@@ -34,3 +34,15 @@ Validator online Swagger dinonaktifkan; tidak ada request API saat membuka dokum
 Panduan konfigurasi upstream: [Swagger UI configuration](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/).
 
 Spesifikasi JSON/YAML dan `api/openapi-spec.js` harus diperbarui bersamaan bila API berubah.
+
+## Three-stage web pentests
+
+`POST /api/v1/scans` accepts `organization_id`, approved HTTP(S) `asset_ids`, and optional report `language`, with the existing Idempotency-Key header. New requests always create Nmap, Nuclei and Hackbot jobs per asset; omit `tools` or supply exactly all three. The standard preset is applied by the server. Network-range selection is not part of this web pentest flow.
+
+Nmap and Nuclei run first. Hackbot is dispatched only after both finish or fail, and its execution claim includes `scanner_inputs` with immutable findings snapshots from those sibling jobs. Inputs are scoped by tenant, assessment and asset. They cannot be supplied by the browser.
+
+`GET /api/v1/scans/{id}` returns job progress, disposition, the activity `summary` (maximum 300 words), and `report_id` / `report_status` for authorized readers. Status `incomplete` covers partial engine delivery and failed preliminary checks. All three methods and their findings are included in the existing report snapshot. The PDF is rendered and embedded automatically in Orchis through its authenticated same-origin preview endpoint.
+
+The Hackbot workspace receives `inputs/scanners/nmap.json`, `nuclei.json` and `manifest.json` before prompting. These are preliminary observations with explicit provenance and status, not automatically verified findings. See the engine deployment guide for the folder layout and privacy boundaries.
+
+The audited admin-only `/api/v1/scan-jobs/{id}/validation` endpoint returns JSON. Worker `progress` and `retention` POST subresources remain bounded authenticated metadata operations. Existing advanced Nmap/Nuclei contracts and historical assessment APIs remain available.

@@ -41,6 +41,7 @@ func (s *Service) Sweep(ctx context.Context, tenant uuid.UUID) error {
 		for _, q := range []string{
 			`DELETE FROM ai_job_actions WHERE tenant_id=$1 AND job_id IN(SELECT id FROM ai_jobs WHERE tenant_id=$1 AND report_id=ANY($2::uuid[]))`,
 			`DELETE FROM ai_jobs WHERE tenant_id=$1 AND report_id=ANY($2::uuid[])`,
+			`UPDATE executions SET hackbot_result=hackbot_result-'report'-'validation' WHERE tenant_id=$1 AND simulation_id IN(SELECT j.simulation_id FROM scan_jobs j JOIN reports r ON r.tenant_id=j.tenant_id AND r.assessment_id=j.assessment_id WHERE j.tenant_id=$1 AND r.id=ANY($2::uuid[])) AND $3::timestamptz IS NOT NULL`,
 			`UPDATE assessments SET report_expired_at=$3 WHERE tenant_id=$1 AND id IN(SELECT assessment_id FROM reports WHERE tenant_id=$1 AND id=ANY($2::uuid[]))`,
 			`DELETE FROM reports WHERE tenant_id=$1 AND id=ANY($2::uuid[])`,
 		} {

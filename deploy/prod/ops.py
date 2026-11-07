@@ -39,8 +39,8 @@ def init(args):
     caddy_ip=str(subnet.network_address+10)
     args.state.mkdir(mode=0o700,parents=True)
     random=lambda:secrets.token_urlsafe(32)
-    owner,app,maint,postgres,mq,s3,admin,renderer,ai,nmap,nuclei,metrics=[random() for _ in range(12)]
-    nmap="oij_"+nmap; nuclei="oij_"+nuclei
+    owner,app,maint,postgres,mq,s3,admin,renderer,ai,nmap,nuclei,hackbot,metrics=[random() for _ in range(13)]
+    nmap="oij_"+nmap; nuclei="oij_"+nuclei; hackbot="oij_"+hackbot
     for name,value,uid in [("postgres_password",postgres,70),("owner_password",owner,70),("app_password",app,70),("maintenance_password",maint,70),("s3_user","orchis",0),("s3_password",s3,0),("renderer_token",renderer,1000),("ai-master.key",base64.b64encode(secrets.token_bytes(32)).decode(),10001)]:
         private(args.state/name,value,uid)
     private(args.state/"metrics_token",metrics,65534)
@@ -51,16 +51,41 @@ def init(args):
     url=lambda role,pw:f"postgres://{role}:{pw}@pg:5432/orchis?sslmode=disable"
     appbase={**base,"ORCHIS_DATABASE_URL":url("orchis_app",app)}
     private(args.state/"migrate.json",{**base,"ORCHIS_MIGRATE_URL":url("orchis",owner)})
-    private(args.state/"provision.json",{**appbase,"ORCHIS_PROVISION_NMAP_TOKEN":nmap,"ORCHIS_PROVISION_NUCLEI_TOKEN":nuclei})
+    private(args.state/"provision.json",{**appbase,"ORCHIS_PROVISION_NMAP_TOKEN":nmap,"ORCHIS_PROVISION_NUCLEI_TOKEN":nuclei,"ORCHIS_PROVISION_HACKBOT_TOKEN":hackbot})
     mqurl=f"amqp://orchis:{mq}@mq:5672/"
     private(args.state/"server.json",{**appbase,"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_OPS_STATUS_FILE":"/run/ops-status/backup.json","ORCHIS_HTTP_ADDR":"0.0.0.0:8090","ORCHIS_WEB_DIR":"/web","ORCHIS_ADMIN_EMAIL":args.email,"ORCHIS_ADMIN_PASSWORD":admin,"ORCHIS_AMQP_URL":mqurl,"ORCHIS_ES_URL":"http://es:9200","ORCHIS_S3_ENDPOINT":"minio:9000","ORCHIS_S3_ACCESS_KEY":"orchis","ORCHIS_S3_SECRET_KEY":s3,"ORCHIS_AI_WORKER_TOKEN":ai,"ORCHIS_AI_ENCRYPTION_KEY_FILE":"/run/secrets/ai-master.key","ORCHIS_RENDERER_URL":"http://renderer:8091/render","ORCHIS_RENDERER_TOKEN":renderer,"ORCHIS_AGENT_RELEASE_DIR":"/releases"})
-    for kind,token in [("nmap",nmap),("nuclei",nuclei)]:private(args.state/(kind+".json"),{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_INJECTOR_TOKEN":token,"ORCHIS_AMQP_URL":mqurl})
+    for kind,token in [("nmap",nmap),("nuclei",nuclei),("hackbot",hackbot)]:private(args.state/(kind+".json"),{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_INJECTOR_TOKEN":token,"ORCHIS_AMQP_URL":mqurl},1001 if kind=="hackbot" else 10001)
     private(args.state/"ai.json",{"ORCHIS_METRICS_TOKEN":metrics,"ORCHIS_SERVER_URL":"http://server:8090","ORCHIS_AI_WORKER_TOKEN":ai,"ORCHIS_AI_PROXY":"http://ai-proxy:8080"})
     private(args.state/"initial-admin.json",{"email":args.email,"password":admin},0)
     private(args.state/"operator.json",{"project":args.project,"port":str(args.port),"bind":bind,"site":site,"proxy_subnet":str(subnet),"proxy_range":str(subnet.network_address+128)+"/25","caddy_ip":caddy_ip,"smoke":args.command=="smoke"},0)
     private(args.state/"backup.key",secrets.token_hex(32),0)
     (args.state/"agent-releases").mkdir(mode=0o755)
     print("Initialized private state. Initial credentials: "+str(args.state/"initial-admin.json"))
+
+def hackbot_init(args):
+    """Prepare an existing installation for the new worker without rotating old secrets."""
+    if os.geteuid()!=0:raise RuntimeError('Hackbot setup requires the root operator')
+    def read_private(name):
+        path=args.state/name
+        if path.is_symlink() or not path.is_file() or path.stat().st_mode&0o077 or path.stat().st_size>65536:raise RuntimeError('Invalid private setup file')
+        return json.loads(path.read_text())
+    server=read_private('server.json');provision=read_private('provision.json')
+    for kind in ['nmap','nuclei','hackbot']:
+        path=args.state/(kind+'.json')
+        if path.exists():
+            config=read_private(kind+'.json');token=config.get('ORCHIS_INJECTOR_TOKEN','')
+            if not re.fullmatch(r'oij_[A-Za-z0-9_-]{43}',token):raise RuntimeError('Invalid existing scanner token')
+        else:
+            token=provision.get('ORCHIS_PROVISION_'+kind.upper()+'_TOKEN','')
+            if token and not re.fullmatch(r'oij_[A-Za-z0-9_-]{43}',token):raise RuntimeError('Invalid provisioned scanner token')
+            if not token:token='oij_'+secrets.token_urlsafe(32)
+            private(path,{'ORCHIS_METRICS_TOKEN':server.get('ORCHIS_METRICS_TOKEN',''),'ORCHIS_SERVER_URL':'http://server:8090','ORCHIS_INJECTOR_TOKEN':token,'ORCHIS_AMQP_URL':server['ORCHIS_AMQP_URL']},1001 if kind=='hackbot' else 10001)
+        provision['ORCHIS_PROVISION_'+kind.upper()+'_TOKEN']=token
+    temporary=args.state/('provision.json.hackbot-'+secrets.token_hex(4))
+    try:
+        private(temporary,provision);os.replace(temporary,args.state/'provision.json')
+    finally:temporary.unlink(missing_ok=True)
+    print('Hackbot worker credentials prepared. Run migration/provisioning with the updated images before starting the worker.')
 
 def metrics_init(args):
     """Explicit upgrade of private metric configuration; preserves other credentials."""
@@ -71,14 +96,14 @@ def metrics_init(args):
     token=token_path.read_text().strip()
     if len(token)<32:raise RuntimeError('Metrics token is too short')
     os.chown(token_path,65534,65534)
-    for name in ['server.json','nmap.json','nuclei.json','ai.json']:
+    for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:
         path=args.state/name
         if path.is_symlink() or not path.is_file() or path.stat().st_mode&0o077 or path.stat().st_size>65536:raise RuntimeError('Application configuration must be a private regular file')
         value=json.loads(path.read_text());value['ORCHIS_METRICS_TOKEN']=token
         if name=='server.json':value['ORCHIS_OPS_STATUS_FILE']='/run/ops-status/backup.json'
         temporary=args.state/(name+'.metrics-'+secrets.token_hex(4))
         try:
-            private(temporary,value)
+            private(temporary,value,1001 if name=="hackbot.json" else 10001)
             os.replace(temporary,path)
         finally:temporary.unlink(missing_ok=True)
     password=args.state/'grafana_password'
@@ -116,7 +141,7 @@ def agent_trust(args):
     value.pop("ORCHIS_AGENT_TLS_PIN",None)
     temporary=args.state/("server.json.trust-"+secrets.token_hex(4))
     try:
-        private(temporary,value)
+        private(temporary,value,1001 if name=="hackbot.json" else 10001)
         os.replace(temporary,path)
     finally:temporary.unlink(missing_ok=True)
     print("Internal CA fingerprint configured. Restart the server explicitly to apply.")
@@ -142,9 +167,9 @@ def up(args):
             pending.append(service)
         if states and not pending:
             tenant=json.loads((args.state/"server.json").read_text())["ORCHIS_TENANT"].replace("'","''")
-            sql="SELECT count(*) FROM integrations i JOIN tenants t ON t.id=i.tenant_id WHERE t.name='"+tenant+"' AND i.key IN ('nmap','nuclei') AND (NOT i.enabled OR i.last_heartbeat_at>now()-interval '45 seconds')"
+            sql="SELECT count(*) FROM integrations i JOIN tenants t ON t.id=i.tenant_id WHERE t.name='"+tenant+"' AND i.key IN ('nmap','nuclei','hackbot') AND (NOT i.enabled OR i.last_heartbeat_at>now()-interval '45 seconds')"
             count=compose(args,"exec","-T","pg","psql","-U","postgres","-d","orchis","-At","-v","ON_ERROR_STOP=1","-c",sql,capture=True).stdout.strip()
-            if count=="2":
+            if count=="3":
                 print("Project readiness: OK (core health and authenticated injector heartbeats; explicitly disabled integrations excluded)")
                 return
             pending=["authenticated injector heartbeats"]
@@ -189,7 +214,7 @@ def state_lock(state):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status","env","ca-fingerprint"])
+    p.add_argument("command",choices=["init","build","up","down","status","probe","backup-key","backup","restore","smoke","hackbot-init","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status","env","ca-fingerprint"])
     p.add_argument("--state",type=Path,default=None)
     p.add_argument("--project")
     p.add_argument("--port",type=int)
@@ -221,6 +246,7 @@ def main():
         elif args.command=="probe":probe(args)
         elif args.command=="env":env_file(args)
         elif args.command=="ca-fingerprint":ca_fingerprint(args)
+        elif args.command=="hackbot-init":hackbot_init(args)
         elif args.command=="metrics-init":metrics_init(args)
         elif args.command=="agent-trust":agent_trust(args)
         elif args.command=="mitre-config":
@@ -228,7 +254,8 @@ def main():
             configure(args,REPO,private)
         elif args.command=="build":
             compose(args,"build","server","renderer")
-            compose(args,"build","nmap")
+            subprocess.run(["python3",str(REPO/"deploy/hackbot/build.py")],check=True)
+            compose(args,"build","nmap","hackbot")
         elif args.command=="up":up(args)
         elif args.command=="down":compose(args,"down","--timeout","30")
         elif args.command=="backup-key":
@@ -248,7 +275,7 @@ def main():
             from smoke import smoke
             smoke(args,compose,init,up,probe)
         else:compose(args,"ps","-a")
-    if args.command in {"up","down","build","backup-key","backup","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"}:
+    if args.command in {"up","down","build","backup-key","backup","hackbot-init","metrics-init","agent-trust","mitre-config","ai-rekey","demo-seed","demo-purge","demo-status"}:
         with state_lock(args.state):execute()
     else:execute()
 

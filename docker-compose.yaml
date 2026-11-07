@@ -213,6 +213,33 @@ services:
     volumes: ["${ORCHIS_STATE}/nuclei.json:/run/secrets/app.json:ro"]
     mem_limit: 1g
     cpus: 1.0
+  hackbot:
+    image: orchis-hackbot-worker:${ORCHIS_VERSION:-local}
+    build:
+      context: .
+      dockerfile: deploy/hackbot/Dockerfile
+      args:
+        VERSION: ${ORCHIS_VERSION:-local}
+    command: [injector, --kind, hackbot]
+    restart: unless-stopped
+    user: "1001:1001"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    environment:
+      ORCHIS_ENV_FILE: /run/secrets/app.json
+      ORCHIS_INJECTOR_CONCURRENCY: '1'
+      ORCHIS_HACKBOT_DATA: /data
+    volumes:
+      - "${ORCHIS_STATE}/hackbot.json:/run/secrets/app.json:ro"
+      - hackbot-data:/data
+      - hackbot-home:/home/pentest
+    networks: [backend, scan]
+    depends_on:
+      server: {condition: service_healthy}
+    stop_grace_period: 90s
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 1024
   ai-proxy:
     <<: *app
     restart: unless-stopped
@@ -245,6 +272,8 @@ networks:
   scan: {}
   edge: {}
 volumes:
+  hackbot-data:
+  hackbot-home:
   pgdata:
   mqdata:
   esdata:

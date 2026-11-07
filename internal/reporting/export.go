@@ -32,7 +32,7 @@ func Redact(s string, limit int) string {
 }
 func SafeEvidence(in map[string]any) map[string]any {
 	out := map[string]any{}
-	for _, key := range []string{"template_id", "template", "matcher_name", "matched_at", "port", "protocol", "service", "product", "version", "cve", "cwe", "mitre"} {
+	for _, key := range []string{"template_id", "template", "matcher_name", "matched_at", "port", "protocol", "service", "product", "version", "cve", "cwe", "mitre", "verdict", "reason", "vector", "score", "remediation", "replay", "reproduction", "impact"} {
 		if value, ok := in[key]; ok {
 			switch v := value.(type) {
 			case string:

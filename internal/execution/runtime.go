@@ -21,6 +21,7 @@ import (
 	"orchis-go/internal/audit"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/osquery"
 	"orchis-go/internal/scanscope"
@@ -135,13 +136,14 @@ func (r *Runtime) Beat(ctx context.Context, in *Injector, version string) error 
 }
 
 type ClaimSpec struct {
-	ContractVersion int                 `json:"contract_version"`
-	ScanScope       *contract.ScanScope `json:"scan_scope,omitempty"`
-	ExecutionID     uuid.UUID           `json:"execution_id"`
-	ContractKey     string              `json:"contract_key"`
-	Target          string              `json:"target"`
-	Params          json.RawMessage     `json:"params"`
-	TimeoutSeconds  int                 `json:"timeout_seconds"`
+	ScannerInputs   []hackbot.ScannerInput `json:"scanner_inputs,omitempty"`
+	ContractVersion int                    `json:"contract_version"`
+	ScanScope       *contract.ScanScope    `json:"scan_scope,omitempty"`
+	ExecutionID     uuid.UUID              `json:"execution_id"`
+	ContractKey     string                 `json:"contract_key"`
+	Target          string                 `json:"target"`
+	Params          json.RawMessage        `json:"params"`
+	TimeoutSeconds  int                    `json:"timeout_seconds"`
 }
 
 // Claim memindahkan eksekusi ready -> running dengan satu UPDATE bersyarat. Penjaga scope diperiksa ulang di sini:
@@ -281,6 +283,9 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 			}
 		}
 		lease := time.Duration(timeout)*time.Second + leaseGrace
+		if ckey == contract.KeyHackbot {
+			lease = heartbeatLease
+		}
 		if _, err := tx.Exec(ctx, `
 UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, lease_until=now()+make_interval(secs => $3),
   claimed_by=$4, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=$2`, r.Tenant, id, lease.Seconds(), in.Key); err != nil {
@@ -289,7 +294,15 @@ UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, leas
 		if err := logLine(ctx, tx, r.Tenant, id, "info", "Started by the "+in.Key+" injector."); err != nil {
 			return err
 		}
-		spec = &ClaimSpec{ScanScope: scanProof, ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
+		var scannerInputs []hackbot.ScannerInput
+		if ckey == contract.KeyHackbot && sim != nil && scanProof != nil {
+			var e error
+			scannerInputs, e = r.scannerInputs(ctx, tx, *sim)
+			if e != nil {
+				return e
+			}
+		}
+		spec = &ClaimSpec{ScannerInputs: scannerInputs, ScanScope: scanProof, ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
 		return nil
 	})
 	if err != nil {
@@ -310,6 +323,31 @@ func (r *Runtime) Heartbeat(ctx context.Context, in *Injector, id uuid.UUID) (ca
 		if err := scancontrol.Enforce(ctx, tx, r.Tenant, scancontrol.Now(r.Now), r.AfterEnd); err != nil {
 			return err
 		}
+		if in.Key == "hackbot" || in.Key == "nmap" || in.Key == "nuclei" {
+			var sim *uuid.UUID
+			var target string
+			e := tx.QueryRow(ctx, `SELECT simulation_id,target_address FROM executions WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running'`, r.Tenant, id, in.ID).Scan(&sim, &target)
+			if errors.Is(e, pgx.ErrNoRows) {
+				cancel = true
+				return nil
+			}
+			if e != nil {
+				return e
+			}
+			if sim != nil {
+				limit := r.ScanMaxHosts
+				if limit == 0 {
+					limit = contract.DefaultScanMaxHosts
+				}
+				if _, e = scanscope.CheckJob(ctx, tx, r.Tenant, *sim, target, r.Guard, limit); e != nil {
+					if _, e = tx.Exec(ctx, `UPDATE executions SET state='ended',outcome='canceled',error='Pentest authorization changed',ended_at=now(),lease_until=NULL WHERE tenant_id=$1 AND id=$2`, r.Tenant, id); e != nil {
+						return e
+					}
+					cancel = true
+					return r.afterEnd(ctx, tx, sim)
+				}
+			}
+		}
 		tag, err := tx.Exec(ctx, `UPDATE executions SET lease_until=now()+make_interval(secs => $4), updated_at=now()
 WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running' AND ($5::uuid IS NULL OR agent_id=$5)`, r.Tenant, id, in.ID, heartbeatLease.Seconds(), in.AgentID)
 		if err != nil {
@@ -323,12 +361,13 @@ WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running' AND ($5::
 }
 
 type Result struct {
-	ExitCode *int         `json:"exit_code"`
-	Error    string       `json:"error"`
-	TimedOut bool         `json:"timed_out"`
-	Output   string       `json:"output"`
-	Logs     []LogLine    `json:"logs"`
-	Findings []NewFinding `json:"findings"`
+	Hackbot  *hackbot.Result `json:"hackbot,omitempty"`
+	ExitCode *int            `json:"exit_code"`
+	Error    string          `json:"error"`
+	TimedOut bool            `json:"timed_out"`
+	Output   string          `json:"output"`
+	Logs     []LogLine       `json:"logs"`
+	Findings []NewFinding    `json:"findings"`
 	// Datasets: hasil query bernama osquery dari agent (tidak tepercaya; lihat processEndpointData).
 	Datasets []osquery.Dataset `json:"datasets,omitempty"`
 }
@@ -408,6 +447,33 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 				res.Error = res.Error[:2000]
 			}
 		}
+		if ckey == contract.KeyHackbot {
+			res.Findings = nil
+			if res.Hackbot == nil {
+				if outcome == "success" {
+					return httpx.BadRequest("Hackbot result is required.")
+				}
+			} else {
+				if err := res.Hackbot.Validate(); err != nil {
+					return httpx.BadRequest(err.Error())
+				}
+				if res.Hackbot.Disposition != "complete" {
+					outcome = "error"
+				}
+				for _, f := range res.Hackbot.Findings {
+					res.Findings = append(res.Findings, NewFinding{Type: "vulnerability", Value: f.Value, Title: f.Title, Severity: f.Severity, Details: f.Details})
+				}
+				payload, err := json.Marshal(res.Hackbot)
+				if err != nil {
+					return err
+				}
+				if _, err = tx.Exec(ctx, `UPDATE executions SET hackbot_result=$3 WHERE tenant_id=$1 AND id=$2`, r.Tenant, id, payload); err != nil {
+					return err
+				}
+			}
+		} else if res.Hackbot != nil {
+			return httpx.BadRequest("Hackbot result is not valid for this contract.")
+		}
 		var rawKey *string
 		if r.Store != nil && res.Output != "" {
 			key := fmt.Sprintf("executions/%s/%s/output.txt", r.Tenant, id)
@@ -443,7 +509,7 @@ lease_until=NULL, version=version+1, updated_at=now() WHERE tenant_id=$1 AND id=
 				return err
 			}
 		}
-		if outcome == "success" {
+		if outcome == "success" || (ckey == contract.KeyHackbot && res.Hackbot != nil && (res.Hackbot.Disposition == "limited" || res.Hackbot.Disposition == "input_required")) {
 			def := contract.FindVersion(ckey, contractVersion)
 			if def == nil {
 				return fmt.Errorf("kontrak %q tidak dikenal", ckey)
@@ -509,7 +575,7 @@ func (r *Runtime) Sweep(ctx context.Context) (retried, timedOut int, err error) 
 UPDATE executions e SET state='ready', lease_until=NULL, claimed_by=NULL, not_before=now(), version=e.version+1, updated_at=now()
 FROM integrations i
 WHERE e.tenant_id=$1 AND e.state='running' AND e.lease_until < now() AND e.attempt < e.max_attempts AND e.executor_kind='injector'
-  AND i.tenant_id=e.tenant_id AND i.id=e.integration_id
+  AND i.tenant_id=e.tenant_id AND i.id=e.integration_id AND i.key<>'hackbot'
 RETURNING e.id, i.key`, r.Tenant)
 		if err != nil {
 			return err
@@ -680,4 +746,35 @@ func ProvisionToken(ctx context.Context, d *db.DB, tenant uuid.UUID, key, token 
 		}
 		return nil
 	})
+}
+
+// Progress accepts only bounded public metadata from the claiming Hackbot worker.
+func (r *Runtime) Progress(ctx context.Context, in *Injector, id uuid.UUID, p hackbot.Progress) error {
+	if in.Key != "hackbot" || !p.Valid() {
+		return httpx.BadRequest("Invalid Hackbot progress.")
+	}
+	return r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
+		data, _ := json.Marshal(p)
+		tag, err := tx.Exec(ctx, `UPDATE executions SET hackbot_progress=$4 WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running'`, r.Tenant, id, in.ID, data)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() != 1 {
+			return httpx.Conflict("Execution is no longer running.")
+		}
+		return nil
+	})
+}
+
+// RetainWorkspace lets a worker remove private evidence only after the owning
+// execution has been deleted by Orchis retention. Network/API failures retain it.
+func (r *Runtime) RetainWorkspace(ctx context.Context, in *Injector, id uuid.UUID) (bool, error) {
+	if in.Key != "hackbot" {
+		return true, httpx.Forbidden("hackbot")
+	}
+	retained := true
+	err := r.DB.InTenantRead(ctx, r.Tenant, func(tx pgx.Tx) error {
+		return tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM executions WHERE tenant_id=$1 AND id=$2 AND integration_id=$3)`, r.Tenant, id, in.ID).Scan(&retained)
+	})
+	return retained, err
 }

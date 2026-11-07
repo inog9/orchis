@@ -1,0 +1,10 @@
+{
+  "repository": "https://github.com/r1pu5u/orchis-hackbot-lite.git",
+  "revision": "9a653848c859e404160716d51ec64ace8e8853cb",
+  "result_schema": 1,
+  "files": {
+    "docker/run-job.mjs": "2010b532b1bd699bd58f980de0ca3f97baaa826153507f2e7820786f6ec7a55a",
+    "docker/export-result.mjs": "8c7f18a868c3d41b03c24e05fbbb039da88267a2a0c456bd4ae3510d4bc363c1",
+    "docker/scanner-inputs.mjs": "e0a49fd91041c6e67b02b2835fe56b64bc548617873c5ea6e64c76329e4ee81b"
+  }
+}

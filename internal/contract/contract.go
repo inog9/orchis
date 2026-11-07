@@ -18,6 +18,7 @@ import (
 )
 
 const (
+	KeyHackbot  = "hackbot.pentest"
 	KeyNmapTCP  = "nmap.tcp_connect"
 	KeyNucleiVS = "nuclei.scan"
 
@@ -142,6 +143,8 @@ func normalizeDefinition(def *Def, raw json.RawMessage) (json.RawMessage, error)
 	}
 	raw = canonical
 	switch def.Adapter {
+	case "hackbot":
+		return def.Schema.Normalize(raw)
 	case "nmap":
 		p := NmapParams{Profile: "top100"}
 		if err := strict(raw, &p); err != nil {

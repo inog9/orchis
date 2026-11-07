@@ -166,3 +166,6 @@ POST,/api/v1/agent/control/ack,machine,internal/agents/control_http.go,57,agentp
 GET,/api/v1/alerts/policy,admin,internal/alerts/policy.go,76,,
 PUT,/api/v1/alerts/policy,admin,internal/alerts/policy.go,84,alerts.Policy,
 PATCH,/api/v1/auth/preferences,admin|analyst|viewer,internal/auth/http.go,142,,
+POST,/api/v1/injector/executions/{id}/progress,machine,internal/execution/injector_http.go,48,hackbot.Progress,
+POST,/api/v1/injector/executions/{id}/retention,machine,internal/execution/injector_http.go,39,,
+GET,/api/v1/scan-jobs/{id}/validation,admin,internal/scans/http.go,31,,

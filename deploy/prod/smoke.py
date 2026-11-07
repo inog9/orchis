@@ -1,4 +1,4 @@
-"""A real local scan + frozen PDF + encrypted backup + isolated restore."""
+"""Synthetic Hackbot transport + native PDF + encrypted backup + isolated restore; no paid model."""
 import subprocess,sys,base64,secrets,hashlib, http.cookiejar, json, os, ssl, time, types, urllib.request, uuid
 from pathlib import Path
 from backup import backup,restore
@@ -32,23 +32,25 @@ def smoke(args,compose,init,up,probe):
     compose(args,'build','server','renderer')
     subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'ci/check-mitre-image.py'),
                     '--image','orchis-server:'+os.environ.get('ORCHIS_VERSION','local')],check=True,timeout=240)
-    compose(args,'build','nmap')
+    subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'hackbot/build.py')],check=True)
+    compose(args,'build','nmap','hackbot')
     up(args);probe(args);api=client_for(args,compose)
-    org=api('POST','/organizations',{'name':'LOCAL PRODUCTION SMOKE FIXTURE','slug':'local-smoke-'+uuid.uuid4().hex[:8],'description':'Synthetic local service; findings are produced by real scanner requests.','industry':'Local fixture'})
-    addresses=[{'kind':'hostname','value':'fixture'},{'kind':'url','value':'http://fixture:8081'}]
+    org=api('POST','/organizations',{'name':'LOCAL PRODUCTION SMOKE FIXTURE','slug':'local-smoke-'+uuid.uuid4().hex[:8],'description':'Synthetic integration fixture; no pentest or target requests are performed.','industry':'Local fixture'})
+    addresses=[{'kind':'url','value':'http://fixture:8081'}]
     assets=[]
     for name,authorized,values in [('LOCAL FIXTURE TESTED',True,addresses),('LOCAL FIXTURE NOT AUTHORIZED',False,addresses),('LOCAL FIXTURE NO ADDRESS',True,[])]:
-        assets.append(api('POST','/assets',{'category':'host','name':name,'testing_authorized':authorized,'addresses':values}))
+        assets.append(api('POST','/assets',{'category':'host','name':name,'testing_authorized':authorized,'is_internet_facing':True,'addresses':values}))
     api('PUT','/organizations/'+org['id']+'/assets',{'assets':[{'id':a['id'],'version':a['version']} for a in assets]})
-    payload={'profile':'quick','nmap_params':{'profile':'custom','ports':'8081','service_detection':False},'nuclei_params':{'severity':['info','low','medium','high','critical'],'tags':['laravel'],'template_profile':'exposure'}}
-    key=str(uuid.uuid4());assessment=api('POST','/organizations/'+org['id']+'/assessments',payload,{'Idempotency-Key':key})
-    repeated=api('POST','/organizations/'+org['id']+'/assessments',payload,{'Idempotency-Key':key})
+    payload={'organization_id':org['id'],'asset_ids':[assets[0]['id']]}
+    key=str(uuid.uuid4());assessment=api('POST','/scans',payload,{'Idempotency-Key':key})
+    repeated=api('POST','/scans',payload,{'Idempotency-Key':key})
     if repeated['id']!=assessment['id']:raise RuntimeError('Launch idempotency failed')
     def finished():
-        value=api('GET','/assessments/'+assessment['id'])
-        return value if value['status']=='finished' else None
-    completed=wait(finished)
-    if len(completed['targets'])!=3 or sum(bool(t.get('skip_reason')) for t in completed['targets'])!=2:raise RuntimeError('Skipped asset scope/reasons are incorrect')
+        value=api('GET','/scans/'+assessment['id'])
+        return value if value['status']=='incomplete' else None
+    completed=wait(finished,timeout=1200)
+    if len(completed['jobs'])!=3 or next(j for j in completed['jobs'] if j['tool']=='hackbot')['disposition']!='limited':raise RuntimeError('Synthetic coverage was not marked incomplete')
+    if len(completed.get('summary','').split())>300:raise RuntimeError('Summary exceeds 300 words')
     def report_ready():
         page=api('GET','/reports?assessment_id='+assessment['id'])
         ready=[r for r in page['items'] if r['status']=='ready']
@@ -58,10 +60,9 @@ def smoke(args,compose,init,up,probe):
     snapshot=api('GET','/reports/'+report['id']+'/export/json',binary=True)
     pdf=api('GET','/reports/'+report['id']+'/export/pdf',binary=True)
     if not pdf.startswith(b'%PDF-'):raise RuntimeError('Stored report PDF is invalid')
-    tested=[asset for asset in full['snapshot']['assets'] if not asset.get('skip_reason')]
-    if len(tested)!=1 or len(tested[0].get('methods',[]))!=2 or any(m['outcome']!='success' for m in tested[0]['methods']):raise RuntimeError('Both real scanners must succeed')
-    finding_types={f['type'] for f in tested[0].get('findings',[])}
-    if not {'open_port','vulnerability'}<=finding_types:raise RuntimeError('Real Nmap/Nuclei fixture findings are missing')
+    tested=full['snapshot']['assets']
+    if len(tested)!=1 or tested[0]['status']!='incomplete':raise RuntimeError('Synthetic transport fixture must not claim tested coverage or findings')
+    if {m['action'] for m in tested[0].get('methods',[])}!={'nmap.tcp_connect','nuclei.scan','hackbot.pentest'}:raise RuntimeError('Hackbot method missing')
     # Store only fake, disabled provider credentials. Rotation must not call a provider.
     current=api('GET','/organizations/'+org['id']+'/ai')
     policy={k:current[k] for k in ['version','enabled','planning','remediation','planning_model','remediation_model','max_input_bytes','max_output_tokens','daily_tokens','daily_calls','daily_cost_micros','input_rate_micros','output_rate_micros']}
@@ -81,6 +82,6 @@ def smoke(args,compose,init,up,probe):
     if not after('GET','/organizations/'+org['id']+'/ai')['has_keys']:raise RuntimeError('Restored fake AI credentials missing')
     key_check=json.loads(compose(restored,'run','--rm','--no-deps','-e','ORCHIS_AI_REKEY_NEW_FILE=/run/secrets/ai-master.key','server','ai-rekey',capture=True).stdout)
     if key_check['reencrypted_policies']!=0:raise RuntimeError('Restored master key could not decrypt credentials idempotently')
-    result={'ai_rekey':'verified','assessment_id':assessment['id'],'report_id':report['id'],'tested_assets':1,'skipped_assets':2,'real_scanners':['nmap','nuclei'],'snapshot_sha256':hashlib.sha256(snapshot).hexdigest(),'pdf_sha256':hashlib.sha256(pdf).hexdigest(),'source_project':args.project,'restored_project':restored.project,'encrypted_backup':str(archive),'restore':'verified'}
+    result={'ai_rekey':'verified','assessment_id':assessment['id'],'report_id':report['id'],'tested_assets':0,'incomplete_assets':1,'engine':'hackbot','synthetic_transport_fixture':True,'snapshot_sha256':hashlib.sha256(snapshot).hexdigest(),'pdf_sha256':hashlib.sha256(pdf).hexdigest(),'source_project':args.project,'restored_project':restored.project,'encrypted_backup':str(archive),'restore':'verified'}
     output=args.state/'smoke-result.json';output.write_text(json.dumps(result,indent=2));os.chmod(output,0o600)
     print(json.dumps(result))

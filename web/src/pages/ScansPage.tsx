@@ -1,9 +1,9 @@
-import {displayLabel} from '../i18n/display';
+
 import {language} from '../i18n/runtime';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
 import { Plus } from 'lucide-react';
-import { StatusBadge } from '../components/sims/StatusBadge';
+import { StatusBadge, scanStatusLabel } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
 import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
 import { SeverityBadge } from '../components/RunBadges';
@@ -14,14 +14,14 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { useAgents, useAssets, useMe } from '../api/hooks';
+import { useAssets, useMe } from '../api/hooks';
 import { useScans, type Scan, type ScanInput } from '../api/scans';
 import { can } from '../api/types';
 import { OrganizationFilter } from '../components/OrganizationFilter';
-import { AgentNetworks } from '../components/AgentNetworks';
+
 import { describeError } from '../components/ErrorNote';
 import { LegacySimulations } from './LegacySimulations';
-import { scannable } from './categorySchema';
+
 const units = () => ({ h: textUI("m_sim_u_h"), m: textUI("m_sim_u_m"), s: textUI("m_sim_u_s") });
 const startedAt = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 export function ScanList({ organizationID, organizationName, embedded = false }: {
@@ -58,7 +58,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
-            <span role="cell" className="mono">{formatUI(s.options.tools.join(' + '))}</span>
+            <span role="cell" className="mono">{formatUI((s.options.tools ?? ['nmap','nuclei','hackbot']).join(' + '))}</span>
             <span role="cell">{formatUI(s.options.preset)}</span>
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
@@ -76,37 +76,31 @@ export function NewScanPage() {
     const qc = useQueryClient();
     const org = params.get('org') ?? '';
     const [assets, setAssets] = useState<string[]>([]);
-    const [agent, setAgent] = useState('');
-    const [ranges, setRanges] = useState<string[]>([]);
-    const [tools, setTools] = useState(['nmap', 'nuclei']);
-    const [preset, setPreset] = useState<'quick' | 'standard'>('quick');
     const [validation, setValidation] = useState('');
     const control = useScanControl(org || undefined, !!org);
     const list = useAssets('', '', org, !!org);
-    const agents = useAgents(!!org && can(me, 'agent.read'));
-    const localAgents = agents.data?.filter(a => a.organization_id === org && a.status !== 'revoked' && !a.is_demo) ?? [];
     const allAssets = list.data?.pages.flatMap(p => p.items) ?? [];
-    const scanTargets = allAssets.filter(a => scannable(a.addresses));
+    const scanTargets = allAssets.filter(a => a.addresses.some(d => d.kind==='url' && d.scan_approved!==false && /^https?:\/\//i.test(d.value)));
     const hiddenInventory = allAssets.length - scanTargets.length;
-    const signature = JSON.stringify({ org, assets, ranges, tools, preset });
+    const signature = JSON.stringify({ org, assets });
     const key = useMemo(() => crypto.randomUUID(), [signature, locale()]);
-    const launch = useMutation({ mutationFn: () => api.postIdempotent<Scan>('/api/v1/scans', { language:language(), organization_id: org, asset_ids: assets, range_ids: ranges, tools, preset } satisfies ScanInput, key), onSuccess: async (s) => { await Promise.all(['scans', 'home', 'assessments'].map(k => qc.invalidateQueries({ queryKey: [k] }))); navigate(`/simulations/${s.id}`); } });
+    const launch = useMutation({ mutationFn: () => api.postIdempotent<Scan>('/api/v1/scans', { language:language(), organization_id: org, asset_ids: assets } satisfies ScanInput, key), onSuccess: async (s) => { await Promise.all(['scans', 'home', 'assessments'].map(k => qc.invalidateQueries({ queryKey: [k] }))); navigate(`/simulations/${s.id}`); } });
     const changeOrg = (value: string) => { const next = new URLSearchParams(params); if (value)
         next.set('org', value);
     else
-        next.delete('org'); setParams(next); setAssets([]); setAgent(''); setRanges([]); setValidation(''); };
+        next.delete('org'); setParams(next); setAssets([]); setValidation(''); };
     const toggle = (value: string, items: string[], set: (v: string[]) => void) => set(items.includes(value) ? items.filter(v => v !== value) : [...items, value]);
-    return <section className="page newscan"><Link className="sims__back" to="/simulations">{textUI("m_ee68966f9267")}</Link><div className="page__head"><div><h1 className="page__title">{textUI("m_de2b814aeb96")}</h1><p className="page__sub">{textUI("m_a04d69dfb42d")}</p></div></div>{formatUI(org && <ScanControls org={org} compact/>)}<form className="dialog__form" onSubmit={e => { e.preventDefault(); if (!org || assets.length + ranges.length === 0 || tools.length === 0) {
-        setValidation(displayLabel('Choose an organisation, at least one authorized target and at least one tool.'));
+    return <section className="page newscan"><Link className="sims__back" to="/simulations">{textUI("m_ee68966f9267")}</Link><div className="page__head"><div><h1 className="page__title">{textUI("hackbot_run")}</h1><p className="page__sub">{textUI("hackbot_intro")}</p></div></div>{formatUI(org && <ScanControls org={org} compact/>)}<form className="dialog__form" onSubmit={e => { e.preventDefault(); if (!org || assets.length === 0) {
+        setValidation(textUI("hackbot_choose_target"));
         return;
-    } ; setValidation(''); launch.mutate(); }}><fieldset className="fieldset"><legend>{textUI("m_f8025f721b46")}</legend><OrganizationFilter value={org} onChange={changeOrg} required/></fieldset><fieldset className="fieldset" disabled={!org}><legend>{textUI("m_255ab0fc6f97")}</legend>{formatUI(!org && <p role="status" className="notice">{textUI("m_scan_pick_org_hint")}</p>)}<h2>{textUI("m_bd12731d7bc9")}</h2>{formatUI(list.error && <p role="alert">{formatUI(describeError(list.error).message)}</p>)}<ul className="stack-list">{formatUI(scanTargets.map(a => <li key={a.id}><label className="check"><input type="checkbox" disabled={!a.testing_authorized || a.is_demo} checked={assets.includes(a.id)} onChange={() => toggle(a.id, assets, setAssets)}/><span className="check__box" aria-hidden="true"/><span>{formatUI(a.name)} · {formatUI(a.testing_authorized ? textUI("m_67f542ba6d8f") : textUI("m_4e35c67de055"))} · {formatUI(a.addresses.filter(d => d.scan_approved !== false).map(d => d.value).join(', ') || textUI("m_2d0f6f621c7a"))}</span></label></li>))}</ul>{formatUI(hiddenInventory > 0 && <p role="note" className="small">{textUI("m_scan_hidden_inventory", [hiddenInventory])}</p>)}{formatUI(list.hasNextPage && <button className="btn btn--secondary btn--auto" type="button" disabled={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>{textUI("m_1f4e681dd0c4")}</button>)}{formatUI(org && scanTargets.length === 0 && !list.isPending && <p>{richUI("m_3c5206be1c43", [<Link to={`/organizations/${org}?tab=assets&new=1`}>{textUI("m_a8f2d03d958c")}</Link>])}</p>)}<h2>{textUI("m_8c10602211d2")}</h2><p>{textUI("m_017a3a447309")}</p>{formatUI(can(me, 'agent.read') && <label className="select">{richUI("m_d81c657d9af0", [<select value={agent} onChange={e => { setAgent(e.target.value); setRanges([]); }}><option value="">{textUI("m_632e8f465445")}</option>{formatUI(localAgents.map(a => <option key={a.id} value={a.id}>{formatUI(a.instance_name || a.asset_name)} · {formatUI(a.os)}</option>))}</select>])}</label>)}{formatUI(agent && <AgentNetworks org={org} agent={agent} selected={ranges} onSelect={setRanges}/>)}</fieldset><fieldset className="fieldset"><legend>{textUI("m_3ccd0a2166aa")}</legend>{formatUI(['nmap', 'nuclei'].map(tool => <label className="check" key={tool}><input type="checkbox" checked={tools.includes(tool)} onChange={() => toggle(tool, tools, setTools)}/><span className="check__box" aria-hidden="true"/><span>{formatUI(tool === 'nmap' ? textUI("m_1c11562a7589") : textUI("m_3b4a80522815"))}</span></label>))}<label className="select">{richUI("m_ca3826f56e88", [<select value={preset} onChange={e => setPreset(e.target.value as 'quick' | 'standard')}><option value="quick">{textUI("m_9f49fadb6a86")}</option><option value="standard">{textUI("m_ef6691545d2c")}</option></select>])}</label><p className="field__hint">{textUI("m_5e786bd6d8e9")}</p></fieldset>{formatUI(validation && <p className="alert" role="alert">{formatUI(validation)}</p>)}{formatUI(launch.error && <p className="alert" role="alert">{formatUI(describeError(launch.error).message)}</p>)}<button type="submit" className="btn btn--primary btn--auto" disabled={control.data?.allowed_now === false || launch.isPending || !can(me, 'assessment.run') || !can(me, 'simulation.run')}>{formatUI(launch.isPending ? textUI("m_bbe5fc3b9ef3") : textUI("m_68ac7da5dfff"))}</button><Link className="btn btn--secondary btn--auto" to="/simulations">{textUI("m_19766ed6ccb2")}</Link></form></section>;
+    } ; setValidation(''); launch.mutate(); }}><fieldset className="fieldset"><legend>{textUI("m_f8025f721b46")}</legend><OrganizationFilter value={org} onChange={changeOrg} required/></fieldset><fieldset className="fieldset" disabled={!org}><legend>{textUI("m_255ab0fc6f97")}</legend>{formatUI(!org && <p role="status" className="notice">{textUI("m_scan_pick_org_hint")}</p>)}<h2>{textUI("m_bd12731d7bc9")}</h2>{formatUI(list.error && <p role="alert">{formatUI(describeError(list.error).message)}</p>)}<ul className="stack-list">{formatUI(scanTargets.map(a => <li key={a.id}><label className="check"><input type="checkbox" disabled={!a.testing_authorized || a.is_demo} checked={assets.includes(a.id)} onChange={() => toggle(a.id, assets, setAssets)}/><span className="check__box" aria-hidden="true"/><span>{formatUI(a.name)} · {formatUI(a.testing_authorized ? textUI("m_67f542ba6d8f") : textUI("m_4e35c67de055"))} · {formatUI(a.addresses.filter(d => d.scan_approved !== false).map(d => d.value).join(', ') || textUI("m_2d0f6f621c7a"))}</span></label></li>))}</ul>{formatUI(hiddenInventory > 0 && <p role="note" className="small">{textUI("m_scan_hidden_inventory", [hiddenInventory])}</p>)}{formatUI(list.hasNextPage && <button className="btn btn--secondary btn--auto" type="button" disabled={list.isFetchingNextPage} onClick={() => list.fetchNextPage()}>{textUI("m_1f4e681dd0c4")}</button>)}{formatUI(org && scanTargets.length === 0 && !list.isPending && <p>{richUI("m_3c5206be1c43", [<Link to={`/organizations/${org}?tab=assets&new=1`}>{textUI("m_a8f2d03d958c")}</Link>])}</p>)}</fieldset><p className="field__hint">{textUI("hackbot_intro")}</p>{formatUI(validation && <p className="alert" role="alert">{formatUI(validation)}</p>)}{formatUI(launch.error && <p className="alert" role="alert">{formatUI(describeError(launch.error).message)}</p>)}<button type="submit" className="btn btn--primary btn--auto" disabled={control.data?.allowed_now === false || launch.isPending || !can(me, 'assessment.run') || !can(me, 'simulation.run')}>{formatUI(launch.isPending ? textUI("m_bbe5fc3b9ef3") : textUI("hackbot_run"))}</button><Link className="btn btn--secondary btn--auto" to="/simulations">{textUI("m_19766ed6ccb2")}</Link></form></section>;
 }
 export function ScanDetailPage() {
     useLocale();
     const { id = '' } = useParams();
     const { data: me } = useMe();
     const qc = useQueryClient();
-    const q = useQuery({ queryKey: ['scan', id], queryFn: () => api.get<Scan>(`/api/v1/scans/${id}`), refetchInterval: query => query.state.data?.status === 'running' ? 1500 : false });
+    const q = useQuery({ queryKey: ['scan', id], queryFn: () => api.get<Scan>(`/api/v1/scans/${id}`), refetchInterval: query => query.state.data?.status === 'running' || ['queued','rendering'].includes(query.state.data?.report_status ?? '') ? 1500 : false });
     const orgQ = useQuery({ queryKey: ['organization-name', q.data?.organization_id], enabled: !!q.data && can(me, 'organization.read'), queryFn: () => api.get<{ name: string }>(`/api/v1/organizations/${q.data!.organization_id}`), retry: false });
     const [added, setAdded] = useState<Record<string, string>>({});
     const cancel = useMutation({ mutationFn: () => api.post(`/api/v1/scans/${id}/cancel`), onSuccess: () => q.refetch() });
@@ -157,17 +151,19 @@ export function ScanDetailPage() {
           {jobs.map((j) => <li key={j.id}><b>{formatUI(j.tool)} · {formatUI(j.status)}</b><span className="muted small">{formatUI(j.target || '—')}</span></li>)}
           <li><b>{formatUI(s.ended_at ? textUI("m_sim_t_ended") : textUI("m_sim_t_waiting"))}</b><span className="mono">{stamp(s.ended_at)}</span></li>
         </ol></section>
+      {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{s.summary}</p></section>}
+      {s.report_id && can(me,'report.read') && <section className="sims__panel"><h2 className="sims__h">{textUI("hackbot_report")}</h2>{s.report_status==='ready' ? <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${s.report_id}/export/pdf?preview=1`}/> : <p role="status">{s.report_status==='failed' ? textUI("hackbot_pdf_failed") : textUI("hackbot_pdf_pending")}</p>}<Link to={`/reports/${s.report_id}`}>{textUI("hackbot_open_report")}</Link></section>}
       <ScanComparison comparison={s.comparison_details} pending={running}/>
       <section className="sims__panel" aria-labelledby="jobs-h"><h2 id="jobs-h" className="sims__h">{textUI("m_sim_jobs_h")} <span className="muted">{groups.size}</span></h2>
         {formatUI(Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>
           <div className="sims__jobs" role="table" aria-label={gj[0]!.name}>
             <div className="sims__jrow sims__head" role="row"><span role="columnheader">{textUI("m_sim_job_tool")}</span><span role="columnheader">{textUI("m_sim_job_target")}</span><span role="columnheader">{textUI("m_sim_job_status")}</span><span role="columnheader">{textUI("m_sim_job_findings")}</span><span role="columnheader">{textUI("m_sim_job_note")}</span></div>
             {gj.map((j) => <div key={j.id} className="sims__jrow" role="row">
-              <span role="cell" className="mono">{formatUI(j.tool)}</span>
+              <span role="cell" className="mono">{formatUI(j.tool==='hackbot'?'Hackbot Lite':j.tool)}</span>
               <span role="cell" className="mono" title={j.target}>{formatUI(j.target || textUI("m_6789458750ba"))}</span>
               <span role="cell"><StatusBadge status={j.status}/></span>
               <span role="cell" className="mono">{j.findings.length}</span>
-              <span role="cell" className="sims__note">{formatUI(j.error || '—')}{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <> {added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--sm" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>} <span className="muted small">{textUI("m_4da4598a9f0b")}</span></>)}</span>
+              <span role="cell" className="sims__note">{j.tool==='hackbot' && <span className="pipeline-phase muted small">{j.phase || (j.status==='waiting' ? textUI('hackbot_wait_scanners') : scanStatusLabel(j.status))}{j.disposition ? ` · ${j.disposition}` : ''}</span>}<span>{formatUI(j.error || '—')}</span>{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <> {added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--sm" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>} <span className="muted small">{textUI("m_4da4598a9f0b")}</span></>)}</span>
             </div>)}
           </div></div>))}
       </section>

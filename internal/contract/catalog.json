@@ -1,5 +1,38 @@
 [
   {
+    "key": "hackbot.pentest",
+    "adapter": "hackbot",
+    "integration": "hackbot",
+    "name": "Hackbot web pentest",
+    "kind": "vulnerability_scan",
+    "output_types": [
+      "vulnerability"
+    ],
+    "timeout_seconds": 60,
+    "description": "Unattended web pentest with verified evidence, full report and activity summary.",
+    "version": 1,
+    "needs_agent": false,
+    "category": "Network",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string",
+          "label": "Report language",
+          "enum": [
+            "en",
+            "id"
+          ],
+          "default": "en"
+        }
+      },
+      "order": [
+        "language"
+      ]
+    }
+  },
+  {
     "key": "nmap.tcp_connect",
     "adapter": "nmap",
     "integration": "nmap",

@@ -23,7 +23,7 @@ export function statusTone(status: string): Tone {
         case 'running': case 'generating': case 'pending': return 'live';
         case 'finished': case 'done': case 'ready': return 'ok';
         case 'failed': return 'bad';
-        case 'canceled': case 'skipped': return 'warn';
+        case 'incomplete': case 'canceled': case 'skipped': return 'warn';
         default: return 'idle';
     }
 }

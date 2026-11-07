@@ -627,7 +627,7 @@ WHERE tenant_id=$1 AND simulation_id=$2 AND state IN ('ready','running') RETURNI
 func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) (advanced, timedOut int, err error) {
 	var running, expired []uuid.UUID
 	err = s.DB.InTenantRead(ctx, tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id, (started_at + make_interval(secs => timeout_seconds) < now()) FROM simulations WHERE tenant_id=$1 AND NOT is_demo AND status IN ('running','paused')`, tenant)
+		rows, err := tx.Query(ctx, `SELECT id, (started_at + make_interval(secs => timeout_seconds) < now() AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=simulations.tenant_id AND j.simulation_id=simulations.id AND j.tool='hackbot')) FROM simulations WHERE tenant_id=$1 AND NOT is_demo AND status IN ('running','paused')`, tenant)
 		if err != nil {
 			return err
 		}

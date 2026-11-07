@@ -5,7 +5,7 @@ from pathlib import Path, PurePosixPath
 STATE_FILES={
  'postgres_password','owner_password','app_password','maintenance_password',
  's3_user','s3_password','rabbitmq.conf','ai-master.key','renderer_token',
- 'migrate.json','provision.json','server.json','nmap.json','nuclei.json','ai.json',
+ 'migrate.json','provision.json','server.json','nmap.json','nuclei.json','hackbot.json','ai.json',
  'initial-admin.json','release.key',
 }
 TABLES=['organizations','assets','agents','users','findings','assessments','reports']
@@ -80,8 +80,8 @@ def stream_member(archive,name,argv):
             if proc.wait()!=0:raise RuntimeError('Backup source command failed: '+name)
         finally:timer.cancel()
 
-def volume_read(image,name,project):
-    return ['docker','run','--rm','--label','io.orchis.ops-owner='+project,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--memory','128m','--pids-limit','32','--cpus','0.5','-v',name+':/source:ro','--entrypoint','/bin/tar',image,'-C','/source','-cf','-','.']
+def volume_read(image,name,project,engine=False,private=False):
+    return ['docker','run','--rm','--label','io.orchis.ops-owner='+project,'--network','none','--read-only','--cap-drop','ALL',*(['--cap-add','DAC_READ_SEARCH'] if private else []),'--security-opt','no-new-privileges:true','--memory','128m','--pids-limit','32','--cpus','0.5','-v',name+':/source:ro','--entrypoint','/bin/tar',image,*(['--exclude=./.pi/agent/node_modules'] if engine else []),'-C','/source','-cf','-','.']
 
 def record_status(args,success):
     # Non-secret operator status; directory mount keeps atomic replacements visible.
@@ -112,7 +112,7 @@ def _backup(args,compose):
     if not key.is_file():raise RuntimeError('Missing separate backup key; run backup-key and store an out-of-band copy')
     info=key.stat()
     if info.st_mode&0o077 or info.st_size>128:raise RuntimeError('Backup key must be a private 0600 file')
-    services=['server','nmap','nuclei','ai-worker','renderer','minio','caddy']
+    services=['server','nmap','nuclei','hackbot','ai-worker','renderer','minio','caddy']
     running=[]
     for service in services:
         if container(args,compose,service)['State']['Running']:running.append(service)
@@ -124,12 +124,12 @@ def _backup(args,compose):
     try:
         # Stop writers first, then snapshot DB and filesystem. Never stop an unrelated project.
         writers=[s for s in running if s!='minio']
-        if writers:compose(args,'stop','--timeout','30',*writers)
+        if writers:compose(args,'stop','--timeout','90',*writers)
         assert_idle(args,compose)
         objects=json.loads(compose(args,'run','--rm','--no-deps','server','object-digests',capture=True).stdout)
-        if 'minio' in running:compose(args,'stop','--timeout','30','minio')
-        manifest={'format':1,'created_at':time.time(),'project':state['project'],'fingerprints':fingerprints(args,compose),'server_image':image,'pdf_sha256':objects,'smoke':bool(state.get('smoke'))}
-        volumes={name:volume(args,compose,service,path) for name,service,path in [('s3','minio','/data'),('caddydata','caddy','/data'),('caddyconfig','caddy','/config')]}
+        if 'minio' in running:compose(args,'stop','--timeout','90','minio')
+        manifest={'format':2,'created_at':time.time(),'project':state['project'],'fingerprints':fingerprints(args,compose),'server_image':image,'pdf_sha256':objects,'smoke':bool(state.get('smoke'))}
+        volumes={name:volume(args,compose,service,path) for name,service,path in [('s3','minio','/data'),('caddydata','caddy','/data'),('caddyconfig','caddy','/config'),('hackbot-data','hackbot','/data'),('hackbot-home','hackbot','/home/pentest')]}
         pg_id=container(args,compose,'pg')['Id'];pg_image=container(args,compose,'pg')['Config']['Image']
         fd=os.open(partial,os.O_CREAT|os.O_EXCL|os.O_WRONLY,0o600)
         with os.fdopen(fd,'wb') as output:
@@ -139,7 +139,7 @@ def _backup(args,compose):
                         archive.writestr('manifest.json',json.dumps(manifest))
                         dump=['docker','exec',pg_id,'sh','-c','set -eu; PGPASSWORD=$(cat /run/secrets/maintenance_password); export PGPASSWORD; export PGOPTIONS="-c statement_timeout=60000 -c lock_timeout=5000"; exec pg_dump -h 127.0.0.1 -U orchis_maintenance -d orchis --no-owner --no-acl -Fc']
                         stream_member(archive,'db.dump',dump)
-                        for name,vid in volumes.items():stream_member(archive,'volumes/'+name+'.tar',volume_read(pg_image,vid,state['project']))
+                        for name,vid in volumes.items():stream_member(archive,'volumes/'+name+'.tar',volume_read(pg_image,vid,state['project'],name=='hackbot-home',name.startswith('hackbot-')))
                         for name in sorted(STATE_FILES):
                             path=args.state/name
                             if path.is_symlink():raise RuntimeError('Secret symlink rejected')
@@ -208,7 +208,7 @@ def restore(args,compose,init,up,probe):
         # Validate the complete authenticated ZIP before creating a destination project.
         with zipfile.ZipFile(plain) as archive:
             members=archive.infolist();names={m.filename for m in members}
-            required={'manifest.json','db.dump','volumes/s3.tar','volumes/caddydata.tar','volumes/caddyconfig.tar'}|{'state/'+n for n in STATE_FILES if n not in {'release.key','metrics_token','grafana_password'}}
+            required={'manifest.json','db.dump','volumes/s3.tar','volumes/caddydata.tar','volumes/caddyconfig.tar','volumes/hackbot-data.tar','volumes/hackbot-home.tar'}|{'state/'+n for n in STATE_FILES if n not in {'release.key','metrics_token','grafana_password'}}
             if not required<=names or len(members)!=len(names) or len(members)>100000:raise RuntimeError('Incomplete or duplicate backup members')
             if sum(m.file_size for m in members)>args.max_bytes:raise RuntimeError('Expanded backup exceeds restore limit')
             for member in members:
@@ -221,14 +221,14 @@ def restore(args,compose,init,up,probe):
                 with archive.open(member) as reader,target.open('xb') as writer:shutil.copyfileobj(reader,writer,1<<20)
                 os.chmod(target,0o600)
         manifest=json.loads((staging/'manifest.json').read_text())
-        if manifest.get('format')!=1 or manifest.get('project')==args.project:raise RuntimeError('Unsupported backup or non-isolated restore project')
-        for name in ['s3','caddydata','caddyconfig']:validate_tar(staging/'volumes'/(name+'.tar'),args.max_bytes)
+        if manifest.get('format')!=2 or manifest.get('project')==args.project:raise RuntimeError('Unsupported backup or non-isolated restore project')
+        for name in ['s3','caddydata','caddyconfig','hackbot-data','hackbot-home']:validate_tar(staging/'volumes'/(name+'.tar'),args.max_bytes)
         init(args) # fresh keys/config/subnet; only selected secret values are restored below
         for name in STATE_FILES:
             source=staging/'state'/name
             if not source.exists():continue
             target=args.state/name
-            uid=70 if name in {'postgres_password','owner_password','app_password','maintenance_password'} else 65534 if name=='metrics_token' else 472 if name=='grafana_password' else 999 if name=='rabbitmq.conf' else 1000 if name=='renderer_token' else 0 if name in {'s3_user','s3_password','initial-admin.json','release.key'} else 10001
+            uid=70 if name in {'postgres_password','owner_password','app_password','maintenance_password'} else 65534 if name=='metrics_token' else 472 if name=='grafana_password' else 999 if name=='rabbitmq.conf' else 1000 if name=='renderer_token' else 0 if name in {'s3_user','s3_password','initial-admin.json','release.key'} else 1001 if name=='hackbot.json' else 10001
             target.write_bytes(source.read_bytes());os.chmod(target,0o600);os.chown(target,uid,uid)
         from ops import metrics_init
         metrics_init(args)
@@ -238,11 +238,11 @@ def restore(args,compose,init,up,probe):
             shutil.copytree(releases,args.state/'agent-releases',dirs_exist_ok=True)
             for path in (args.state/'agent-releases').rglob('*'):
                 os.chown(path,0 if path.suffix=='.key' else 10001,0 if path.suffix=='.key' else 10001);os.chmod(path,0o700 if path.is_dir() else 0o600 if path.suffix=='.key' else 0o644)
-        compose(args,'create','--no-build','pg','minio','caddy')
+        compose(args,'create','--no-build','pg','minio','caddy','hackbot')
         pg_image=container(args,compose,'pg')['Config']['Image']
-        for name,service,path in [('s3','minio','/data'),('caddydata','caddy','/data'),('caddyconfig','caddy','/config')]:
+        for name,service,path in [('s3','minio','/data'),('caddydata','caddy','/data'),('caddyconfig','caddy','/config'),('hackbot-data','hackbot','/data'),('hackbot-home','hackbot','/home/pentest')]:
             vid=volume(args,compose,service,path)
-            run(['docker','run','--rm','--label','io.orchis.ops-owner='+args.project,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges:true','--memory','128m','--pids-limit','32','--cpus','0.5','-v',vid+':/target','-v',str(staging/'volumes')+':/backup:ro','--entrypoint','/bin/tar',pg_image,'-C','/target','-xf','/backup/'+name+'.tar','--no-same-owner'])
+            run(['docker','run','--rm','--label','io.orchis.ops-owner='+args.project,'--network','none','--read-only','--cap-drop','ALL',*(['--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','FOWNER'] if name.startswith('hackbot-') else []),'--security-opt','no-new-privileges:true','--memory','128m','--pids-limit','32','--cpus','0.5','-v',vid+':/target','-v',str(staging/'volumes')+':/backup:ro','--entrypoint','/bin/tar',pg_image,'-C','/target','-xf','/backup/'+name+'.tar','--same-owner' if name.startswith('hackbot-') else '--no-same-owner'])
         compose(args,'up','-d','--no-build','--wait','--wait-timeout','90','pg')
         pg_id=container(args,compose,'pg')['Id']
         with (staging/'db.dump').open('rb') as dump:

@@ -57,7 +57,18 @@ func (c *Client) post(ctx context.Context, path string, in, out any) error {
 		return err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	limit := int64(1 << 20)
+	if strings.HasSuffix(path, "/claim") {
+		limit = 64 << 20
+	}
+	body, readErr := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if readErr != nil {
+		return readErr
+	}
+	if int64(len(body)) > limit {
+		return fmt.Errorf("server response exceeds bounded claim size")
+	}
+
 	if resp.StatusCode >= 300 {
 		return &APIError{Status: resp.StatusCode, Body: strings.TrimSpace(string(body))}
 	}

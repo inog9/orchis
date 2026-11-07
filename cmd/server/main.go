@@ -76,8 +76,8 @@ func main() {
 	case "provision":
 		// Explicit, idempotent setup. Raw tokens never enter stdout or the database.
 		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
-			for _, kind := range []string{"nmap", "nuclei"} {
-				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"nmap": "NMAP", "nuclei": "NUCLEI"}[kind] + "_TOKEN")
+			for _, kind := range []string{"nmap", "nuclei", "hackbot"} {
+				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI"}[kind] + "_TOKEN")
 				if !execution.ValidInjectorToken(token) {
 					return errors.New("provisioning token is missing")
 				}

@@ -9,12 +9,12 @@ class MetricsSetup(unittest.TestCase):
  def test_upgrade_preserves_credentials_and_is_idempotent(self):
   with tempfile.TemporaryDirectory() as directory:
    state=Path(directory);args=types.SimpleNamespace(state=state)
-   for name in ['server.json','nmap.json','nuclei.json','ai.json']:ops.private(state/name,{'ORCHIS_EXISTING_SECRET':'unchanged'})
+   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:ops.private(state/name,{'ORCHIS_EXISTING_SECRET':'unchanged'})
    ops.metrics_init(args);token=(state/'metrics_token').read_bytes();password=(state/'grafana_password').read_bytes()
    ops.metrics_init(args)
    self.assertEqual((state/'metrics_token').read_bytes(),token);self.assertEqual((state/'grafana_password').read_bytes(),password)
-   for name in ['server.json','nmap.json','nuclei.json','ai.json']:
-    path=state/name;data=json.loads(path.read_text());self.assertEqual(data['ORCHIS_EXISTING_SECRET'],'unchanged');self.assertEqual(data['ORCHIS_METRICS_TOKEN'],token.decode().strip());self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,10001)
+   for name in ['server.json','nmap.json','nuclei.json','hackbot.json','ai.json']:
+    path=state/name;data=json.loads(path.read_text());self.assertEqual(data['ORCHIS_EXISTING_SECRET'],'unchanged');self.assertEqual(data['ORCHIS_METRICS_TOKEN'],token.decode().strip());self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,1001 if name=="hackbot.json" else 10001)
    self.assertEqual((state/'metrics_token').stat().st_uid,65534);self.assertEqual((state/'grafana_password').stat().st_uid,472)
  def test_symlink_token_is_rejected(self):
   with tempfile.TemporaryDirectory() as directory:
@@ -72,7 +72,7 @@ class AgentTrustSetup(unittest.TestCase):
    compose.assert_called_once_with(args,'exec','-T','caddy','cat','/data/caddy/pki/authorities/local/root.crt',capture=True)
    path=state/'server.json';value=json.loads(path.read_text())
    self.assertEqual(value,{'existing':'kept','ORCHIS_AGENT_CA_FINGERPRINT':hashlib.sha256(b'CA DER').hexdigest()})
-   self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,10001)
+   self.assertEqual(path.stat().st_mode&0o777,0o600);self.assertEqual(path.stat().st_uid,1001 if name=="hackbot.json" else 10001)
  def test_invalid_ca_leaves_configuration_unchanged(self):
   with tempfile.TemporaryDirectory() as directory:
    state=Path(directory);args=types.SimpleNamespace(state=state)
@@ -98,3 +98,18 @@ class InstallationAddress(unittest.TestCase):
  def test_malformed_bind_and_site_are_rejected(self):
   for bind,site in [('localhost',None),('127.0.0.1;echo',None),('127.0.0.1','https://host'),('127.0.0.1','host:443'),('127.0.0.1','host/path'),('127.0.0.1','*.test'),('127.0.0.1','bad\nhost'),('127.0.0.1','-host'),('127.0.0.1','a'*64),('127.0.0.1','0.0.0.0'),('127.0.0.1','999.999.0.1')]:
    with self.subTest(bind=bind,site=site),self.assertRaises(ValueError):ops.installation_address(bind,site)
+
+class HackbotSetup(unittest.TestCase):
+ def test_upgrade_preserves_existing_secrets_and_reuses_worker_identity(self):
+  import contextlib,io
+  with tempfile.TemporaryDirectory() as directory, mock.patch('ops.os.geteuid',return_value=0), mock.patch('ops.os.chown'):
+   state=Path(directory);args=types.SimpleNamespace(state=state)
+   ops.private(state/'server.json',{'ORCHIS_AMQP_URL':'amqp://fixture','ORCHIS_METRICS_TOKEN':'metrics'})
+   ops.private(state/'provision.json',{'ORCHIS_DATABASE_URL':'postgres://fixture','ORCHIS_PROVISION_NMAP_TOKEN':'oij_'+('h'*43)})
+   with contextlib.redirect_stdout(io.StringIO()):ops.hackbot_init(args)
+   first=(state/'hackbot.json').read_bytes();token=json.loads(first)['ORCHIS_INJECTOR_TOKEN']
+   self.assertRegex(token,r'^oij_[A-Za-z0-9_-]{43}$')
+   with contextlib.redirect_stdout(io.StringIO()):ops.hackbot_init(args)
+   self.assertEqual((state/'hackbot.json').read_bytes(),first)
+   self.assertEqual((state/'hackbot.json').stat().st_mode&0o777,0o600)
+   provision=json.loads((state/'provision.json').read_text());self.assertEqual(provision['ORCHIS_PROVISION_HACKBOT_TOKEN'],token);self.assertEqual(provision['ORCHIS_PROVISION_NMAP_TOKEN'],'oij_'+('h'*43))

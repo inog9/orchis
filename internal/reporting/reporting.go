@@ -81,16 +81,20 @@ type EndpointSummary struct {
 }
 
 type Asset struct {
-	Discovered bool             `json:"discovered,omitempty"`
-	Endpoint   *osquery.Posture `json:"endpoint,omitempty"`
-	ID         uuid.UUID        `json:"id"`
-	Name       string           `json:"name"`
-	Status     string           `json:"status"`
-	SkipReason string           `json:"skip_reason"`
-	Findings   []Finding        `json:"findings"`
-	Methods    []Method         `json:"methods"`
+	CompletedPhases     []string         `json:"completed_phases,omitempty"`
+	CoverageLimitations []string         `json:"coverage_limitations,omitempty"`
+	Summary             string           `json:"summary,omitempty"`
+	Discovered          bool             `json:"discovered,omitempty"`
+	Endpoint            *osquery.Posture `json:"endpoint,omitempty"`
+	ID                  uuid.UUID        `json:"id"`
+	Name                string           `json:"name"`
+	Status              string           `json:"status"`
+	SkipReason          string           `json:"skip_reason"`
+	Findings            []Finding        `json:"findings"`
+	Methods             []Method         `json:"methods"`
 }
 type Snapshot struct {
+	Summary           string           `json:"summary,omitempty"`
 	Language          string           `json:"language,omitempty"`
 	FindingsEpoch     int64            `json:"findings_epoch,omitempty"`
 	ComparisonDetails *Comparison      `json:"comparison_details,omitempty"`

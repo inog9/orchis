@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 )
 
@@ -35,6 +36,32 @@ func (h *InjectorHandlers) guard(next func(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *InjectorHandlers) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST "+InjectorPrefix+"executions/{id}/retention", h.guard(func(w http.ResponseWriter, r *http.Request, in *Injector) {
+		id, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			httpx.Write(w, r, httpx.NotFound("Execution"))
+			return
+		}
+		retained, err := h.RT.RetainWorkspace(r.Context(), in, id)
+		reply(w, r, 200, map[string]bool{"retained": retained}, err)
+	}))
+	mux.HandleFunc("POST "+InjectorPrefix+"executions/{id}/progress", h.guard(func(w http.ResponseWriter, r *http.Request, in *Injector) {
+		id, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			httpx.Write(w, r, httpx.NotFound("Execution"))
+			return
+		}
+		var p hackbot.Progress
+		if err = httpx.Decode(w, r, &p); err != nil {
+			httpx.Write(w, r, err)
+			return
+		}
+		if err = h.RT.Progress(r.Context(), in, id, p); err != nil {
+			httpx.Write(w, r, err)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
 	mux.HandleFunc("POST "+InjectorPrefix+"heartbeat", h.guard(func(w http.ResponseWriter, r *http.Request, in *Injector) {
 		var body struct {
 			Version string `json:"version"`

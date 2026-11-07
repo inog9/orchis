@@ -11,6 +11,7 @@ import (
 	"orchis-go/internal/auth"
 	"orchis-go/internal/authz"
 	"orchis-go/internal/contract"
+	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
@@ -31,7 +32,11 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "scan-dispatch:"+tenant.String()); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status=CASE WHEN x.outcome='success' THEN 'finished' WHEN x.outcome='canceled' THEN 'canceled' ELSE 'failed' END,error=COALESCE(x.error,''),ended_at=x.ended_at FROM executions x WHERE j.tenant_id=$1 AND x.tenant_id=j.tenant_id AND x.simulation_id=j.simulation_id AND x.state='ended' AND j.status='running'`, tenant); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status=CASE WHEN x.hackbot_result->>'disposition' IN ('limited','input_required') THEN 'incomplete' WHEN x.outcome='success' THEN 'finished' WHEN x.outcome='canceled' THEN 'canceled' ELSE 'failed' END,error=COALESCE(x.error,''),ended_at=x.ended_at FROM executions x WHERE j.tenant_id=$1 AND x.tenant_id=j.tenant_id AND x.simulation_id=j.simulation_id AND x.state='ended' AND j.status='running'`, tenant); err != nil {
+			return err
+		}
+		// A canceled preliminary check must not leave its dependent test waiting forever.
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; Hackbot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='hackbot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status='canceled')`, tenant); err != nil {
 			return err
 		}
 		var active int
@@ -49,7 +54,15 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 			params, addresses         []byte
 		}
 		pending := []waiting{}
-		rows, err := tx.Query(ctx, `SELECT j.id,j.assessment_id,j.control_asset_id,j.contract_id,j.target,j.name,j.tool,j.contract_version,j.params,j.addresses FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id WHERE j.tenant_id=$1 AND j.status='waiting' AND a.status='running' ORDER BY j.id LIMIT $2 FOR UPDATE OF j SKIP LOCKED`, tenant, available)
+		rows, err := tx.Query(ctx, `SELECT j.id,j.assessment_id,j.control_asset_id,j.contract_id,j.target,j.name,j.tool,j.contract_version,j.params,j.addresses
+ FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id
+ WHERE j.tenant_id=$1 AND j.status='waiting' AND a.status='running'
+ AND (j.tool<>'hackbot' OR (
+   EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap')
+   AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nuclei')
+   AND NOT EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status IN ('waiting','running','canceled'))
+ ))
+ ORDER BY j.id LIMIT $2 FOR UPDATE OF j SKIP LOCKED`, tenant, available)
 		if err != nil {
 			return err
 		}
@@ -93,7 +106,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 			}
 		}
 		// Penutupan dan snapshot satu transaksi; renderer boleh gagal/coba ulang tanpa scan baru.
-		rows, err = tx.Query(ctx, `UPDATE assessments a SET status=CASE WHEN EXISTS(SELECT 1 FROM scan_jobs stopped WHERE stopped.tenant_id=a.tenant_id AND stopped.assessment_id=a.id AND stopped.status='canceled') THEN 'canceled' ELSE 'finished' END,ended_at=now() WHERE a.tenant_id=$1 AND a.is_scan AND a.status='running' AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=a.tenant_id AND j.assessment_id=a.id AND j.status IN ('waiting','running')) RETURNING id`, tenant)
+		rows, err = tx.Query(ctx, `UPDATE assessments a SET status=CASE WHEN EXISTS(SELECT 1 FROM scan_jobs stopped WHERE stopped.tenant_id=a.tenant_id AND stopped.assessment_id=a.id AND stopped.status='canceled') THEN 'canceled' WHEN NOT EXISTS(SELECT 1 FROM scan_jobs ok WHERE ok.tenant_id=a.tenant_id AND ok.assessment_id=a.id AND ok.status IN ('finished','incomplete')) THEN 'failed' WHEN EXISTS(SELECT 1 FROM scan_jobs partial WHERE partial.tenant_id=a.tenant_id AND partial.assessment_id=a.id AND partial.status IN ('incomplete','failed')) THEN 'incomplete' WHEN NOT EXISTS(SELECT 1 FROM scan_jobs completed WHERE completed.tenant_id=a.tenant_id AND completed.assessment_id=a.id AND completed.status='finished') THEN 'failed' ELSE 'finished' END,ended_at=now() WHERE a.tenant_id=$1 AND a.is_scan AND a.status='running' AND NOT EXISTS(SELECT 1 FROM scan_jobs j WHERE j.tenant_id=a.tenant_id AND j.assessment_id=a.id AND j.status IN ('waiting','running')) RETURNING id`, tenant)
 		if err != nil {
 			return err
 		}
@@ -226,7 +239,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				x.Status = "incomplete"
 				outcome = j.status
 			}
-			m := reporting.Method{Action: map[string]string{"nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[j.tool], Version: j.version, Params: json.RawMessage(j.params), Target: reporting.Redact(j.target, 1000), Outcome: outcome, Error: reporting.Redact(j.why, 1000)}
+			m := reporting.Method{Action: map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[j.tool], Version: j.version, Params: json.RawMessage(j.params), Target: reporting.Redact(j.target, 1000), Outcome: outcome, Error: reporting.Redact(j.why, 1000)}
 			if j.sim != nil {
 				e := tx.QueryRow(ctx, `SELECT started_at,ended_at,COALESCE(outcome,''),COALESCE(error,'') FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, tenant, *j.sim).Scan(&m.StartedAt, &m.EndedAt, &m.Outcome, &m.Error)
 				if e != nil && !errors.Is(e, pgx.ErrNoRows) {
@@ -236,6 +249,23 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			}
 			if j.status != "finished" {
 				m.Outcome = j.status
+			}
+			if j.tool == "hackbot" && j.sim != nil {
+				var summary string
+				var phases, blockers []string
+				e := tx.QueryRow(ctx, `SELECT COALESCE(hackbot_result->>'summary',''),COALESCE(hackbot_result->'phases','[]'::jsonb),COALESCE(hackbot_result->'blockers','[]'::jsonb) FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, tenant, *j.sim).Scan(&summary, &phases, &blockers)
+				if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+					return e
+				}
+				if summary == "" {
+					summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.status + ". See the execution details for the blocker."
+				}
+				x.Summary = hackbot.LimitSummary(reporting.Redact(summary, 32000))
+				x.CompletedPhases = phases
+				for _, blocker := range blockers {
+					x.CoverageLimitations = append(x.CoverageLimitations, reporting.Redact(blocker, 1000))
+				}
+				snap.Summary = hackbot.LimitSummary(snap.Summary + " " + x.Summary)
 			}
 			x.Methods = append(x.Methods, m)
 			if j.sim != nil {

@@ -17,6 +17,7 @@ import (
 	"orchis-go/internal/authz"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
@@ -70,6 +71,9 @@ type Input struct {
 	Preset         string      `json:"preset"`
 }
 type Scan struct {
+	ReportID          *uuid.UUID            `json:"report_id,omitempty"`
+	ReportStatus      string                `json:"report_status,omitempty"`
+	Summary           string                `json:"summary,omitempty"`
 	ResultsExpiredAt  *time.Time            `json:"results_expired_at,omitempty"`
 	ComparisonDetails *reporting.Comparison `json:"comparison_details,omitempty"`
 	ID                uuid.UUID             `json:"id"`
@@ -91,6 +95,9 @@ type Job struct {
 	Tool         string              `json:"tool"`
 	Status       string              `json:"status"`
 	Error        string              `json:"error"`
+	Summary      string              `json:"summary,omitempty"`
+	Disposition  string              `json:"disposition,omitempty"`
+	Phase        string              `json:"phase,omitempty"`
 	SimulationID *uuid.UUID          `json:"simulation_id"`
 	Findings     []reporting.Finding `json:"findings"`
 }
@@ -129,18 +136,14 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 	if len(key) < 1 || len(key) > 200 {
 		return nil, invalid("idempotency_key", "Provide an Idempotency-Key of 1 to 200 characters.")
 	}
-	if in.Preset != "quick" && in.Preset != "standard" {
-		return nil, invalid("preset", "Choose quick or standard.")
+	if len(in.RangeIDs) > 0 {
+		return nil, invalid("range_ids", "Choose authorized web assets with HTTP(S) URLs; network range scans are no longer supported.")
 	}
-	if len(in.Tools) < 1 || len(in.Tools) > 2 {
-		return nil, invalid("tools", "Select Nmap, Nuclei or both.")
+	if len(in.Tools) > 0 && !(len(in.Tools) == 3 && containsPipelineTools(in.Tools)) {
+		return nil, invalid("tools", "Web pentests run Nmap and Nuclei first, then Hackbot.")
 	}
-	sort.Strings(in.Tools)
-	for i, tool := range in.Tools {
-		if tool != "nmap" && tool != "nuclei" || i > 0 && in.Tools[i-1] == tool {
-			return nil, invalid("tools", "Select each supported tool once.")
-		}
-	}
+	in.Tools = []string{"nmap", "nuclei", "hackbot"}
+	in.Preset = "standard"
 	if len(in.AssetIDs)+len(in.RangeIDs) == 0 || len(in.AssetIDs) > s.hostLimit() || len(in.RangeIDs) > 32 {
 		return nil, invalid("targets", "Select authorized assets or at most 32 approved ranges.")
 	}
@@ -276,7 +279,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 		seen := map[string]bool{}
 		for _, t := range targets {
 			for _, tool := range in.Tools {
-				ckey := map[string]string{"nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
+				ckey := map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
 				var cid uuid.UUID
 				var version int
 				err = tx.QueryRow(ctx, `SELECT c.id,c.version FROM contracts c JOIN integrations i ON i.tenant_id=c.tenant_id AND i.id=c.integration_id WHERE c.tenant_id=$1 AND c.key=$2 AND i.enabled`, p.TenantID, ckey).Scan(&cid, &version)
@@ -286,15 +289,12 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				if err != nil {
 					return err
 				}
-				params := json.RawMessage(`{"profile":"top100","service_detection":true}`)
-				if tool == "nmap" && in.Preset == "standard" {
+				params, _ := json.Marshal(map[string]string{"language": language})
+				if tool == "nmap" {
 					params = json.RawMessage(`{"profile":"top1000","service_detection":true}`)
 				}
 				if tool == "nuclei" {
-					params = json.RawMessage(`{"severity":["medium","high","critical"]}`)
-					if in.Preset == "standard" {
-						params = json.RawMessage(`{"severity":["info","low","medium","high","critical"]}`)
-					}
+					params = json.RawMessage(`{"severity":["info","low","medium","high","critical"]}`)
 				}
 				params, e := contract.NormalizeVersion(ckey, version, params)
 				if e != nil {
@@ -376,12 +376,27 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 			if j.SimulationID == nil {
 				continue
 			}
+			e = tx.QueryRow(ctx, `SELECT COALESCE(hackbot_result->>'summary',''),COALESCE(hackbot_result->>'disposition',''),COALESCE(hackbot_progress->>'phase','') FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, p.TenantID, *j.SimulationID).Scan(&j.Summary, &j.Disposition, &j.Phase)
+			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+				return e
+			}
+			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
+				j.Summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
+			}
+			j.Summary = hackbot.LimitSummary(reporting.Redact(j.Summary, 32000))
+			if j.Summary != "" {
+				out.Summary = hackbot.LimitSummary(out.Summary + " " + j.Summary)
+			}
 			j.Findings, e = jobFindings(ctx, tx, p.TenantID, *j.SimulationID)
 			if e != nil {
 				return e
 			}
 		}
 		if out.Status != "running" && authz.Has(p.Permissions, authz.ReportRead) {
+			e = tx.QueryRow(ctx, `SELECT id,status FROM reports WHERE tenant_id=$1 AND assessment_id=$2`, p.TenantID, id).Scan(&out.ReportID, &out.ReportStatus)
+			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+				return e
+			}
 			var raw []byte
 			e = tx.QueryRow(ctx, `SELECT snapshot->'comparison_details' FROM reports WHERE tenant_id=$1 AND assessment_id=$2`, p.TenantID, id).Scan(&raw)
 			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
@@ -512,4 +527,12 @@ func (s *Service) AddDiscoveredAsset(ctx context.Context, p *auth.Principal, job
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "scan.host.add_asset", ResourceType: "asset", ResourceID: &id, IP: ip, RequestID: req, Detail: map[string]any{"scan_job_id": job, "organization_id": org, "testing_authorized": false}})
 	})
 	return id, err
+}
+
+func containsPipelineTools(tools []string) bool {
+	seen := map[string]bool{}
+	for _, tool := range tools {
+		seen[tool] = true
+	}
+	return len(seen) == 3 && seen["nmap"] && seen["nuclei"] && seen["hackbot"]
 }

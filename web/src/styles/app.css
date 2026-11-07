@@ -719,3 +719,7 @@ main.content:focus { outline: none; }
 .page-guide { position: relative; padding-right: 40px; }
 .page-guide__x { position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 6px; color: var(--ink-3); }
 .page-guide__x:hover { color: var(--ink); background: var(--hover); }
+
+.pentest-pdf { width: 100%; height: 75vh; min-height: 36rem; border: 0; border-radius: .5rem; }
+
+.pipeline-phase { display: block; }

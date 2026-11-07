@@ -1,5 +1,8 @@
 # orchis-go
 
+Web pentests run **Nmap + Nuclei first, then Hackbot Lite**, using the latest Orchis UI v2. Scanner findings are placed in Hackbot's engagement workspace before testing. The PDF report and activity summary (maximum 300 words) are saved and displayed inside Orchis. See [engine setup](deploy/hackbot/README.md).
+
+
 Orchis adalah platform validasi keamanan self-hosted dengan backend Go dan frontend React.
 Alurnya sederhana:
 

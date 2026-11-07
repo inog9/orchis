@@ -14,5 +14,7 @@ scrape_configs:
         labels: {component: nmap}
       - targets: [nuclei:9101]
         labels: {component: nuclei}
+      - targets: [hackbot:9101]
+        labels: {component: hackbot}
       - targets: [ai-worker:9101]
         labels: {component: ai-worker}
