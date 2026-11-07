@@ -66,12 +66,12 @@ func TestMacOSQueriesAreTheReviewedCrossPlatformSet(t *testing.T) {
 		}
 	}
 	sort.Strings(got)
-	want := "osquery.hardening,osquery.inventory,osquery.network,osquery.network_ranges,osquery.users"
+	want := "osquery.hardening,osquery.homebrew,osquery.inventory,osquery.macos_apps,osquery.network,osquery.network_ranges,osquery.npm_global,osquery.os_release,osquery.pip_packages,osquery.users"
 	if strings.Join(got, ",") != want {
 		t.Fatalf("query macOS = %v", got)
 	}
 	// Query yang bergantung pada tabel khusus Linux tidak boleh dijanjikan untuk macOS.
-	for _, key := range []string{"osquery.packages", "osquery.firewall"} {
+	for _, key := range []string{"osquery.packages", "osquery.firewall", "osquery.exposure", "osquery.kernel"} {
 		if Find(key).SupportsOS("macos") {
 			t.Errorf("%s memakai tabel khusus Linux", key)
 		}

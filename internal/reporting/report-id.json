@@ -78,5 +78,6 @@
   "Report contents": "Daftar isi laporan",
   "Results identify the engine and completed coverage for each target. Hackbot reports evidence-validated web findings. Evidence below is limited and redacted; raw tool output is excluded.": "Hasil mengidentifikasi mesin dan cakupan yang selesai untuk setiap target. Hackbot melaporkan temuan web dengan bukti tervalidasi. Bukti di bawah dibatasi dan disunting; keluaran alat mentah tidak disertakan.",
   "Completed phases": "Fase yang selesai",
-  "Coverage limitations": "Batas cakupan"
+  "Coverage limitations": "Batas cakupan",
+  "DefenseBot": "DefenseBot"
 }

@@ -21,6 +21,7 @@ import (
 	"orchis-go/internal/audit"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/defensebot"
 	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/osquery"
@@ -137,6 +138,7 @@ func (r *Runtime) Beat(ctx context.Context, in *Injector, version string) error 
 
 type ClaimSpec struct {
 	ScannerInputs   []hackbot.ScannerInput `json:"scanner_inputs,omitempty"`
+	Defense         *defensebot.Input      `json:"defense,omitempty"`
 	ContractVersion int                    `json:"contract_version"`
 	ScanScope       *contract.ScanScope    `json:"scan_scope,omitempty"`
 	ExecutionID     uuid.UUID              `json:"execution_id"`
@@ -208,11 +210,14 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 		host := contract.HostOf(target)
 		why := ""
 		// Aksi agent berjalan di endpoint itu sendiri: tidak ada target jaringan yang perlu diperiksa penjaga.
-		onAgent := contract.FindVersion(ckey, contractVersion) != nil && contract.FindVersion(ckey, contractVersion).NeedsAgent
+		claimDef := contract.FindVersion(ckey, contractVersion)
+		onAgent := claimDef != nil && claimDef.NeedsAgent
+		// DefenseBot memakai data yang sudah tersimpan untuk aset: tidak ada host/URL, tetapi otorisasi aset dan kontrol scan tetap berlaku.
+		local := onAgent || contract.NoNetworkTarget(claimDef)
 		switch {
 		case !authorized:
 			why = "The target asset is no longer authorized for testing."
-		case !onAgent && r.Guard.CheckHost(host) != nil:
+		case !local && r.Guard.CheckHost(host) != nil:
 			why = "The target is refused by the scope guard: " + r.Guard.CheckHost(host).Error() + "."
 		}
 		var scanProof *contract.ScanScope
@@ -228,7 +233,7 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 			}
 		}
 
-		if why == "" && !onAgent && (scanProof == nil || scanProof.CIDR == "") {
+		if why == "" && !local && (scanProof == nil || scanProof.CIDR == "") {
 			approved, e := AgentTargetConfirmed(ctx, tx, r.Tenant, asset, target)
 			if e != nil {
 				return e
@@ -302,7 +307,15 @@ UPDATE executions SET state='running', started_at=now(), attempt=attempt+1, leas
 				return e
 			}
 		}
-		spec = &ClaimSpec{ScannerInputs: scannerInputs, ScanScope: scanProof, ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
+		var defense *defensebot.Input
+		if ckey == contract.KeyDefenseBot {
+			var e error
+			defense, e = r.defenseInput(ctx, tx, asset, params)
+			if e != nil {
+				return e
+			}
+		}
+		spec = &ClaimSpec{ScannerInputs: scannerInputs, Defense: defense, ScanScope: scanProof, ContractVersion: contractVersion, ExecutionID: id, ContractKey: ckey, Target: target, Params: params, TimeoutSeconds: timeout}
 		return nil
 	})
 	if err != nil {
@@ -323,7 +336,7 @@ func (r *Runtime) Heartbeat(ctx context.Context, in *Injector, id uuid.UUID) (ca
 		if err := scancontrol.Enforce(ctx, tx, r.Tenant, scancontrol.Now(r.Now), r.AfterEnd); err != nil {
 			return err
 		}
-		if in.Key == "hackbot" || in.Key == "nmap" || in.Key == "nuclei" {
+		if in.Key == "hackbot" || in.Key == "nmap" || in.Key == "nuclei" || in.Key == "defensebot" {
 			var sim *uuid.UUID
 			var target string
 			e := tx.QueryRow(ctx, `SELECT simulation_id,target_address FROM executions WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running'`, r.Tenant, id, in.ID).Scan(&sim, &target)
@@ -361,13 +374,14 @@ WHERE tenant_id=$1 AND id=$2 AND integration_id=$3 AND state='running' AND ($5::
 }
 
 type Result struct {
-	Hackbot  *hackbot.Result `json:"hackbot,omitempty"`
-	ExitCode *int            `json:"exit_code"`
-	Error    string          `json:"error"`
-	TimedOut bool            `json:"timed_out"`
-	Output   string          `json:"output"`
-	Logs     []LogLine       `json:"logs"`
-	Findings []NewFinding    `json:"findings"`
+	Hackbot  *hackbot.Result     `json:"hackbot,omitempty"`
+	Defense  *defensebot.Summary `json:"defense,omitempty"`
+	ExitCode *int                `json:"exit_code"`
+	Error    string              `json:"error"`
+	TimedOut bool                `json:"timed_out"`
+	Output   string              `json:"output"`
+	Logs     []LogLine           `json:"logs"`
+	Findings []NewFinding        `json:"findings"`
 	// Datasets: hasil query bernama osquery dari agent (tidak tepercaya; lihat processEndpointData).
 	Datasets []osquery.Dataset `json:"datasets,omitempty"`
 }
@@ -473,6 +487,26 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 			}
 		} else if res.Hackbot != nil {
 			return httpx.BadRequest("Hackbot result is not valid for this contract.")
+		}
+		if ckey == contract.KeyDefenseBot {
+			if res.Defense == nil {
+				if outcome == "success" {
+					return httpx.BadRequest("DefenseBot summary is required.")
+				}
+			} else {
+				if res.Defense.Schema != 1 || (res.Defense.Disposition != "complete" && res.Defense.Disposition != "limited") {
+					return httpx.BadRequest("Invalid DefenseBot summary.")
+				}
+				payload, err := json.Marshal(res.Defense)
+				if err != nil || len(payload) > 256<<10 {
+					return httpx.BadRequest("The DefenseBot summary is too large.")
+				}
+				if _, err = tx.Exec(ctx, `UPDATE executions SET defense_result=$3 WHERE tenant_id=$1 AND id=$2`, r.Tenant, id, payload); err != nil {
+					return err
+				}
+			}
+		} else if res.Defense != nil {
+			return httpx.BadRequest("A DefenseBot summary is not valid for this contract.")
 		}
 		var rawKey *string
 		if r.Store != nil && res.Output != "" {

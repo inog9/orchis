@@ -224,7 +224,7 @@ func DemoService(o Options) *demo.Service {
 }
 
 func ScanService(o Options) *scans.Service {
-	return &scans.Service{Now: o.Now, DB: o.DB, Guard: o.Guard, Engine: &simulation.Engine{Guard: o.Guard, Now: o.Now}, Reports: ReportService(o), MaxHosts: o.ScanMaxHosts, Concurrency: o.ScanConcurrency}
+	return &scans.Service{Now: o.Now, DB: o.DB, Guard: o.Guard, Engine: &simulation.Engine{Guard: o.Guard, Now: o.Now}, Reports: ReportService(o), MaxHosts: o.ScanMaxHosts, Concurrency: o.ScanConcurrency, Collector: EndpointService(o)}
 }
 
 func EndpointService(o Options) *endpoint.Service {

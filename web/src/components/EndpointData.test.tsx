@@ -8,7 +8,7 @@ import { EndpointDataPanel } from './EndpointDataPanel';
 
 const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'Content-Type': 'application/json' } });
 const q = (key: string, title: string, sensitivity: 'low' | 'medium', extra: object = {}) => ({
-  key, title, description: `${title} description`, category: 'Endpoint', tables: ['system_info'], columns: ['a'], os: ['linux'], sensitivity, load: 'light', needs_root: false,
+  key, title, description: `${title} description`, category: 'DefenseBot', tables: ['system_info'], columns: ['a'], os: ['linux'], sensitivity, load: 'light', needs_root: false,
   default_enabled: sensitivity === 'low', timeout_seconds: 30, max_rows: 10, mitre: [{ id: 'T1082', reason: 'Reading system details is System Information Discovery.' }],
   attributes: ['os_name'], findings: [{ rule: 'r1', type: 'text', severity: 'high', title: 'Weak setting', explain: 'Because it is weak.' }], report_section: 'Endpoint posture',
   example: [{ a: 'example-value' }], example_findings: [{ rule: 'r1', type: 'text', severity: 'high', title: 'Weak setting' }], example_attributes: {}, ...extra,
@@ -99,79 +99,104 @@ describe('EndpointCatalog', () => {
   });
 });
 
-const ds = (key: string, title: string, over: object = {}) => ({ key, title, status: 'never', reason: '', collected_at: null, last_attempt_at: null, osquery_version: '', attributes: {}, rows: [], truncated: false, enabled: true, synthetic: false, ...over });
+const user = { id: 'u1', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['simulation.read', 'assessment.read', 'report.read', 'asset.read'] };
+const endpointData = (over: object = {}) => ({ asset_id: 'a1', version: 1, read_only: false, organization_id: 'o1', has_agent: true, supported: true, findings: [],
+  items: [{ key: 'osquery.packages', title: 'Installed packages', status: 'ok', reason: '', collected_at: '2026-11-08T01:00:00Z', last_attempt_at: '2026-11-08T01:00:00Z', osquery_version: '5.24.0', attributes: {}, rows: [], truncated: false, enabled: true, synthetic: false }], ...over });
+const defenseScan = { id: 's1', organization_id: 'o1', name: 'Org', status: 'finished', runner: 'injector', created_at: '2026-11-08T02:00:00Z', ended_at: '2026-11-08T02:05:00Z', options: { organization_id: 'o1', asset_ids: ['a1'], tools: ['defensebot'], preset: 'defense' } };
+const defenseDetail = (disposition: 'complete' | 'limited') => ({ ...defenseScan, report_id: 'r1', report_status: 'ready', jobs: [{ id: 'j1', asset_id: 'a1', range_id: null, name: 'box', target: 'local', tool: 'defensebot', status: disposition === 'complete' ? 'finished' : 'incomplete', error: '', simulation_id: 'x', findings: [],
+  defense: { schema: 1, disposition, software_checked: 964, software_unmapped: 3, findings: 4, omitted: 1, by_severity: { high: 2, medium: 2 }, known_exploited: 1, exposed: 3, reboot_required: 1, hardening: 1, notes: [{ code: 'apps_unmapped', count: 3, limiting: true }], provenance: { engine: 'defensebot/1', queried_at: '2026-11-08T02:00:00Z' } } }] });
+function defenseStub(over: { data?: object; scans?: object[]; detail?: object; me?: object | null } = {}, calls: Calls = []) {
+  return stub((url, method) => {
+    if (url.endsWith('/auth/me')) return over.me === null ? json({}, 401) : json(over.me ?? user);
+    if (url.endsWith('/assets/a1/endpoint-data')) return json(endpointData(over.data));
+    if (url.includes('/api/v1/scans?org=o1')) return json({ items: over.scans ?? [], next_cursor: null });
+    if (url.endsWith('/api/v1/scans/s1')) return json(over.detail ?? defenseDetail('complete'));
+    if (url.endsWith('/api/v1/scans') && method === 'POST') return json({ ...defenseScan, status: 'running', id: 's2' }, 201);
+    return undefined;
+  }, calls);
+}
 
-describe('EndpointDataPanel', () => {
-  const data = (over: object = {}) => ({
-    asset_id: 'a1', version: 1, organization_id: 'o1', has_agent: true, findings: [{ id: 'f1', type: 'text', severity: 'high', title: 'ASLR is weak', value: 'v', query: 'osquery.hardening' }],
-    items: [
-      ds('osquery.inventory', 'System inventory', { status: 'ok', collected_at: '2026-11-01T01:00:00Z', last_attempt_at: '2026-11-01T01:00:00Z', osquery_version: '5.24.0', attributes: { os_name: 'Ubuntu', os_version: '26.04', kernel: '7.0', cpu_logical_cores: '6', physical_memory: '17179869184' }, rows: [{ os_name: 'Ubuntu' }] }),
-      ds('osquery.users', 'Local accounts', { status: 'skipped', reason: 'not approved for this organisation', enabled: false }),
-      ds('osquery.firewall', 'Firewall rules', { status: 'failed', reason: 'osquery is not installed' }),
-      ds('osquery.network', 'Listening ports', { synthetic: true, status: 'ok', collected_at: '2026-11-01T01:00:00Z', attributes: { listening_port_count: 3 } }),
-      ds('osquery.packages', 'Installed packages'),
-    ], ...over,
-  });
-
-  it('shows each status honestly, the summary, findings, and a Demo data mark', async () => {
-    stub((url) => (url.endsWith('/assets/a1/endpoint-data') ? json(data()) : undefined));
-    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    expect(await screen.findAllByText('Collected')).toHaveLength(2);
-    expect(screen.getByText(/Ubuntu 26.04 · kernel 7.0 · 6 CPUs · 16 GB RAM/)).toBeInTheDocument();
-    expect(screen.getByText('Not approved for this organisation')).toBeInTheDocument();
-    expect(screen.getByText('Failed: osquery is not installed')).toBeInTheDocument();
-    expect(screen.getByText('Not collected yet')).toBeInTheDocument();
-    expect(screen.getByText('Demo data')).toBeInTheDocument();
-    expect(screen.getByText('ASLR is weak')).toBeInTheDocument();
-    expect(screen.getByText(/3 listening ports/)).toBeInTheDocument();
-  });
-
-  it('for an agent that cannot collect shows only the explanation, with no dead controls or links', async () => {
-    stub((url) => (url.endsWith('/assets/a1/endpoint-data') ? json(data({ supported: false, findings: [], items: [ds('osquery.network', 'Network interfaces and routes', { synthetic: true, enabled: false })] })) : undefined));
-    mount(<EndpointDataPanel assetID="a1" allowed canRun canDelete />);
-    expect(await screen.findByText(/Endpoint collection is not supported on this agent yet/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Delete collected data/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Run .* now/ })).toBeNull();
-    expect(screen.queryByRole('link', { name: /Review collection consent/ })).toBeNull();
-    expect(screen.queryByText('Network interfaces and routes')).toBeNull();
-  });
-
-  it('runs a check now and explains why it could not start', async () => {
+describe('DefenseBot panel', () => {
+  it('says DefenseBot has not run yet and starts a run for this asset only when the button is pressed', async () => {
     const calls: Calls = [];
-    stub((url, method) => {
-      if (url.endsWith('/assets/a1/endpoint-data/refresh') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'The agent on this asset is offline.', code: 'agent_offline' }, 409);
-      if (url.endsWith('/assets/a1/endpoint-data')) return json(data());
-      return undefined;
-    }, calls);
+    defenseStub({}, calls);
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Run Firewall rules now' }));
+    expect(await screen.findByText('DefenseBot has not run on this asset yet.')).toBeInTheDocument();
+    expect(calls.some((c) => c.method === 'POST')).toBe(false);
+    await userEvent.click(screen.getByRole('button', { name: 'Run DefenseBot' }));
     await vi.waitFor(() => expect(calls.find((c) => c.method === 'POST')).toBeTruthy());
-    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ query_key: 'osquery.firewall' });
-    expect(await screen.findByText('Couldn’t start the check')).toBeInTheDocument();
-    expect(screen.getByText(/offline/)).toBeInTheDocument();
+    expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ organization_id: 'o1', asset_ids: ['a1'], tools: ['defensebot'] });
   });
 
-  it('hides Run now without permission, and explains an asset with no agent', async () => {
-    stub((url) => (url.endsWith('/assets/a1/endpoint-data') ? json(data({ has_agent: false, findings: [] })) : undefined));
-    mount(<EndpointDataPanel assetID="a1" allowed canRun={false} />);
-    expect(await screen.findByText(/has no agent, so no endpoint data can be collected/)).toBeInTheDocument();
+  it('shows the latest run as counts and coverage notes, never as an inventory', async () => {
+    defenseStub({ scans: [defenseScan], detail: defenseDetail('limited') });
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    expect(await screen.findByText('964')).toBeInTheDocument();
+    const adv = screen.getByText('Advisories').parentElement!;
+    expect(within(adv).getByText('4')).toBeInTheDocument();
+    expect(within(screen.getByText('Known exploited').parentElement!).getByText('1')).toBeInTheDocument();
+    expect(screen.getByText(/Incomplete result/)).toBeInTheDocument();
+    expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open report' })).toHaveAttribute('href', '/reports?assessment_id=s1');
+    expect(screen.getByRole('link', { name: 'Open scan' })).toHaveAttribute('href', '/simulations/s1');
+    expect(screen.queryByText('Installed packages')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('does not call a complete run incomplete', async () => {
+    defenseStub({ scans: [defenseScan], detail: defenseDetail('complete') });
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    await screen.findByText('964');
+    expect(screen.queryByText(/Incomplete result/)).toBeNull();
+  });
+
+  it('explains an asset with no agent and keeps the button off', async () => {
+    defenseStub({ data: { has_agent: false } });
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    expect(await screen.findByText(/Install the agent on this asset to run DefenseBot/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Install an agent' })).toHaveAttribute('href', '/assets/agents');
-    expect(screen.queryByRole('button', { name: /Run .* now/ })).toBeNull();
-    expect(screen.getByText(/None yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
   });
 
-  it('hides Run now from a viewer even when the asset has an agent', async () => {
-    stub((url) => (url.endsWith('/assets/a1/endpoint-data') ? json(data()) : undefined));
+  it('explains an agent that cannot collect and an asset without testing authorization', async () => {
+    defenseStub({ data: { supported: false } });
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    expect(await screen.findByText('DefenseBot supports Linux and macOS agents only.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
+  });
+
+  it('explains missing authorization in words', async () => {
+    defenseStub();
+    mount(<EndpointDataPanel assetID="a1" allowed canRun authorized={false} />);
+    expect(await screen.findByText(/Testing must be authorized/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
+  });
+
+  it('hides the button from someone who may not run scans', async () => {
+    defenseStub();
     mount(<EndpointDataPanel assetID="a1" allowed canRun={false} />);
-    await screen.findByText('Local accounts');
-    expect(screen.queryByRole('button', { name: /Run .* now/ })).toBeNull();
+    await screen.findByText('DefenseBot has not run on this asset yet.');
+    expect(screen.queryByRole('button', { name: 'Run DefenseBot' })).toBeNull();
+  });
+
+  it('shows why a launch was refused', async () => {
+    stub((url, method) => {
+      if (url.endsWith('/auth/me')) return json(user);
+      if (url.endsWith('/assets/a1/endpoint-data')) return json(endpointData());
+      if (url.includes('/api/v1/scans?org=o1')) return json({ items: [], next_cursor: null });
+      if (url.endsWith('/api/v1/scans') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'DefenseBot collection is not approved for this organisation.', code: 'conflict' }, 409);
+      return undefined;
+    });
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Run DefenseBot' }));
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
   it('does not fetch or show data when the role cannot read assets', async () => {
     const calls = stub(() => undefined);
     mount(<EndpointDataPanel assetID="a1" allowed={false} canRun={false} />);
     expect(screen.getByText('Your role cannot read asset data.')).toBeInTheDocument();
-    expect(calls.length).toBe(0);
+    expect(calls.filter((c) => c.url.includes('/endpoint-data')).length).toBe(0);
   });
 });
 
@@ -236,7 +261,7 @@ describe('Endpoint dataset deletion',()=>{
  it('hides deletion for a read-only demo asset',async()=>{
   stub(url=>url.endsWith('/assets/a1/endpoint-data')?json({asset_id:'a1',version:1,read_only:true,has_agent:false,organization_id:null,items:[],findings:[]}):undefined);
   mount(<EndpointDataPanel assetID="a1" allowed canRun={false} canDelete />);
-  await screen.findByText(/This asset has no agent/);
+  await screen.findByText(/Install the agent on this asset to run DefenseBot/);
   expect(screen.queryByRole('button',{name:'Delete collected data'})).toBeNull();
  });
 });

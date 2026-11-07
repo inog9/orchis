@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	KeyHackbot  = "hackbot.pentest"
-	KeyNmapTCP  = "nmap.tcp_connect"
-	KeyNucleiVS = "nuclei.scan"
+	KeyHackbot    = "hackbot.pentest"
+	KeyDefenseBot = "defensebot.match"
+	KeyNmapTCP    = "nmap.tcp_connect"
+	KeyNucleiVS   = "nuclei.scan"
 
 	// Aksi yang berjalan DI endpoint oleh agent (hanya-baca, tanpa parameter, tanpa menyentuh jaringan).
 	KeyAgentPorts = "agent.listening_ports"
@@ -61,6 +62,10 @@ func init() {
 		}
 	}
 }
+
+// NoNetworkTarget reports contracts that work on data already stored for an asset (DefenseBot): there is no host or URL to
+// check against the scan guard, but asset authorization, scan controls and the emergency stop still apply.
+func NoNetworkTarget(d *Def) bool { return d != nil && d.Adapter == "defensebot" }
 
 func Find(key string) *Def {
 	var best *Def
@@ -143,7 +148,7 @@ func normalizeDefinition(def *Def, raw json.RawMessage) (json.RawMessage, error)
 	}
 	raw = canonical
 	switch def.Adapter {
-	case "hackbot":
+	case "hackbot", "defensebot":
 		return def.Schema.Normalize(raw)
 	case "nmap":
 		p := NmapParams{Profile: "top100"}

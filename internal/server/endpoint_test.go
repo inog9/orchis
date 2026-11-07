@@ -158,9 +158,9 @@ func rowCount(t *testing.T, f *agentFixture, q string, args ...any) int {
 func TestOsquerySkippedAndFailedAttemptsKeepLastGoodData(t *testing.T) {
 	f := newAgentFixture(t)
 	secret, asset := f.approvedAgent(t, "box1", "osquery.firewall")
-	ok := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "ok", "rows": []map[string]any{{"rules": "7"}}}}}
+	ok := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "ok", "rows": []map[string]any{{"iptables_rules": "7", "active_firewall_units": "1"}}}}}
 	f.agentCall("POST", "executions/"+f.agentTask(t, secret, asset, "osquery.firewall")+"/result", ok, secret)
-	skip := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "skipped", "reason": "needs more privileges (administrator rights)", "rows": []map[string]any{{"rules": "999"}}}}}
+	skip := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "skipped", "reason": "needs more privileges (administrator rights)", "rows": []map[string]any{{"iptables_rules": "999", "active_firewall_units": "0"}}}}}
 	exSkip := f.agentTask(t, secret, asset, "osquery.firewall")
 	f.agentCall("POST", "executions/"+exSkip+"/result", skip, secret)
 	var rows, status, reason string
@@ -298,7 +298,7 @@ func TestOsqueryCatalogIsReadableAndDescribesWhatItReads(t *testing.T) {
 		t.Fatalf("katalog: %d %s", r.Status, r.Body)
 	}
 	r.JSON(&cat)
-	if cat.OsqueryVersion != "5.24.0" || len(cat.ProvenOS) != 1 || cat.ProvenOS[0] != "linux" || len(cat.Queries) != 7+len(osquery.PackQueryKeys()) || len(cat.Packs) != 5 {
+	if cat.OsqueryVersion != "5.24.0" || len(cat.ProvenOS) != 1 || cat.ProvenOS[0] != "linux" || len(cat.Queries) != len(osquery.Queries) || len(cat.Packs) != 5 {
 		t.Fatalf("katalog: %+v", cat)
 	}
 	for _, q := range cat.Queries {
@@ -371,7 +371,7 @@ func TestOsqueryUnapprovedQueriesAreSkippedWithReasonAndApprovalIsAdminOnly(t *t
 	for _, it := range settings.Items {
 		byKey[it.Key] = [2]bool{it.Enabled, it.Explicit}
 	}
-	if len(settings.Items) != 7+len(osquery.PackQueryKeys()) || byKey["osquery.users"] != [2]bool{true, true} || byKey["osquery.network"] != [2]bool{false, false} || byKey["osquery.inventory"] != [2]bool{false, false} {
+	if len(settings.Items) != len(osquery.Queries) || byKey["osquery.users"] != [2]bool{true, true} || byKey["osquery.network"] != [2]bool{false, false} || byKey["osquery.inventory"] != [2]bool{false, false} {
 		t.Fatalf("pengaturan efektif (bawaan vs keputusan admin): %v", byKey)
 	}
 	// Setelah disetujui, tugas sampai ke agent dan hasilnya diproses.
@@ -449,7 +449,13 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	} else {
 		r.JSON(&d)
 	}
-	if !d.HasAgent || len(d.Items) != 7+len(osquery.PackQueryKeys()) || len(d.Findings) != 0 {
+	linuxQueries := 0
+	for i := range osquery.Queries {
+		if osquery.Queries[i].SupportsOS("linux") {
+			linuxQueries++
+		}
+	}
+	if !d.HasAgent || len(d.Items) != linuxQueries || len(d.Findings) != 0 {
 		t.Fatalf("awal: %+v", d)
 	}
 	for _, it := range d.Items {
@@ -483,7 +489,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 	if cl := f.agentCall("POST", "executions/claim", nil, secret); cl.Status != 200 {
 		t.Fatalf("claim: %d", cl.Status)
 	}
-	res := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "ok", "rows": []map[string]any{{"rules": "0"}}}}}
+	res := map[string]any{"exit_code": 0, "datasets": []map[string]any{{"query": "osquery.firewall", "status": "ok", "rows": []map[string]any{{"iptables_rules": "0", "active_firewall_units": "0"}}}}}
 	if rr := f.agentCall("POST", "executions/"+ex.ID+"/result", res, secret); rr.Status != 204 {
 		t.Fatalf("hasil: %d %s", rr.Status, rr.Body)
 	}
@@ -501,7 +507,7 @@ func TestEndpointDataAndRefreshEndpoints(t *testing.T) {
 			fw = it.Status
 		}
 	}
-	if fw != "ok" || len(d.Findings) != 1 || d.Findings[0].Query != "osquery.firewall" || d.Findings[0].Value != "osquery:no-iptables-rules" {
+	if fw != "ok" || len(d.Findings) != 1 || d.Findings[0].Query != "osquery.firewall" || d.Findings[0].Value != "osquery:no-host-firewall" {
 		t.Fatalf("setelah hasil: status=%s temuan=%+v", fw, d.Findings)
 	}
 }

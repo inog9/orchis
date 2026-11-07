@@ -226,7 +226,8 @@ func TestNotificationsScanTerminalAndReportFailureAreAtomicAndIdempotent(t *test
 	if r := f.a.do("PUT", "/api/v1/organizations/"+o.ID.String()+"/assets", map[string]any{"assets": []map[string]any{{"id": f.asset, "version": 1}}}, f.admin); r.Status != 204 {
 		t.Fatal(r.Status, string(r.Body))
 	}
-	r := f.a.do("POST", "/api/v1/scans", scans.Input{OrganizationID: o.ID, AssetIDs: []uuid.UUID{uuid.MustParse(f.asset)}, Tools: []string{"nmap"}, Preset: "quick"}, f.analyst, "Idempotency-Key", "notify-stop")
+	web := mkAsset(t, f.a, f.admin, map[string]any{"category": "web_application", "name": "Notification web", "organization_id": o.ID, "testing_authorized": true, "addresses": []map[string]any{{"kind": "url", "value": "http://127.0.0.1:8080/"}}})
+	r := f.a.do("POST", "/api/v1/scans", scans.Input{OrganizationID: o.ID, AssetIDs: []uuid.UUID{uuid.MustParse(web)}}, f.analyst, "Idempotency-Key", "notify-stop")
 	var scan scans.Scan
 	r.JSON(&scan)
 	if r.Status != 201 {

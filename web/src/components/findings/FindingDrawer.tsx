@@ -5,8 +5,9 @@ import { Link } from 'react-router-dom';
 import type { Finding } from '../../api/types';
 import { CopyButton } from '../CopyButton';
 import { SeverityBadge } from '../RunBadges';
+import '../defense.css';
 import { relativeTime } from '../../lib/relativeTime';
-import { isNew } from '../../lib/findingsView';
+import { defenseOf, isNew } from '../../lib/findingsView';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
 const full = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
@@ -34,6 +35,9 @@ export function FindingDrawer({ finding, onClose, canAsset }: { finding: Finding
         return () => { document.removeEventListener('keydown', onKey); previous?.focus?.(); };
     }, []);
     const json = JSON.stringify(finding.details ?? {}, null, 2);
+    const def = defenseOf(finding);
+    const exposureText = (v: string) => (v === 'exposed' ? textUI("m_def_exp_exposed") : v === 'listening' ? textUI("m_def_exp_listening") : v === 'local' ? textUI("m_def_exp_local") : '—');
+    const statusText = (v: string) => (v === 'fix_available' ? textUI("m_def_fixed_in", [def?.fixed ?? '']) : v === 'no_fix_yet' ? textUI("m_def_no_fix") : v === 'fix_requires_subscription' ? textUI("m_def_needs_sub") : v === 'fix_pending_reboot' ? textUI("m_def_pending_reboot") : '—');
     return (<div className="fnd-scrim" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <aside className="fnd-drawer" role="dialog" aria-modal="true" aria-labelledby="fnd-drawer-title" ref={ref}>
         <header className="fnd-drawer__head">
@@ -51,6 +55,18 @@ export function FindingDrawer({ finding, onClose, canAsset }: { finding: Finding
             <div><dt>{textUI("m_fnd_last_seen")}</dt><dd title={full(finding.last_seen_at)}>{full(finding.last_seen_at)} · {relativeTime(finding.last_seen_at)}</dd></div>
             <div><dt>{textUI("m_fnd_occurrences")}</dt><dd className="mono">×{formatUI(finding.occurrence_count)}</dd></div>
           </dl>
+          {formatUI(def && (<section aria-labelledby="fnd-def-h"><h3 id="fnd-def-h">{textUI("m_def_section")}</h3>
+            <p className="def-meta">{formatUI(def.kev && <span className="def-chip def-chip--kev">{textUI("m_def_kev")}</span>)}{formatUI(def.exposure === 'exposed' && <span className="def-chip def-chip--exposed">{textUI("m_def_exp_exposed")}</span>)}{formatUI(def.epss !== null && <span className="def-chip def-chip--muted">{textUI("m_def_epss", [(def.epss * 100).toFixed(1)])}</span>)}{formatUI(def.confirmedBy && <span className="def-chip def-chip--muted">{textUI("m_def_confirmed", [def.confirmedBy])}</span>)}</p>
+            <dl className="def-dl">
+              <dt>{textUI("m_def_advisory")}</dt><dd>{formatUI(def.url ? <a href={def.url} target="_blank" rel="noreferrer noopener">{def.cve}</a> : def.cve)}</dd>
+              <dt>{textUI("m_def_installed")}</dt><dd className="mono">{formatUI(def.pkg)} {formatUI(def.installed)}</dd>
+              <dt>{textUI("m_def_fixed_version")}</dt><dd className="mono">{formatUI(def.fixed || '—')}</dd>
+              <dt>{textUI("m_def_status")}</dt><dd>{statusText(def.status)}</dd>
+              <dt>{textUI("m_def_exposure")}</dt><dd>{exposureText(def.exposure)}{def.ports ? ` (${def.ports})` : ''}</dd>
+              <dt>{textUI("m_def_sev_source")}</dt><dd>{formatUI(def.sevSource || '—')}</dd>
+              <dt>{textUI("m_def_method")}</dt><dd className="mono">{formatUI(def.method)}</dd>
+              <dt>{textUI("m_def_data_as_of")}</dt><dd>{formatUI(def.dataAsOf ? full(def.dataAsOf) : '—')}</dd>
+            </dl></section>))}
           <section aria-labelledby="fnd-details-h">
             <div className="fnd-drawer__row"><h3 id="fnd-details-h">{textUI("m_fnd_details")}</h3><CopyButton value={json}/></div>
             <pre className="fnd-json mono" tabIndex={0}>{json}</pre>

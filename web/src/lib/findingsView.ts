@@ -44,3 +44,25 @@ export function countBySeverity(items: Finding[]): Record<Finding['severity'], n
     for (const f of items) out[f.severity] += 1;
     return out;
 }
+
+// ---------- DefenseBot evidence (details written by the worker; never trusted as markup) ----------
+export type DefenseEvidence = {
+    cve: string; pkg: string; installed: string; fixed: string; status: string; kev: boolean; epss: number | null; exposure: string; ports: string;
+    url: string; sevSource: string; method: string; confirmedBy: string; dataAsOf: string; reboot: boolean;
+};
+const text = (v: unknown) => (typeof v === 'string' ? v : '');
+export function defenseOf(f: Pick<Finding, 'details' | 'type'>): DefenseEvidence | null {
+    const d = f.details ?? {};
+    const method = text(d.method);
+    if (f.type !== 'vulnerability' || (method !== 'osv-distro' && method !== 'osv-exact' && method !== 'nvd-cpe')) return null;
+    const url = text(d.advisory_url);
+    return {
+        cve: text(d.cve), pkg: text(d.package), installed: text(d.installed_version), fixed: text(d.fixed_version), status: text(d.fix_status), kev: d.kev === true,
+        epss: typeof d.epss === 'number' ? d.epss : null, exposure: text(d.exposure), ports: text(d.exposure_ports), url: url.startsWith('https://') ? url : '',
+        sevSource: text(d.severity_source), method, confirmedBy: text(d.confirmed_by), dataAsOf: text(d.data_as_of), reboot: d.reboot_required === true,
+    };
+}
+export function applyDefenseFilters(items: Finding[], f: { kev: boolean; exposed: boolean }): Finding[] {
+    if (!f.kev && !f.exposed) return items;
+    return items.filter((x) => { const d = defenseOf(x); return !!d && (!f.kev || d.kev) && (!f.exposed || d.exposure === 'exposed'); });
+}

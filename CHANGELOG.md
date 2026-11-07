@@ -14,6 +14,12 @@ Rilis stabil pertama. Alur utama:
 
 #### Ditambahkan
 
+- **DefenseBot:** memetakan perangkat lunak terpasang di endpoint (paket Ubuntu/Debian, npm, pip, Cursor/VS Code lewat CPE)
+  ke kerentanan yang sudah dikenal (OSV, NVD, CISA KEV, EPSS), ditambah celah hardening. Dijalankan per aset oleh pengguna;
+  hasilnya temuan bertanda `method`, versi perbaikan, KEV/EPSS, status paparan "terlihat scanner", dan bab laporan
+  tersendiri (ringkasan armada, perbaiki dulu, bagian per host). Hasil tidak lengkap ditandai jelas. Query inventaris
+  lama (akun lokal, jaringan, inventaris sistem) tidak lagi ditawarkan; versi persetujuan baru
+  ([docs/DEFENSEBOT.md](docs/DEFENSEBOT.md)). Pengumpulan berkala kini mati secara bawaan.
 - **Data endpoint di macOS (eksperimental):** osquery 5.24.0 untuk macOS (biner universal Intel + Apple Silicon)
   dipatok dengan SHA-256 dan ukuran, ditandatangani dengan kunci rilis agent seperti Linux. Query lintas-platform
   yang sama dengan Linux (inventaris, akun, jaringan, hardening/FileVault, rentang jaringan) dibuka untuk macOS;

@@ -4,6 +4,8 @@ services:
     networks: !override [backend]
   nuclei:
     networks: !override [backend]
+  defensebot:
+    networks: !override [backend]
   hackbot:
     environment:
       ORCHIS_HACKBOT_BINARY: /opt/orchis-smoke-job

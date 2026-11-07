@@ -317,6 +317,12 @@ func (e *Engine) launchStep(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUI
 			default:
 				agentID = &aid
 			}
+		} else if contract.NoNetworkTarget(def) {
+			// DefenseBot works on data already stored for the asset: no host or URL, but authorization still applies.
+			addr = "local"
+			if _, err := scanscope.CheckJob(ctx, tx, tenant, sim, addr, e.Guard, 4096); err != nil {
+				gerr = err
+			}
 		} else {
 			addr, gerr = e.Guard.Target(s.ContractKey, t.Addrs)
 			if gerr == nil {

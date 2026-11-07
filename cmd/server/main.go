@@ -76,8 +76,11 @@ func main() {
 	case "provision":
 		// Explicit, idempotent setup. Raw tokens never enter stdout or the database.
 		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
-			for _, kind := range []string{"nmap", "nuclei", "hackbot"} {
-				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI"}[kind] + "_TOKEN")
+			for _, kind := range []string{"nmap", "nuclei", "hackbot", "defensebot"} {
+				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI", "defensebot": "DEFENSEBOT"}[kind] + "_TOKEN")
+				if kind == "defensebot" && token == "" {
+					continue // installations created before DefenseBot get the token from ops.py hackbot-init
+				}
 				if !execution.ValidInjectorToken(token) {
 					return errors.New("provisioning token is missing")
 				}
@@ -242,7 +245,9 @@ func serve(ctx context.Context, cfg *config.Config) error {
 	go server.RetentionService(opts).Run(ctx, tenant)
 	go server.OrganizationService(opts).RunTicker(ctx, tenant)
 	go server.ScanService(opts).Run(ctx, tenant)
-	go server.EndpointService(opts).RunCollection(ctx, tenant, time.Duration(cfg.EndpointCollectionSeconds)*time.Second)
+	if cfg.EndpointCollectionSeconds > 0 {
+		go server.EndpointService(opts).RunCollection(ctx, tenant, time.Duration(cfg.EndpointCollectionSeconds)*time.Second)
+	}
 	go server.ReportService(opts).Run(ctx, tenant)
 	go server.Runtime(opts).RunSweeper(ctx, 15*time.Second)
 	go server.SimulationService(opts).RunTicker(ctx, tenant, 15*time.Second)

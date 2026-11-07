@@ -2,6 +2,7 @@
 import {language} from '../i18n/runtime';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
+import { DefenseResult } from '../components/DefenseResult';
 import { Plus } from 'lucide-react';
 import { StatusBadge, scanStatusLabel } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
@@ -153,17 +154,18 @@ export function ScanDetailPage() {
         </ol></section>
       {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{s.summary}</p></section>}
       {s.report_id && can(me,'report.read') && <section className="sims__panel"><h2 className="sims__h">{textUI("hackbot_report")}</h2>{s.report_status==='ready' ? <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${s.report_id}/export/pdf?preview=1`}/> : <p role="status">{s.report_status==='failed' ? textUI("hackbot_pdf_failed") : textUI("hackbot_pdf_pending")}</p>}<Link to={`/reports/${s.report_id}`}>{textUI("hackbot_open_report")}</Link></section>}
+      {jobs.some((j) => j.defense) && <section className="sims__panel" aria-labelledby="def-h"><h2 id="def-h" className="sims__h">{textUI("m_def_scan_h")}</h2>{jobs.filter((j) => j.defense).map((j) => <div key={j.id}><h3 className="ed-h4">{formatUI(j.name)}</h3><DefenseResult summary={j.defense!}/></div>)}</section>}
       <ScanComparison comparison={s.comparison_details} pending={running}/>
       <section className="sims__panel" aria-labelledby="jobs-h"><h2 id="jobs-h" className="sims__h">{textUI("m_sim_jobs_h")} <span className="muted">{groups.size}</span></h2>
         {formatUI(Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>
           <div className="sims__jobs" role="table" aria-label={gj[0]!.name}>
             <div className="sims__jrow sims__head" role="row"><span role="columnheader">{textUI("m_sim_job_tool")}</span><span role="columnheader">{textUI("m_sim_job_target")}</span><span role="columnheader">{textUI("m_sim_job_status")}</span><span role="columnheader">{textUI("m_sim_job_findings")}</span><span role="columnheader">{textUI("m_sim_job_note")}</span></div>
             {gj.map((j) => <div key={j.id} className="sims__jrow" role="row">
-              <span role="cell" className="mono">{formatUI(j.tool==='hackbot'?'Hackbot Lite':j.tool)}</span>
+              <span role="cell" className="mono">{formatUI(j.tool==='hackbot'?'Hackbot Lite':j.tool==='defensebot'?'DefenseBot':j.tool)}</span>
               <span role="cell" className="mono" title={j.target}>{formatUI(j.target || textUI("m_6789458750ba"))}</span>
               <span role="cell"><StatusBadge status={j.status}/></span>
               <span role="cell" className="mono">{j.findings.length}</span>
-              <span role="cell" className="sims__note">{j.tool==='hackbot' && <span className="pipeline-phase muted small">{j.phase || (j.status==='waiting' ? textUI('hackbot_wait_scanners') : scanStatusLabel(j.status))}{j.disposition ? ` · ${j.disposition}` : ''}</span>}<span>{formatUI(j.error || '—')}</span>{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <> {added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--sm" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>} <span className="muted small">{textUI("m_4da4598a9f0b")}</span></>)}</span>
+              <span role="cell" className="sims__note">{j.tool==='defensebot' && j.defense && <span className="muted small">{textUI("m_def_job_note", [j.defense.findings, j.defense.known_exploited])}</span>}{j.tool==='hackbot' && <span className="pipeline-phase muted small">{j.phase || (j.status==='waiting' ? textUI('hackbot_wait_scanners') : scanStatusLabel(j.status))}{j.disposition ? ` · ${j.disposition}` : ''}</span>}<span>{formatUI(j.error || '—')}</span>{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <> {added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--sm" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>} <span className="muted small">{textUI("m_4da4598a9f0b")}</span></>)}</span>
             </div>)}
           </div></div>))}
       </section>

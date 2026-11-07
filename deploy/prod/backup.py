@@ -5,7 +5,7 @@ from pathlib import Path, PurePosixPath
 STATE_FILES={
  'postgres_password','owner_password','app_password','maintenance_password',
  's3_user','s3_password','rabbitmq.conf','ai-master.key','renderer_token',
- 'migrate.json','provision.json','server.json','nmap.json','nuclei.json','hackbot.json','ai.json',
+ 'migrate.json','provision.json','server.json','nmap.json','nuclei.json','hackbot.json','defensebot.json','ai.json',
  'initial-admin.json','release.key',
 }
 TABLES=['organizations','assets','agents','users','findings','assessments','reports']
@@ -112,7 +112,7 @@ def _backup(args,compose):
     if not key.is_file():raise RuntimeError('Missing separate backup key; run backup-key and store an out-of-band copy')
     info=key.stat()
     if info.st_mode&0o077 or info.st_size>128:raise RuntimeError('Backup key must be a private 0600 file')
-    services=['server','nmap','nuclei','hackbot','ai-worker','renderer','minio','caddy']
+    services=['server','nmap','nuclei','hackbot','defensebot','ai-worker','renderer','minio','caddy']
     running=[]
     for service in services:
         if container(args,compose,service)['State']['Running']:running.append(service)

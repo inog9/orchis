@@ -117,17 +117,22 @@
     {
       "key": "osquery.packages",
       "title": "Installed packages",
-      "description": "Names and versions of installed software packages (deb and rpm). No vulnerability data is invented: versions are listed, not judged.",
-      "category": "Endpoint",
-      "sql": "SELECT name, version, 'deb' AS source FROM deb_packages UNION ALL SELECT name, version, 'rpm' AS source FROM rpm_packages",
+      "description": "Names, versions and package sections of installed deb and rpm software. DefenseBot checks applications and services only; libraries, kernel and development packages are recognised by section and skipped.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, COALESCE(NULLIF(source,''), name) AS source_name, version, arch, 'deb' AS pkg_type, '' AS epoch, '' AS release, section FROM deb_packages UNION ALL SELECT name, source AS source_name, version, arch, 'rpm' AS pkg_type, CAST(epoch AS TEXT) AS epoch, release, package_group AS section FROM rpm_packages",
       "tables": [
         "deb_packages",
         "rpm_packages"
       ],
       "columns": [
         "name",
+        "source_name",
         "version",
-        "source"
+        "arch",
+        "pkg_type",
+        "epoch",
+        "release",
+        "section"
       ],
       "os": [
         "linux"
@@ -135,7 +140,7 @@
       "sensitivity": "low",
       "load": "medium",
       "needs_root": false,
-      "max_rows": 5000,
+      "max_rows": 7000,
       "timeout_seconds": 60,
       "mitre": [
         {
@@ -161,55 +166,37 @@
           }
         ]
       },
-      "rules": [
-        {
-          "id": "server-software",
-          "scope": "row",
-          "match": [
-            {
-              "col": "name",
-              "op": "in",
-              "val": [
-                "nginx",
-                "apache2",
-                "httpd",
-                "openssh-server",
-                "mysql-server",
-                "mariadb-server",
-                "postgresql",
-                "redis-server"
-              ]
-            }
-          ],
-          "finding": {
-            "type": "service",
-            "severity": "info",
-            "title": "Server software installed: {name} {version}",
-            "value": "osquery:package:{name}"
-          },
-          "explain": "Listing server software helps choose the right follow-up checks. It is not a vulnerability."
-        }
-      ],
+      "rules": [],
       "example": [
         {
           "name": "openssh-server",
-          "source": "deb",
-          "version": "1:10.2p1-2ubuntu3.8"
+          "source_name": "openssh",
+          "version": "1:9.6p1-3ubuntu13.5",
+          "arch": "amd64",
+          "pkg_type": "deb",
+          "epoch": "",
+          "release": "",
+          "section": "net"
         },
         {
-          "name": "3cpio",
-          "source": "deb",
-          "version": "0.14.0-1ubuntu1"
+          "name": "libssl3t64",
+          "source_name": "openssl",
+          "version": "3.0.13-0ubuntu3.4",
+          "arch": "amd64",
+          "pkg_type": "deb",
+          "epoch": "",
+          "release": "",
+          "section": "libs"
         },
         {
-          "name": "adduser",
-          "source": "deb",
-          "version": "3.153ubuntu1"
-        },
-        {
-          "name": "alacritty",
-          "source": "deb",
-          "version": "0.16.1-2ubuntu1"
+          "name": "nginx",
+          "source_name": "nginx",
+          "version": "1.24.0-2ubuntu7.1",
+          "arch": "amd64",
+          "pkg_type": "deb",
+          "epoch": "",
+          "release": "",
+          "section": "web"
         }
       ],
       "platform": "linux"
@@ -456,7 +443,7 @@
       "key": "osquery.hardening",
       "title": "Hardening settings",
       "description": "A few kernel security settings and disk encryption status. Read-only.",
-      "category": "Endpoint",
+      "category": "DefenseBot",
       "sql": "SELECT 'sysctl' AS item, name AS target, current_value AS value FROM system_controls WHERE name IN ('kernel.randomize_va_space', 'net.ipv4.ip_forward', 'net.ipv4.tcp_syncookies', 'kernel.dmesg_restrict') UNION ALL SELECT CASE WHEN (SELECT platform FROM os_version) = 'darwin' THEN 'volume' ELSE 'disk' END AS item, name AS target, CAST(encrypted AS TEXT) AS value FROM disk_encryption WHERE name LIKE '/dev/%' AND name NOT LIKE '/dev/loop%' AND name NOT LIKE '/dev/ram%' AND name NOT LIKE '/dev/sr%'",
       "tables": [
         "system_controls",
@@ -664,15 +651,17 @@
     },
     {
       "key": "osquery.firewall",
-      "title": "Firewall rules",
-      "description": "Number of iptables rules. Needs administrator rights; nftables rules are not checked.",
-      "category": "Endpoint",
-      "sql": "SELECT count(*) AS rules FROM iptables",
+      "title": "Host firewall",
+      "description": "Whether any iptables rules or an active ufw, firewalld or nftables service exist. Needs administrator rights.",
+      "category": "DefenseBot",
+      "sql": "SELECT (SELECT count(*) FROM iptables) AS iptables_rules, (SELECT count(*) FROM systemd_units WHERE id IN ('ufw.service','firewalld.service','nftables.service') AND active_state='active') AS active_firewall_units",
       "tables": [
-        "iptables"
+        "iptables",
+        "systemd_units"
       ],
       "columns": [
-        "rules"
+        "iptables_rules",
+        "active_firewall_units"
       ],
       "os": [
         "linux"
@@ -680,7 +669,7 @@
       "sensitivity": "low",
       "load": "light",
       "needs_root": true,
-      "max_rows": 1,
+      "max_rows": 2,
       "timeout_seconds": 30,
       "mitre": [
         {
@@ -689,33 +678,37 @@
         }
       ],
       "attributes": {
-        "first_row": {
-          "iptables_rules": "rules"
-        }
+        "aggregates": []
       },
       "rules": [
         {
-          "id": "no-iptables-rules",
+          "id": "no-host-firewall",
           "scope": "row",
           "match": [
             {
-              "col": "rules",
+              "col": "iptables_rules",
+              "op": "eq",
+              "val": "0"
+            },
+            {
+              "col": "active_firewall_units",
               "op": "eq",
               "val": "0"
             }
           ],
           "finding": {
             "type": "text",
-            "severity": "info",
-            "title": "iptables reports no rules (nftables rules are not checked)",
-            "value": "osquery:no-iptables-rules"
+            "severity": "low",
+            "title": "No active host firewall was detected",
+            "value": "osquery:no-host-firewall"
           },
-          "explain": "An empty iptables list can still mean a working nftables firewall. Treat this as a prompt to verify, not as proof."
+          "explain": "No iptables rules and no active ufw, firewalld or nftables service were found. Rules managed in other ways may not be visible."
         }
       ],
       "example": [
         {
-          "rules": "0"
+          "iptables_rules": "12",
+          "active_firewall_units": "1"
         }
       ],
       "platform": "linux"
@@ -766,6 +759,304 @@
         }
       ],
       "platform": "all"
+    },
+    {
+      "key": "osquery.os_release",
+      "platform": "all",
+      "title": "Operating system release",
+      "description": "Distribution name, version and codename, used to choose the right vulnerability data for installed packages.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, version, major, minor, platform, platform_like, codename FROM os_version",
+      "tables": [
+        "os_version"
+      ],
+      "columns": [
+        "name",
+        "version",
+        "major",
+        "minor",
+        "platform",
+        "platform_like",
+        "codename"
+      ],
+      "os": [
+        "linux",
+        "macos"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 5,
+      "timeout_seconds": 60,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "Ubuntu",
+          "version": "24.04.1 LTS (Noble Numbat)",
+          "major": "24",
+          "minor": "4",
+          "platform": "ubuntu",
+          "platform_like": "debian",
+          "codename": "noble"
+        }
+      ]
+    },
+    {
+      "key": "osquery.kernel",
+      "platform": "linux",
+      "title": "Running kernel",
+      "description": "The kernel release that is running now, compared with installed kernel packages to tell whether a reboot is needed.",
+      "category": "DefenseBot",
+      "sql": "SELECT version FROM kernel_info",
+      "tables": [
+        "kernel_info"
+      ],
+      "columns": [
+        "version"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 2,
+      "timeout_seconds": 60,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "version": "6.8.0-45-generic"
+        }
+      ]
+    },
+    {
+      "key": "osquery.npm_global",
+      "platform": "all",
+      "title": "Global npm packages",
+      "description": "Names and versions of globally installed npm packages (for example command-line tools), used for vulnerability mapping.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, version FROM npm_packages",
+      "tables": [
+        "npm_packages"
+      ],
+      "columns": [
+        "name",
+        "version"
+      ],
+      "os": [
+        "linux",
+        "macos"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 2000,
+      "timeout_seconds": 60,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "@anthropic-ai/claude-code",
+          "version": "2.0.65"
+        }
+      ]
+    },
+    {
+      "key": "osquery.pip_packages",
+      "platform": "all",
+      "title": "Python packages",
+      "description": "Names and versions of installed Python packages, used for vulnerability mapping.",
+      "category": "DefenseBot",
+      "sql": "SELECT DISTINCT p.name, p.version FROM users u JOIN python_packages p USING (uid)",
+      "tables": [
+        "users",
+        "python_packages"
+      ],
+      "columns": [
+        "name",
+        "version"
+      ],
+      "os": [
+        "linux",
+        "macos"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 3000,
+      "timeout_seconds": 90,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "requests",
+          "version": "2.31.0"
+        }
+      ]
+    },
+    {
+      "key": "osquery.macos_apps",
+      "platform": "darwin",
+      "title": "macOS applications",
+      "description": "Names, bundle identifiers and versions of installed macOS applications, used for vulnerability mapping.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, bundle_identifier, bundle_short_version AS version FROM apps",
+      "tables": [
+        "apps"
+      ],
+      "columns": [
+        "name",
+        "bundle_identifier",
+        "version"
+      ],
+      "os": [
+        "macos"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 2000,
+      "timeout_seconds": 90,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "Cursor.app",
+          "bundle_identifier": "com.todesktop.230313mzl4w4u92",
+          "version": "1.3.9"
+        }
+      ]
+    },
+    {
+      "key": "osquery.homebrew",
+      "platform": "darwin",
+      "title": "Homebrew packages",
+      "description": "Names and versions of Homebrew packages, used for vulnerability mapping.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, version FROM homebrew_packages",
+      "tables": [
+        "homebrew_packages"
+      ],
+      "columns": [
+        "name",
+        "version"
+      ],
+      "os": [
+        "macos"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 2000,
+      "timeout_seconds": 60,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "openssl@3",
+          "version": "3.3.1"
+        }
+      ]
+    },
+    {
+      "key": "osquery.exposure",
+      "platform": "linux",
+      "title": "Listening services and owning package",
+      "description": "TCP/UDP ports that listen on this endpoint, the program name and the package that owns the program. Used to tell which vulnerable software is reachable. Command lines are never read.",
+      "category": "DefenseBot",
+      "sql": "SELECT lp.port, lp.protocol, lp.address, p.name AS process, p.path AS exe_path, COALESCE(f.package, r.package) AS owner_package FROM listening_ports lp LEFT JOIN processes p ON p.pid=lp.pid LEFT JOIN deb_package_files f ON f.path=p.path LEFT JOIN rpm_package_files r ON r.path=p.path WHERE lp.port>0",
+      "tables": [
+        "listening_ports",
+        "processes",
+        "deb_package_files",
+        "rpm_package_files"
+      ],
+      "columns": [
+        "port",
+        "protocol",
+        "address",
+        "process",
+        "exe_path",
+        "owner_package"
+      ],
+      "os": [
+        "linux"
+      ],
+      "sensitivity": "medium",
+      "load": "medium",
+      "needs_root": false,
+      "max_rows": 1000,
+      "timeout_seconds": 90,
+      "mitre": [
+        {
+          "id": "T1049",
+          "reason": "Listing listening ports is System Network Connections Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "port": "443",
+          "protocol": "6",
+          "address": "0.0.0.0",
+          "process": "nginx",
+          "exe_path": "/usr/sbin/nginx",
+          "owner_package": "nginx"
+        }
+      ]
     }
   ]
 }

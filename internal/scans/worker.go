@@ -11,12 +11,16 @@ import (
 	"orchis-go/internal/auth"
 	"orchis-go/internal/authz"
 	"orchis-go/internal/contract"
+	"orchis-go/internal/defensebot"
 	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/reporting"
 	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
+	"regexp"
+	"sort"
+	"strings"
 	"time"
 )
 
@@ -32,7 +36,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "scan-dispatch:"+tenant.String()); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status=CASE WHEN x.hackbot_result->>'disposition' IN ('limited','input_required') THEN 'incomplete' WHEN x.outcome='success' THEN 'finished' WHEN x.outcome='canceled' THEN 'canceled' ELSE 'failed' END,error=COALESCE(x.error,''),ended_at=x.ended_at FROM executions x WHERE j.tenant_id=$1 AND x.tenant_id=j.tenant_id AND x.simulation_id=j.simulation_id AND x.state='ended' AND j.status='running'`, tenant); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status=CASE WHEN x.hackbot_result->>'disposition' IN ('limited','input_required') OR x.defense_result->>'disposition'='limited' THEN 'incomplete' WHEN x.outcome='success' THEN 'finished' WHEN x.outcome='canceled' THEN 'canceled' ELSE 'failed' END,error=COALESCE(x.error,''),ended_at=x.ended_at FROM executions x WHERE j.tenant_id=$1 AND x.tenant_id=j.tenant_id AND x.simulation_id=j.simulation_id AND x.state='ended' AND j.status='running'`, tenant); err != nil {
 			return err
 		}
 		// A canceled preliminary check must not leave its dependent test waiting forever.
@@ -57,6 +61,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		rows, err := tx.Query(ctx, `SELECT j.id,j.assessment_id,j.control_asset_id,j.contract_id,j.target,j.name,j.tool,j.contract_version,j.params,j.addresses
  FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id
  WHERE j.tenant_id=$1 AND j.status='waiting' AND a.status='running'
+ AND (j.tool<>'defensebot' OR a.created_at < now() - interval '10 minutes' OR NOT EXISTS(SELECT 1 FROM executions c JOIN contracts co ON co.tenant_id=c.tenant_id AND co.id=c.contract_id WHERE c.tenant_id=j.tenant_id AND c.target_asset_id=j.asset_id AND c.executor_kind='agent' AND co.key LIKE 'osquery.%' AND c.state IN ('ready','running') AND c.created_at >= a.created_at))
  AND (j.tool<>'hackbot' OR (
    EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap')
    AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nuclei')
@@ -239,7 +244,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				x.Status = "incomplete"
 				outcome = j.status
 			}
-			m := reporting.Method{Action: map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[j.tool], Version: j.version, Params: json.RawMessage(j.params), Target: reporting.Redact(j.target, 1000), Outcome: outcome, Error: reporting.Redact(j.why, 1000)}
+			m := reporting.Method{Action: map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS, "defensebot": contract.KeyDefenseBot}[j.tool], Version: j.version, Params: json.RawMessage(j.params), Target: reporting.Redact(j.target, 1000), Outcome: outcome, Error: reporting.Redact(j.why, 1000)}
 			if j.sim != nil {
 				e := tx.QueryRow(ctx, `SELECT started_at,ended_at,COALESCE(outcome,''),COALESCE(error,'') FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, tenant, *j.sim).Scan(&m.StartedAt, &m.EndedAt, &m.Outcome, &m.Error)
 				if e != nil && !errors.Is(e, pgx.ErrNoRows) {
@@ -267,6 +272,22 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				}
 				snap.Summary = hackbot.LimitSummary(snap.Summary + " " + x.Summary)
 			}
+			if j.tool == "defensebot" && j.sim != nil {
+				var raw []byte
+				e := tx.QueryRow(ctx, `SELECT defense_result FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, tenant, *j.sim).Scan(&raw)
+				if e != nil && !errors.Is(e, pgx.ErrNoRows) {
+					return e
+				}
+				if len(raw) > 0 {
+					var sum defensebot.Summary
+					if json.Unmarshal(raw, &sum) == nil {
+						x.Defense = &sum
+						if prov, e := json.Marshal(sum.Provenance); e == nil {
+							m.Params = prov
+						}
+					}
+				}
+			}
 			x.Methods = append(x.Methods, m)
 			if j.sim != nil {
 				findings, e := jobFindings(ctx, tx, tenant, *j.sim)
@@ -280,6 +301,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			}
 		}
 		for i := range snap.Assets {
+			linkOutsideConfirmation(&snap.Assets[i])
 			snap.Assets[i].Findings = reporting.MergeFindings(snap.Assets[i].Findings)
 			for _, f := range snap.Assets[i].Findings {
 				if f.Type == "vulnerability" {
@@ -292,4 +314,52 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 		}
 	}
 	return nil
+}
+
+var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)
+
+// linkOutsideConfirmation marks a DefenseBot finding when another method (Nuclei, Hackbot) reported the same CVE on the same
+// asset: the weakness was seen from inside and from outside. Findings are never merged or dropped, only annotated.
+func linkOutsideConfirmation(a *reporting.Asset) {
+	outside := map[string]map[string]bool{}
+	for _, f := range a.Findings {
+		if m := f.Evidence["method"]; m == "osv-distro" || m == "osv-exact" || m == "nvd-cpe" {
+			continue
+		}
+		raw, _ := f.Evidence["cve"].(string)
+		if tpl, _ := f.Evidence["template_id"].(string); tpl != "" {
+			raw += " " + tpl // Nuclei template ids are usually the CVE id
+		}
+		for _, cve := range cveRe.FindAllString(strings.ToUpper(raw), -1) {
+			if outside[cve] == nil {
+				outside[cve] = map[string]bool{}
+			}
+			for _, c := range f.Coverage {
+				switch {
+				case strings.Contains(c, contract.KeyNucleiVS):
+					outside[cve]["Nuclei"] = true
+				case strings.Contains(c, contract.KeyHackbot):
+					outside[cve]["Hackbot"] = true
+				}
+			}
+		}
+	}
+	for i := range a.Findings {
+		f := &a.Findings[i]
+		method, _ := f.Evidence["method"].(string)
+		if method != "osv-distro" && method != "osv-exact" && method != "nvd-cpe" {
+			continue
+		}
+		cve, _ := f.Evidence["cve"].(string)
+		seen := outside[strings.ToUpper(cve)]
+		if len(seen) == 0 {
+			continue
+		}
+		names := make([]string, 0, len(seen))
+		for n := range seen {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		f.Evidence["confirmed_by"] = strings.Join(names, ", ")
+	}
 }

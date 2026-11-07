@@ -107,7 +107,7 @@ export function AssetDetailPage() {
         </section>
         <AssetFindings assetID={a.id} allowed={can(me, 'finding.read')}/>
         <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')}/>
-        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'atomic.run')} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
+        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'assessment.run') && can(me, 'simulation.run')} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
       </div>
 
       {formatUI(can(me, 'asset.delete') && (<section className="danger" aria-labelledby="danger-h">

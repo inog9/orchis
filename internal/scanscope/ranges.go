@@ -184,6 +184,11 @@ func CheckJob(ctx context.Context, tx pgx.Tx, tenant, sim uuid.UUID, target stri
 		}
 		scope.CIDR = cidr
 	}
+	if rangeID == nil && scope.Target == "local" && target == "local" {
+		// DefenseBot jobs have no network target. The asset and organisation checks above are the authorization;
+		// the host guard does not apply because nothing is contacted at this address.
+		return &scope, nil
+	}
 	if err = scope.Validate(target, guard); err != nil {
 		return nil, err
 	}

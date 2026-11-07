@@ -36,7 +36,7 @@ func integrations(t *testing.T, a *app, cookie string) map[string]integJSON {
 func TestIntegrationsStatusTokenRotationAndEnableSwitch(t *testing.T) {
 	f := newScanFixture(t, true) // token nmap sudah diterbitkan
 	m := integrations(t, f.a, f.analyst)
-	if len(m) != 3 || m["agent"].Kind != "executor" || m["nmap"].Status != "offline" || !m["nmap"].HasToken || m["nuclei"].HasToken {
+	if len(m) != 5 || m["agent"].Kind != "executor" || m["nmap"].Status != "offline" || !m["nmap"].HasToken || m["nuclei"].HasToken {
 		t.Fatalf("keadaan awal: %+v", m)
 	}
 	if r := f.inj("POST", "heartbeat", map[string]any{"version": "1.2.3"}, f.token); r.Status != 200 {

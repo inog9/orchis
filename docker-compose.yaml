@@ -215,6 +215,15 @@ services:
     volumes: ["${ORCHIS_STATE}/nuclei.json:/run/secrets/app.json:ro"]
     mem_limit: 1g
     cpus: 1.0
+  defensebot:
+    extends: nmap
+    command: [--kind, defensebot]
+    volumes: ["${ORCHIS_STATE}/defensebot.json:/run/secrets/app.json:ro"]
+    environment:
+      ORCHIS_ENV_FILE: /run/secrets/app.json
+      ORCHIS_INJECTOR_CONCURRENCY: '1'
+    mem_limit: 512m
+    cpus: 0.5
   hackbot:
     init: true
     image: orchis-hackbot-worker:${ORCHIS_VERSION:-local}

@@ -50,7 +50,7 @@ func (d Def) ValidateDefinition() error {
 	if d.Key == "" || d.Version < 1 {
 		return fmt.Errorf("invalid action identity")
 	}
-	if !contains([]string{"hackbot", "nmap", "nuclei", "agent.listening_ports", "agent.system_info", AdapterOsquery}, d.Adapter) {
+	if !contains([]string{"hackbot", "defensebot", "nmap", "nuclei", "agent.listening_ports", "agent.system_info", AdapterOsquery}, d.Adapter) {
 		return fmt.Errorf("adapter not allowed")
 	}
 	if d.Schema.Type != "object" || d.Schema.AdditionalProperties {

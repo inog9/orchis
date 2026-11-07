@@ -32,7 +32,9 @@ func Redact(s string, limit int) string {
 }
 func SafeEvidence(in map[string]any) map[string]any {
 	out := map[string]any{}
-	for _, key := range []string{"template_id", "template", "matcher_name", "matched_at", "port", "protocol", "service", "product", "version", "cve", "cwe", "mitre", "verdict", "reason", "vector", "score", "remediation", "replay", "reproduction", "impact"} {
+	for _, key := range []string{"template_id", "template", "matcher_name", "matched_at", "port", "protocol", "service", "product", "version", "cve", "cwe", "mitre", "verdict", "reason", "vector", "score", "remediation", "replay", "reproduction", "impact",
+		"package", "ecosystem", "source_package", "installed_version", "fixed_version", "fix_status", "severity_source", "advisory", "advisory_url", "summary",
+		"exposure", "exposure_ports", "kev", "kev_added", "epss", "epss_percentile", "reboot_required", "advisory_count", "data_as_of", "rule", "method"} {
 		if value, ok := in[key]; ok {
 			switch v := value.(type) {
 			case string:
@@ -53,6 +55,8 @@ func newPrintTemplate(language string) *template.Template {
 	return template.Must(template.New("report").Funcs(template.FuncMap{
 		"comparison": func(s Snapshot) string { return reportComparison(language, s) },
 		"text":       func(v string) string { return reportText(language, v) },
+		"defense":    func(s Snapshot) template.HTML { return defenseHTML(language, s) },
+		"hasDefense": hasDefense,
 		"language":   func() string { return language },
 		"label":      func(v string) string { return reportLabel(language, v) },
 		"date":       func(t time.Time) string { return reportDate(language, t) },

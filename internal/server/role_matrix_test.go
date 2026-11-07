@@ -101,7 +101,7 @@ func TestThreeRolePolicyEveryAPIEndpoint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(seen) != 167 {
+	if len(seen) != 168 {
 		t.Fatalf("route inventory changed: got %d; review literal and five dynamic registrations", len(seen))
 	}
 }

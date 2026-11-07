@@ -229,14 +229,13 @@
     "name": "Installed packages (osquery)",
     "kind": "scan",
     "output_types": [
-      "service",
       "text"
     ],
     "timeout_seconds": 120,
-    "description": "Names and versions of installed software packages (deb and rpm). No vulnerability data is invented: versions are listed, not judged.",
+    "description": "Package names, source package names, versions and architectures of installed deb and rpm software, used only to map software to known vulnerabilities. Versions are matched, not judged.",
     "version": 1,
     "needs_agent": true,
-    "category": "Endpoint",
+    "category": "DefenseBot",
     "input_schema": {
       "type": "object",
       "properties": {},
@@ -296,7 +295,7 @@
     "description": "A few kernel security settings and disk encryption status. Read-only.",
     "version": 1,
     "needs_agent": true,
-    "category": "Endpoint",
+    "category": "DefenseBot",
     "input_schema": {
       "type": "object",
       "properties": {},
@@ -313,10 +312,10 @@
       "text"
     ],
     "timeout_seconds": 60,
-    "description": "Number of iptables rules. Needs administrator rights; nftables rules are not checked.",
+    "description": "Whether any iptables rules or an active ufw, firewalld or nftables service exist. Needs administrator rights.",
     "version": 1,
     "needs_agent": true,
-    "category": "Endpoint",
+    "category": "DefenseBot",
     "input_schema": {
       "type": "object",
       "properties": {},
@@ -341,6 +340,180 @@
       "type": "object",
       "properties": {},
       "order": []
+    }
+  },
+  {
+    "key": "osquery.os_release",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Operating system release (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Distribution name, version and codename, used to choose the right vulnerability data for installed packages.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.kernel",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Running kernel (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "The kernel release that is running now, compared with installed kernel packages to tell whether a reboot is needed.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.npm_global",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Global npm packages (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Names and versions of globally installed npm packages (for example command-line tools), used for vulnerability mapping.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.pip_packages",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Python packages (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 90,
+    "description": "Names and versions of installed Python packages, used for vulnerability mapping.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.macos_apps",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "macOS applications (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 90,
+    "description": "Names, bundle identifiers and versions of installed macOS applications, used for vulnerability mapping.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.homebrew",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Homebrew packages (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 60,
+    "description": "Names and versions of Homebrew packages, used for vulnerability mapping.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "osquery.exposure",
+    "adapter": "osquery",
+    "integration": "agent",
+    "name": "Listening services and owning package (osquery)",
+    "kind": "scan",
+    "output_types": [
+      "text"
+    ],
+    "timeout_seconds": 90,
+    "description": "TCP/UDP ports that listen on this endpoint, the program name and the package that owns the program. Used to tell which vulnerable software is reachable. Command lines are never read.",
+    "version": 1,
+    "needs_agent": true,
+    "category": "DefenseBot",
+    "input_schema": {
+      "type": "object",
+      "properties": {},
+      "order": []
+    }
+  },
+  {
+    "key": "defensebot.match",
+    "adapter": "defensebot",
+    "integration": "defensebot",
+    "name": "DefenseBot vulnerability mapping",
+    "kind": "vulnerability_scan",
+    "output_types": [
+      "vulnerability",
+      "text"
+    ],
+    "timeout_seconds": 1200,
+    "description": "Maps the software installed on an enrolled endpoint to known vulnerabilities and reports hardening gaps. Reads data collected by the agent; contacts public vulnerability services with software names and versions only.",
+    "version": 1,
+    "needs_agent": false,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string",
+          "label": "Report language",
+          "enum": [
+            "en",
+            "id"
+          ],
+          "default": "en"
+        }
+      },
+      "order": [
+        "language"
+      ]
     }
   }
 ]

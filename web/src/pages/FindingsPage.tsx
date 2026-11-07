@@ -14,7 +14,7 @@ import { StatCard } from '../components/orgs/StatCard';
 import { FindingDrawer } from '../components/findings/FindingDrawer';
 import { groupByOrganization } from '../lib/groupByOrganization';
 import { relativeTime } from '../lib/relativeTime';
-import { SEVERITIES, applySeverities, countBySeverity, groupByAsset, isNew, sortFindings, type FindingGroup, type SortKey, type ViewKey } from '../lib/findingsView';
+import { SEVERITIES, applySeverities, countBySeverity, groupByAsset, isNew, sortFindings, type FindingGroup, type SortKey, type ViewKey, applyDefenseFilters, defenseOf } from '../lib/findingsView';
 import type { Finding, User } from '../api/types';
 import './orgs.css';
 import './findings.css';
@@ -54,7 +54,7 @@ function Row({ f, me, onOpen }: { f: Finding; me: User | null | undefined; onOpe
       <button type="button" className="fnd-row__main" onClick={(e) => onOpen(f, e.currentTarget)}>
         <SeverityBadge severity={f.severity}/>
         <span className="fnd-row__text">
-          <strong>{formatUI(f.title)}{isNew(f) && <span className="fnd-new">{textUI("m_fnd_new")}</span>}</strong>
+          <strong>{formatUI(f.title)}{isNew(f) && <span className="fnd-new">{textUI("m_fnd_new")}</span>}{defenseOf(f)?.kev && <span className="fnd-def fnd-def--kev">{textUI("m_def_kev")}</span>}{defenseOf(f)?.exposure === 'exposed' && <span className="fnd-def fnd-def--exposed">{textUI("m_def_exp_exposed")}</span>}</strong>
           <code className="mono" title={f.value}>{f.value}</code>
         </span>
       </button>
@@ -93,6 +93,8 @@ export function FindingsPage({ organizationID, organizationName }: {
     const [text, setText] = useState('');
     const [type, setType] = useState('');
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+    const [kevOnly, setKevOnly] = useState(false);
+    const [exposedOnly, setExposedOnly] = useState(false);
     const [sort, setSort] = useState<SortKey>('severity');
     const [view, setViewState] = useState<ViewKey>(() => { const v = readStore<ViewKey>(VIEW_KEY, 'org'); return (inOrg || new URLSearchParams(window.location.search).get('org')) && v === 'org' ? 'flat' : v; });
     const [collapsed, setCollapsed] = useState<string[]>(() => readStore<string[]>(COLLAPSED_KEY, []));
@@ -102,14 +104,14 @@ export function FindingsPage({ organizationID, organizationName }: {
     const res = useFindings(q, type, severity, assetID, organization);
     const home = useHome(!inOrg && can(me, 'finding.read'));
     const loaded = res.data?.pages.flatMap((p) => p.items) ?? [];
-    const items = useMemo(() => sortFindings(applySeverities(loaded, selected), sort), [loaded, selected, sort]);
+    const items = useMemo(() => sortFindings(applyDefenseFilters(applySeverities(loaded, selected), { kev: kevOnly, exposed: exposedOnly }), sort), [loaded, selected, sort, kevOnly, exposedOnly]);
     const [comparisonMode, setComparisonMode] = useState(false);
     useEffect(() => setComparisonMode(false), [organization]);
     const effectiveView: ViewKey = (inOrg || organization) && view === 'org' ? 'flat' : view;
     const setView = (v: ViewKey) => { setViewState(v); writeStore(VIEW_KEY, v); };
     const toggleSev = (s: string) => setSelected((cur) => { const n = new Set(cur); if (n.has(s)) n.delete(s); else n.add(s); return n; });
     const toggleGroup = (key: string) => setCollapsed((cur) => { const n = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]; writeStore(COLLAPSED_KEY, n); return n; });
-    const clearAll = () => { setText(''); setType(''); setSelected(new Set()); if (!inOrg && (organization || assetID)) { const next = new URLSearchParams(params); next.delete('org'); next.delete('organization_id'); next.delete('asset_id'); setParams(next); } };
+    const clearAll = () => { setText(''); setType(''); setSelected(new Set()); setKevOnly(false); setExposedOnly(false); if (!inOrg && (organization || assetID)) { const next = new URLSearchParams(params); next.delete('org'); next.delete('organization_id'); next.delete('asset_id'); setParams(next); } };
     const setOrg = (value: string) => { const next = new URLSearchParams(params); next.delete('organization_id'); if (value) next.set('org', value); else next.delete('org'); setParams(next); };
 
     const reportList = useQuery({ queryKey: ['latest-scan-report', organization], enabled: !!organization && can(me, 'report.read'), queryFn: () => api.get<{ items: { id: string }[] }>(`/api/v1/reports?organization_id=${encodeURIComponent(organization)}&scan_only=true`), refetchInterval: 5000 });
@@ -119,6 +121,8 @@ export function FindingsPage({ organizationID, organizationName }: {
     const typeLabel = (v: string) => ({ open_port: textUI("m_5c9e0324afba"), service: textUI("m_d677190e0a99"), vulnerability: textUI("m_a123dd728a7a") })[v] ?? v;
     const chips: { key: string; label: string; remove: () => void }[] = [];
     SEVERITIES.filter((s) => selected.has(s)).forEach((s) => chips.push({ key: `s-${s}`, label: textUI("m_fnd_chip_sev", [SEV_LABEL(s)]), remove: () => toggleSev(s) }));
+    if (kevOnly) chips.push({ key: 'kev', label: textUI("m_def_chip_kev"), remove: () => setKevOnly(false) });
+    if (exposedOnly) chips.push({ key: 'exp', label: textUI("m_def_chip_exposed"), remove: () => setExposedOnly(false) });
     if (type) chips.push({ key: 't', label: textUI("m_fnd_chip_type", [typeLabel(type)]), remove: () => setType('') });
     if (q) chips.push({ key: 'q', label: textUI("m_fnd_chip_q", [q]), remove: () => setText('') });
     if (assetID) chips.push({ key: 'a', label: textUI("m_fnd_chip_asset", [loaded[0]?.asset_name || textUI("m_a04e2c43801b")]), remove: () => { const next = new URLSearchParams(params); next.delete('asset_id'); setParams(next); } });
@@ -165,6 +169,10 @@ export function FindingsPage({ organizationID, organizationName }: {
       </div>
       <div className="fnd-sevchips" role="group" aria-label={textUI("m_d44b62308969")}>
         {SEVERITIES.map((s) => <button key={s} type="button" className={`fnd-chip fnd-chip--${s}${selected.has(s) ? ' is-on' : ''}`} aria-pressed={selected.has(s)} onClick={() => toggleSev(s)}><i className={`fnd-dot fnd-dot--${s}`} aria-hidden="true"/>{SEV_LABEL(s)}</button>)}
+      </div>
+      <div className="fnd-sevchips" role="group" aria-label={textUI("m_def_filters")}>
+        <button type="button" className={`fnd-chip${kevOnly ? ' is-on' : ''}`} aria-pressed={kevOnly} onClick={() => setKevOnly((v) => !v)}>{textUI("m_def_f_kev")}</button>
+        <button type="button" className={`fnd-chip${exposedOnly ? ' is-on' : ''}`} aria-pressed={exposedOnly} onClick={() => setExposedOnly((v) => !v)}>{textUI("m_def_f_exposed")}</button>
       </div>
       {filtered && (<div className="fnd-active" aria-label={textUI("m_fnd_active")}>
         <span className="fnd-active__label">{textUI("m_fnd_active")}</span>
