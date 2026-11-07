@@ -11,12 +11,14 @@ import { AssessmentReadiness } from '../components/AssessmentReadiness';
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import './orgs.css';
+import './orgd.css';
 import { EmptyState } from '../components/orgs/EmptyState';
 import { OrgCard, OrgCardSkeleton, SeverityBar } from '../components/orgs/OrgCard';
 import { OrgToolbar, type SortKey, type ViewMode } from '../components/orgs/OrgToolbar';
 import { PageHeader } from '../components/orgs/PageHeader';
 import { Pagination } from '../components/orgs/Pagination';
 import { StatCard } from '../components/orgs/StatCard';
+import { OrgOverviewStats } from '../components/orgs/OrgOverviewStats';
 import { totalFindings, useAllOrganizations, useOrgReports, useStoredChoice } from '../components/orgs/useOrgData';
 import { relativeTime } from '../lib/relativeTime';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
@@ -188,8 +190,10 @@ export function OrganizationDetailPage() {
         return <ErrorMessage error={q.error}/>;
     const o = q.data;
     const localAgents = agents.data?.filter(a => a.organization_id === id) ?? [];
-    return <section className="page"><Link to="/organizations" className="link-quiet">{textUI("m_c242e176c772")}</Link><div className="page__head"><div><p className="eyebrow">{formatUI(o.industry || textUI("org_eyebrow_default"))}</p><h1 className="page__title">{formatUI(o.name)}</h1><p className="page__sub">{formatUI(o.description || textUI("m_938d049615ff"))}</p><p className="muted">{formatUI(o.contact)}</p></div><div className="row">{formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new?org=${id}`}>{textUI("m_ea1c510d1ddb")}</Link>)}{formatUI(can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setEdit(true)}>{textUI("m_e735f16f97b6")}</button>)}{formatUI(can(me, 'agent.manage') && can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setInstall(true)}>{textUI("m_2816f2ffe728")}</button>)}</div></div>
-    <ScanControls org={id}/>
+    const bySev = latest.data?.items[0]?.snapshot.by_severity;
+    return <section className="page orgd"><Link to="/organizations" className="link-quiet">{textUI("m_c242e176c772")}</Link><div className="page__head"><div><p className="eyebrow">{formatUI(o.industry || textUI("org_eyebrow_default"))}</p><h1 className="page__title">{formatUI(o.name)}</h1><p className="page__sub">{formatUI(o.description || textUI("m_938d049615ff"))}</p><p className="muted">{formatUI(o.contact)}</p></div><div className="row">{formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new?org=${id}`}>{textUI("m_ea1c510d1ddb")}</Link>)}{formatUI(can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setEdit(true)}>{textUI("m_e735f16f97b6")}</button>)}{formatUI(can(me, 'agent.manage') && can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setInstall(true)}>{textUI("m_2816f2ffe728")}</button>)}</div></div>
+    <ScanControls org={id} compact/>
+    {formatUI(tab === 'overview' && <OrgOverviewStats orgID={id} agents={localAgents} bySeverity={bySev} canAssets={can(me, 'asset.read')} canScans={can(me, 'assessment.read') && can(me, 'simulation.read')} canFindings={can(me, 'report.read') && can(me, 'finding.read')}/>)}
     {formatUI(advancedEnabled(me) && can(me, 'ai.read') && <p><Link to={`/organizations/${id}/ai`}>{textUI("m_c7db80dbcbe1")}</Link></p>)}{formatUI(tab === 'overview' && can(me, 'asset.read') && <AssessmentReadiness id={id}/>)}
     {formatUI(tab === 'overview' && latest.data?.items[0] && <section className="org-card" aria-label={textUI("m_205881c06747")}><p className="eyebrow">{textUI("m_d57cfdbf6eb3")}</p><h2>{formatUI(latest.data.items[0].snapshot.risk)}</h2><div className="severity-strip">{formatUI(['critical', 'high', 'medium', 'low', 'info'].map(severity => <p key={severity}><strong>{formatUI(latest.data!.items[0]!.snapshot.by_severity[severity] ?? 0)}</strong> {formatUI(severity)}</p>))}</div><Link to={`/reports/${latest.data.items[0].id}`}>{textUI("m_a7ff4f55b2f9")}</Link></section>)}
     <ErrorMessage error={members.error}/><nav className="tabs" aria-label={textUI("m_3c324254fabb")}>{formatUI(['overview', ...(can(me, 'agent.read') ? ['agents'] : []), ...(can(me, 'asset.read') ? ['assets'] : []), ...(can(me, 'assessment.read') ? ['scans'] : []), ...(can(me, 'finding.read') ? ['findings'] : []), ...(can(me, 'report.read') ? ['reports'] : [])].map(t => <button key={t} className={`tab ${tab === t ? 'is-active' : ''}`} aria-pressed={tab === t} onClick={() => setTab(t)}>{formatUI(t === 'agents' ? textUI("m_a6ea76b2725e") : textUI(({overview:'tab_overview',assets:'tab_assets',scans:'tab_scans',findings:'tab_findings',reports:'tab_reports'} as const)[t as 'overview']))}</button>))}</nav>
@@ -203,6 +207,7 @@ export function OrganizationDetailPage() {
             delete v[a.id]; return v; })}/></td><td><Link to={`/assets/${a.id}`}>{formatUI(a.name)}</Link></td><td>{formatUI(a.testing_authorized ? textUI("m_67f542ba6d8f") : textUI("m_52c79c7b5ba0"))}</td><td>{formatUI(a.agent_state === 'none' ? textUI("m_30f96cff8944") : a.agent_state)}</td></tr>))}</tbody></table></div>{formatUI(assets.data?.items.length === 0 && <div className="state"><h2>{textUI("m_e3d7edd3667c")}</h2><p>{formatUI(assign ? textUI("m_d6f66e4c90a6") : textUI("m_f4a82eba6b6a"))}</p>{formatUI(can(me, 'asset.write') && <Link to={`/organizations/${id}?tab=assets&new=1`}>{textUI("m_719aca414b88")}</Link>)}</div>)}<div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_14a7f568d2a9")}</button><button className="btn btn--secondary btn--auto" disabled={!assets.data?.next_cursor} onClick={() => { setCursor(assets.data!.next_cursor!); setSelected({}); }}>{textUI("m_1f4e681dd0c4")}</button></div></details></>)}
     {formatUI(tab === 'agents' && <OrganizationEndpoints org={id} agents={localAgents}/>)}
     {formatUI(tab === 'scans' && <ScanList organizationID={id} organizationName={o.name} embedded/>)}
+    {formatUI(tab === 'overview' && <ScanControls org={id}/>)}
     {formatUI(tab === 'overview' && can(me, 'settings.manage') && <DeleteOrganization key={id} org={id}/>)}
     {formatUI(edit && <OrgForm current={o} onClose={() => setEdit(false)}/>)}{formatUI(install && <InstallDialog organizationID={id} onClose={() => setInstall(false)}/>)}</section>;
 }

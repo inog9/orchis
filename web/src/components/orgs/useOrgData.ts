@@ -47,7 +47,8 @@ export function useOrgReports(ids: string[], enabled: boolean): Record<string, O
     return out;
 }
 
-export const totalFindings = (r: OrgReport | undefined) => (r ? SEVERITIES.reduce((n, s) => n + (r.bySeverity[s] ?? 0), 0) : 0);
+// Sama dengan KPI /home: semua tingkat keparahan dihitung, termasuk info (tidak lagi menampilkan "0 open" saat KPI menunjukkan temuan info).
+export const totalFindings = (r: OrgReport | undefined) => (r ? [...SEVERITIES, 'info'].reduce((n, s) => n + (r.bySeverity[s] ?? 0), 0) : 0);
 
 export type Health = 'attn' | 'some' | 'ok' | 'none';
 export function healthOf(r: OrgReport | undefined | null): Health {

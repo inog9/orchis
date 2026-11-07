@@ -3,7 +3,7 @@ import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/ru
 import { useScans } from '../api/scans';
 import { advancedEnabled, navigationFor } from './navigation';
 import { PageAccess, PageGuide } from './PageGuide';
-import { Bell, ChevronUp, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Server, UserRound, Users, X } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Server, UserRound, Users, X } from 'lucide-react';
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAlertAction, useAlerts, useHome, useLogout, useMe, useSettings, useSimulations } from '../api/hooks';
@@ -73,6 +73,7 @@ export function NavDock({ collapsed = false, onToggle, open = false, onClose }: 
                 onClose?.();
             }
         }}>
+    <div className="nav-top"><Wordmark live={running > 0}/></div>
     {formatUI(bar && <span className="nav-indicator" aria-hidden="true" style={{ transform: `translateY(${bar.y}px)`, height: bar.h }}/>)}
     {formatUI([textUI("m_87bb59ba2f92"), textUI("m_5a23444828db")].filter(group => items.some(n => n.group === group)).map(group => <div className="nav-group" key={group}>
       <span className="nav-group__title">{formatUI(group)}</span>
@@ -125,11 +126,9 @@ function WorkspaceMenu() {
     const role = me?.role ? me.role.charAt(0).toUpperCase() + me.role.slice(1) : '';
     const platform = settings.data?.platform_name ?? textUI("m_7d2364431c1a");
     return (<><div className="ws" ref={ref}>
-      <button type="button" className="ws__button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="ws__label">{formatUI(role ? textUI("m_shell_account", [role, platform]) : platform)}</span>
-        <span className="ws__avatar" aria-hidden="true">
-          {formatUI(initials)}
-        </span>
+      <button type="button" className="ws__button" aria-haspopup="menu" aria-expanded={open} aria-label={formatUI(role ? textUI("m_shell_account", [role, platform]) : platform) as string} onClick={() => setOpen((o) => !o)}>
+        <span className="ws__avatar" aria-hidden="true">{formatUI(initials)}</span>
+        <span className="ws__label"><b>{formatUI(role || me?.display_name || '')}</b><small>{formatUI(platform)}</small></span>
       </button>
       {formatUI(open && (<div className="menu" role="menu">
           <div className="menu__who">
@@ -190,27 +189,31 @@ function ActionDock({ openPalette }: {
     const { n, first } = useLiveRuns();
     const canCreate = ['organization.write', 'asset.write', 'simulation.run'].some(perm => can(me, perm));
     const item = (label: string, to: string, perm: string) => can(me, perm) ? (<button role="menuitem" className="menu__item" disabled={!can(me, perm)} onClick={() => { setOpen(false); navigate(to); }}><Plus size={15}/> {formatUI(label)}</button>) : null;
-    return (<div className="dock dock--action" ref={ref} role="region" aria-label={textUI("m_1810407f5ab7")}>
-      {formatUI(can(me, 'simulation.read') && <button type="button" className="dock__idle" onClick={() => navigate('/simulations')} aria-label={n > 0 ? textUI("m_c77817bd05a8", [n, n === 1 ? textUI("m_acba25512100") : textUI("m_1f64fff08d78")]) : textUI("m_d9390a6f6519")}>
-        <span className={`live-dot${n > 0 ? ' is-on' : ''}`} aria-hidden="true"/>
-        <span className="dock__idle-title">{formatUI(n > 0 ? textUI("m_c77817bd05a8", [n, n === 1 ? textUI("m_acba25512100") : textUI("m_1f64fff08d78")]) : textUI("m_d9390a6f6519"))}</span>
-        <span className="dock__idle-sub">{formatUI(n > 0 ? (first ?? textUI("m_f4ccae29e1bb")) : textUI("m_38e67fb129a3"))}</span>
-      </button>)}
-      {formatUI(can(me, 'simulation.read') && <span className="dock__sep" aria-hidden="true"/>)}
-      {formatUI(canCreate && <div className="dock__new-wrap">
-        <button type="button" className="btn-new" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{richUI("m_a8a8dccb2649", [<Plus size={14}/>, <ChevronUp size={12}/>])}</button>
-        {formatUI(open && (<div className="menu menu--up" role="menu">
-            {formatUI(item(textUI("m_1c3b4bf6ffd9"), '/organizations?new=1', 'organization.write'))}<p className="menu__group">{textUI("m_f5476433111a")}</p>
-            {formatUI(item(textUI("m_48f15767b06d"), '/assets?new=1', 'asset.write'))}
-            {formatUI(item(textUI("m_de2b814aeb96"), '/simulations/new', 'simulation.run'))}
-            {formatUI(advancedEnabled(me) && item(textUI("m_7b08c04b5ad8"), '/chains?new=1', 'scenario.write'))}
-            <p className="menu__group">{textUI("m_0ab25a59ac13")}</p>
-            {formatUI(item(textUI("m_66848b5361f4"), '/people?new=1', 'people.write'))}
-          </div>))}
-      </div>)}
-      <button type="button" className="search" onClick={openPalette} aria-label={textUI("m_e48ebb022089")}>{richUI("m_bab439bb84cf", [<Search size={13}/>, <kbd>⌘K</kbd>])}</button>
-      <Notifications />
-    </div>);
+    const runTitle = n > 0 ? textUI("m_c77817bd05a8", [n, n === 1 ? textUI("m_acba25512100") : textUI("m_1f64fff08d78")]) : textUI("m_d9390a6f6519");
+    const runSub = n > 0 ? (first ?? textUI("m_f4ccae29e1bb")) : textUI("m_38e67fb129a3");
+    return (<>
+      <button type="button" className="gsearch" onClick={openPalette} aria-label={textUI("m_e48ebb022089")}>{richUI("m_bab439bb84cf", [<Search size={16} aria-hidden="true"/>, <kbd>⌘K</kbd>])}</button>
+      <div className="topbar__actions" ref={ref} role="region" aria-label={textUI("m_1810407f5ab7")}>
+        {formatUI(can(me, 'simulation.read') && <button type="button" className={`runpill${n > 0 ? ' is-live' : ''}`} onClick={() => navigate('/simulations')} title={runSub} aria-label={`${runTitle}. ${runSub}`}>
+          <span className="runpill__dot" aria-hidden="true"/>
+          <span>{formatUI(runTitle)}</span>
+        </button>)}
+        {formatUI(canCreate && <div className="dock__new-wrap">
+          <button type="button" className="btn-new" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>{richUI("m_a8a8dccb2649", [<Plus size={16} aria-hidden="true"/>, <ChevronDown size={14} aria-hidden="true"/>])}</button>
+          {formatUI(open && (<div className="menu menu--up" role="menu">
+              {formatUI(item(textUI("m_1c3b4bf6ffd9"), '/organizations?new=1', 'organization.write'))}<p className="menu__group">{textUI("m_f5476433111a")}</p>
+              {formatUI(item(textUI("m_48f15767b06d"), '/assets?new=1', 'asset.write'))}
+              {formatUI(item(textUI("m_de2b814aeb96"), '/simulations/new', 'simulation.run'))}
+              {formatUI(advancedEnabled(me) && item(textUI("m_7b08c04b5ad8"), '/chains?new=1', 'scenario.write'))}
+              <p className="menu__group">{textUI("m_0ab25a59ac13")}</p>
+              {formatUI(item(textUI("m_66848b5361f4"), '/people?new=1', 'people.write'))}
+            </div>))}
+        </div>)}
+        <Notifications />
+        <LanguagePreference />
+        <WorkspaceMenu />
+      </div>
+    </>);
 }
 export function Shell({ children }: {
     children?: ReactNode;
@@ -237,8 +240,6 @@ export function Shell({ children }: {
         <button type="button" className="topbar__menu dock__icon" aria-label={drawer ? textUI("m_shell_close_menu") : textUI("m_shell_menu")} aria-expanded={drawer} onClick={() => setDrawer(d => !d)}>{drawer ? <X size={16} aria-hidden="true"/> : <Menu size={16} aria-hidden="true"/>}</button>
         <Wordmark live={running > 0}/>
         <ActionDock openPalette={() => setPalette(true)}/>
-        <LanguagePreference />
-        <WorkspaceMenu />
       </header>
       {formatUI(drawer && <div className="nav-scrim" aria-hidden="true" onClick={() => setDrawer(false)}/>)}
       <NavDock collapsed={collapsed} onToggle={toggle} open={drawer} onClose={() => setDrawer(false)}/>

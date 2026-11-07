@@ -10,6 +10,7 @@ import { App } from './App';
 import {LanguageSession} from './i18n/LanguagePreference';
 import { UNAUTHORIZED_EVENT } from './api/client';
 import './styles/tokens.css';
+import './styles/ui2.css';
 import './styles/app.css';
 import { applicationStylesReady, showStylesheetFailure } from './styles-ready';
 

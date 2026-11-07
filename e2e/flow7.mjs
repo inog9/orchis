@@ -89,7 +89,7 @@ const note = (vp, label, what) => { problems.push(`[${vp}] ${label}: ${what}`); 
 async function layout(vp, label) {
   const r = await p.evaluate(() => {
     const de = document.documentElement;
-    const dock = document.querySelector('.dock--action');
+    const dock = document.querySelector('.topbar__actions');
     const dockTop = dock && getComputedStyle(dock).position==='fixed' ? dock.getBoundingClientRect().top : Infinity;
     // elemen terjauh di bawah dalam .content (tanpa elemen fixed) setelah scroll ke dasar
     window.scrollTo(0, document.body.scrollHeight);

@@ -25,6 +25,7 @@
 .sevbar { display: flex; gap: 2px; height: 6px; border-radius: 3px; overflow: hidden; background: #1D2024; }
 .sevbar__seg { min-width: 4px; }
 .sevbar__seg--critical { background: #F87171; } .sevbar__seg--high { background: #FB923C; } .sevbar__seg--medium { background: #FBBF24; } .sevbar__seg--low { background: #60A5FA; }
+.sevbar__seg--info { background: #8E9AB5; }
 .sevbar__seg--empty { background: #1D2024; }
 
 /* Toolbar */

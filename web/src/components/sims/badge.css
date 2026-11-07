@@ -1,0 +1,11 @@
+/* Lencana status bersama (Simulations, Reports). */
+.sim-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.sim-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.sim-badge--ok { color: var(--v2-success); background: var(--v2-success-soft); }
+.sim-badge--live { color: var(--v2-accent); background: var(--v2-accent-soft); }
+.sim-badge--live i { animation: sim-pulse 1.6s ease-in-out infinite; }
+.sim-badge--bad { color: var(--v2-critical); background: var(--v2-critical-soft); }
+.sim-badge--warn { color: var(--v2-high); background: var(--v2-high-soft); }
+.sim-badge--idle { color: var(--v2-info); background: var(--v2-info-soft); }
+@keyframes sim-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .sim-badge--live i { animation: none; } }

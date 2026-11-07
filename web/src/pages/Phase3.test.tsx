@@ -171,7 +171,7 @@ describe('FindingsPage', () => {
     mount(<FindingsPage />, '/findings');
     expect(await screen.findByText('Exposed .env')).toBeInTheDocument();
     expect(within(screen.getByRole('list', { name: 'Findings' })).getByText('Critical')).toBeInTheDocument();
-    expect(screen.getAllByText(/seen 2×/i)).toHaveLength(2);
+    expect(screen.getAllByText('×2')).toHaveLength(2);
     await user.type(screen.getByLabelText('Search findings'), 'zzz');
     expect(await screen.findByText('No findings match')).toBeInTheDocument();
     expect(urls.some((u) => u.includes('q=zzz'))).toBe(true);
@@ -186,11 +186,11 @@ describe('FindingsPage', () => {
     mount(<FindingsPage />, '/findings');
     const heads = await screen.findAllByRole('heading', { level: 2 });
     expect(heads.map((h) => h.textContent)).toEqual(['Alpha Corp', 'Zeta Corp']);
-    const alpha = heads[0]!.closest('details')!;
+    const alpha = heads[0]!.closest('section')!;
     expect(within(alpha).getByText('2 findings')).toBeInTheDocument();
     const titles = within(alpha).getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent);
     expect(titles).toEqual(['Critical thing', 'Low thing']);
-    expect(within(heads[1]!.closest('details')!).queryByText('Critical thing')).toBeNull();
+    expect(within(heads[1]!.closest('section')!).queryByText('Critical thing')).toBeNull();
   });
 
   it('dibatasi ke satu organisasi: daftar datar tanpa kelompok', async () => {

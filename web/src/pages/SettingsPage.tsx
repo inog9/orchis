@@ -1,6 +1,5 @@
 import { t as textUI, useLocale, fv as formatUI } from "../i18n/runtime";
-import { RetentionPanel } from '../components/RetentionPanel';
-import { ScanControls } from '../components/ScanControls';
+import './settings.css';
 import { Suspense } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useMe } from '../api/hooks';
@@ -16,12 +15,11 @@ export function SettingsPage() {
         { to: '/settings/audit', label: textUI("m_e4d36f9a4e22"), show: can(me, 'audit.read') },
         { to: '/settings/tags', label: textUI("m_1331275bc537"), show: can(me, 'asset.read') },
     ].filter((t) => t.show);
-    return (<section className="page" aria-labelledby="settings-title">
+    return (<section className="page settings" aria-labelledby="settings-title">
       <div className="page__head"><div><h1 id="settings-title" className="page__title">{textUI("m_74a883a037bc")}</h1><p className="page__sub">{textUI("m_ed4a86bd0509")}</p></div></div>
       <nav className="tabs" aria-label={textUI("m_e26d51d36781")}>
         {formatUI(tabs.map((t) => <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'is-active' : ''}`}>{formatUI(t.label)}</NavLink>))}
       </nav>
-      {formatUI(can(me, 'settings.manage') && <><ScanControls /><RetentionPanel /></>)}
       <Suspense fallback={<span className="skeleton" role="status" aria-label={textUI("m_f458d7c761f0")}/>}><Outlet /></Suspense>
     </section>);
 }

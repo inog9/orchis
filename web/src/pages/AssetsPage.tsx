@@ -12,6 +12,7 @@ import { ImportDialog } from './ImportDialog';
 import { AddAssetDialog } from './AddAssetDialog';
 import { OrganizationGroup } from '../components/OrganizationGroup';
 import { groupByOrganization } from '../lib/groupByOrganization';
+import './assets.css';
 import { CATEGORIES, categoryOf, PLATFORM_LABEL } from './categories';
 function useDebounced<T>(value: T, ms: number) {
     const [v, setV] = useState(value);
@@ -86,7 +87,7 @@ export function AssetsPage({ organizationID, organizationName }: {
             setParams(params, { replace: true });
         }
     };
-    return (<section aria-labelledby="assets-title" className="page">
+    return (<section aria-labelledby="assets-title" className="page assets">
       <div className="page__head">
         <div>
           <nav className="crumbs" aria-label={textUI("m_2bd873d6c734")}>

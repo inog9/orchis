@@ -5,6 +5,9 @@ import { useMe, useMitreImport, useMitreMatrix, useSaveSettings, useSettings } f
 import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { Field } from '../components/Field';
+import { RetentionPanel } from '../components/RetentionPanel';
+import { ScanControls } from '../components/ScanControls';
+import './settings.css';
 import { when } from '../components/RunBadges';
 const COMPONENT_LABEL = { get up() {
         return textUI("m_f4ccae29e1bb");
@@ -34,7 +37,8 @@ export function PlatformPanel() {
         return <span className="skeleton"/>;
     if (q.isError || !q.data)
         return <div className="state state--error" role="alert"><h2>{textUI("m_26e462978d2f")}</h2><p>{formatUI(describeError(q.error).message)}</p></div>;
-    return (<div className="stack">
+    return (<div className="stack settings">
+      {formatUI(admin && <><ScanControls /><RetentionPanel /></>)}
       <form className="panel" onSubmit={submit} noValidate aria-label={textUI("m_da1aaf08663b")}>
         <h2 className="panel__heading">{textUI("m_c78ffe195710")}</h2>
         <Field label={textUI("m_b36295f8a031")} value={name} onChange={(e) => { save.reset(); setName(e.target.value); }} disabled={!admin} error={fieldErr} hint={textUI("m_a7cd4b648e76")}/>

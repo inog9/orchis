@@ -1,3 +1,4 @@
+import { Globe } from 'lucide-react';
 import { useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
@@ -27,6 +28,7 @@ export function LanguagePreference() {
     },
   });
   return <div className="language-preference">
+    <Globe className="language-preference__icon" size={16} aria-hidden="true"/>
     <label htmlFor="language-preference">{t('language_label')}</label>
     <select id="language-preference" value={language()} disabled={save.isPending} onChange={event => {
       const value = event.target.value as Language;

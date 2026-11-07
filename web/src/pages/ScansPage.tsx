@@ -2,6 +2,12 @@ import {displayLabel} from '../i18n/display';
 import {language} from '../i18n/runtime';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
+import { Plus } from 'lucide-react';
+import { StatusBadge } from '../components/sims/StatusBadge';
+import { useAllOrganizations } from '../components/orgs/useOrgData';
+import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
+import { SeverityBadge } from '../components/RunBadges';
+import './sims.css';
 import { ScanControls, useScanControl } from '../components/ScanControls';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -15,6 +21,8 @@ import { AgentNetworks } from '../components/AgentNetworks';
 import { describeError } from '../components/ErrorNote';
 import { LegacySimulations } from './LegacySimulations';
 import { scannable } from './categorySchema';
+const units = () => ({ h: textUI("m_sim_u_h"), m: textUI("m_sim_u_m"), s: textUI("m_sim_u_s") });
+const startedAt = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 export function ScanList({ organizationID, organizationName, embedded = false }: {
     organizationID?: string;
     organizationName?: string;
@@ -25,12 +33,39 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
     const [params, setParams] = useSearchParams();
     const [cursor, setCursor] = useState('');
     const org = organizationID ?? params.get('org') ?? '';
-    const q = useScans(org, cursor, can(me, 'assessment.read') && can(me, 'simulation.read') && can(me, 'asset.read') && can(me, 'organization.read'));
+    const enabled = can(me, 'assessment.read') && can(me, 'simulation.read') && can(me, 'asset.read') && can(me, 'organization.read');
+    const q = useScans(org, cursor, enabled);
+    const orgs = useAllOrganizations();
+    const orgName = (id: string) => orgs.data?.find((o) => o.id === id)?.name ?? organizationName ?? id.slice(0, 8);
     const Heading = embedded ? 'h2' : 'h1';
-    return <section className="page"><div className="page__head"><div><p className="eyebrow">{textUI("m_b0537b978fef")}</p><Heading className="page__title">{formatUI(embedded ? textUI("m_d128917a9540") : textUI("m_078a864ea0f1"))}</Heading><p className="page__sub">{textUI("m_bb8add5b0686")}</p></div>{formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new${org ? `?org=${encodeURIComponent(org)}` : ''}`}>{textUI("m_de2b814aeb96")}</Link>)}</div><div className="toolbar"><OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={v => { const next = new URLSearchParams(params); if (v)
-        next.set('org', v);
-    else
-        next.delete('org'); setParams(next); setCursor(''); }}/></div>{formatUI(q.isPending && q.fetchStatus !== 'idle' && <p role="status">{textUI("m_e0b80da465d6")}</p>)}{formatUI(q.error && <p role="alert" className="alert">{formatUI(describeError(q.error).message)}</p>)}<div className="org-grid">{formatUI(q.data?.items.map(s => <article key={s.id} className="org-card"><h2><Link to={`/simulations/${s.id}`}>{formatUI(s.name)}</Link></h2><p>{formatUI(s.status)} · {formatUI(s.options.tools.join(' + '))} · {formatUI(s.options.preset)}</p><p className="muted">{richUI("m_9afcf13c0f9e", [formatUI(new Date(s.created_at).toLocaleString(locale()))])}</p></article>))}</div>{formatUI(q.data?.items.length === 0 && <div className="state"><h2>{textUI("m_3c2ec23816e3")}</h2><p>{textUI("m_9ec336bb3650")}</p></div>)}<div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_9990a5defe90")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_c0f7567862e4")}</button></div>{formatUI(!embedded && <details><summary>{textUI("m_04ab162cdd89")}</summary><p>{textUI("m_4310bb792a7d")}</p><LegacySimulations /></details>)}</section>;
+    const items = q.data?.items ?? [];
+    const canRun = can(me, 'assessment.run') && can(me, 'simulation.run');
+    const setOrg = (v: string) => { const next = new URLSearchParams(params); if (v) next.set('org', v); else next.delete('org'); setParams(next); setCursor(''); };
+    return <section className="page sims" aria-labelledby="scans-title">
+      <div className="page__head"><div>
+        <p className="eyebrow">{textUI("m_sim_eyebrow")}</p>
+        <Heading id="scans-title" className="page__title">{formatUI(embedded ? textUI("m_d128917a9540") : textUI("m_078a864ea0f1"))}</Heading>
+        <p className="page__sub">{textUI("m_bb8add5b0686")}</p>
+      </div>{formatUI(canRun && <Link className="btn btn--primary btn--auto sims__new" to={`/simulations/new${org ? `?org=${encodeURIComponent(org)}` : ''}`}><Plus size={14} aria-hidden="true"/>{textUI("m_sim_new")}</Link>)}</div>
+      <div className="toolbar"><OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={setOrg}/></div>
+      {!me || (q.isPending && q.fetchStatus !== 'idle') ? <ul className="sims__list" aria-busy="true" aria-label={textUI("m_e0b80da465d6")}>{[0, 1, 2, 3].map((i) => <li key={i} className="sims__row sims__row--skeleton"><span className="skeleton"/></li>)}</ul>
+        : q.error ? <div className="state state--error" role="alert"><h2>{textUI("m_sim_err_t")}</h2><p>{formatUI(describeError(q.error).message)}</p><button type="button" className="btn btn--secondary btn--auto" onClick={() => q.refetch()}>{textUI("m_sim_retry")}</button></div>
+        : items.length === 0 && q.data ? <div className="state" role="status"><h2>{formatUI(org ? textUI("m_sim_none_t") : textUI("m_3c2ec23816e3"))}</h2><p>{formatUI(org ? textUI("m_sim_none_b") : textUI("m_9ec336bb3650"))}</p>{org && !organizationID ? <button type="button" className="btn btn--secondary btn--auto" onClick={() => setOrg('')}>{textUI("m_sim_clear_filter")}</button> : canRun && <Link className="btn btn--secondary btn--auto" to="/simulations/new">{textUI("m_sim_new")}</Link>}</div>
+        : !q.data ? null
+        : <div className="sims__table" role="table" aria-label={textUI("m_sim_list")}>
+          <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_preset")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
+          {items.map((s) => <div key={s.id} className="sims__row" role="row">
+            <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
+            <span role="cell"><StatusBadge status={s.status}/></span>
+            <span role="cell" className="mono">{formatUI(s.options.tools.join(' + '))}</span>
+            <span role="cell">{formatUI(s.options.preset)}</span>
+            <span role="cell" className="mono">{startedAt(s.created_at)}</span>
+            <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
+          </div>)}
+        </div>}
+      <div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_sim_newer")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_sim_older")}</button></div>
+      {formatUI(!embedded && <details><summary>{textUI("m_04ab162cdd89")}</summary><p>{textUI("m_4310bb792a7d")}</p><LegacySimulations /></details>)}
+    </section>;
 }
 export function NewScanPage() {
     useLocale();
@@ -71,20 +106,78 @@ export function ScanDetailPage() {
     const { data: me } = useMe();
     const qc = useQueryClient();
     const q = useQuery({ queryKey: ['scan', id], queryFn: () => api.get<Scan>(`/api/v1/scans/${id}`), refetchInterval: query => query.state.data?.status === 'running' ? 1500 : false });
+    const orgQ = useQuery({ queryKey: ['organization-name', q.data?.organization_id], enabled: !!q.data && can(me, 'organization.read'), queryFn: () => api.get<{ name: string }>(`/api/v1/organizations/${q.data!.organization_id}`), retry: false });
     const [added, setAdded] = useState<Record<string, string>>({});
     const cancel = useMutation({ mutationFn: () => api.post(`/api/v1/scans/${id}/cancel`), onSuccess: () => q.refetch() });
     const add = useMutation({ mutationFn: (job: string) => api.post<{
             id: string;
         }>(`/api/v1/scan-jobs/${job}/asset`, {}), onSuccess: async (asset, job) => { setAdded(current => ({ ...current, [job]: asset.id })); await qc.invalidateQueries({ queryKey: ['assets'] }); } });
     if (q.isPending)
-        return <p role="status">{textUI("m_8eda2014e161")}</p>;
+        return <p role="status">{textUI("m_sim_loading")}</p>;
     if (!q.data)
         return <p className="alert" role="alert">{formatUI(describeError(q.error).message)}</p>;
     const s = q.data;
+    const jobs = s.jobs ?? [];
+    const counts = jobCounts(jobs);
+    const flat = flattenFindings(jobs);
+    const running = s.status === 'running';
+    const cmp = s.comparison_details?.totals;
     const groups = new Map<string, NonNullable<Scan['jobs']>>();
-    for (const job of s.jobs ?? []) {
+    for (const job of jobs) {
         const group = job.asset_id ?? job.name;
         groups.set(group, [...(groups.get(group) ?? []), job]);
     }
-    return <section className="page"><Link to="/simulations">{textUI("m_ee68966f9267")}</Link><div className="page__head"><div><p className="eyebrow">{richUI("m_d573647405a4", [formatUI(s.options.preset)])}</p><h1 className="page__title">{formatUI(s.name)}</h1><p className="page__sub" role="status">{formatUI(s.status)} · {formatUI(new Date(s.created_at).toLocaleString(locale()))}</p><p>{textUI("m_795608b006f9")}</p></div>{formatUI(s.status === 'running' && can(me, 'assessment.run') && can(me, 'simulation.run') && <button className="btn btn--danger btn--auto" disabled={cancel.isPending} onClick={() => cancel.mutate()}>{textUI("m_298360e0b166")}</button>)}</div><div className="row"><Link to={`/organizations/${s.organization_id}?tab=scans`}>{textUI("m_350be3643ce7")}</Link>{formatUI(can(me, 'finding.read') && <Link to={`/findings?org=${s.organization_id}`}>{textUI("m_3bd3a989b0f0")}</Link>)}{formatUI(s.status !== 'running' && can(me, 'report.read') && <Link to={`/reports?assessment_id=${id}`}>{textUI("m_e81de18ed78e")}</Link>)}</div>{formatUI((cancel.error || add.error) && <p className="alert" role="alert">{formatUI(describeError(cancel.error || add.error).message)}</p>)}<>{formatUI(s.results_expired_at && <p role="status" className="alert">{textUI("m_6e77528b9b49")}</p>)}</><ScanComparison comparison={s.comparison_details} pending={s.status === 'running'}/>{formatUI(Array.from(groups).map(([key, jobs]) => <article className="org-card" key={key}><h2>{formatUI(jobs[0]!.name)}</h2>{formatUI(jobs.map(j => <section key={j.id} className="org-card"><h3>{formatUI(j.tool === 'nmap' ? textUI("m_8ecf2262720c") : textUI("m_fc5796e8828b"))} · {formatUI(j.status)}</h3><p className="mono">{formatUI(j.target || textUI("m_6789458750ba"))}</p>{formatUI(j.error && <p className="alert">{formatUI(j.error)}</p>)}{formatUI(j.status === 'finished' && <p>{formatUI(j.tool === 'nmap' ? textUI("m_2ba781aa59ab") : textUI("m_fc367d4af9bc"))}{formatUI(j.findings.length === 0 ? ' No findings recorded for this coverage.' : '')}</p>)}<ul className="stack-list">{formatUI(j.findings.map(f => <li key={f.id}><strong>{formatUI(f.title)}</strong><p>{formatUI(f.severity)} · {formatUI(f.type)} · {formatUI(f.value)}</p>{formatUI(Object.entries(f.evidence ?? {}).map(([name, value]) => <p key={name} className="muted small">{formatUI(name)}: {formatUI(String(value))}</p>))}</li>))}</ul>{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <p>{formatUI(added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--auto" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>)}<span className="muted small">{textUI("m_4da4598a9f0b")}</span></p>)}</section>))}</article>))}</section>;
+    const stamp = (iso: string | null) => { if (!iso) return '—'; const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'medium' }); };
+    return <section className="page sims" aria-labelledby="scan-title">
+      <Link className="sims__back" to="/simulations">{textUI("m_sim_back")}</Link>
+      <div className="page__head"><div>
+        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(s.options.preset)])}</p>
+        <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
+        <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
+        <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
+      </div>
+      <div className="sims__actions">
+        {formatUI(running && can(me, 'assessment.run') && can(me, 'simulation.run') && <button className="btn btn--danger btn--auto" disabled={cancel.isPending} onClick={() => cancel.mutate()}>{textUI("m_sim_cancel")}</button>)}
+        <Link className="btn btn--secondary btn--auto" to={`/organizations/${s.organization_id}?tab=scans`}>{textUI("m_sim_open_org")}</Link>
+        {formatUI(can(me, 'finding.read') && <Link className="btn btn--secondary btn--auto" to={`/findings?org=${s.organization_id}`}>{textUI("m_sim_org_findings")}</Link>)}
+        {formatUI(!running && can(me, 'report.read') && <Link className="btn btn--secondary btn--auto" to={`/reports?assessment_id=${id}`}>{textUI("m_sim_scan_report")}</Link>)}
+      </div></div>
+      {formatUI((cancel.error || add.error) && <p className="alert" role="alert">{formatUI(describeError(cancel.error || add.error).message)}</p>)}
+      {formatUI(s.results_expired_at && <p role="status" className="alert">{textUI("m_6e77528b9b49")}</p>)}
+      <div className="sims__stats">
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_status")}><span className="stat__label">{textUI("m_sim_d_status")}</span><span className="sims__stat-v"><StatusBadge status={s.status}/></span><span className="stat__sub">{formatUI(s.ended_at ? textUI("m_sim_ended_at", [stamp(s.ended_at)]) : textUI("m_sim_not_ended"))}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value mono">{formatDuration(durationMs(s), units())}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value mono">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value mono">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
+      </div>
+      <section className="sims__panel" aria-labelledby="tl-h"><h2 id="tl-h" className="sims__h">{textUI("m_sim_timeline")}</h2>
+        <ol className="sims__timeline">
+          <li><b>{textUI("m_sim_t_created")}</b><span className="mono">{stamp(s.created_at)}</span></li>
+          {jobs.map((j) => <li key={j.id}><b>{formatUI(j.tool)} · {formatUI(j.status)}</b><span className="muted small">{formatUI(j.target || '—')}</span></li>)}
+          <li><b>{formatUI(s.ended_at ? textUI("m_sim_t_ended") : textUI("m_sim_t_waiting"))}</b><span className="mono">{stamp(s.ended_at)}</span></li>
+        </ol></section>
+      <ScanComparison comparison={s.comparison_details} pending={running}/>
+      <section className="sims__panel" aria-labelledby="jobs-h"><h2 id="jobs-h" className="sims__h">{textUI("m_sim_jobs_h")} <span className="muted">{groups.size}</span></h2>
+        {formatUI(Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>
+          <div className="sims__jobs" role="table" aria-label={gj[0]!.name}>
+            <div className="sims__jrow sims__head" role="row"><span role="columnheader">{textUI("m_sim_job_tool")}</span><span role="columnheader">{textUI("m_sim_job_target")}</span><span role="columnheader">{textUI("m_sim_job_status")}</span><span role="columnheader">{textUI("m_sim_job_findings")}</span><span role="columnheader">{textUI("m_sim_job_note")}</span></div>
+            {gj.map((j) => <div key={j.id} className="sims__jrow" role="row">
+              <span role="cell" className="mono">{formatUI(j.tool)}</span>
+              <span role="cell" className="mono" title={j.target}>{formatUI(j.target || textUI("m_6789458750ba"))}</span>
+              <span role="cell"><StatusBadge status={j.status}/></span>
+              <span role="cell" className="mono">{j.findings.length}</span>
+              <span role="cell" className="sims__note">{formatUI(j.error || '—')}{formatUI(j.range_id && j.status === 'finished' && can(me, 'asset.write') && can(me, 'organization.write') && <> {added[j.id] ? <Link to={`/assets/${added[j.id]}`}>{textUI("m_97c0d733eb49")}</Link> : <button className="btn btn--secondary btn--sm" disabled={add.isPending} onClick={() => add.mutate(j.id)}>{textUI("m_dbe1efc343e2")}</button>} <span className="muted small">{textUI("m_4da4598a9f0b")}</span></>)}</span>
+            </div>)}
+          </div></div>))}
+      </section>
+      <section className="sims__panel" aria-labelledby="fnd-h"><h2 id="fnd-h" className="sims__h">{textUI("m_sim_produced")} <span className="muted">{flat.length}</span></h2>
+        {flat.length === 0 ? <p className="muted">{textUI("m_sim_no_findings")}</p> : <div className="sims__finds" role="table" aria-label={textUI("m_sim_produced")}>
+          <div className="sims__frow sims__head" role="row"><span role="columnheader">{textUI("m_sim_f_sev")}</span><span role="columnheader">{textUI("m_sim_f_type")}</span><span role="columnheader">{textUI("m_sim_f_title")}</span><span role="columnheader">{textUI("m_sim_f_value")}</span><span role="columnheader">{textUI("m_sim_f_tool")}</span></div>
+          {flat.map((f) => <div key={f.id} className="sims__frow" role="row">
+            <span role="cell"><SeverityBadge severity={f.severity as 'info'}/></span><span role="cell" className="mono">{formatUI(f.type)}</span>
+            <span role="cell"><strong>{formatUI(f.title)}</strong></span><span role="cell" className="mono" title={f.value}>{formatUI(f.value)}</span><span role="cell" className="mono">{formatUI(f.tool)}</span>
+          </div>)}
+        </div>}
+      </section>
+    </section>;
 }

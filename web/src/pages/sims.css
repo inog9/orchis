@@ -1,0 +1,48 @@
+/* Simulations v2 (orchisv2.pen). Token --v2-*. */
+.sims { display: flex; flex-direction: column; gap: 16px; color: var(--v2-text); }
+.sims__new { display: inline-flex; align-items: center; gap: 6px; }
+.sims__back { font-size: 13px; color: var(--v2-text-2); text-decoration: none; width: fit-content; }
+.sims__back:hover { color: var(--v2-accent); }
+.sims__caveat { font-size: 13px; color: var(--v2-text-3); max-width: 70ch; margin: 8px 0 0; }
+.sims__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.sims__actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.sims__table, .sims__list, .sims__jobs, .sims__finds { border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); overflow: hidden; list-style: none; margin: 0; padding: 0; }
+.sims__row, .sims__jrow, .sims__frow { display: grid; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--v2-border); font-size: 13px; }
+.sims__row { grid-template-columns: minmax(0, 2fr) 130px minmax(0, 1.2fr) 100px 170px 100px; }
+.sims__jrow { grid-template-columns: 90px minmax(0, 1.6fr) 130px 80px minmax(0, 1.4fr); }
+.sims__frow { grid-template-columns: 100px 110px minmax(0, 1.4fr) minmax(0, 1.6fr) 90px; }
+.sims__row:last-child, .sims__jrow:last-child, .sims__frow:last-child { border-bottom: 0; }
+.sims__row:not(.sims__head):hover { background: var(--v2-surface-2); }
+.sims__head { font-size: 11px; font-weight: 600; letter-spacing: 1px; color: var(--v2-text-3); background: var(--v2-surface-2); }
+.sims__row > *, .sims__jrow > *, .sims__frow > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sims__scan { display: flex; flex-direction: column; gap: 2px; }
+.sims__scan a { color: var(--v2-text); font-weight: 600; text-decoration: none; overflow: hidden; text-overflow: ellipsis; }
+.sims__scan a:hover { color: var(--v2-accent); text-decoration: underline; }
+.sims__scan code { font-size: 11px; color: var(--v2-text-3); }
+.sims__row--skeleton { display: block; }
+.sims__note { white-space: normal !important; overflow-wrap: anywhere; color: var(--v2-text-2); }
+.sims__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.sims .stat { padding: 14px 16px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 6px; }
+.sims .stat__label { color: var(--v2-text-2); font-size: 12px; } .sims .stat__value { font-size: 24px; font-weight: 600; color: var(--v2-text); }
+.sims .stat__sub { font-size: 12px; color: var(--v2-text-3); overflow-wrap: anywhere; }
+.sims__stat-v { min-height: 28px; display: flex; align-items: center; }
+.sims__panel { padding: 16px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; }
+.sims__h { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; color: var(--v2-text-3); margin: 0; text-transform: uppercase; }
+.sims__timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--v2-border); display: flex; flex-direction: column; gap: 12px; }
+.sims__timeline li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; position: relative; }
+.sims__timeline li::before { content: ''; position: absolute; left: -22px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--v2-accent); }
+.sims__group h3 { font-size: 14px; margin: 0 0 8px; }
+.sims__group + .sims__group { margin-top: 8px; }
+@media (max-width: 1023px) {
+  .sims__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sims__row { grid-template-columns: minmax(0, 2fr) 120px minmax(0, 1fr) 150px; } .sims__row > :nth-child(4), .sims__row > :nth-child(6) { display: none; }
+  .sims__frow { grid-template-columns: 90px minmax(0, 1.4fr) minmax(0, 1.4fr) 80px; } .sims__frow > :nth-child(2) { display: none; }
+}
+@media (max-width: 679px) {
+  .sims__head { display: none; }
+  .sims__row { grid-template-columns: minmax(0, 1fr) auto; } .sims__row > :nth-child(n+3) { display: none; }
+  .sims__jrow, .sims__frow { grid-template-columns: minmax(0, 1fr) auto; } .sims__jrow > :nth-child(n+4), .sims__frow > :nth-child(n+4) { display: none; }
+  .sims__frow > :nth-child(2) { display: none; }
+  .sims__stats { grid-template-columns: minmax(0, 1fr); }
+}
+

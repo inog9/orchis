@@ -1,5 +1,7 @@
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { AssetFindings } from '../components/AssetFindings';
+import { AssetScanHistory } from '../components/AssetScanHistory';
+import './assets.css';
 import { EndpointDataPanel } from '../components/EndpointDataPanel';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState, Fragment } from 'react';
@@ -38,7 +40,7 @@ export function AssetDetailPage() {
     const a = q.data;
     const cat = categoryOf(a.category);
     const Icon = cat.icon;
-    return (<section className="page" aria-labelledby="asset-title">
+    return (<section className="page assets" aria-labelledby="asset-title">
       <div className="page__head">
         <div>
           <nav className="crumbs" aria-label={textUI("m_2bd873d6c734")}>
@@ -104,6 +106,7 @@ export function AssetDetailPage() {
           <p className="muted small">{textUI("m_850f42574055")}</p>
         </section>
         <AssetFindings assetID={a.id} allowed={can(me, 'finding.read')}/>
+        <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')}/>
         <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={can(me, 'atomic.run')} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
       </div>
 

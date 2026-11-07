@@ -24,7 +24,7 @@ try{
  await p.goto(BASE+'/overview');await p.getByRole('heading',{name:'Your organisation assessment in 5 steps'}).waitFor();
  const progress=p.getByRole('list',{name:'Organisation setup progress'});
  ok(await progress.locator('li[data-complete="true"]').count()===0,'DB kosong: lima langkah belum selesai');
- ok(await p.evaluate(()=>{const dock=document.querySelector('.dock--action');const content=document.querySelector('main');return dock&&content&&getComputedStyle(dock).position!=='fixed'&&dock.getBoundingClientRect().bottom<=content.getBoundingClientRect().top;}),'pintasan di header tidak menutupi isi halaman');
+ ok(await p.evaluate(()=>{const dock=document.querySelector('.topbar__actions');const content=document.querySelector('main');return dock&&content&&getComputedStyle(dock).position!=='fixed'&&dock.getBoundingClientRect().bottom<=content.getBoundingClientRect().top;}),'pintasan di header tidak menutupi isi halaman');
  const primary=p.getByRole('navigation',{name:'Primary',exact:true});
  for(const link of await primary.getByRole('link').all()){
   const label=await link.getAttribute('aria-label');await link.hover();await p.getByRole('tooltip').waitFor();ok((await p.getByRole('tooltip').innerText()).length>25,`tooltip hover ${label} menjelaskan tujuan`);await p.mouse.move(600,20);await link.focus();await p.getByRole('tooltip').waitFor();ok((await link.getAttribute('aria-describedby'))?.startsWith('nav-tip-'),`tooltip keyboard ${label} terhubung ke link`);await p.keyboard.press('Escape');ok(await p.getByRole('tooltip').count()===0,`Escape menutup tooltip ${label}`);

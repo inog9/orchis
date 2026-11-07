@@ -14,7 +14,7 @@ const HEALTH_LABEL = { attn: 'm_orgs_h_attn', some: 'm_orgs_h_some', ok: 'm_orgs
 // Bilah segmen: tinggi tetap, lebar per tingkat sebanding jumlahnya. Angka ada di teks alternatif, bukan hanya warna.
 export function SeverityBar({ by }: { by: Record<string, number> | undefined }) {
     useLocale();
-    const parts = SEVERITIES.map((s) => ({ s, n: by?.[s] ?? 0 }));
+    const parts = [...SEVERITIES, 'info' as const].map((s) => ({ s, n: by?.[s] ?? 0 }));
     const sum = parts.reduce((a, p) => a + p.n, 0);
     const label = sum === 0 ? textUI("m_orgs_sev_none") : parts.filter((p) => p.n).map((p) => `${p.s} ${p.n}`).join(', ');
     return (<div className="sevbar" role="img" aria-label={label} title={label}>
