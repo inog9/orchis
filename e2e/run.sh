@@ -7,7 +7,7 @@ set -u
 cd "$(dirname "$0")/.."
 PORT="${E2E_PORT:-18090}"
 PSQL="docker compose -f deploy/compose.yml exec -T pg psql -U orchis -d postgres -q"
-SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs flow13.mjs flow14.mjs flow15.mjs flow16.mjs flow17.mjs flow18.mjs flow19.mjs flow20.mjs flow21.mjs flow22.mjs flow23.mjs flow24.mjs flow25.mjs access-audit.mjs}"
+SCRIPTS="${E2E_SCRIPT:-flow.mjs flow2.mjs flow3.mjs flow4.mjs flow5.mjs flow6.mjs flow7.mjs flow8.mjs flow9.mjs flow10.mjs flow11.mjs flow13.mjs flow14.mjs flow15.mjs flow16.mjs flow17.mjs flow18.mjs flow19.mjs flow20.mjs flow21.mjs flow22.mjs flow23.mjs flow24.mjs flow25.mjs flow26.mjs access-audit.mjs}"
 # Gunakan vhost khusus bila injector instalasi lain memakai broker yang sama.
 AMQP_URL="${E2E_AMQP_URL:-amqp://orchis:orchis@127.0.0.1:15672/}"
 status=0
