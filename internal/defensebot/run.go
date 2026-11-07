@@ -235,8 +235,8 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 			e.epss = &ss
 		}
 		e.reboot = c.status == statusReboot
-		// Policy: negligible advisories without a fix are counted, not emitted.
-		keep := e.kev != nil || sevRank[c.severity] >= sevRank["medium"] || (c.severity == "low" && c.status != statusNoFix)
+		// Policy: advisories without a fix are listed only when high, critical or known exploited; the rest are counted.
+		keep := e.kev != nil || sevRank[c.severity] >= sevRank["high"] || (sevRank[c.severity] >= sevRank["low"] && c.status != statusNoFix)
 		if !keep {
 			sum.Omitted++
 			continue
