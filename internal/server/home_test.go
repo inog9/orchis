@@ -56,8 +56,8 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 	if h.Assets.Total != 1 || h.Assets.Authorized != 1 || h.Findings.Total != 0 || h.Atomic.Tests != 1 || h.Atomic.Runs7d != 0 || len(h.LatestRuns) != 0 || len(h.MostExposed) != 0 {
 		t.Fatalf("ringkasan awal salah: %+v", h)
 	}
-	if len(h.Injectors) != 2 || h.Injectors[0].Status != "offline" {
-		t.Fatalf("dua injector offline diharapkan: %+v", h.Injectors)
+	if len(h.Injectors) != 4 || h.Injectors[0].Status != "offline" {
+		t.Fatalf("empat injector offline diharapkan (DefenseBot, Hackbot, Nmap, Nuclei): %+v", h.Injectors)
 	}
 
 	// scan nmap sukses (2 port) + scan nuclei sukses (1 kerentanan critical dan 1 medium) pada aset yang sama

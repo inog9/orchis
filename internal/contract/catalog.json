@@ -481,5 +481,39 @@
       "properties": {},
       "order": []
     }
+  },
+  {
+    "key": "defensebot.match",
+    "adapter": "defensebot",
+    "integration": "defensebot",
+    "name": "DefenseBot vulnerability mapping",
+    "kind": "vulnerability_scan",
+    "output_types": [
+      "vulnerability",
+      "text"
+    ],
+    "timeout_seconds": 1200,
+    "description": "Maps the software installed on an enrolled endpoint to known vulnerabilities and reports hardening gaps. Reads data collected by the agent; contacts public vulnerability services with software names and versions only.",
+    "version": 1,
+    "needs_agent": false,
+    "category": "Endpoint",
+    "input_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "type": "string",
+          "label": "Report language",
+          "enum": [
+            "en",
+            "id"
+          ],
+          "default": "en"
+        }
+      },
+      "order": [
+        "language"
+      ]
+    }
   }
 ]

@@ -80,7 +80,8 @@ func TestScanLanguageLaunchSelectionAndIdempotency(t *testing.T) {
 	if r := f.a.do("PATCH", "/api/v1/auth/preferences", map[string]any{"ui_language": "id"}, f.analyst); r.Status != 200 {
 		t.Fatal(r.Status)
 	}
-	in := map[string]any{"organization_id": o.ID, "asset_ids": []string{f.asset}, "tools": []string{"nmap"}, "preset": "quick"}
+	web := mkAsset(t, f.a, f.admin, map[string]any{"category": "web_application", "name": "Language web", "organization_id": o.ID, "testing_authorized": true, "addresses": []map[string]any{{"kind": "url", "value": "http://127.0.0.1:8080/"}}})
+	in := map[string]any{"organization_id": o.ID, "asset_ids": []string{web}}
 	r := f.a.do("POST", "/api/v1/scans", in, f.analyst, "Idempotency-Key", "language-fallback")
 	var s struct{ ID string }
 	r.JSON(&s)

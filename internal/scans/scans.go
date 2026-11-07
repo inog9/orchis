@@ -18,6 +18,7 @@ import (
 	"orchis-go/internal/authz"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/db"
+	"orchis-go/internal/defensebot"
 	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
@@ -37,6 +38,7 @@ type Service struct {
 	Reports     *reporting.Service
 	MaxHosts    int
 	Concurrency int
+	Collector   DefenseCollector
 }
 
 func (s *Service) hostLimit() int {
@@ -98,6 +100,7 @@ type Job struct {
 	Error        string              `json:"error"`
 	Summary      string              `json:"summary,omitempty"`
 	Disposition  string              `json:"disposition,omitempty"`
+	Defense      *defensebot.Summary `json:"defense,omitempty"`
 	Phase        string              `json:"phase,omitempty"`
 	SimulationID *uuid.UUID          `json:"simulation_id"`
 	Findings     []reporting.Finding `json:"findings"`
@@ -130,6 +133,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 		if err := require(p, authz.AgentRead); err != nil {
 			return nil, err
 		}
+	}
+	if len(in.Tools) == 1 && in.Tools[0] == "defensebot" {
+		return s.launchDefense(ctx, p, in, language, key, ip, req)
 	}
 	if in.OrganizationID == uuid.Nil {
 		return nil, invalid("organization_id", "Choose an organisation.")
@@ -388,6 +394,18 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 			e = tx.QueryRow(ctx, `SELECT COALESCE(hackbot_result->>'summary',''),COALESCE(hackbot_result->>'disposition',''),COALESCE(hackbot_progress->>'phase','') FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, p.TenantID, *j.SimulationID).Scan(&j.Summary, &j.Disposition, &j.Phase)
 			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 				return e
+			}
+			if j.Tool == "defensebot" {
+				var raw []byte
+				if e = tx.QueryRow(ctx, `SELECT defense_result FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, p.TenantID, *j.SimulationID).Scan(&raw); e != nil && !errors.Is(e, pgx.ErrNoRows) {
+					return e
+				}
+				if len(raw) > 0 {
+					var sum defensebot.Summary
+					if json.Unmarshal(raw, &sum) == nil {
+						j.Defense = &sum
+					}
+				}
 			}
 			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
 				j.Summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."

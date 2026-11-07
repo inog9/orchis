@@ -157,6 +157,9 @@ func (w *Worker) execute(ctx context.Context, spec *execution.ClaimSpec) executi
 		return fail("invalid parameters: %v", err)
 	}
 	spec.Params = normalized
+	if w.Kind == "defensebot" && def.Adapter == "defensebot" {
+		return w.executeDefensebot(ctx, spec)
+	}
 	// Pertahanan berlapis: server sudah memeriksa, injector memeriksa lagi sebelum menyentuh jaringan.
 	if spec.ScanScope != nil {
 		if err := spec.ScanScope.Validate(spec.Target, w.Guard); err != nil {

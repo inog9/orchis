@@ -141,29 +141,98 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 			if q == nil || !q.SupportsOS(i.os) || !osquery.CollectionSupported(i.os, i.arch) {
 				continue
 			}
-			var contract uuid.UUID
-			var version int
-			if err = tx.QueryRow(ctx, `SELECT id,version FROM contracts WHERE tenant_id=$1 AND key=$2 AND is_active ORDER BY version DESC LIMIT 1`, tenant, q.Key).Scan(&contract, &version); err != nil {
-				return fmt.Errorf("endpoint contract %s: %w", q.Key, err)
-			}
-			test := uuid.NewSHA1(i.agent, []byte("endpoint-collection:"+i.key))
-			if _, err = tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,target_asset_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(tenant_id,id) DO UPDATE SET contract_id=EXCLUDED.contract_id,contract_version=EXCLUDED.contract_version,deleted_at=NULL`, test, tenant, "Endpoint collection: "+q.Title, contract, version, i.asset, i.actor); err != nil {
-				return err
-			}
-			p := &auth.Principal{TenantID: tenant, UserID: i.actor}
-			execID := ids.New()
-			if err = s.Exec.QueueTest(ctx, tx, p, test, execID, "", "endpoint-collection"); err != nil {
-				return err
-			}
-			if err = audit.Write(ctx, tx, audit.Entry{Tenant: tenant, Action: "endpoint.collection.enqueue", ResourceType: "execution", ResourceID: &execID, Detail: map[string]any{"automatic": true, "agent_id": i.agent, "query": i.key, "consented_by": i.actor}}); err != nil {
-				return err
-			}
-			if _, err = tx.Exec(ctx, `INSERT INTO endpoint_collection_schedule(tenant_id,agent_id,query_key,atomic_test_id) VALUES($1,$2,$3,$4) ON CONFLICT(tenant_id,agent_id,query_key) DO UPDATE SET last_enqueued_at=now()`, tenant, i.agent, i.key, test); err != nil {
+			if err = s.enqueueCollection(ctx, tx, tenant, i.agent, i.asset, i.actor, q, true); err != nil {
 				return err
 			}
 		}
 		return nil
 	})
+}
+
+// enqueueCollection queues one approved fixed query for one agent. The same definition is reused per agent and query; there
+// is no shell and no user-supplied SQL. actor is the administrator whose approval allows the collection.
+func (s *Service) enqueueCollection(ctx context.Context, tx pgx.Tx, tenant, agent, asset, actor uuid.UUID, q *osquery.Query, automatic bool) error {
+	var contract uuid.UUID
+	var version int
+	if err := tx.QueryRow(ctx, `SELECT id,version FROM contracts WHERE tenant_id=$1 AND key=$2 AND is_active ORDER BY version DESC LIMIT 1`, tenant, q.Key).Scan(&contract, &version); err != nil {
+		return fmt.Errorf("endpoint contract %s: %w", q.Key, err)
+	}
+	test := uuid.NewSHA1(agent, []byte("endpoint-collection:"+q.Key))
+	if _, err := tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,target_asset_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(tenant_id,id) DO UPDATE SET contract_id=EXCLUDED.contract_id,contract_version=EXCLUDED.contract_version,deleted_at=NULL`, test, tenant, "Endpoint collection: "+q.Title, contract, version, asset, actor); err != nil {
+		return err
+	}
+	p := &auth.Principal{TenantID: tenant, UserID: actor}
+	execID := ids.New()
+	if err := s.Exec.QueueTest(ctx, tx, p, test, execID, "", "endpoint-collection"); err != nil {
+		return err
+	}
+	if err := audit.Write(ctx, tx, audit.Entry{Tenant: tenant, Action: "endpoint.collection.enqueue", ResourceType: "execution", ResourceID: &execID, Detail: map[string]any{"automatic": automatic, "agent_id": agent, "query": q.Key, "consented_by": actor}}); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `INSERT INTO endpoint_collection_schedule(tenant_id,agent_id,query_key,atomic_test_id) VALUES($1,$2,$3,$4) ON CONFLICT(tenant_id,agent_id,query_key) DO UPDATE SET last_enqueued_at=now()`, tenant, agent, q.Key, test)
+	return err
+}
+
+// QueueDefenseCollection queues a fresh collection of every approved DefenseBot check for one asset, inside the caller's
+// transaction. It fails with a clear conflict when no agent can collect or nothing is approved, so a run never starts empty.
+func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, keys []string) (int, error) {
+	var agent, org uuid.UUID
+	var osName, arch string
+	err := tx.QueryRow(ctx, `SELECT g.id,g.organization_id,g.os,g.arch FROM agents g WHERE g.tenant_id=$1 AND g.asset_id=$2 AND NOT g.is_demo AND g.status<>'revoked' ORDER BY g.last_heartbeat_at DESC NULLS LAST LIMIT 1`, tenant, asset).Scan(&agent, &org, &osName, &arch)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, httpx.Conflict("No agent is installed on this asset.")
+	}
+	if err != nil {
+		return 0, err
+	}
+	if !osquery.CollectionSupported(osName, arch) {
+		return 0, httpx.Conflict("DefenseBot supports Linux and macOS agents only.")
+	}
+	c := osquery.Consent()
+	rows, err := tx.Query(ctx, `SELECT query_key,consented_by FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND enabled AND consent_version=$3 AND consent_sha256=$4 AND consented_by IS NOT NULL AND consented_at IS NOT NULL AND query_key=ANY($5) ORDER BY query_key`, tenant, org, c.Version, c.SHA256, keys)
+	if err != nil {
+		return 0, err
+	}
+	type item struct {
+		key   string
+		actor uuid.UUID
+	}
+	var items []item
+	for rows.Next() {
+		var i item
+		if err = rows.Scan(&i.key, &i.actor); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		items = append(items, i)
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return 0, err
+	}
+	queued := 0
+	for _, i := range items {
+		q := osquery.Find(i.key)
+		if q == nil || !q.SupportsOS(osName) {
+			continue
+		}
+		var pending int
+		if err = tx.QueryRow(ctx, `SELECT count(*) FROM executions e JOIN contracts co ON co.tenant_id=e.tenant_id AND co.id=e.contract_id WHERE e.tenant_id=$1 AND e.agent_id=$2 AND co.key=$3 AND e.state IN ('ready','running')`, tenant, agent, i.key).Scan(&pending); err != nil {
+			return 0, err
+		}
+		if pending > 0 {
+			queued++
+			continue
+		}
+		if err = s.enqueueCollection(ctx, tx, tenant, agent, asset, i.actor, q, false); err != nil {
+			return 0, err
+		}
+		queued++
+	}
+	if queued == 0 {
+		return 0, httpx.Conflict("DefenseBot collection is not approved for this organisation. Review the collection choices and the current consent document first.")
+	}
+	return queued, nil
 }
 func (s *Service) RunCollection(ctx context.Context, tenant uuid.UUID, interval time.Duration) {
 	tick := time.NewTicker(5 * time.Second)

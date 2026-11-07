@@ -13,6 +13,7 @@ import (
 	"orchis-go/internal/alerts"
 	"orchis-go/internal/audit"
 	"orchis-go/internal/db"
+	"orchis-go/internal/defensebot"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/ids"
 	"orchis-go/internal/osquery"
@@ -81,17 +82,18 @@ type EndpointSummary struct {
 }
 
 type Asset struct {
-	CompletedPhases     []string         `json:"completed_phases,omitempty"`
-	CoverageLimitations []string         `json:"coverage_limitations,omitempty"`
-	Summary             string           `json:"summary,omitempty"`
-	Discovered          bool             `json:"discovered,omitempty"`
-	Endpoint            *osquery.Posture `json:"endpoint,omitempty"`
-	ID                  uuid.UUID        `json:"id"`
-	Name                string           `json:"name"`
-	Status              string           `json:"status"`
-	SkipReason          string           `json:"skip_reason"`
-	Findings            []Finding        `json:"findings"`
-	Methods             []Method         `json:"methods"`
+	CompletedPhases     []string            `json:"completed_phases,omitempty"`
+	CoverageLimitations []string            `json:"coverage_limitations,omitempty"`
+	Summary             string              `json:"summary,omitempty"`
+	Discovered          bool                `json:"discovered,omitempty"`
+	Endpoint            *osquery.Posture    `json:"endpoint,omitempty"`
+	Defense             *defensebot.Summary `json:"defense,omitempty"`
+	ID                  uuid.UUID           `json:"id"`
+	Name                string              `json:"name"`
+	Status              string              `json:"status"`
+	SkipReason          string              `json:"skip_reason"`
+	Findings            []Finding           `json:"findings"`
+	Methods             []Method            `json:"methods"`
 }
 type Snapshot struct {
 	Summary           string           `json:"summary,omitempty"`

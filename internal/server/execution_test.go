@@ -443,7 +443,7 @@ func TestContractsReportInjectorStatus(t *testing.T) {
 		keys[c.Key] = true
 	}
 	// Nmap, Nuclei, Hackbot, dua aksi agent lama, aksi osquery lama dan aksi osquery DefenseBot.
-	want := []string{"nmap.tcp_connect", "nuclei.scan", "hackbot.pentest", "agent.listening_ports", "agent.system_info",
+	want := []string{"nmap.tcp_connect", "nuclei.scan", "hackbot.pentest", "defensebot.match", "agent.listening_ports", "agent.system_info",
 		"osquery.inventory", "osquery.packages", "osquery.users", "osquery.network", "osquery.hardening", "osquery.firewall", "osquery.network_ranges",
 		"osquery.os_release", "osquery.kernel", "osquery.npm_global", "osquery.pip_packages", "osquery.macos_apps", "osquery.homebrew", "osquery.exposure"}
 	// Query pack resmi yang dibekukan masing-masing punya kontrak (kunci = kunci query).

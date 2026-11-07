@@ -76,8 +76,11 @@ func main() {
 	case "provision":
 		// Explicit, idempotent setup. Raw tokens never enter stdout or the database.
 		if err := withTenant(ctx, cfg, func(d *db.DB, tenant uuid.UUID) error {
-			for _, kind := range []string{"nmap", "nuclei", "hackbot"} {
-				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI"}[kind] + "_TOKEN")
+			for _, kind := range []string{"nmap", "nuclei", "hackbot", "defensebot"} {
+				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI", "defensebot": "DEFENSEBOT"}[kind] + "_TOKEN")
+				if kind == "defensebot" && token == "" {
+					continue // installations created before DefenseBot get the token from ops.py hackbot-init
+				}
 				if !execution.ValidInjectorToken(token) {
 					return errors.New("provisioning token is missing")
 				}

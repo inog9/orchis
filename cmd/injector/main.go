@@ -24,10 +24,10 @@ func main() {
 		fatal(err.Error())
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
-	kind := flag.String("kind", "", "hackbot | nmap | nuclei")
+	kind := flag.String("kind", "", "hackbot | defensebot | nmap | nuclei")
 	flag.Parse()
-	if *kind != "nmap" && *kind != "nuclei" && *kind != "hackbot" {
-		fatal("gunakan --kind nmap atau --kind nuclei")
+	if *kind != "nmap" && *kind != "nuclei" && *kind != "hackbot" && *kind != "defensebot" {
+		fatal("gunakan --kind nmap, nuclei, hackbot atau defensebot")
 	}
 	server, token, amqpURL := os.Getenv("ORCHIS_SERVER_URL"), os.Getenv("ORCHIS_INJECTOR_TOKEN"), os.Getenv("ORCHIS_AMQP_URL")
 	if server == "" || token == "" || amqpURL == "" {
