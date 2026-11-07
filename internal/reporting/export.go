@@ -55,6 +55,8 @@ func newPrintTemplate(language string) *template.Template {
 	return template.Must(template.New("report").Funcs(template.FuncMap{
 		"comparison": func(s Snapshot) string { return reportComparison(language, s) },
 		"text":       func(v string) string { return reportText(language, v) },
+		"defense":    func(s Snapshot) template.HTML { return defenseHTML(language, s) },
+		"hasDefense": hasDefense,
 		"language":   func() string { return language },
 		"label":      func(v string) string { return reportLabel(language, v) },
 		"date":       func(t time.Time) string { return reportDate(language, t) },
