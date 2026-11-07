@@ -242,7 +242,9 @@ func serve(ctx context.Context, cfg *config.Config) error {
 	go server.RetentionService(opts).Run(ctx, tenant)
 	go server.OrganizationService(opts).RunTicker(ctx, tenant)
 	go server.ScanService(opts).Run(ctx, tenant)
-	go server.EndpointService(opts).RunCollection(ctx, tenant, time.Duration(cfg.EndpointCollectionSeconds)*time.Second)
+	if cfg.EndpointCollectionSeconds > 0 {
+		go server.EndpointService(opts).RunCollection(ctx, tenant, time.Duration(cfg.EndpointCollectionSeconds)*time.Second)
+	}
 	go server.ReportService(opts).Run(ctx, tenant)
 	go server.Runtime(opts).RunSweeper(ctx, 15*time.Second)
 	go server.SimulationService(opts).RunTicker(ctx, tenant, 15*time.Second)

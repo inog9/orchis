@@ -451,8 +451,8 @@ func syntheticEndpointSets(oi int) map[string]*osquery.Dataset {
 	sets := map[string]*osquery.Dataset{}
 	for i := range osquery.Queries {
 		q := &osquery.Queries[i]
-		if q.Pack != "" {
-			continue // pack resmi bersifat opt-in; demo tidak mengarang datanya
+		if q.Pack != "" || q.Category != "DefenseBot" || !q.SupportsOS("linux") {
+			continue // pack resmi opt-in, query lama (inventaris/akun/jaringan), dan query khusus macOS tidak dibuatkan data demo
 		}
 		rows := make([]map[string]string, 0, len(q.Example))
 		for _, r := range q.Example {
