@@ -1,27 +1,28 @@
 /* Token desain Orchis (warna, tipografi, jarak). */
+/* Token desain Orchis (warna, tipografi, jarak) — palet Argus x Orchis v3 (fixed.pen). */
 :root {
-  --bg: #0A0B0D;
-  --ink: #ECEEF1;
-  --ink-2: #A3A8B1;
-  --ink-3: #A1A6B0;
-  --line: #7A7F88;
-  --ring: #1D2024;
-  --bronze: #C19A5B;
-  --on-bronze: #0A0B0D;
-  --control-border: #737985;
-  --severity-medium: #E0C46C;
-  --error: #FF8A8A;
+  --bg: #09090B;
+  --ink: #F4F4F5;
+  --ink-2: #A8A8B3;
+  --ink-3: #80808C;
+  --line: #80808C;
+  --ring: #232328;
+  --bronze: #E2B65C;
+  --on-bronze: #1A1306;
+  --control-border: #73737F;
+  --severity-medium: #FACC15;
+  --error: #F43F5E;
   --font-display: "Space Grotesk Variable", "Space Grotesk", system-ui, sans-serif;
   --font-body: "Inter Variable", Inter, system-ui, sans-serif;
-  --tile: #1E2227;
-  --input-bg: #121417;
-  --input-line: #737985;
-  --panel: #0F1114;
-  --success: #6FCF97;
-  --warn: #E8B86A;
-  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --edge-0: #23252C; --edge-1: #2A2E34; --edge-2: #3A3F46;
+  --tile: #18181B;
+  --input-bg: #111113;
+  --input-line: #73737F;
+  --panel: #111113;
+  --success: #34D399;
+  --warn: #FACC15;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --edge-0: #1A1A1E; --edge-1: #232328; --edge-2: #35353E;
   --hover: #FFFFFF0F; --hover-soft: #FFFFFF08;
-  --surface-0: #0C0D10; --surface-1: #16181C; --surface-2: #1D2024; --dialog-bg: #121417; --skel-hi: #262B31;
+  --surface-0: #0C0C0E; --surface-1: #111113; --surface-2: #18181B; --dialog-bg: #111113; --skel-hi: #232328;
   color-scheme: dark;
 }

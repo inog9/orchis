@@ -1,5 +1,5 @@
 /* Halaman Organisations: kartu, statistik, toolbar, paginasi. Hanya transform/opacity yang dianimasikan. */
-.orgs { --gold: #B8955F; --gold-hi: #D4B07A; --gold-dim: #6B5A3E; --surface: #121318; --elev: #181A20; --edge: var(--edge-0); --muted: var(--ink-3); display: flex; flex-direction: column; gap: 20px; }
+.orgs { --gold: #E2B65C; --gold-hi: #E2B65C; --gold-dim: #E2B65C40; --surface: #111113; --elev: #18181B; --edge: var(--edge-1); --muted: var(--ink-3); display: flex; flex-direction: column; gap: 20px; }
 
 /* Header halaman */
 .phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; animation: orgs-in .3s ease-out both; }
@@ -34,12 +34,12 @@
 .otb__chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { height: 28px; padding: 0 12px; border: 1px solid var(--edge); border-radius: 999px; font-size: 12px; color: var(--ink-2); transition: border-color .15s ease, color .15s ease, background-color .15s ease; }
 .chip:hover { border-color: var(--gold-dim); color: var(--ink); }
-.chip.is-on { border-color: var(--gold-dim); color: var(--gold-hi); background: rgba(184,149,95,.10); }
+.chip.is-on { border-color: var(--gold-dim); color: var(--gold-hi); background: #E2B65C1A; }
 .otb__sort { margin-left: auto; }
 .otb__view { display: inline-flex; border: 1px solid var(--edge); border-radius: 8px; overflow: hidden; }
 .otb__view button { width: 34px; height: 32px; display: grid; place-items: center; color: var(--ink-3); transition: color .15s ease, background-color .15s ease; }
 .otb__view button:hover { color: var(--ink); }
-.otb__view button.is-on { color: var(--gold-hi); background: rgba(184,149,95,.10); }
+.otb__view button.is-on { color: var(--gold-hi); background: #E2B65C1A; }
 
 /* Daftar / kisi */
 .orgs__list { display: grid; gap: 14px; }
@@ -55,7 +55,7 @@
 .oc:hover::before { opacity: 1; }
 .oc:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 .oc__top { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.oc__avatar { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; background: rgba(184,149,95,.10); border: 1px solid rgba(184,149,95,.28); color: var(--gold-hi); font-weight: 600; font-size: 14px; }
+.oc__avatar { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; background: #E2B65C1A; border: 1px solid rgba(184,149,95,.28); color: var(--gold-hi); font-weight: 600; font-size: 14px; }
 .oc__id { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
 .oc__name { font-size: 16px; font-weight: 600; margin: 0; overflow-wrap: anywhere; }
 .oc__link { color: var(--ink); text-decoration: none; }
@@ -113,7 +113,7 @@
 .pager__btn { display: inline-flex; align-items: center; gap: 4px; height: 32px; min-width: 32px; padding: 0 10px; justify-content: center; border: 1px solid var(--edge); border-radius: 8px; font-size: 12px; color: var(--ink-2); transition: border-color .15s ease, color .15s ease; }
 .pager__btn:hover:not(:disabled) { border-color: var(--gold-dim); color: var(--ink); }
 .pager__btn:disabled { opacity: .4; }
-.pager__btn.is-current { border-color: var(--gold-dim); color: var(--gold-hi); background: rgba(184,149,95,.10); }
+.pager__btn.is-current { border-color: var(--gold-dim); color: var(--gold-hi); background: #E2B65C1A; }
 .pager__gap { padding: 0 4px; color: var(--muted); }
 
 @keyframes orgs-in { from { opacity: 0; transform: translateY(8px); } }
