@@ -1,0 +1,81 @@
+import type { ScanJob } from '../api/scans';
+import { t as textUI } from '../i18n/runtime';
+
+// Kosakata engine v3: pengguna hanya melihat dua engine. Nmap dan Nuclei adalah langkah
+// persiapan internal Hackbot dan tidak pernah tampil sebagai nama di UI.
+export type EngineKind = 'web' | 'defense' | 'full';
+
+export function toolsFor(kind: EngineKind): string[] {
+    if (kind === 'web') return ['nmap', 'nuclei', 'hackbot'];
+    if (kind === 'defense') return ['defensebot'];
+    return ['nmap', 'nuclei', 'hackbot', 'defensebot'];
+}
+
+export function isFullTools(tools: string[] | undefined): boolean {
+    return !!tools && tools.includes('hackbot') && tools.includes('defensebot');
+}
+
+export function engineLabel(tool: string): string {
+    return tool === 'defensebot' ? 'DefenseBot' : 'Hackbot';
+}
+
+// Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
+export function engineSetLabel(tools: string[] | undefined): string {
+    return isFullTools(tools) ? textUI('flow_eng_full_sub') : 'Hackbot';
+}
+
+export function kindLabel(kind: EngineKind): string {
+    if (kind === 'web') return textUI('flow_eng_web');
+    if (kind === 'defense') return textUI('flow_eng_defense');
+    return textUI('flow_eng_full');
+}
+
+// Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine Hackbot
+// dengan tahap berbahasa manusia; defensebot menjadi engine DefenseBot.
+export type EngineRow = {
+    engine: 'Hackbot' | 'DefenseBot';
+    stage: string;
+    status: string;
+    jobs: ScanJob[];
+    findings: number;
+    error: string;
+};
+
+function hackbotStage(jobs: ScanJob[]): string {
+    const anyRunning = jobs.some((j) => j.status === 'running');
+    const anyFailed = jobs.some((j) => j.status === 'failed');
+    const allDone = jobs.every((j) => j.status === 'finished' || j.status === 'incomplete' || j.status === 'failed' || j.status === 'canceled');
+    if (anyFailed && !anyRunning) return '';
+    if (allDone) return textUI('flow_stage_writing');
+    if (anyRunning) return textUI('flow_stage_testing');
+    return textUI('flow_stage_preparing');
+}
+
+export function engineRows(jobs: ScanJob[]): EngineRow[] {
+    const rows: EngineRow[] = [];
+    const web = jobs.filter((j) => j.tool === 'nmap' || j.tool === 'nuclei' || j.tool === 'hackbot');
+    if (web.length > 0) {
+        const status = web.some((j) => j.status === 'running') ? 'running'
+            : web.every((j) => j.status === 'failed') ? 'failed'
+            : web.some((j) => j.status === 'waiting') ? 'waiting'
+            : web.every((j) => j.status === 'finished') ? 'finished' : 'incomplete';
+        rows.push({
+            engine: 'Hackbot',
+            stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web),
+            status,
+            jobs: web,
+            findings: web.reduce((n, j) => n + (j.findings?.length ?? 0), 0),
+            error: web.map((j) => j.error).filter(Boolean).join(' · '),
+        });
+    }
+    const defense = jobs.filter((j) => j.tool === 'defensebot');
+    if (defense.length > 0) {
+        const j = defense[0]!;
+        const status = j.status;
+        const stage = status === 'running' ? textUI('flow_stage_matching')
+            : status === 'waiting' ? textUI('flow_stage_wait_scanner')
+            : status === 'finished' || status === 'incomplete' ? textUI('flow_stage_collecting') : '';
+        rows.push({ engine: 'DefenseBot', stage, status, jobs: defense, findings: defense.reduce((n, x) => n + (x.findings?.length ?? 0), 0), error: j.error });
+    }
+    return rows;
+}

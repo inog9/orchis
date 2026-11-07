@@ -6,6 +6,7 @@ import type { Scan } from '../api/scans';
 import { describeError } from './ErrorNote';
 import { StatusBadge } from './sims/StatusBadge';
 import { durationMs, formatDuration } from '../lib/scanView';
+import { engineSetLabel } from '../lib/engines';
 
 // Riwayat scan aset: /scans hanya bisa disaring per organisasi, jadi halaman pertama (25 scan terbaru) disaring di sini menurut options.asset_ids.
 export function scansForAsset(items: Scan[], assetID: string): Scan[] {
@@ -25,7 +26,7 @@ export function AssetScanHistory({ assetID, organizationID, allowed }: { assetID
         : <ul className="ast-scans">{items.map((s) => <li key={s.id}>
             <Link to={`/simulations/${s.id}`} className="mono">{s.id.slice(0, 13)}</Link>
             <StatusBadge status={s.status}/>
-            <span className="mono">{formatUI((s.options.tools ?? ['nmap','nuclei','hackbot']).join(' + '))} · {formatUI(s.options.preset)}</span>
+            <span>{engineSetLabel(s.options.tools)} · {formatUI(s.options.preset)}</span>
             <span className="muted small">{started(s.created_at)} · {formatDuration(durationMs(s), u)}</span>
           </li>)}</ul>}
       <Link className="link-quiet" to={`/simulations?org=${encodeURIComponent(organizationID)}`}>{textUI("m_ast_scan_all")}</Link>

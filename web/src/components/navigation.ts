@@ -10,8 +10,15 @@ export const navigation = [
         }, to: '/organizations', get group() {
             return textUI("m_87bb59ba2f92");
         }, icon: Building2, keys: 'o', perm: 'organization.read' },
+    { id: 'assets', get label() {
+            return textUI("m_bd12731d7bc9");
+        }, get hint() {
+            return textUI("m_a331b8f605c4");
+        }, to: '/assets', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: Server, keys: 'a', perm: 'asset.read' },
     { id: 'simulations', get label() {
-            return textUI("m_078a864ea0f1");
+            return textUI("flow_nav_scans");
         }, get hint() {
             return textUI("m_8ea1b108f3a2");
         }, to: '/simulations', get group() {
@@ -24,13 +31,6 @@ export const navigation = [
         }, to: '/findings', get group() {
             return textUI("m_87bb59ba2f92");
         }, icon: ShieldAlert, keys: 'f', perm: 'finding.read' },
-    { id: 'assets', get label() {
-            return textUI("m_bd12731d7bc9");
-        }, get hint() {
-            return textUI("m_a331b8f605c4");
-        }, to: '/assets', get group() {
-            return textUI("m_87bb59ba2f92");
-        }, icon: Server, keys: 'a', perm: 'asset.read' },
     { id: 'reports', get label() {
             return textUI("m_dacca3cba3f3");
         }, get hint() {

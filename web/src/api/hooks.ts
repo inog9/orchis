@@ -208,9 +208,9 @@ export function useDeleteAtomicTest(id: string) {
   return useMutation({ mutationFn: () => api.del(`/api/v1/atomic-tests/${id}`), onSuccess: inv });
 }
 
-export function useFindings(q: string, type: string, severity: string, assetID = '', organization = '') {
+export function useFindings(q: string, type: string, severity: string, assetID = '', organization = '', triage = '') {
   return useInfiniteQuery({
-    queryKey: ['findings', q, type, severity, assetID, organization],
+    queryKey: ['findings', q, type, severity, assetID, organization, triage],
     initialPageParam: '',
     queryFn: ({ pageParam }) => {
       const p = new URLSearchParams({ limit: '25' });
@@ -219,6 +219,7 @@ export function useFindings(q: string, type: string, severity: string, assetID =
       if (severity) p.set('severity', severity);
       if (assetID) p.set('asset_id', assetID);
       if (organization) p.set('org',organization);
+      if (triage) p.set('triage', triage);
       if (pageParam) p.set('cursor', pageParam);
       return api.get<FindingPage>(`/api/v1/findings?${p}`);
     },

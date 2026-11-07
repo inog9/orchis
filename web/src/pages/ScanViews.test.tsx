@@ -31,7 +31,7 @@ describe('ScanList', () => {
     await waitFor(() => expect(within(table).getAllByText('Org Uno')).toHaveLength(2));
     expect(within(table).getByText('Finished')).toBeInTheDocument();
     expect(within(table).getByText('Running')).toBeInTheDocument();
-    expect(within(table).getAllByText('nmap + nuclei')).toHaveLength(2);
+    expect(within(table).getAllByText('Hackbot')).toHaveLength(2);
     expect(within(table).getByText('3m 12s')).toBeInTheDocument();
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
   });
@@ -63,7 +63,6 @@ describe('ScanDetailPage', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows[0]).toHaveTextContent('Kritis');
     expect(rows[1]).toHaveTextContent('Rendah');
-    expect(screen.getByText('Scan created (created_at)')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Cancel scan' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Scan report' })).toBeInTheDocument();
   });

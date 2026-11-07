@@ -165,6 +165,11 @@ export type Finding = {
   occurrence_count: number;
   organization_id?: string | null;
   organization_name?: string | null;
+  triage_status?: 'open' | 'accepted_risk' | 'false_positive' | 'fixed_pending';
+  triage_reason?: string;
+  triage_expires_at?: string | null;
+  triage_by?: string | null;
+  triage_at?: string | null;
 };
 
 export type FindingPage = { items: Finding[]; next_cursor: string | null; search: string };

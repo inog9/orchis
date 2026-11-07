@@ -33,6 +33,8 @@ GET /api/v1/demo/status,admin|analyst
 GET /api/v1/executions/{id},admin|analyst
 GET /api/v1/findings,admin|analyst|viewer
 GET /api/v1/findings/{id},admin|analyst|viewer
+POST /api/v1/findings/{id}/retest,admin|analyst
+PUT /api/v1/findings/{id}/triage,admin|analyst
 GET /api/v1/home,admin|analyst
 GET /api/v1/integrations,admin|analyst
 GET /api/v1/me/tokens,admin|analyst|viewer

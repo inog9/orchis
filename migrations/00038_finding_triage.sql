@@ -16,6 +16,7 @@ ALTER TABLE findings
 ALTER TABLE findings
   ADD CONSTRAINT fk_findings_triage_by FOREIGN KEY (tenant_id, triage_by) REFERENCES users (tenant_id, id);
 CREATE INDEX idx_findings_triage ON findings (tenant_id, triage_status, triage_expires_at);
+CREATE INDEX idx_findings_triage_by ON findings (tenant_id, triage_by);
 
 -- +goose Down
 -- +goose StatementBegin

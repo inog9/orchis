@@ -12,6 +12,7 @@ import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { TagChips } from '../components/TagPicker';
 import { ConfirmDialog } from './ConfirmDialog';
+import { AssetReadiness } from '../components/AssetReadiness';
 import { EditAssetDialog } from './EditAssetDialog';
 import { categoryOf, PLATFORM_LABEL } from './categories';
 import { NOTES_LABEL, specOf } from './categorySchema';
@@ -58,12 +59,7 @@ export function AssetDetailPage() {
         {formatUI(can(me, 'asset.write') && (<button type="button" className="btn btn--secondary btn--auto" onClick={() => setEditing(true)}>{richUI("m_12a64771a7ec", [<Pencil size={15} aria-hidden="true"/>])}</button>))}
       </div>
 
-      <section className="prerequisites" aria-label={textUI("m_98fbfab94ab1")}>
-        {formatUI(a.organization_id ? <p>{richUI("m_1d8905abad98", [<Link to={`/organizations/${a.organization_id}`}>{textUI("m_ba96d8c0fc0d")}</Link>])}</p> : <p>{richUI("m_9c2ee8a06957", [<Link to="/organizations">{textUI("m_a9e7421536b1")}</Link>])}</p>)}
-        {formatUI(!a.testing_authorized && <p>{formatUI(can(me, 'asset.authorize') ? textUI("m_305ea5d5b2c5") : textUI("m_755b4f54f75a"))}</p>)}
-        {formatUI(a.addresses.length === 0 && <p>{richUI("m_d11593d96866", [formatUI(can(me, 'asset.write') ? textUI("m_865fca90544a") : textUI("m_9f6dd4c28d7c"))])}</p>)}
-        {formatUI(a.agent_state !== 'online' && <p>{richUI("m_13d267b8d0a8", [<Link to="/assets/agents">{textUI("m_62bcf6663fd7")}</Link>])}</p>)}
-      </section>
+      <AssetReadiness asset={a}/>
       <div className="grid-2">
         <section className="panel" aria-labelledby="details-h">
           <h2 id="details-h" className="panel__title">{textUI("m_45989de49fb7")}</h2>

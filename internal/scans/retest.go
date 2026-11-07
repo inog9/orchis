@@ -47,7 +47,11 @@ func (s *Service) Retest(ctx context.Context, p *auth.Principal, finding uuid.UU
 			return invalid("finding_id", "This finding is not tied to an organisation asset, so there is nothing to retest.")
 		}
 		var method *string
-		if e := tx.QueryRow(ctx, `SELECT o.details->>'method' FROM finding_occurrences o WHERE o.tenant_id=$1 AND o.finding_id=$2 AND o.details ? 'method' ORDER BY o.seen_at DESC LIMIT 1`, p.TenantID, finding).Scan(&method); e != nil && !errors.Is(e, pgx.ErrNoRows) {
+		if e := tx.QueryRow(ctx, `SELECT o.details->>'method' FROM finding_occurrences o WHERE o.tenant_id=$1 AND o.finding_id=$2 AND o.details ? 'method' ORDER BY o.seen_at DESC LIMIT 1`, p.TenantID, finding).Scan(&method); e == nil {
+			// metode terakhir dari occurrence
+		} else if !errors.Is(e, pgx.ErrNoRows) {
+			return e
+		} else if e := tx.QueryRow(ctx, `SELECT f.details->>'method' FROM findings f WHERE f.tenant_id=$1 AND f.id=$2 AND f.details ? 'method'`, p.TenantID, finding).Scan(&method); e != nil && !errors.Is(e, pgx.ErrNoRows) {
 			return e
 		}
 		inside = method != nil && insideMethods[*method]

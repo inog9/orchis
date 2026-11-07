@@ -30,6 +30,7 @@ function useDebounced<T>(value: T, ms: number) {
     useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
     return v;
 }
+const triageLabel = (s: string) => ({ open: '', accepted_risk: textUI("flow_triage_accepted"), false_positive: textUI("flow_triage_false"), fixed_pending: textUI("flow_triage_fixed") } as Record<string, string>)[s] ?? '';
 const SEV_LABEL = (s: Finding['severity']) => ({ critical: textUI("m_427dd2969bd1"), high: textUI("m_c4ebc6d4a583"), medium: textUI("m_8e588cd18774"), low: textUI("m_f793de205ead"), info: textUI("m_170322a32f3c") })[s];
 const full = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 
@@ -54,7 +55,7 @@ function Row({ f, me, onOpen }: { f: Finding; me: User | null | undefined; onOpe
       <button type="button" className="fnd-row__main" onClick={(e) => onOpen(f, e.currentTarget)}>
         <SeverityBadge severity={f.severity}/>
         <span className="fnd-row__text">
-          <strong>{formatUI(f.title)}{isNew(f) && <span className="fnd-new">{textUI("m_fnd_new")}</span>}{defenseOf(f)?.kev && <span className="fnd-def fnd-def--kev">{textUI("m_def_kev")}</span>}{defenseOf(f)?.exposure === 'exposed' && <span className="fnd-def fnd-def--exposed">{textUI("m_def_exp_exposed")}</span>}</strong>
+          <strong>{formatUI(f.title)}{isNew(f) && <span className="fnd-new">{textUI("m_fnd_new")}</span>}{defenseOf(f)?.kev && <span className="fnd-def fnd-def--kev">{textUI("m_def_kev")}</span>}{defenseOf(f)?.exposure === 'exposed' && <span className="fnd-def fnd-def--exposed">{textUI("m_def_exp_exposed")}</span>}{f.triage_status && f.triage_status !== 'open' && <span className="fnd-def">{triageLabel(f.triage_status)}</span>}</strong>
           <code className="mono" title={f.value}>{f.value}</code>
         </span>
       </button>
@@ -95,13 +96,14 @@ export function FindingsPage({ organizationID, organizationName }: {
     const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
     const [kevOnly, setKevOnly] = useState(false);
     const [exposedOnly, setExposedOnly] = useState(false);
+    const [actionable, setActionable] = useState(false);
     const [sort, setSort] = useState<SortKey>('severity');
     const [view, setViewState] = useState<ViewKey>(() => { const v = readStore<ViewKey>(VIEW_KEY, 'org'); return (inOrg || new URLSearchParams(window.location.search).get('org')) && v === 'org' ? 'flat' : v; });
     const [collapsed, setCollapsed] = useState<string[]>(() => readStore<string[]>(COLLAPSED_KEY, []));
     const [open, setOpen] = useState<Finding | null>(null);
     const q = useDebounced(text.trim(), 250);
     const severity = selected.size === 1 ? [...selected][0]! : '';
-    const res = useFindings(q, type, severity, assetID, organization);
+    const res = useFindings(q, type, severity, assetID, organization, actionable ? 'open' : '');
     const home = useHome(!inOrg && can(me, 'finding.read'));
     const loaded = res.data?.pages.flatMap((p) => p.items) ?? [];
     const items = useMemo(() => sortFindings(applyDefenseFilters(applySeverities(loaded, selected), { kev: kevOnly, exposed: exposedOnly }), sort), [loaded, selected, sort, kevOnly, exposedOnly]);
@@ -111,7 +113,7 @@ export function FindingsPage({ organizationID, organizationName }: {
     const setView = (v: ViewKey) => { setViewState(v); writeStore(VIEW_KEY, v); };
     const toggleSev = (s: string) => setSelected((cur) => { const n = new Set(cur); if (n.has(s)) n.delete(s); else n.add(s); return n; });
     const toggleGroup = (key: string) => setCollapsed((cur) => { const n = cur.includes(key) ? cur.filter((k) => k !== key) : [...cur, key]; writeStore(COLLAPSED_KEY, n); return n; });
-    const clearAll = () => { setText(''); setType(''); setSelected(new Set()); setKevOnly(false); setExposedOnly(false); if (!inOrg && (organization || assetID)) { const next = new URLSearchParams(params); next.delete('org'); next.delete('organization_id'); next.delete('asset_id'); setParams(next); } };
+    const clearAll = () => { setText(''); setType(''); setSelected(new Set()); setKevOnly(false); setExposedOnly(false); setActionable(false); if (!inOrg && (organization || assetID)) { const next = new URLSearchParams(params); next.delete('org'); next.delete('organization_id'); next.delete('asset_id'); setParams(next); } };
     const setOrg = (value: string) => { const next = new URLSearchParams(params); next.delete('organization_id'); if (value) next.set('org', value); else next.delete('org'); setParams(next); };
 
     const reportList = useQuery({ queryKey: ['latest-scan-report', organization], enabled: !!organization && can(me, 'report.read'), queryFn: () => api.get<{ items: { id: string }[] }>(`/api/v1/reports?organization_id=${encodeURIComponent(organization)}&scan_only=true`), refetchInterval: 5000 });
@@ -173,6 +175,7 @@ export function FindingsPage({ organizationID, organizationName }: {
       <div className="fnd-sevchips" role="group" aria-label={textUI("m_def_filters")}>
         <button type="button" className={`fnd-chip${kevOnly ? ' is-on' : ''}`} aria-pressed={kevOnly} onClick={() => setKevOnly((v) => !v)}>{textUI("m_def_f_kev")}</button>
         <button type="button" className={`fnd-chip${exposedOnly ? ' is-on' : ''}`} aria-pressed={exposedOnly} onClick={() => setExposedOnly((v) => !v)}>{textUI("m_def_f_exposed")}</button>
+        {formatUI(can(me, 'finding.write') && <button type="button" className={`fnd-chip${actionable ? ' is-on' : ''}`} aria-pressed={actionable} onClick={() => setActionable((v) => !v)}>{textUI("flow_fnd_actionable")}</button>)}
       </div>
       {filtered && (<div className="fnd-active" aria-label={textUI("m_fnd_active")}>
         <span className="fnd-active__label">{textUI("m_fnd_active")}</span>

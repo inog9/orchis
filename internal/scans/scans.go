@@ -316,6 +316,9 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				return invalid("asset_ids", "The approved web URL has an invalid service port.")
 			}
 			for _, tool := range in.Tools {
+				if tool == "defensebot" {
+					continue // job DefenseBot dibuat di blok full assessment; kontraknya dipilih di sana.
+				}
 				ckey := map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
 				var cid uuid.UUID
 				var version int
