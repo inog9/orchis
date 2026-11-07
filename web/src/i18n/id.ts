@@ -376,6 +376,7 @@ export const id:Record<keyof typeof en,string> = {
   "m_def_note_packages_truncated": "Daftar software dipotong; software di luar batas tidak diperiksa.",
   "m_def_note_rpm_unsupported": "{0} paket RPM tidak diperiksa (distribusi berbasis RPM belum didukung).",
   "m_def_note_old_kernels_skipped": "{0} paket kernel terpasang yang tidak berjalan dilewati.",
+  "m_def_note_system_packages_skipped": "{0} paket sistem (pustaka, kernel, pengembangan) dilewati: DefenseBot memeriksa aplikasi dan layanan.",
   "m_def_note_ecosystem_unsupported": "Data kerentanan belum tersedia untuk distribusi ini ({0}).",
   "m_def_note_apps_unmapped": "{0} aplikasi tidak dapat dipetakan ke data kerentanan.",
   "m_def_note_dataset_missing": "Data endpoint yang diperlukan tidak ada ({0}).",

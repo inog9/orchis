@@ -375,6 +375,7 @@ export const en = {
   "m_def_note_packages_truncated": "The software list was cut; software beyond the limit was not checked.",
   "m_def_note_rpm_unsupported": "{0} RPM packages were not checked (RPM-based distributions are not supported yet).",
   "m_def_note_old_kernels_skipped": "{0} installed kernel packages that are not running were skipped.",
+  "m_def_note_system_packages_skipped": "{0} system packages (libraries, kernel, development) were skipped: DefenseBot checks applications and services.",
   "m_def_note_ecosystem_unsupported": "Vulnerability data is not available for this distribution ({0}).",
   "m_def_note_apps_unmapped": "{0} applications could not be mapped to vulnerability data.",
   "m_def_note_dataset_missing": "Required endpoint data is missing ({0}).",

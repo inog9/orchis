@@ -117,9 +117,9 @@
     {
       "key": "osquery.packages",
       "title": "Installed packages",
-      "description": "Package names, source package names, versions and architectures of installed deb and rpm software, used only to map software to known vulnerabilities. Versions are matched, not judged.",
+      "description": "Names, versions and package sections of installed deb and rpm software. DefenseBot checks applications and services only; libraries, kernel and development packages are recognised by section and skipped.",
       "category": "DefenseBot",
-      "sql": "SELECT name, COALESCE(NULLIF(source,''), name) AS source_name, version, arch, 'deb' AS pkg_type, '' AS epoch, '' AS release FROM deb_packages UNION ALL SELECT name, source AS source_name, version, arch, 'rpm' AS pkg_type, CAST(epoch AS TEXT) AS epoch, release FROM rpm_packages",
+      "sql": "SELECT name, COALESCE(NULLIF(source,''), name) AS source_name, version, arch, 'deb' AS pkg_type, '' AS epoch, '' AS release, section FROM deb_packages UNION ALL SELECT name, source AS source_name, version, arch, 'rpm' AS pkg_type, CAST(epoch AS TEXT) AS epoch, release, package_group AS section FROM rpm_packages",
       "tables": [
         "deb_packages",
         "rpm_packages"
@@ -131,7 +131,8 @@
         "arch",
         "pkg_type",
         "epoch",
-        "release"
+        "release",
+        "section"
       ],
       "os": [
         "linux"
@@ -174,7 +175,8 @@
           "arch": "amd64",
           "pkg_type": "deb",
           "epoch": "",
-          "release": ""
+          "release": "",
+          "section": "net"
         },
         {
           "name": "libssl3t64",
@@ -183,7 +185,8 @@
           "arch": "amd64",
           "pkg_type": "deb",
           "epoch": "",
-          "release": ""
+          "release": "",
+          "section": "libs"
         },
         {
           "name": "nginx",
@@ -192,7 +195,8 @@
           "arch": "amd64",
           "pkg_type": "deb",
           "epoch": "",
-          "release": ""
+          "release": "",
+          "section": "web"
         }
       ],
       "platform": "linux"

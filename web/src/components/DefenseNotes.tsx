@@ -8,6 +8,7 @@ export function defenseNoteText(n: DefenseNote): string {
     switch (n.code) {
         case 'packages_truncated': return textUI("m_def_note_packages_truncated");
         case 'rpm_unsupported': return textUI("m_def_note_rpm_unsupported", [c]);
+        case 'system_packages_skipped': return textUI("m_def_note_system_packages_skipped", [c]);
         case 'old_kernels_skipped': return textUI("m_def_note_old_kernels_skipped", [c]);
         case 'ecosystem_unsupported': return textUI("m_def_note_ecosystem_unsupported", [d]);
         case 'apps_unmapped': return textUI("m_def_note_apps_unmapped", [c]);

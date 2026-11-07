@@ -239,8 +239,9 @@ func baseInput() Input {
 			QueryOSRelease: ok(row("name", "Ubuntu", "version", "24.04.1 LTS (Noble Numbat)", "major", "24", "minor", "4", "platform", "ubuntu", "codename", "noble")),
 			QueryKernel:    ok(row("version", "6.8.0-45-generic")),
 			QueryPackages: ok(
-				row("name", "libssl3t64", "source_name", "openssl", "version", "3.0.13-0ubuntu3.4", "pkg_type", "deb"),
-				row("name", "nginx", "source_name", "nginx", "version", "1.24.0-2ubuntu7", "pkg_type", "deb"),
+				row("name", "openssh-server", "source_name", "openssl", "version", "3.0.13-0ubuntu3.4", "pkg_type", "deb", "section", "net"),
+				row("name", "libssl3t64", "source_name", "openssl", "version", "3.0.13-0ubuntu3.4", "pkg_type", "deb", "section", "libs"),
+				row("name", "nginx", "source_name", "nginx", "version", "1.24.0-2ubuntu7", "pkg_type", "deb", "section", "httpd"),
 				row("name", "linux-image-6.8.0-45-generic", "source_name", "linux", "version", "6.8.0-45.45", "pkg_type", "deb"),
 				row("name", "linux-image-6.8.0-50-generic", "source_name", "linux", "version", "6.8.0-50.51", "pkg_type", "deb"),
 				row("name", "linux-image-6.8.0-30-generic", "source_name", "linux", "version", "6.8.0-30.30", "pkg_type", "deb"),
@@ -286,7 +287,7 @@ func TestRunMapsSoftwareToFindings(t *testing.T) {
 			hardening++
 		}
 	}
-	if len(byCVE) != 4 {
+	if len(byCVE) != 3 {
 		t.Fatalf("expected 4 vulnerability findings (the negligible unfixed one is omitted), got %d: %v", len(byCVE), keys(byCVE))
 	}
 	if out.Summary.Omitted != 1 || out.Summary.Disposition != "complete" {
@@ -308,10 +309,6 @@ func TestRunMapsSoftwareToFindings(t *testing.T) {
 	if n["exposure"] != exposureSeen || n["exposure_ports"] != "443/tcp" || n["epss"] != 0.42 {
 		t.Fatalf("nginx is listening on all interfaces and confirmed by the scanner: %v", n)
 	}
-	k := detail("CVE-2024-0004")
-	if k["reboot_required"] != true || k["fix_status"] != statusReboot {
-		t.Fatalf("a kernel fixed by a newer installed kernel needs a reboot: %v", k)
-	}
 	g := detail("CVE-2025-0005")
 	if byCVE["CVE-2025-0005"].Severity != "high" || g["method"] != MethodExact || g["fixed_version"] != "1.0.20" {
 		t.Fatalf("npm finding: %v", g)
@@ -328,14 +325,14 @@ func TestRunMapsSoftwareToFindings(t *testing.T) {
 			break
 		}
 	}
-	if out.Summary.KnownExploited != 1 || out.Summary.Exposed != 1 || out.Summary.RebootRequired != 1 {
+	if out.Summary.KnownExploited != 1 || out.Summary.Exposed != 1 || out.Summary.RebootRequired != 0 {
 		t.Fatalf("summary counters: %+v", out.Summary)
 	}
 	codes := map[string]Note{}
 	for _, nn := range out.Summary.Notes {
 		codes[nn.Code] = nn
 	}
-	if codes["old_kernels_skipped"].Count != 2 || codes["ports_unattributed"].Count != 1 {
+	if codes["system_packages_skipped"].Count != 4 || codes["ports_unattributed"].Count != 1 {
 		t.Fatalf("notes: %+v", out.Summary.Notes)
 	}
 	if out.Summary.Provenance.KEVDate != "2026-11-05" || out.Summary.Provenance.EPSSDate != "2026-11-07" || out.Summary.Provenance.Ecosystem != eco || out.Summary.Provenance.OSVPairs == 0 {
@@ -613,29 +610,16 @@ func TestADeadNVDMakesTheRunIncompleteNotClean(t *testing.T) {
 	}
 }
 
-func TestManyKernelAdvisoriesCollapseIntoOneRebootFinding(t *testing.T) {
-	f := newFakeOSV(t)
-	eco := "Ubuntu:24.04:LTS"
-	var refs []VulnRef
-	for i, sev := range []string{"medium", "critical", "high"} {
-		id := fmt.Sprintf("UBUNTU-CVE-2024-90%d", i)
-		refs = append(refs, VulnRef{ID: id})
-		f.records[id] = ubuntuRecord(id, fmt.Sprintf("CVE-2024-90%d", i), sev, "linux", "6.8.0-50.51")
-	}
-	f.vulns[eco+"|linux|6.8.0-45.45"] = refs
-	out := Run(context.Background(), baseInput(), Deps{OSV: f.client(), Enrich: fakeEnrich(t, nil, nil)})
-	kernel := 0
-	for _, fd := range out.Findings {
-		var ev map[string]any
-		_ = json.Unmarshal(fd.Details, &ev)
-		if ev["reboot_required"] == true {
-			kernel++
-			if fd.Severity != "critical" || ev["advisory_count"] != float64(3) || ev["cve"] != "CVE-2024-901" {
-				t.Fatalf("collapsed finding: %s %v", fd.Severity, ev)
-			}
+func TestOnlyApplicationsAreChecked(t *testing.T) {
+	for name, section := range map[string]string{"nginx": "httpd", "openssh-server": "net", "docker.io": "admin", "git": "vcs", "cursor": "", "code": "devel", "postgresql-16": "database"} {
+		if !isApplication(name, section) {
+			t.Errorf("%s (%s) is an application", name, section)
 		}
 	}
-	if kernel != 1 || out.Summary.RebootRequired != 3 {
-		t.Fatalf("three advisories must become one finding but still count as three: findings=%d reboot=%d", kernel, out.Summary.RebootRequired)
+	for name, section := range map[string]string{"libssl3t64": "libs", "libc6": "libs", "linux-image-6.8.0-45-generic": "kernel", "python3-requests": "python", "zlib1g-dev": "libdevel",
+		"libfoo1": "", "linux-headers-6.8": "", "fonts-dejavu": "fonts", "base-files": "metapackages", "firmware-linux": ""} {
+		if isApplication(name, section) {
+			t.Errorf("%s (%s) is a system building block", name, section)
+		}
 	}
 }

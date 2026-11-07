@@ -30,7 +30,7 @@ const (
 )
 
 // Queries lists every osquery check a DefenseBot run reads, in a stable order.
-var Queries = []string{QueryOSRelease, QueryPackages, QueryKernel, QueryNPM, QueryPip, QueryApps, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
+var Queries = []string{QueryOSRelease, QueryPackages, QueryNPM, QueryApps, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
 
 // RequiredQueries must have data for a run to produce anything useful.
 var RequiredQueries = []string{QueryOSRelease, QueryPackages}

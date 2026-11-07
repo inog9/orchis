@@ -237,6 +237,8 @@ func noteText(lang string, n defensebot.Note) string {
 		return tr(lang, "The software list was cut at "+c+" entries; software beyond that was not checked.", "Daftar software dipotong pada "+c+" entri; software di luar itu tidak diperiksa.")
 	case "rpm_unsupported":
 		return tr(lang, c+" RPM packages were not checked: RPM-based distributions are not supported yet.", c+" paket RPM tidak diperiksa: distribusi berbasis RPM belum didukung.")
+	case "system_packages_skipped":
+		return tr(lang, c+" system packages (libraries, kernel, development) were skipped: DefenseBot checks applications and services.", c+" paket sistem (pustaka, kernel, pengembangan) dilewati: DefenseBot memeriksa aplikasi dan layanan.")
 	case "old_kernels_skipped":
 		return tr(lang, c+" installed kernel packages that are not running were skipped.", c+" paket kernel terpasang yang tidak sedang berjalan dilewati.")
 	case "ecosystem_unsupported":

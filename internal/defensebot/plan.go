@@ -61,6 +61,32 @@ func ecosystemFor(row map[string]string) string {
 	return ""
 }
 
+// systemSections are Debian sections of libraries, kernel and development material. DefenseBot reports on applications and
+// services someone installed or runs, not on the operating system's building blocks.
+var systemSections = map[string]bool{"libs": true, "libdevel": true, "oldlibs": true, "kernel": true, "python": true, "perl": true, "ruby": true,
+	"golang": true, "rust": true, "javascript": true, "doc": true, "fonts": true, "localization": true, "metapackages": true, "debug": true,
+	"haskell": true, "ocaml": true, "lisp": true, "gnustep": true, "introspection": true, "interpreters": true}
+
+var systemNameRe = regexp.MustCompile(`^(lib[a-z0-9]|linux-|python3-|perl-|golang-|ruby-|node-|fonts-|gir1\.2-|firmware-|.*-dev$|.*-dbg$|.*-doc$|.*-data$|.*-common$)`)
+
+// isApplication tells application packages from system building blocks. Sections win; names are the fallback for agents
+// that did not send a section.
+func isApplication(name, section string) bool {
+	sec := strings.ToLower(strings.TrimSpace(section))
+	if i := strings.LastIndex(sec, "/"); i >= 0 {
+		sec = sec[i+1:]
+	}
+	if systemSections[sec] {
+		return false
+	}
+	if sec == "" || sec == "misc" || sec == "utils" || sec == "admin" {
+		return !systemNameRe.MatchString(name)
+	}
+	return !strings.HasPrefix(name, "linux-") && !strings.HasPrefix(name, "lib") || cpeKnown(name)
+}
+
+func cpeKnown(name string) bool { _, _, ok := cpeFor(name, ""); return ok }
+
 func okRows(in Input, key string) ([]map[string]string, DatasetInput, bool) {
 	d, ok := in.Datasets[key]
 	if !ok || d.Status != "ok" {
@@ -109,7 +135,7 @@ func buildPlan(in Input) *plan {
 		if d.Truncated {
 			p.Notes = append(p.Notes, Note{Code: "packages_truncated", Count: len(rows), Limiting: true})
 		}
-		rpm, inactive := 0, 0
+		rpm, inactive, system := 0, 0, 0
 		for _, r := range rows {
 			name, version := r["name"], r["version"]
 			typ := strings.ToLower(r["pkg_type"])
@@ -129,6 +155,10 @@ func buildPlan(in Input) *plan {
 				source = name
 			}
 			p.Binary2Src[name] = source
+			if !isApplication(name, r["section"]) {
+				system++
+				continue
+			}
 			if v, pr, ok := cpeFor(name, ""); ok {
 				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: name, Version: upstreamVersion(version)})
 			}
@@ -152,6 +182,9 @@ func buildPlan(in Input) *plan {
 			p.Unmapped += rpm
 			p.Notes = append(p.Notes, Note{Code: "rpm_unsupported", Count: rpm, Limiting: true})
 		}
+		if system > 0 {
+			p.Notes = append(p.Notes, Note{Code: "system_packages_skipped", Count: system})
+		}
 		if inactive > 0 {
 			p.KernelCount = inactive
 			p.Notes = append(p.Notes, Note{Code: "old_kernels_skipped", Count: inactive})
@@ -163,11 +196,6 @@ func buildPlan(in Input) *plan {
 	if rows, _, ok := okRows(in, QueryNPM); ok {
 		for _, r := range rows {
 			add("npm", r["name"], r["name"], r["version"], "", false)
-		}
-	}
-	if rows, _, ok := okRows(in, QueryPip); ok {
-		for _, r := range rows {
-			add("PyPI", strings.ToLower(strings.ReplaceAll(r["name"], "_", "-")), r["name"], r["version"], "", false)
 		}
 	}
 	unmapped := 0
