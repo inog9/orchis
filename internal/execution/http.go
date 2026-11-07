@@ -120,7 +120,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			httpx.Write(w, r, err)
 			return
 		}
-		f := FindingFilter{Type: q.Get("type"), Severity: q.Get("severity"), Query: q.Get("q"), Cursor: q.Get("cursor")}
+		f := FindingFilter{Type: q.Get("type"), Severity: q.Get("severity"), Query: q.Get("q"), Cursor: q.Get("cursor"), Triage: q.Get("triage")}
 		if organization != "" {
 			id := uuid.MustParse(organization)
 			f.OrganizationID = &id
@@ -159,6 +159,20 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 			return
 		}
 		v, err := h.Svc.GetFinding(r.Context(), p, id)
+		reply(w, r, 200, v, err)
+	}))
+	mux.HandleFunc("PUT /api/v1/findings/{id}/triage", auth.Require(authz.FindingWrite, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+		id, err := pathID(r, "Finding")
+		if err != nil {
+			httpx.Write(w, r, err)
+			return
+		}
+		var in TriageInput
+		if e := httpx.Decode(w, r, &in); e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		v, err := h.Svc.SetTriage(r.Context(), p, id, in, auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
 		reply(w, r, 200, v, err)
 	}))
 }

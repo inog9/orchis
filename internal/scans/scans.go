@@ -366,6 +366,35 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 					return e
 				}
 			}
+			if full {
+				// Engine DefenseBot untuk sisi dalam (aplikasi terpasang): kumpulan baru diantrikan di transaksi yang
+				// sama sehingga agent offline atau persetujuan yang belum ada menggagalkan launch dengan alasan jelas.
+				// Worker menahan job ini sampai Nmap aset yang sama selesai agar tag "seen by scanner" terisi.
+				if s.Collector == nil {
+					return httpx.Conflict("DefenseBot collection is not available.")
+				}
+				if _, err = s.Collector.QueueDefenseCollection(ctx, tx, p.TenantID, t.control, defensebot.Queries); err != nil {
+					return err
+				}
+				var cid uuid.UUID
+				var version int
+				err = tx.QueryRow(ctx, `SELECT c.id,c.version FROM contracts c JOIN integrations i ON i.tenant_id=c.tenant_id AND i.id=c.integration_id WHERE c.tenant_id=$1 AND c.key=$2 AND c.is_active AND i.enabled ORDER BY c.version DESC LIMIT 1`, p.TenantID, contract.KeyDefenseBot).Scan(&cid, &version)
+				if errors.Is(err, pgx.ErrNoRows) {
+					return invalid("tools", "The DefenseBot integration is disabled.")
+				}
+				if err != nil {
+					return err
+				}
+				dparams, _ := json.Marshal(map[string]string{"language": language})
+				dparams, err = contract.NormalizeVersion(contract.KeyDefenseBot, version, dparams)
+				if err != nil {
+					return err
+				}
+				dscope, _ := json.Marshal(contract.ScanScope{Target: "local", TestingAuthorized: true, MaxHosts: s.hostLimit()})
+				if _, err = tx.Exec(ctx, `INSERT INTO scan_jobs(id,tenant_id,assessment_id,control_asset_id,asset_id,range_id,range_version,name,target,addresses,tool,contract_id,contract_version,params,scope,status,error) VALUES($1,$2,$3,$4,$4,NULL,NULL,$5,'local','[]','defensebot',$6,$7,$8,$9,'waiting','')`, ids.New(), p.TenantID, id, t.control, t.name, cid, version, []byte(dparams), dscope); err != nil {
+					return err
+				}
+			}
 		}
 		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "scan.launch", ResourceType: "scan", ResourceID: &id, IP: ip, RequestID: req, Detail: map[string]any{"organization_id": in.OrganizationID, "asset_ids": in.AssetIDs, "range_ids": in.RangeIDs, "tools": in.Tools, "preset": in.Preset, "runner": "injector"}})
 	})
@@ -578,6 +607,13 @@ func (s *Service) AddDiscoveredAsset(ctx context.Context, p *auth.Principal, job
 	return id, err
 }
 
+func containsFullTools(tools []string) bool {
+	seen := map[string]bool{}
+	for _, tool := range tools {
+		seen[tool] = true
+	}
+	return len(seen) == 4 && seen["nmap"] && seen["nuclei"] && seen["hackbot"] && seen["defensebot"]
+}
 func containsPipelineTools(tools []string) bool {
 	seen := map[string]bool{}
 	for _, tool := range tools {

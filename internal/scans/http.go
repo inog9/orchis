@@ -96,6 +96,15 @@ func (h *Handlers) Register(m *http.ServeMux) {
 		e = h.Svc.Cancel(r.Context(), p, id, auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
 		reply(w, r, 200, map[string]bool{"canceled": e == nil}, e)
 	}))
+	m.HandleFunc("POST /api/v1/findings/{id}/retest", auth.Require(authz.AssessmentRun, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
+		id, e := pathID(r, "id")
+		if e != nil {
+			httpx.Write(w, r, e)
+			return
+		}
+		v, e := h.Svc.Retest(r.Context(), p, id, r.Header.Get("Idempotency-Key"), auth.ClientIP(r), httpx.RequestIDFrom(r.Context()))
+		reply(w, r, 201, v, e)
+	}))
 	m.HandleFunc("POST /api/v1/scan-jobs/{id}/asset", auth.Require(authz.AssetWrite, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		id, e := pathID(r, "id")
 		if e != nil {

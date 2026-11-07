@@ -96,6 +96,11 @@ type Finding struct {
 	OccurrenceCount  int             `json:"occurrence_count"`
 	OrganizationID   *uuid.UUID      `json:"organization_id"`
 	OrganizationName *string         `json:"organization_name"`
+	TriageStatus     string          `json:"triage_status"`
+	TriageReason     string          `json:"triage_reason"`
+	TriageExpiresAt  *time.Time      `json:"triage_expires_at,omitempty"`
+	TriageBy         *uuid.UUID      `json:"triage_by,omitempty"`
+	TriageAt         *time.Time      `json:"triage_at,omitempty"`
 }
 
 type FindingPage struct {

@@ -140,7 +140,12 @@ VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (tenant_id, finding_id, execution_id) 
 }
 
 const findingCols = `f.id, f.asset_id, COALESCE(a.name,f.subject_address), f.type, f.value, f.title, f.severity, f.details, f.first_seen_at, f.last_seen_at, f.occurrence_count,
- COALESCE(f.organization_id,a.organization_id), (SELECT o.name FROM organizations o WHERE o.tenant_id=f.tenant_id AND o.id=COALESCE(f.organization_id,a.organization_id))`
+ COALESCE(f.organization_id,a.organization_id), (SELECT o.name FROM organizations o WHERE o.tenant_id=f.tenant_id AND o.id=COALESCE(f.organization_id,a.organization_id)),
+ f.triage_status, f.triage_reason, f.triage_expires_at, f.triage_by, f.triage_at`
+
+// triageActionable menyembunyikan risiko yang diterima sampai tanggalnya habis; setelah itu temuan kembali tampil
+// di daftar yang wajib ditangani. false_positive tetap tersembunyi dari daftar aksi.
+const triageActionable = `(f.triage_status='open' OR (f.triage_status='accepted_risk' AND f.triage_expires_at IS NOT NULL AND f.triage_expires_at<=now()))`
 
 // queryFindings menjalankan SELECT finding. joinWhere harus diawali JOIN/WHERE yang membatasi tenant (f.tenant_id=$1).
 func queryFindings(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, joinWhere string, args []any, tail string) ([]Finding, error) {
@@ -157,7 +162,7 @@ func scanFindings(rows pgx.Rows) ([]Finding, error) {
 	out := []Finding{}
 	for rows.Next() {
 		var f Finding
-		if err := rows.Scan(&f.ID, &f.AssetID, &f.AssetName, &f.Type, &f.Value, &f.Title, &f.Severity, &f.Details, &f.FirstSeenAt, &f.LastSeenAt, &f.OccurrenceCount, &f.OrganizationID, &f.OrganizationName); err != nil {
+		if err := rows.Scan(&f.ID, &f.AssetID, &f.AssetName, &f.Type, &f.Value, &f.Title, &f.Severity, &f.Details, &f.FirstSeenAt, &f.LastSeenAt, &f.OccurrenceCount, &f.OrganizationID, &f.OrganizationName, &f.TriageStatus, &f.TriageReason, &f.TriageExpiresAt, &f.TriageBy, &f.TriageAt); err != nil {
 			return nil, err
 		}
 		out = append(out, f)
@@ -186,6 +191,7 @@ type FindingFilter struct {
 	AssetID                       *uuid.UUID
 	OrganizationID                *uuid.UUID
 	SimulationID                  *uuid.UUID
+	Triage                        string // "open" = hanya temuan yang wajib ditangani sekarang
 	Limit                         int
 }
 
@@ -249,6 +255,11 @@ func (s *Service) ListFindings(ctx context.Context, p *auth.Principal, f Finding
 		}
 		if f.SimulationID != nil {
 			add("EXISTS (SELECT 1 FROM finding_occurrences o WHERE o.tenant_id=f.tenant_id AND o.finding_id=f.id AND o.simulation_id=?)", *f.SimulationID)
+		}
+		if f.Triage == "open" {
+			where = append(where, triageActionable)
+		} else if f.Triage != "" && f.Triage != "all" {
+			add("f.triage_status=?", f.Triage)
 		}
 		if q != "" {
 			if page.Search == "elasticsearch" {

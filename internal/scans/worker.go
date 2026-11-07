@@ -43,6 +43,9 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; Hackbot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='hackbot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status='canceled')`, tenant); err != nil {
 			return err
 		}
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; DefenseBot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='defensebot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap' AND p.status='canceled')`, tenant); err != nil {
+			return err
+		}
 		var active int
 		if err := tx.QueryRow(ctx, `SELECT count(*) FROM scan_jobs WHERE tenant_id=$1 AND status='running'`, tenant).Scan(&active); err != nil {
 			return err
@@ -61,7 +64,10 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		rows, err := tx.Query(ctx, `SELECT j.id,j.assessment_id,j.control_asset_id,j.contract_id,j.target,j.name,j.tool,j.contract_version,j.params,j.addresses
  FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id
  WHERE j.tenant_id=$1 AND j.status='waiting' AND a.status='running'
- AND (j.tool<>'defensebot' OR a.created_at < now() - interval '10 minutes' OR NOT EXISTS(SELECT 1 FROM executions c JOIN contracts co ON co.tenant_id=c.tenant_id AND co.id=c.contract_id WHERE c.tenant_id=j.tenant_id AND c.target_asset_id=j.asset_id AND c.executor_kind='agent' AND co.key LIKE 'osquery.%' AND c.state IN ('ready','running') AND c.created_at >= a.created_at))
+ AND (j.tool<>'defensebot' OR (
+   (a.created_at < now() - interval '10 minutes' OR NOT EXISTS(SELECT 1 FROM executions c JOIN contracts co ON co.tenant_id=c.tenant_id AND co.id=c.contract_id WHERE c.tenant_id=j.tenant_id AND c.target_asset_id=j.asset_id AND c.executor_kind='agent' AND co.key LIKE 'osquery.%' AND c.state IN ('ready','running') AND c.created_at >= a.created_at))
+   AND NOT EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap' AND p.status IN ('waiting','running','canceled'))
+ ))
  AND (j.tool<>'hackbot' OR (
    EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap')
    AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nuclei')
