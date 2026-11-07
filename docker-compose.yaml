@@ -165,6 +165,7 @@ services:
       timeout: 3s
       retries: 30
     environment:
+      GOMAXPROCS: '2'
       ORCHIS_SITE: ${ORCHIS_SITE:-localhost}
       ORCHIS_TLS: ${ORCHIS_TLS-tls internal}
       ORCHIS_AUTO_HTTPS: ${ORCHIS_AUTO_HTTPS-auto_https disable_redirects}
