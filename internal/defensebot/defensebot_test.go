@@ -612,3 +612,30 @@ func TestADeadNVDMakesTheRunIncompleteNotClean(t *testing.T) {
 		t.Fatalf("an unreachable NVD must not look clean: %+v", out.Summary)
 	}
 }
+
+func TestManyKernelAdvisoriesCollapseIntoOneRebootFinding(t *testing.T) {
+	f := newFakeOSV(t)
+	eco := "Ubuntu:24.04:LTS"
+	var refs []VulnRef
+	for i, sev := range []string{"medium", "critical", "high"} {
+		id := fmt.Sprintf("UBUNTU-CVE-2024-90%d", i)
+		refs = append(refs, VulnRef{ID: id})
+		f.records[id] = ubuntuRecord(id, fmt.Sprintf("CVE-2024-90%d", i), sev, "linux", "6.8.0-50.51")
+	}
+	f.vulns[eco+"|linux|6.8.0-45.45"] = refs
+	out := Run(context.Background(), baseInput(), Deps{OSV: f.client(), Enrich: fakeEnrich(t, nil, nil)})
+	kernel := 0
+	for _, fd := range out.Findings {
+		var ev map[string]any
+		_ = json.Unmarshal(fd.Details, &ev)
+		if ev["reboot_required"] == true {
+			kernel++
+			if fd.Severity != "critical" || ev["advisory_count"] != float64(3) || ev["cve"] != "CVE-2024-901" {
+				t.Fatalf("collapsed finding: %s %v", fd.Severity, ev)
+			}
+		}
+	}
+	if kernel != 1 || out.Summary.RebootRequired != 3 {
+		t.Fatalf("three advisories must become one finding but still count as three: findings=%d reboot=%d", kernel, out.Summary.RebootRequired)
+	}
+}

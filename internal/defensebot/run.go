@@ -37,16 +37,17 @@ type Deps struct {
 }
 
 type candidate struct {
-	comp     *component
-	adv      *Advisory
-	key      string
-	cve      string
-	fixed    string
-	status   string
-	method   string
-	severity string
-	source   string
-	ids      []string
+	comp      *component
+	adv       *Advisory
+	key       string
+	cve       string
+	fixed     string
+	status    string
+	method    string
+	collapsed int
+	severity  string
+	source    string
+	ids       []string
 }
 
 type exposure struct {
@@ -187,6 +188,8 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 
 	cands = append(cands, nvdCandidates(ctx, p, d, &sum)...)
 	cands = mergeCandidates(cands)
+	// Many advisories fixed by the same installed-but-not-running kernel are one action (reboot), so they become one candidate.
+	cands = collapseReboot(cands)
 
 	// Exploitation signals.
 	cves := map[string]bool{}
@@ -308,7 +311,12 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 		}
 		if e.reboot {
 			ev["reboot_required"] = true
-			sum.RebootRequired++
+			n := 1
+			if c.collapsed > 1 {
+				n = c.collapsed
+				ev["advisory_count"] = float64(n)
+			}
+			sum.RebootRequired += n
 		}
 		if e.exposure.state == exposureSeen {
 			sum.Exposed++
@@ -558,3 +566,53 @@ func normalizeProto(p string) string {
 	}
 	return p
 }
+
+// collapseReboot replaces two or more "fixed, reboot required" advisories of one component by a single candidate that
+// carries the highest severity, the highest fixed version and the number of advisories.
+func collapseReboot(in []*candidate) []*candidate {
+	groups := map[*component][]*candidate{}
+	var order []*component
+	var out []*candidate
+	for _, c := range in {
+		if c.status != statusReboot {
+			out = append(out, c)
+			continue
+		}
+		if _, ok := groups[c.comp]; !ok {
+			order = append(order, c.comp)
+		}
+		groups[c.comp] = append(groups[c.comp], c)
+	}
+	for _, comp := range order {
+		g := groups[comp]
+		if len(g) == 1 {
+			out = append(out, g[0])
+			continue
+		}
+		sort.SliceStable(g, func(i, j int) bool {
+			if sevOrderOf(g[i].severity) != sevOrderOf(g[j].severity) {
+				return sevOrderOf(g[i].severity) > sevOrderOf(g[j].severity)
+			}
+			return g[i].cve < g[j].cve
+		})
+		top := *g[0]
+		adv := *top.adv
+		adv.Summary = fmt.Sprintf("%d advisories are fixed by the installed kernel; reboot to apply it. Most severe: %s.", len(g), top.cve)
+		top.adv = &adv
+		top.ids = nil
+		for _, c := range g {
+			if top.fixed == "" || (c.fixed != "" && CompareVersions(comp.Pair.Ecosystem, c.fixed, top.fixed) > 0) {
+				top.fixed = c.fixed
+			}
+			top.ids = appendUnique(top.ids, c.ids...)
+		}
+		if len(top.ids) > 5 {
+			top.ids = top.ids[:5]
+		}
+		top.collapsed = len(g)
+		out = append(out, &top)
+	}
+	return out
+}
+
+func sevOrderOf(s string) int { return sevRank[s] }
