@@ -476,6 +476,8 @@ export const id:Record<keyof typeof en,string> = {
   "m_orgd_overview": "Ringkasan",
   "m_orgd_authorized": "{0} diotorisasi",
   "m_orgd_online_offline": "{0} online · {1} offline",
+  "m_theme_to_light": "Beralih ke tema terang",
+  "m_theme_to_dark": "Beralih ke tema gelap",
   "m_shell_degraded": "Sebagian layanan perlu perhatian",
   "m_orgs_reports_btn": "Laporan organisasi",
   "m_orgs_stat_assets": "Aset dipantau",

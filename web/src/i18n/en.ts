@@ -475,6 +475,8 @@ export const en = {
   "m_orgd_overview": "Overview",
   "m_orgd_authorized": "{0} authorised",
   "m_orgd_online_offline": "{0} online · {1} offline",
+  "m_theme_to_light": "Switch to light theme",
+  "m_theme_to_dark": "Switch to dark theme",
   "m_shell_degraded": "Some services need attention",
   "m_orgs_reports_btn": "Organisation reports",
   "m_orgs_stat_assets": "Assets monitored",

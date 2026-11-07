@@ -3,13 +3,14 @@ import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/ru
 import { useScans } from '../api/scans';
 import { advancedEnabled, navigationFor } from './navigation';
 import { PageAccess, PageGuide } from './PageGuide';
-import { Bell, ChevronDown, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Server, UserRound, Users, X } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Moon, Sun, Menu, PanelLeftClose, PanelLeftOpen, Plus, Search, Settings, Server, UserRound, Users, X } from 'lucide-react';
 import { Suspense, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAlertAction, useAlerts, useHome, useLogout, useMe, useSettings, useSimulations } from '../api/hooks';
 import { AlertItem, alertTarget } from '../pages/NotificationsPage';
 import { CommandPalette, useCommandPalette } from './CommandPalette';
 import { can } from '../api/types';
+import { toggleTheme, useTheme } from '../lib/theme';
 import { DemoBanner } from './DemoBanner';
 import './shell.css';
 import { Wordmark } from './Wordmark';
@@ -146,6 +147,12 @@ function WorkspaceMenu() {
         </div>))}
     </div></>);
 }
+function ThemeToggle() {
+    useLocale();
+    const theme = useTheme();
+    const toLight = theme === 'dark';
+    return (<button type="button" className="dock__icon theme-toggle" onClick={toggleTheme} aria-label={toLight ? textUI("m_theme_to_light") : textUI("m_theme_to_dark")} title={toLight ? textUI("m_theme_to_light") : textUI("m_theme_to_dark")}>{toLight ? <Moon size={18} aria-hidden="true"/> : <Sun size={18} aria-hidden="true"/>}</button>);
+}
 function Notifications() {
     useLocale();
     const { data: me } = useMe();
@@ -210,6 +217,7 @@ function ActionDock({ openPalette }: {
             </div>))}
         </div>)}
         <Notifications />
+        <ThemeToggle />
         <LanguagePreference />
         <WorkspaceMenu />
       </div>

@@ -1,5 +1,6 @@
 import { t as textUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { useEffect, useRef, type ReactNode } from 'react';
+import './dialogs.css';
 const PURPOSES: Record<string, string> = {
     get 'add-asset-title'() {
         return textUI("m_05f84f557eac");

@@ -1,0 +1,15 @@
+/* Form Scan baru v2: tiga bagian bernomor sebagai kartu. */
+.newscan { display: flex; flex-direction: column; gap: 16px; color: var(--v2-text); max-width: 880px; }
+.newscan .dialog__form { display: flex; flex-direction: column; gap: 16px; padding: 0; background: none; border: 0; }
+.newscan .fieldset { margin: 0; padding: 20px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.newscan .fieldset:disabled { opacity: .7; }
+.newscan legend { padding: 0 8px; font-size: 15px; font-weight: 600; color: var(--v2-text); }
+.newscan h2 { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--v2-text-3); margin: 4px 0 0; }
+.newscan .stack-list li { padding: 10px 12px; border: 1px solid var(--v2-border); border-radius: 10px; background: var(--v2-surface); }
+.newscan .stack-list li:hover { border-color: var(--v2-accent-line); }
+.newscan .notice, .newscan .small, .newscan .field__hint { color: var(--v2-text-2); }
+.newscan .alert { border-color: var(--v2-critical); background: var(--v2-critical-soft); color: var(--v2-text); }
+.newscan select { background: var(--v2-surface); border-color: var(--v2-border); color: var(--v2-text); }
+.newscan button[type='submit'], .newscan .btn--secondary { margin-right: 8px; }
+.newscan .btn { text-decoration: none; display: inline-flex; align-items: center; }
+.newscan a:focus-visible, .newscan button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }

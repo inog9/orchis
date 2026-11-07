@@ -52,3 +52,16 @@ describe('Shell', () => {
     expect(screen.getByRole('combobox', { name: 'Language' })).toBeVisible();
   });
 });
+
+describe('Shell tema', () => {
+  it('tombol tema membalik data-theme, menyimpan pilihan, dan labelnya ikut berganti', async () => {
+    localStorage.setItem('orchis.theme', 'dark');
+    document.documentElement.setAttribute('data-theme', 'dark');
+    mount();
+    const btn = await screen.findByRole('button', { name: 'Switch to light theme' });
+    await userEvent.click(btn);
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
+    expect(localStorage.getItem('orchis.theme')).toBe('light');
+    expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeInTheDocument();
+  });
+});

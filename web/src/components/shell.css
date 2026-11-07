@@ -1,7 +1,7 @@
 /* Bilah atas dan bilah samping. Hanya transform/opacity yang dianimasikan. */
 .shell .topbar { position: sticky; top: 0; z-index: 25; background: rgba(11,12,15,.72); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border-bottom: 1px solid transparent; transition: border-color .2s ease; }
-.shell .topbar.is-scrolled { border-bottom-color: #23252C; }
-.shell .topbar__menu { display: none; border: 1px solid #2A2E34; }
+.shell .topbar.is-scrolled { border-bottom-color: var(--edge-0); }
+.shell .topbar__menu { display: none; border: 1px solid var(--edge-1); }
 
 /* Titik wordmark berdenyut hanya saat ada run berjalan */
 .wordmark__dot.is-live { animation: shell-pulse 2s ease-in-out infinite; }
@@ -24,12 +24,12 @@
 .nav-badge--hot { color: #F87171; background: rgba(248,113,113,.10); border-color: rgba(248,113,113,.35); }
 .nav-badge--warm { color: #FBBF24; background: rgba(251,191,36,.10); border-color: rgba(251,191,36,.30); }
 .nav-badge--live { color: #4ADE80; background: rgba(74,222,128,.10); border-color: rgba(74,222,128,.30); }
-.nav-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid #23252C; }
+.nav-foot { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 8px; border-top: 1px solid var(--edge-0); }
 .nav-status { display: flex; align-items: center; gap: 8px; margin: 0; padding: 4px 10px; font-size: 11px; color: var(--ink-3); }
 .nav-status__dot { width: 7px; height: 7px; border-radius: 50%; background: #4ADE80; flex: none; }
 .nav-status.is-degraded .nav-status__dot { background: #FBBF24; }
 .nav-toggle { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: 8px; color: var(--ink-3); font-size: 12px; }
-.nav-toggle:hover { background: #ffffff0f; color: var(--ink); }
+.nav-toggle:hover { background: var(--hover); color: var(--ink); }
 
 /* Ciut: hanya ikon, tooltip ke kanan */
 .shell .dock--nav.is-collapsed { width: 56px; }

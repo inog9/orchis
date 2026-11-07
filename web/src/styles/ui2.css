@@ -22,4 +22,11 @@
   --bg: #FAFAF9; --ink: #18181B; --ink-2: #52525B; --ink-3: #6B6B76; --line: #A1A1AA; --ring: #E4E4E7;
   --bronze: #8F6208; --error: #C81E43; --tile: #F4F4F5; --input-bg: #FFFFFF; --input-line: #A1A1AA; --panel: #FFFFFF;
   --success: #047857; --warn: #8A6A00; color-scheme: light;
+  --edge-0: #E4E4E7; --edge-1: #D4D4D8; --edge-2: #A1A1AA;
+  --hover: #00000010; --hover-soft: #0000000A;
+  --surface-0: #F4F4F5; --surface-1: #FFFFFF; --surface-2: #F4F4F5; --dialog-bg: #FFFFFF; --skel-hi: #E4E4E7;
 }
+/* Halaman masuk dan hero-nya dirancang gelap; tetap gelap di tema terang. */
+:root[data-theme='light'] .auth, :root[data-theme='light'] .auth * { --bg: #0A0B0D; --ink: #ECEEF1; --ink-2: #A3A8B1; --ink-3: #8C919A; --line: #7A7F88; --ring: #1D2024; --bronze: #C19A5B; --error: #FF8A8A; --tile: #1E2227; --input-bg: #121417; --input-line: #6E737B; --panel: #0F1114; --success: #6FCF97; --warn: #E8B86A; color-scheme: dark; }
+
+:root[data-theme='light'] .orgs { --surface: #FFFFFF; --elev: #F4F4F5; --edge: #E4E4E7; --muted: #6B6B76; --gold: #8F6208; --gold-hi: #8F6208; --gold-dim: #8F620866; }

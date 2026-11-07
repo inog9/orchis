@@ -1,5 +1,5 @@
 /* Halaman Organisations: kartu, statistik, toolbar, paginasi. Hanya transform/opacity yang dianimasikan. */
-.orgs { --gold: #B8955F; --gold-hi: #D4B07A; --gold-dim: #6B5A3E; --surface: #121318; --elev: #181A20; --edge: #23252C; --muted: #5C5F68; display: flex; flex-direction: column; gap: 20px; }
+.orgs { --gold: #B8955F; --gold-hi: #D4B07A; --gold-dim: #6B5A3E; --surface: #121318; --elev: #181A20; --edge: var(--edge-0); --muted: #5C5F68; display: flex; flex-direction: column; gap: 20px; }
 
 /* Header halaman */
 .phead { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; animation: orgs-in .3s ease-out both; }
@@ -22,11 +22,11 @@
 .stat__sev { margin-top: 2px; }
 
 /* Bilah tingkat keparahan */
-.sevbar { display: flex; gap: 2px; height: 6px; border-radius: 3px; overflow: hidden; background: #1D2024; }
+.sevbar { display: flex; gap: 2px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-2); }
 .sevbar__seg { min-width: 4px; }
 .sevbar__seg--critical { background: #F87171; } .sevbar__seg--high { background: #FB923C; } .sevbar__seg--medium { background: #FBBF24; } .sevbar__seg--low { background: #60A5FA; }
 .sevbar__seg--info { background: #8E9AB5; }
-.sevbar__seg--empty { background: #1D2024; }
+.sevbar__seg--empty { background: var(--surface-2); }
 
 /* Toolbar */
 .otb { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; animation: orgs-in .3s ease-out .08s both; }

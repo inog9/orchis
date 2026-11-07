@@ -12,6 +12,7 @@ import { UNAUTHORIZED_EVENT } from './api/client';
 import './styles/tokens.css';
 import './styles/ui2.css';
 import './styles/app.css';
+import { initTheme } from './lib/theme';
 import { applicationStylesReady, showStylesheetFailure } from './styles-ready';
 
 const client = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
@@ -22,6 +23,7 @@ window.addEventListener(UNAUTHORIZED_EVENT, () => {
   client.removeQueries({ predicate: (q) => q.queryKey[0] !== 'me' });
 });
 
+initTheme();
 const root = document.getElementById('root')!;
 if (await applicationStylesReady()) {
 createRoot(root).render(

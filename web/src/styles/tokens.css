@@ -17,5 +17,8 @@
   --success: #6FCF97;
   --warn: #E8B86A;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --edge-0: #23252C; --edge-1: #2A2E34; --edge-2: #3A3F46;
+  --hover: #FFFFFF0F; --hover-soft: #FFFFFF08;
+  --surface-0: #0C0D10; --surface-1: #16181C; --surface-2: #1D2024; --dialog-bg: #121417; --skel-hi: #262B31;
   color-scheme: dark;
 }
