@@ -146,10 +146,14 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 	if len(in.RangeIDs) > 0 {
 		return nil, invalid("range_ids", "Choose authorized web assets with HTTP(S) URLs; network range scans are no longer supported.")
 	}
-	if len(in.Tools) > 0 && !(len(in.Tools) == 3 && containsPipelineTools(in.Tools)) {
-		return nil, invalid("tools", "Web pentests run Nmap and Nuclei first, then Hackbot.")
+	full := len(in.Tools) == 4 && containsFullTools(in.Tools)
+	if len(in.Tools) > 0 && !full && !(len(in.Tools) == 3 && containsPipelineTools(in.Tools)) {
+		return nil, invalid("tools", "Web pentests run the Hackbot pipeline; a full assessment adds the DefenseBot engine.")
 	}
 	in.Tools = []string{"nmap", "nuclei", "hackbot"}
+	if full {
+		in.Tools = append(in.Tools, "defensebot")
+	}
 	in.Preset = "standard"
 	if len(in.AssetIDs)+len(in.RangeIDs) == 0 || len(in.AssetIDs) > s.hostLimit() || len(in.RangeIDs) > 32 {
 		return nil, invalid("targets", "Select authorized assets or at most 32 approved ranges.")
@@ -219,6 +223,24 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			}
 			if !authorized {
 				return invalid("asset_ids", "Every selected asset requires testing authorization.")
+			}
+			// Hackbot berat (satu engagement per worker, lama): tolak run kedua yang tumpang tindih di aset yang sama.
+			var busy bool
+			if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id WHERE j.tenant_id=$1 AND j.asset_id=$2 AND j.tool='hackbot' AND a.status='running' AND j.status IN ('waiting','running'))`, p.TenantID, asset).Scan(&busy); err != nil {
+				return err
+			}
+			if busy {
+				return httpx.Conflict("Hackbot is already testing " + t.name + "; wait for that run to finish before starting another.")
+			}
+			// Full assessment juga menjalankan DefenseBot: aset butuh agent terdaftar, bukan hanya URL web.
+			if full {
+				var enrolled bool
+				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked')`, p.TenantID, asset).Scan(&enrolled); err != nil {
+					return err
+				}
+				if !enrolled {
+					return invalid("asset_ids", "A full assessment needs an enrolled agent on "+t.name+" for the DefenseBot engine; use a web pentest for URL-only assets.")
+				}
 			}
 			rows, e := tx.Query(ctx, `SELECT kind,value,is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC,created_at,id`, p.TenantID, asset)
 			if e != nil {

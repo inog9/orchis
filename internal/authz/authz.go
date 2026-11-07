@@ -22,6 +22,7 @@ const (
 	SimulationRead    = "simulation.read"
 	SimulationRun     = "simulation.run"
 	FindingRead       = "finding.read"
+	FindingWrite      = "finding.write" // menetapkan status triage per finding
 	AtomicRead        = "atomic.read"
 	AtomicWrite       = "atomic.write" // membuat dan mengubah atomic test
 	AtomicRun         = "atomic.run"   // menjalankan dan menghentikan eksekusi
@@ -40,7 +41,7 @@ const (
 
 var readPerms = []string{AIRead, OrganizationRead, AssessmentRead, ReportRead, AtomicRead, AssetRead, ScenarioRead, SimulationRead, FindingRead, PeopleRead, AgentRead, IntegrationRead, AlertRead}
 
-var analystExtra = []string{AIGenerate, AIApprove, OrganizationWrite, AssessmentRun, ReportGenerate, AtomicWrite, AtomicRun, AssetWrite, ScenarioWrite, SimulationRun, PeopleWrite}
+var analystExtra = []string{AIGenerate, AIApprove, OrganizationWrite, AssessmentRun, ReportGenerate, AtomicWrite, AtomicRun, AssetWrite, ScenarioWrite, SimulationRun, PeopleWrite, FindingWrite}
 
 var adminExtra = []string{AIManage, AtomicDelete, AssetDelete, AssetAuthorize, ScenarioDelete, AgentManage, IntegrationManage, UserManage, SettingsManage, AuditRead}
 
