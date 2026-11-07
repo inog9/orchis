@@ -43,7 +43,7 @@ sys="$(uname -s)"
 case "$sys" in
 Linux) goos=linux ;;
 Darwin) goos=darwin
-	note "macOS: the agent runs, but osquery endpoint data is not yet supported on macOS (Linux only for now)." ;;
+	note "macOS: osquery endpoint data (used by DefenseBot) is experimental on macOS." ;;
 *) die "unsupported OS '$sys'. On Windows use the PowerShell command from the console (osquery on Windows is not yet supported)." ;;
 esac
 
