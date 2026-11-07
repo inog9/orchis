@@ -135,6 +135,132 @@ authentication/configuration separately from engagement data when allocating
 job volumes. An exit code is not permission to retry a request: reconcile
 interrupted work and actual target state before resuming ambiguous mutations.
 
+## Automatic gog setup in Docker
+
+Every container command, including `pentest-job`, runs the local gog bootstrap
+first. It prepares persistent storage and imports only explicitly supplied
+credential files. It does not read a host mailbox, start OAuth consent, check
+Google connectivity, or fetch mail. Once an authorized account has been imported
+or consented, later containers reuse it automatically from the `pi-home` volume.
+Without tokens, independent pentest work continues and Gmail verification remains
+blocked until the account is provisioned.
+
+Defaults preserve an explicit operator override:
+
+| Setting | Docker default / purpose |
+| --- | --- |
+| `GOG_HOME` | `/home/pentest/.gog`, persisted in `pi-home` |
+| `GOG_KEYRING_BACKEND` | `file`, encrypted credentials without a desktop keychain |
+| `DBUS_SESSION_BUS_ADDRESS` | `disabled:`, preventing desktop D-Bus autostart |
+| `GOG_KEYRING_PASSWORD` | Reuse a generated private persistent password, or supply an explicit value |
+| `GOG_KEYRING_PASSWORD_FILE` | Optional mounted password file instead of the explicit password environment value |
+| `GOG_READONLY`, `GOG_GMAIL_NO_SEND`, `GOG_WRAP_UNTRUSTED` | `1`, `1`, `1` for verification-oriented defaults |
+| `GOG_AUTO_JSON` | `1`, machine-readable output when gog is piped |
+| `GOG_OAUTH_CLIENT_FILE` | Optional mounted Desktop OAuth client JSON to import |
+| `GOG_TOKEN_FILE` | Optional mounted `gog auth tokens export` JSON to import |
+| `GOG_ACCOUNT` | Explicit authorized email; required for token import and must match its email |
+| `GOG_CLIENT` | Named OAuth client; defaults to `default` and must match the token export |
+| `GOG_TOKEN_IMPORT_REPLACE` | Set `1` to import a changed token export over an existing token; existing tokens are otherwise preserved |
+
+Keep the persistent home and its generated keyring password together. Changing
+the password does not decrypt an existing keyring. Shared-home containers use
+locked import receipts so repeated starts do not reimport unchanged files. The
+bootstrap performs local configuration only; actual token validity and account
+access are established when an authorized Gmail task runs.
+
+Explicit imports pin an unset/blank `GOG_CLIENT` to `default` for the child
+command, keeping it in the imported token bucket. Without imports, existing gog
+account/domain routing remains available.
+
+An invalid explicit import or unavailable keyring unlock secret stops container
+startup with exit `1`. It never reports a limited pentest delivery or opens an
+interactive login prompt. Supplying no import files is valid: public/offline work
+can still start before Gmail is provisioned.
+
+### A. Import an account that already has consent
+
+On an operator-controlled machine where that exact account is already authorized
+in gog, export it to a private location outside the repository:
+
+```sh
+gog auth tokens export tester@example.com --out /secure/gog/token.json
+```
+
+This file contains refresh-token secrets. Also provide the corresponding Desktop
+OAuth client JSON as `/secure/gog/client.json`; tokens and client must belong to
+the same OAuth configuration. Restrict access while ensuring the container's
+`pentest` user (UID `1001`) can read the mounted files. Mount files read-only;
+do not commit them or put their contents in a pentest prompt.
+
+For example, save this credential-mount override outside the repository as
+`/secure/gog/compose.gog.yaml` (replace the example account with the authorized
+one):
+
+```yaml
+services:
+  pentest:
+    environment:
+      GOG_ACCOUNT: tester@example.com
+      GOG_OAUTH_CLIENT_FILE: /run/gog/client.json
+      GOG_TOKEN_FILE: /run/gog/token.json
+    volumes:
+      - /secure/gog/client.json:/run/gog/client.json:ro
+      - /secure/gog/token.json:/run/gog/token.json:ro
+```
+
+Submit a job with the normal persistent home and this override:
+
+```sh
+docker compose -f compose.yaml -f /secure/gog/compose.gog.yaml \
+  run --rm -T pentest pentest-job --prompt-file - < job-prompt.txt
+```
+
+The entrypoint imports client credentials and the matching token idempotently
+before spawning the requested command. A missing, unreadable, or mismatched
+explicit import is a configuration error, not permission to choose another
+account. No host gog directories are mounted implicitly.
+
+### B. Give first consent once in an operator terminal
+
+Create a Google Cloud **Desktop app** OAuth client, enable the Gmail API, and
+obtain its JSON using the [pinned gog quickstart](https://github.com/openclaw/gogcli/blob/v0.48.0/docs/quickstart.md).
+Use the override above with only the client mount: omit `GOG_TOKEN_FILE` and
+its token-file volume until a token exists. Run the split OAuth flow directly
+in your own terminal, outside `pentest-job`:
+
+```sh
+docker compose -f compose.yaml -f /secure/gog/compose.gog.yaml \
+  run --rm -T pentest gog auth add tester@example.com \
+  --services gmail --gmail-scope readonly --remote --step 1
+```
+
+Open the printed consent URL in your own browser and authorize the exact test
+account. After redirect, copy the full redirected URL even if its local callback
+page cannot load. In the same operator terminal, read it without pasting it into
+shell history, then complete step 2:
+
+```sh
+printf 'Paste the full redirected URL: '
+IFS= read -r GOG_AUTH_REDIRECT_URL
+docker compose -f compose.yaml -f /secure/gog/compose.gog.yaml \
+  run --rm -T pentest gog auth add tester@example.com \
+  --services gmail --gmail-scope readonly --remote --step 2 \
+  --auth-url "$GOG_AUTH_REDIRECT_URL"
+unset GOG_AUTH_REDIRECT_URL
+```
+
+Keep the same `pi-home` volume, `GOG_HOME`, OAuth client, and account between
+steps: the first step stores a short-lived PKCE verifier there. Consent and
+redirect URLs belong only in this operator flow, not model prompts, general job
+logs, screenshots, or reports. After success, normal jobs reuse the persisted
+account; OAuth consent itself cannot be automated away. Token revocation or
+expiry may still require the operator to reauthorize that same account/client.
+
+The pinned upstream [paths](https://github.com/openclaw/gogcli/blob/v0.48.0/docs/paths.md),
+[OAuth client](https://github.com/openclaw/gogcli/blob/v0.48.0/docs/auth-clients.md), and
+[token import](https://github.com/openclaw/gogcli/blob/v0.48.0/docs/commands/gog-auth-tokens-import.md)
+references describe the storage and command contracts used here.
+
 ## Tool inventory
 
 The Docker build installs these tools. Versions below are build inputs, not a

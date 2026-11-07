@@ -28,6 +28,14 @@ It emits JSONL lifecycle status, keeps raw logs private, and supports
 container per active engagement; see the [job submission guide](docs/docker.md#submit-one-prompt-from-another-service)
 for subprocess/file input, persistent credentials, and safe resume behavior.
 
+Docker automatically prepares gog's persistent encrypted file keyring and can
+import explicitly mounted OAuth client/token files before spawning a job. Existing
+authorized tokens are reused; first consent still happens once in your own
+browser. See [automatic gog setup](docs/docker.md#automatic-gog-setup-in-docker)
+for import and split-consent examples. The bootstrap does not access a host
+mailbox or fetch mail; missing tokens leave Gmail coverage blocked while other
+work continues.
+
 ## Install
 
 Requires Go 1.23+ to build, Node.js 22.19+, and Pi 1.5.0+ to run. This repository

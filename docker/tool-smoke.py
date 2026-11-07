@@ -7,6 +7,7 @@ Run in the image; --only NAME... selects a subset for developer validation.
 import argparse
 import base64
 import http.server
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -127,6 +128,37 @@ def jsluice_fixture(root, env):
     command(["jsluice", "query", "-f", "-r", "-q", "(call_expression) @call", str(source)], root, env)
 
 
+def gog_fixture(root, env):
+    # Import only synthetic secrets into a disposable encrypted keyring. These
+    # local auth commands do not authorize an account or contact Google.
+    spec = importlib.util.spec_from_file_location("gog_bootstrap_smoke", Path(__file__).with_name("gog-bootstrap.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    client = root / "fixture-client.json"
+    token = root / "fixture-token.json"
+    client.write_text(json.dumps({"installed": {
+        "client_id": "fixture.apps.googleusercontent.com", "client_secret": "fixture-only",
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": ["http://localhost"],
+    }}))
+    token.write_text(json.dumps({"email": "tester@example.com", "client": "default", "services": ["gmail"],
+                                 "scopes": ["https://www.googleapis.com/auth/gmail.readonly"], "refresh_token": "fixture-only-refresh-token"}))
+    client.chmod(0o600)
+    token.chmod(0o600)
+    fixture_env = {key: value for key, value in env.items() if not key.startswith("GOG_")}
+    fixture_env.update(GOG_HOME=str(root / "gog-fixture"), GOG_ACCOUNT="tester@example.com",
+                       GOG_OAUTH_CLIENT_FILE=str(client), GOG_TOKEN_FILE=str(token))
+    first = module.bootstrap(fixture_env)
+    receipts = Path(first["GOG_HOME"]) / "bootstrap/receipts.json"
+    timestamp = receipts.stat().st_mtime_ns
+    second = module.bootstrap(fixture_env)
+    if first["GOG_KEYRING_PASSWORD"] != second["GOG_KEYRING_PASSWORD"] or receipts.stat().st_mtime_ns != timestamp:
+        raise RuntimeError("gog respawn did not preserve its keyring/import state")
+    stdout, _ = command(["gog", "--no-input", "--json", "auth", "tokens", "list"], root, second)
+    if "token:default:tester@example.com" not in json.loads(stdout).get("keys", []):
+        raise RuntimeError("gog did not retain the exact fixture account in its encrypted keyring")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--only", nargs="+", choices=sorted(COMMANDS))
@@ -138,6 +170,9 @@ def main():
                if key.lower() not in {"http_proxy", "https_proxy", "all_proxy", "no_proxy"}}
         env.update(HOME=temp, XDG_CONFIG_HOME=str(root / "config"), PI_CODING_AGENT_DIR=str(root / "pi"),
                    INTERCEPTOR_TEMP=str(root / "interceptor"), GORI_HOME=str(root / "gori"),
+                   GOG_HOME=str(root / "gog"), GOG_CONFIG_DIR=str(root / "gog/config"),
+                   GOG_DATA_DIR=str(root / "gog/data"), GOG_STATE_DIR=str(root / "gog/state"),
+                   GOG_CACHE_DIR=str(root / "gog/cache"),
                    GOTOOLCHAIN="local", NO_COLOR="1")
         for name in names:
             try:
@@ -152,6 +187,8 @@ def main():
                     ffuf_fixture(root, env)
                 if name == "jsluice":
                     jsluice_fixture(root, env)
+                if name == "gog":
+                    gog_fixture(root, env)
                 print(f"PASS {name}", flush=True)
             except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as exc:
                 failed.append(name)

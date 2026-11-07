@@ -9,4 +9,6 @@ fi
 if [ ! -f "$HOME/.pi/agent/settings.json" ]; then
   cp /opt/pentest/pi-settings.json "$HOME/.pi/agent/settings.json"
 fi
-exec "$@"
+# Bootstrap gog in the persistent home before every command, including service
+# jobs. Python execs the requested argv so signals and exit codes stay intact.
+exec python3 /opt/pentest/docker/gog-bootstrap.py -- "$@"

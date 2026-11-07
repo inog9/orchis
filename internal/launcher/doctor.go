@@ -89,6 +89,9 @@ func Doctor(config string, stdout io.Writer) error {
 		}
 	}
 	fmt.Fprintln(stdout, "Bundled integration skills: interceptor, interceptor-browser, interceptor-research")
+	if gogHome := os.Getenv("GOG_HOME"); gogHome != "" {
+		fmt.Fprintf(stdout, "gog headless config: home=%s; keyring=%s; account selected=%t (OAuth validity not checked)\n", gogHome, os.Getenv("GOG_KEYRING_BACKEND"), os.Getenv("GOG_ACCOUNT") != "")
+	}
 	fmt.Fprintln(stdout, "Credentials: Gmail OAuth/account, TOTP store/unlock, and authorized SMS device are separate setup; executable availability does not verify authentication. No credentials checked.")
 	for _, path := range externalSkills(home) {
 		fmt.Fprintf(stdout, "Integration skill: %s\n", path)
