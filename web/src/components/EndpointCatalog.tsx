@@ -201,7 +201,7 @@ export function EndpointCatalog({ orgId, canManage = false, platform = 'linux', 
       {formatUI(set.isError && <div className="alert" role="alert"><strong>{textUI("m_f3ad8557ee44")}</strong><span>{formatUI(describeError(set.error).message)}</span></div>)}
       {formatUI(orgId && org.isError && <p role="alert">{formatUI(describeError(org.error).message)}</p>)}
       <div className="ed-list">
-        {formatUI(cat.data.queries.filter((q) => !q.pack && q.os.includes(catalogOS(platform))).map((q) => <Card key={q.key} q={q} canManage={canManage && runnable && (!orgId || org.isSuccess)} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined}/>))}
+        {formatUI(cat.data.queries.filter((q) => !q.pack && q.category === 'DefenseBot' && q.os.includes(catalogOS(platform))).map((q) => <Card key={q.key} q={q} canManage={canManage && runnable && (!orgId || org.isSuccess)} onToggle={toggle} state={orgId && states.get(q.key) ? { enabled: states.get(q.key)!.enabled, explicit: states.get(q.key)!.explicit } : undefined}/>))}
       </div>
       <h2 id="ed-packs-title" className="panel__heading">{textUI("m_2864afe9cc79")}</h2>
       <p className="muted">{textUI("m_ba2b56c711a0")}</p>

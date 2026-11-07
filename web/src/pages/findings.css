@@ -103,3 +103,5 @@
 @media (prefers-reduced-motion: reduce) { .fnd-scrim, .fnd-drawer { animation: none; } .fnd-group__toggle svg, .fnd-chip, .fnd-strip__item { transition: none; } }
 .fnd .stat { padding: 14px 16px; border: 1px solid var(--v2-border); border-radius: 12px; }
 .fnd .stat__skeleton { width: 60%; }
+.fnd-def{margin-left:8px;border:1px solid var(--edge-2);border-radius:999px;padding:0 7px;font-size:10.5px;font-weight:600;vertical-align:middle}
+.fnd-def--kev{border-color:var(--error);color:var(--error)}.fnd-def--exposed{border-color:var(--warn);color:var(--warn)}

@@ -82,3 +82,17 @@ describe('ScanDetailPage', () => {
     expect(screen.getAllByText('Failed').length).toBeGreaterThan(0);
   });
 });
+
+describe('DefenseBot scan', () => {
+  const summary = { schema: 1, disposition: 'limited', software_checked: 120, software_unmapped: 3, findings: 4, omitted: 0, by_severity: { high: 2 }, known_exploited: 1, exposed: 2, reboot_required: 0, hardening: 0, notes: [{ code: 'source_down', limiting: true }, { code: 'apps_unmapped', count: 3, limiting: true }], provenance: { engine: 'defensebot/1', queried_at: '2026-11-08T02:00:00Z' } };
+  it('names the tool, summarises the run in the job row and shows counts with the coverage notes', async () => {
+    route((u) => u.pathname.endsWith('/scans/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee') ? scan({ options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' }, status: 'incomplete', jobs: [job({ tool: 'defensebot', status: 'incomplete', target: 'local', defense: summary })] }) : undefined);
+    mount(<ScanDetailPage />, '/simulations/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', '/simulations/:id');
+    expect(await screen.findByRole('heading', { name: 'DefenseBot result' })).toBeInTheDocument();
+    expect(screen.getAllByText('DefenseBot').length).toBeGreaterThan(0);
+    expect(screen.getByText('4 advisories · 1 known exploited')).toBeInTheDocument();
+    expect(screen.getByText(/Incomplete result/)).toBeInTheDocument();
+    expect(screen.getByText('The vulnerability service could not be reached; no result is shown as clean.')).toBeInTheDocument();
+    expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
+  });
+});
