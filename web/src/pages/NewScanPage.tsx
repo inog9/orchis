@@ -80,9 +80,9 @@ export function NewScanPage() {
     // Pra-pilih satu aset saat datang dari halaman aset (?asset=) begitu datanya siap.
     useEffect(() => {
         if (!presetAsset || kind === '' || targets.length > 0) return;
-        const r = readiness.data?.items.find((i) => i.id === presetAsset);
-        if (r && eligible(kind, r)) setTargets([presetAsset]);
-    }, [presetAsset, kind, readiness.data, targets.length]);
+        const row = rows.find((i) => i.asset.id === presetAsset);
+        if (row && eligible(kind, row.r)) setTargets([presetAsset]);
+    }, [presetAsset, kind, rows, targets.length]);
     const toggle = (id: string) => setTargets((cur) => cur.includes(id) ? cur.filter((v) => v !== id) : [...cur, id]);
     const steps = [textUI('flow_wiz_s1'), textUI('flow_wiz_s2'), textUI('flow_wiz_s3'), textUI('flow_wiz_s4')];
     const windowOpen = control.data?.allowed_now !== false;
@@ -107,7 +107,8 @@ export function NewScanPage() {
       {step === 1 && (<fieldset className="fieldset wiz-pane">
         <legend className="sr-only">{textUI('flow_wiz_s1')}</legend>
         <OrganizationFilter value={org} onChange={(v) => changeOrg(v, true)} required/>
-        {formatUI(org && <button type="button" className="btn btn--primary btn--auto" onClick={() => setStep(2)}>{textUI('flow_wiz_next')}</button>)}
+        {formatUI(org && allAssets.length === 0 && !list.isPending && (<div className="state"><h2>{textUI('flow_wiz_empty')}</h2><p role="status">{textUI('flow_wiz_none_eligible')}</p><Link className="btn btn--secondary btn--auto" to={`/organizations/${org}?tab=assets&new=1`}>{textUI('flow_wiz_add_asset')}</Link></div>))}
+        {formatUI(org && allAssets.length > 0 && <button type="button" className="btn btn--primary btn--auto" onClick={() => setStep(2)}>{textUI('flow_wiz_next')}</button>)}
       </fieldset>)}
       {formatUI(step >= 2 && (<div className="wiz-orgbar">
         <OrganizationFilter value={org} onChange={(v) => changeOrg(v)} required/>

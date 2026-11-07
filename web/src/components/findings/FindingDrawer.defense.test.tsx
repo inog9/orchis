@@ -1,3 +1,5 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -9,8 +11,8 @@ const finding = (details: Record<string, unknown>): Finding => ({ id: 'f1', asse
 
 describe('FindingDrawer for DefenseBot findings', () => {
   it('shows the advisory, versions, status, exposure and method in words, with a safe external link', () => {
-    render(<MemoryRouter><FindingDrawer canAsset onClose={() => {}} finding={finding({ method: 'osv-distro', cve: 'CVE-2024-1', package: 'openssl', installed_version: '3.0.13-0ubuntu3.4', fixed_version: '3.0.13-0ubuntu3.5', fix_status: 'fix_available', kev: true, epss: 0.314,
-      exposure: 'exposed', exposure_ports: '443/tcp', advisory_url: 'https://ubuntu.com/security/CVE-2024-1', severity_source: 'distribution priority', data_as_of: '2026-11-08T01:00:00Z', confirmed_by: 'Nuclei' })} /></MemoryRouter>);
+    render(<QueryClientProvider client={qc}><MemoryRouter><FindingDrawer canAsset onClose={() => {}} finding={finding({ method: 'osv-distro', cve: 'CVE-2024-1', package: 'openssl', installed_version: '3.0.13-0ubuntu3.4', fixed_version: '3.0.13-0ubuntu3.5', fix_status: 'fix_available', kev: true, epss: 0.314,
+      exposure: 'exposed', exposure_ports: '443/tcp', advisory_url: 'https://ubuntu.com/security/CVE-2024-1', severity_source: 'distribution priority', data_as_of: '2026-11-08T01:00:00Z', confirmed_by: 'Nuclei' })} /></MemoryRouter></QueryClientProvider>);
     const section = screen.getByRole('heading', { name: 'DefenseBot' }).closest('section')!;
     expect(within(section).getAllByText('Known exploited').length).toBeGreaterThan(0);
     expect(within(section).getByText('EPSS 31.4%')).toBeInTheDocument();
@@ -23,7 +25,7 @@ describe('FindingDrawer for DefenseBot findings', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
   it('shows no DefenseBot section for other findings', () => {
-    render(<MemoryRouter><FindingDrawer canAsset onClose={() => {}} finding={finding({ template_id: 'x' })} /></MemoryRouter>);
+    render(<QueryClientProvider client={qc}><MemoryRouter><FindingDrawer canAsset onClose={() => {}} finding={finding({ template_id: 'x' })} /></MemoryRouter></QueryClientProvider>);
     expect(screen.queryByRole('heading', { name: 'DefenseBot' })).toBeNull();
   });
 });

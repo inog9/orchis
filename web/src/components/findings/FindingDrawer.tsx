@@ -48,6 +48,7 @@ export function FindingDrawer({ finding, onClose, canAsset }: { finding: Finding
         </header>
         <div className="fnd-drawer__body">
           <div className="fnd-drawer__badges"><SeverityBadge severity={current.severity}/>{formatUI(isNew(finding) && <span className="fnd-new">{textUI("m_fnd_new")}</span>)}</div>
+          <FindingTriage finding={current} onChanged={setCurrent}/>
           <h2 id="fnd-drawer-title" className="fnd-drawer__title">{formatUI(current.title)}</h2>
           <code className="fnd-drawer__value mono">{current.value}</code>
           <dl className="fnd-meta">

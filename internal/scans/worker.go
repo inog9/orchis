@@ -229,6 +229,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			return err
 		}
 		index := map[string]int{}
+		covActions := map[string]string{}
 		for _, j := range jobs {
 			group := contract.HostOf(j.target)
 			if j.asset != nil {
@@ -301,13 +302,17 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					return e
 				}
 				for _, f := range findings {
-					f.Coverage = []string{reporting.CoverageKey(m)}
+					cov := reporting.CoverageKey(m)
+					f.Coverage = []string{cov}
+					if cov != "" {
+						covActions[cov] = m.Action
+					}
 					x.Findings = append(x.Findings, f)
 				}
 			}
 		}
 		for i := range snap.Assets {
-			linkOutsideConfirmation(&snap.Assets[i])
+			linkOutsideConfirmation(&snap.Assets[i], covActions)
 			snap.Assets[i].Findings = reporting.MergeFindings(snap.Assets[i].Findings)
 			for _, f := range snap.Assets[i].Findings {
 				if f.Type == "vulnerability" {
@@ -326,7 +331,7 @@ var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)
 
 // linkOutsideConfirmation marks a DefenseBot finding when another method (Nuclei, Hackbot) reported the same CVE on the same
 // asset: the weakness was seen from inside and from outside. Findings are never merged or dropped, only annotated.
-func linkOutsideConfirmation(a *reporting.Asset) {
+func linkOutsideConfirmation(a *reporting.Asset, covActions map[string]string) {
 	outside := map[string]map[string]bool{}
 	for _, f := range a.Findings {
 		if m := f.Evidence["method"]; m == "osv-distro" || m == "osv-exact" || m == "nvd-cpe" {
@@ -340,11 +345,13 @@ func linkOutsideConfirmation(a *reporting.Asset) {
 			if outside[cve] == nil {
 				outside[cve] = map[string]bool{}
 			}
+			// Coverage disimpan sebagai hash; tindakan asal metode dipetakan saat freeze agar
+			// konfirmasi luar tetap bisa mengenali Nuclei dan Hackbot.
 			for _, c := range f.Coverage {
-				switch {
-				case strings.Contains(c, contract.KeyNucleiVS):
+				switch action := covActions[c]; {
+				case strings.Contains(action, contract.KeyNucleiVS):
 					outside[cve]["Nuclei"] = true
-				case strings.Contains(c, contract.KeyHackbot):
+				case strings.Contains(action, contract.KeyHackbot):
 					outside[cve]["Hackbot"] = true
 				}
 			}

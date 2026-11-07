@@ -104,6 +104,9 @@ run_one() (
     export E2E_RENDER_FAILURE_FILE="$render_fail"
     infra_env+=(ORCHIS_REPORT_RENDER_SCRIPT="$PWD/e2e/renderer-fixture.mjs" ORCHIS_E2E_RENDER_FAILURE_FILE="$render_fail")
   fi
+  if [ "$script" = "flow26.mjs" ]; then
+    infra_env+=(ORCHIS_ALLOW_LOOPBACK_TARGETS=true ORCHIS_AMQP_URL="$AMQP_URL")
+  fi
   env ORCHIS_HTTP_ADDR="127.0.0.1:$PORT" ORCHIS_WEB_DIR="$PWD/web/dist" ORCHIS_ADMIN_EMAIL=admin@orchis.local ORCHIS_ADMIN_PASSWORD='Orchis-Dev-Pass-1' ORCHIS_MITRE_URL="$mitre_url" ORCHIS_ADVANCED_FEATURES="$advanced" "${infra_env[@]}" ./bin/server serve >/tmp/orchis-e2e-server.log 2>&1 &
   srv=$!
   for _ in $(seq 1 40); do curl -sf "http://127.0.0.1:$PORT/api/healthz" >/dev/null && break; sleep 0.3; done

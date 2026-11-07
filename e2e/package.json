@@ -1,1 +1,1 @@
-{"name":"orchis-e2e","private":true,"version":"0.0.1","type":"module","dependencies":{"@axe-core/playwright":"4.10.2","playwright":"^1.64.1"}}
+{"name":"orchis-e2e","private":true,"version":"0.0.1","type":"module","dependencies":{"@axe-core/playwright":"4.10.2","amqplib":"^0.10.9","playwright":"^1.64.1"}}
