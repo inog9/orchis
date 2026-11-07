@@ -232,6 +232,7 @@ services:
       ORCHIS_ENV_FILE: /run/secrets/app.json
       ORCHIS_INJECTOR_CONCURRENCY: '1'
       ORCHIS_HACKBOT_DATA: /data
+      PENTEST_HARNES_MAX_AGENTS: '2'
     volumes:
       - "${ORCHIS_STATE}/hackbot.json:/run/secrets/app.json:ro"
       - hackbot-data:/data
