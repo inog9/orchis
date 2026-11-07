@@ -16,7 +16,10 @@ type component struct {
 	Kernel   bool
 }
 
+type cpeComp struct{ Vendor, Product, Name, Version string }
+
 type plan struct {
+	CPE         []cpeComp
 	Ecosystem   string
 	Platform    string
 	OSName      string
@@ -126,6 +129,9 @@ func buildPlan(in Input) *plan {
 				source = name
 			}
 			p.Binary2Src[name] = source
+			if v, pr, ok := cpeFor(name, ""); ok {
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: name, Version: upstreamVersion(version)})
+			}
 			kernel := false
 			if m := kernelPkgRe.FindStringSubmatch(name); m != nil {
 				kernel = true
@@ -166,7 +172,13 @@ func buildPlan(in Input) *plan {
 	}
 	unmapped := 0
 	if rows, _, ok := okRows(in, QueryApps); ok {
-		unmapped += len(rows)
+		for _, r := range rows {
+			if v, pr, mapped := cpeFor(r["name"], r["bundle_identifier"]); mapped {
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				continue
+			}
+			unmapped++
+		}
 	}
 	if rows, _, ok := okRows(in, QueryBrew); ok {
 		unmapped += len(rows)

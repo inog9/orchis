@@ -323,7 +323,7 @@ var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)
 func linkOutsideConfirmation(a *reporting.Asset) {
 	outside := map[string]map[string]bool{}
 	for _, f := range a.Findings {
-		if f.Evidence["method"] == "osv-distro" || f.Evidence["method"] == "osv-exact" {
+		if m := f.Evidence["method"]; m == "osv-distro" || m == "osv-exact" || m == "nvd-cpe" {
 			continue
 		}
 		raw, _ := f.Evidence["cve"].(string)
@@ -347,7 +347,7 @@ func linkOutsideConfirmation(a *reporting.Asset) {
 	for i := range a.Findings {
 		f := &a.Findings[i]
 		method, _ := f.Evidence["method"].(string)
-		if method != "osv-distro" && method != "osv-exact" {
+		if method != "osv-distro" && method != "osv-exact" && method != "nvd-cpe" {
 			continue
 		}
 		cve, _ := f.Evidence["cve"].(string)

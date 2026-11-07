@@ -31,6 +31,7 @@ var sevRank = map[string]int{"info": 0, "low": 1, "medium": 2, "high": 3, "criti
 // Deps are the external collaborators of a run. Tests replace them with fakes.
 type Deps struct {
 	OSV    *OSV
+	NVD    *NVD
 	Enrich *Enricher
 	Now    func() time.Time
 }
@@ -42,6 +43,7 @@ type candidate struct {
 	cve      string
 	fixed    string
 	status   string
+	method   string
 	severity string
 	source   string
 	ids      []string
@@ -183,6 +185,7 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 		addNote(Note{Code: "source_down", Detail: "OSV", Limiting: true})
 	}
 
+	cands = append(cands, nvdCandidates(ctx, p, d, &sum)...)
 	cands = mergeCandidates(cands)
 
 	// Exploitation signals.
@@ -272,6 +275,9 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 		method := MethodExact
 		if strings.HasPrefix(c.comp.Pair.Ecosystem, "Ubuntu") || strings.HasPrefix(c.comp.Pair.Ecosystem, "Debian") {
 			method = MethodDistro
+		}
+		if c.method != "" {
+			method = c.method
 		}
 		ev := map[string]any{
 			"cve": c.cve, "package": c.comp.Display, "ecosystem": c.comp.Pair.Ecosystem, "source_package": c.comp.Pair.Name,

@@ -54,7 +54,7 @@ const text = (v: unknown) => (typeof v === 'string' ? v : '');
 export function defenseOf(f: Pick<Finding, 'details' | 'type'>): DefenseEvidence | null {
     const d = f.details ?? {};
     const method = text(d.method);
-    if (f.type !== 'vulnerability' || (method !== 'osv-distro' && method !== 'osv-exact')) return null;
+    if (f.type !== 'vulnerability' || (method !== 'osv-distro' && method !== 'osv-exact' && method !== 'nvd-cpe')) return null;
     const url = text(d.advisory_url);
     return {
         cve: text(d.cve), pkg: text(d.package), installed: text(d.installed_version), fixed: text(d.fixed_version), status: text(d.fix_status), kev: d.kev === true,

@@ -14,6 +14,7 @@ var (
 	defenseOnce   sync.Once
 	defenseOSV    *defensebot.OSV
 	defenseEnrich *defensebot.Enricher
+	defenseNVD    *defensebot.NVD
 )
 
 // defenseDeps returns shared clients so the advisory cache is reused between runs. Endpoints can be overridden for
@@ -22,8 +23,10 @@ func defenseDeps() defensebot.Deps {
 	defenseOnce.Do(func() {
 		defenseOSV = &defensebot.OSV{Base: os.Getenv("ORCHIS_DEFENSEBOT_OSV_URL"), Concurrency: 12}
 		defenseEnrich = &defensebot.Enricher{KEVURL: os.Getenv("ORCHIS_DEFENSEBOT_KEV_URL"), EPSSURL: os.Getenv("ORCHIS_DEFENSEBOT_EPSS_URL")}
+		// The NVD key is optional and free; it only raises the request limit. It lives in the worker's private file.
+		defenseNVD = &defensebot.NVD{Base: os.Getenv("ORCHIS_DEFENSEBOT_NVD_URL"), APIKey: os.Getenv("ORCHIS_NVD_API_KEY")}
 	})
-	return defensebot.Deps{OSV: defenseOSV, Enrich: defenseEnrich}
+	return defensebot.Deps{OSV: defenseOSV, NVD: defenseNVD, Enrich: defenseEnrich}
 }
 
 // executeDefensebot maps the stored software data of one asset to advisories. It only contacts the public vulnerability

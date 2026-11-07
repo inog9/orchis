@@ -26,6 +26,7 @@ const (
 
 	MethodDistro = "osv-distro"
 	MethodExact  = "osv-exact"
+	MethodCPE    = "nvd-cpe"
 )
 
 // Queries lists every osquery check a DefenseBot run reads, in a stable order.

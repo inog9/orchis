@@ -514,3 +514,101 @@ func TestEnricherCachesAndRejectsEmptyData(t *testing.T) {
 		t.Fatal("an empty KEV catalogue must be rejected, not treated as 'nothing is exploited'")
 	}
 }
+
+func fakeNVD(t *testing.T, status int) (*NVD, *[]string, *int) {
+	var queries []string
+	slept := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.Query().Get("cpeName")+"|key="+r.Header.Get("apiKey"))
+		if status != http.StatusOK {
+			http.Error(w, "no", status)
+			return
+		}
+		fmt.Fprint(w, `{"vulnerabilities":[{"cve":{"id":"CVE-2025-54135","descriptions":[{"lang":"en","value":"Cursor allows remote code execution through prompt injection."}],
+		"metrics":{"cvssMetricV31":[{"cvssData":{"baseScore":8.6,"baseSeverity":"HIGH"}}]},"references":[{"url":"https://github.com/cursor/cursor/security/advisories/GHSA-x"}],
+		"configurations":[{"nodes":[{"cpeMatch":[{"vulnerable":true,"criteria":"cpe:2.3:a:anysphere:cursor:*:*:*:*:*:*:*:*","versionEndExcluding":"1.3.9"}]}]}]}}]}`)
+	}))
+	t.Cleanup(srv.Close)
+	return &NVD{Base: srv.URL, HTTP: srv.Client(), APIKey: "k1", Sleep: func(time.Duration) { slept++ }}, &queries, &slept
+}
+
+func TestCPEDictionaryIsSmallAndExact(t *testing.T) {
+	for _, c := range []struct {
+		name, bundle, vendor, product string
+		ok                            bool
+	}{
+		{"cursor", "", "anysphere", "cursor", true},
+		{"Cursor.app", "", "anysphere", "cursor", true},
+		{"Other.app", "com.todesktop.230313mzl4w4u92", "anysphere", "cursor", true},
+		{"code", "", "microsoft", "visual_studio_code", true},
+		{"cursor-extension-pack", "", "", "", false},
+		{"unknown", "", "", "", false},
+	} {
+		v, p, ok := cpeFor(c.name, c.bundle)
+		if ok != c.ok || v != c.vendor || p != c.product {
+			t.Errorf("%q/%q = %q %q %v", c.name, c.bundle, v, p, ok)
+		}
+	}
+	if got := upstreamVersion("1:0.45.14-1700"); got != "0.45.14" {
+		t.Fatalf("upstream version: %q", got)
+	}
+}
+
+func TestNVDQueryUsesTheExactCPEKeyAndParsesTheFix(t *testing.T) {
+	n, queries, slept := fakeNVD(t, http.StatusOK)
+	got, err := n.Query(context.Background(), "anysphere", "cursor", "1.3.0")
+	if err != nil || len(got) != 1 {
+		t.Fatalf("%v %v", got, err)
+	}
+	if got[0].CVE != "CVE-2025-54135" || got[0].Severity != "high" || got[0].Fixed != "1.3.9" || got[0].Score != 8.6 || !strings.HasPrefix(got[0].URL, "https://") {
+		t.Fatalf("parsed: %+v", got[0])
+	}
+	if len(*queries) != 1 || (*queries)[0] != "cpe:2.3:a:anysphere:cursor:1.3.0:*:*:*:*:*:*:*|key=k1" {
+		t.Fatalf("request: %v", *queries)
+	}
+	if _, err = n.Query(context.Background(), "anysphere", "cursor", "1.3.0"); err != nil || len(*queries) != 1 {
+		t.Fatal("a repeated lookup must be served from the cache")
+	}
+	if _, err = n.Query(context.Background(), "anysphere", "cursor", "1.4.0"); err != nil || *slept == 0 {
+		t.Fatalf("requests must be spaced to respect the rate limit (slept %d): %v", *slept, err)
+	}
+	if v, err := n.Query(context.Background(), "anysphere", "cursor", "not a version; rm -rf"); err != nil || v != nil || len(*queries) != 2 {
+		t.Fatal("a malformed version must never reach the API")
+	}
+}
+
+func TestRunMapsAMacApplicationThroughTheDictionary(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{
+			{"name": "Cursor.app", "bundle_identifier": "com.todesktop.230313mzl4w4u92", "version": "1.3.0"},
+			{"name": "Other.app", "bundle_identifier": "x.y", "version": "1"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	if out.Summary.Findings != 1 || out.Summary.KnownExploited != 1 {
+		t.Fatalf("summary: %+v", out.Summary)
+	}
+	var ev map[string]any
+	_ = json.Unmarshal(out.Findings[0].Details, &ev)
+	if ev["method"] != MethodCPE || ev["fixed_version"] != "1.3.9" || ev["cve"] != "CVE-2025-54135" || out.Findings[0].Severity != "high" {
+		t.Fatalf("finding: %v", ev)
+	}
+	if out.Summary.SoftwareUnmapped != 1 {
+		t.Fatalf("only the application outside the dictionary is unmapped: %d", out.Summary.SoftwareUnmapped)
+	}
+}
+
+func TestADeadNVDMakesTheRunIncompleteNotClean(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusServiceUnavailable)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps:      {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Cursor.app", "bundle_identifier": "x", "version": "1.3.0"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, nil, nil)})
+	if out.Summary.Disposition != "limited" || out.Summary.Findings != 0 {
+		t.Fatalf("an unreachable NVD must not look clean: %+v", out.Summary)
+	}
+}

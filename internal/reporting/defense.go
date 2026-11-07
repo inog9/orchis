@@ -55,7 +55,7 @@ func str(m map[string]any, k string) string {
 
 func isDefenseFinding(f Finding) bool {
 	m := str(f.Evidence, "method")
-	return f.Type == "vulnerability" && (m == defensebot.MethodDistro || m == defensebot.MethodExact)
+	return f.Type == "vulnerability" && (m == defensebot.MethodDistro || m == defensebot.MethodExact || m == defensebot.MethodCPE)
 }
 
 var exposureOrder = map[string]int{"exposed": 3, "listening": 2, "local": 1, "unknown": 0, "": 0}
