@@ -94,7 +94,7 @@ func configPaths(explicit, home string) []string {
 }
 
 // MCPConfig converts only enabled servers and the explicitly requested
-// Burp/Caido/Textbee integrations. It never writes back to OpenCode or Pi config.
+// Gori and legacy Burp/Caido/Textbee integrations. It never writes back to OpenCode or Pi config.
 // Returned data may contain credentials and must only be stored privately.
 func MCPConfig(explicit, home, agentDir string) (map[string]any, []string, error) {
 	servers := map[string]any{}
@@ -154,7 +154,7 @@ func MCPConfig(explicit, home, agentDir string) (map[string]any, []string, error
 		}
 		for name, server := range config.MCP {
 			lower := strings.ToLower(name)
-			required := strings.Contains(lower, "burp") || strings.Contains(lower, "caido") || strings.Contains(lower, "textbee")
+			required := strings.Contains(lower, "gori") || strings.Contains(lower, "burp") || strings.Contains(lower, "caido") || strings.Contains(lower, "textbee")
 			if server.Enabled != nil && !*server.Enabled && !required {
 				continue
 			}

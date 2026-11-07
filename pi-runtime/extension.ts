@@ -196,6 +196,9 @@ export default function (pi) {
         }
       }
     }
+    if (!taskID && process.env.PENTEST_HARNES_UNATTENDED === "1" && controller.state.mode === "idle") {
+      controller.apply("run", {});
+    }
     updateStatus(ctx);
   });
 
@@ -343,7 +346,7 @@ export default function (pi) {
   });
 
   pi.registerTool({
-    name: "pentest_http", label: "Scoped captured request", description: "One scoped HTTP(S) request with shared rate scheduling and private request/response evidence. Does not follow redirects or retry. Prefer configured Burp/Caido MCP for named replay tabs. Shell/browser traffic and requests issued internally by MCP server operations use those tools' own limits.",
+    name: "pentest_http", label: "Scoped captured request", description: "One scoped HTTP(S) request with shared rate scheduling and private request/response evidence. Does not follow redirects or retry. Prefer Gori MCP for named replay sessions and exported evidence (configured native Burp/Caido integrations remain supported). Shell/browser traffic and requests issued internally by MCP server operations use those tools' own limits.",
     parameters: Type.Object({ url: Type.String(), method: Type.Optional(Type.String()), headers: Type.Optional(Type.Record(Type.String(), Type.String())), body: Type.Optional(Type.String()), rate: Type.Optional(Type.Number({ minimum: .01, maximum: 50 })) }),
     async execute(_id, params, signal, _onUpdate, ctx) {
       const method = (params.method ?? "GET").toUpperCase();

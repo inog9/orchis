@@ -189,10 +189,14 @@ review shards remain unresolved.
 
 - Browser work uses Interceptor and the bundled `interceptor` / `interceptor-browser`
   skills. Load `interceptor-research` for authorized deep research. HTTP replay
-  and evidence use the configured Burp/Caido integration.
+  and evidence use Gori by default in Docker; explicitly configured Burp/Caido
+  integrations remain available for native use. Follow the
+  [Gori integration reference](skills/pentest/references/gori.md) for engagement
+  database binding, replay IDs, evidence exports, and jxscout capture.
 - Bulk ffuf enumeration runs directly, without proxy or replay-proxy settings;
   clear inherited proxy environment variables and retain private result logs.
-  Use Burp/Caido for selected candidate replays and evidence, not dictionary traffic.
+  Use Gori (or the configured legacy proxy) for selected candidate replays and
+  evidence, not dictionary traffic.
 - Use the collection and analysis tools prescribed by the relevant skills;
   verify availability before dispatching tool-dependent tasks.
 - Account verification uses the engagement-authorized Gmail, TOTP, or Textbee
@@ -213,8 +217,10 @@ Delegate report drafting only from verified artifacts. Deliver both:
 - `<target>_VALIDATION_REASON.md`: every candidate's verdict, evidence, reason,
   duplicate mapping, and score rationale.
 
-Follow the report skill's exact structure and literal evidence placeholders
-(`{{ai_repeater:<tab-name>}}`). Verify referenced evidence exists and each claim
+Follow the report skill's exact structure. Gori evidence uses real exported
+request/response artifacts and flow/repeater IDs; literal
+`{{ai_repeater:<tab-name>}}` placeholders apply only to actual legacy replay
+tabs with that renderer. Verify referenced evidence exists and each claim
 is supported before delivery. A limited report may be delivered with precise
 blockers and client actions; delivery alone does not mean testing is complete.
 

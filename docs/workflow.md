@@ -176,7 +176,12 @@ Per-task deadlines still apply. Exceptions requiring user input pause execution.
 | Lead execution | Full tools, including bash and HTTP/MCP. Verification grants are optional replay contracts. |
 | Specialist tool access | Specialists retain full tools; shell/browser requests and requests issued internally by MCP servers use the tools' own limits. Native MCP calls, including codemode-nested calls, pass through the harness scheduler. |
 
-Browser work uses Interceptor; replay and named evidence use Burp/Caido. Gmail
+Browser work uses Interceptor. Docker uses true headless Chromium with the
+Interceptor extension, Gori capture and MCP bound to the same engagement database,
+and a scoped capture bridge into jxscout. Discovered chunk downloads return
+through Gori. Replay evidence uses real flow/repeater IDs and exported request/
+response files; Burp/Caido remain optional native integrations. See the
+[Docker guide](docker.md) and [Gori reference](../skills/pentest/references/gori.md). Gmail
 verification uses `gog`, authenticator challenges use `totp-cli`, and SMS
 verification uses Textbee. The launcher reuses existing Pi configuration and
 imports OpenCode MCP definitions into the private native configuration at

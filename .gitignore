@@ -14,3 +14,8 @@ coverage.out
 .DS_Store
 __pycache__/
 *.pyc
+.env
+.env.*
+!.env.example
+compose.override.yaml
+job-prompt*.txt

@@ -302,6 +302,10 @@ func Run(options Options, source, runtime fs.FS, stdin io.Reader, stdout, stderr
 		return err
 	}
 	mcpPath := filepath.Join(workspace, ".pi", "mcp.json")
+	stackScript := os.Getenv("PENTEST_HARNES_STACK")
+	if stackScript != "" && !options.Offline {
+		configureGori(mcp, session.Root)
+	}
 	if err := privateJSON(mcpPath, mcp); err != nil {
 		return err
 	}
@@ -344,6 +348,13 @@ func Run(options Options, source, runtime fs.FS, stdin io.Reader, stdout, stderr
 		"PENTEST_HARNES_EXTERNAL_SKILLS="+strings.Join(externalSkills(home), string(os.PathListSeparator)),
 		"PENTEST_HARNES_SUBAGENTS_DIR="+packages.Subagents,
 	)
+	if stackScript != "" && !options.Offline {
+		command.Env = append(command.Env,
+			"PENTEST_HARNES_GORI_DB="+filepath.Join(session.Root, "private", "stack", "gori.db"),
+			"GORI_HOME="+filepath.Join(session.Root, "private", "stack", "gori"),
+			"INTERCEPTOR_TEMP="+filepath.Join(session.Root, "private", "stack", "interceptor"),
+		)
+	}
 	if biliPath != "" {
 		command.Env = append(command.Env, "BILI_CONFIG_FILE="+biliPath)
 	}
@@ -352,8 +363,24 @@ func Run(options Options, source, runtime fs.FS, stdin io.Reader, stdout, stderr
 	command.Env = command.Environ()
 	command.Stdin, command.Stdout, command.Stderr = stdin, stdout, stderr
 	fmt.Fprintf(diagnostics, "Session: %s (%s)\nWorkspace: %s\nEstimated spend: $15 reporting reference, no hard monetary cap; managed traffic ceiling: 50 requests/second\n", session.Name, session.ID, workspace)
+	if statusPath := os.Getenv("PENTEST_HARNES_JOB_STATUS_FILE"); statusPath != "" {
+		if !filepath.IsAbs(statusPath) {
+			return errors.New("PENTEST_HARNES_JOB_STATUS_FILE must be an absolute private path")
+		}
+		if err := privateJSON(statusPath, map[string]any{"sessionId": session.ID, "root": session.Root, "workspace": workspace}); err != nil {
+			return fmt.Errorf("write job metadata: %w", err)
+		}
+	}
 	if options.Execute != nil {
 		return options.Execute(command)
+	}
+	var stack *managedStack
+	if stackScript != "" && !options.Offline {
+		stack, err = startStack(stackScript, session.Root, stderr, 90*time.Second)
+		if err != nil {
+			return err
+		}
+		defer stack.stop()
 	}
 	interrupts := make(chan os.Signal, 2)
 	signal.Notify(interrupts, os.Interrupt, syscall.SIGTERM)
@@ -363,6 +390,22 @@ func Run(options Options, source, runtime fs.FS, stdin io.Reader, stdout, stderr
 	}
 	done := make(chan struct{})
 	defer close(done)
+	stackFailed := make(chan struct{})
+	if stack != nil {
+		go func() {
+			select {
+			case <-stack.done:
+				close(stackFailed)
+				_ = command.Process.Signal(syscall.SIGTERM)
+				select {
+				case <-done:
+				case <-time.After(10 * time.Second):
+					_ = command.Process.Kill()
+				}
+			case <-done:
+			}
+		}()
+	}
 	go func() {
 		for {
 			select {
@@ -373,7 +416,13 @@ func Run(options Options, source, runtime fs.FS, stdin io.Reader, stdout, stderr
 			}
 		}
 	}()
-	if err := command.Wait(); err != nil {
+	waitErr := command.Wait()
+	select {
+	case <-stackFailed:
+		return fmt.Errorf("Docker browser/proxy stack stopped (%v); session saved; inspect private/stack before resuming", stack.err)
+	default:
+	}
+	if err := waitErr; err != nil {
 		return fmt.Errorf("Pi exited: %w (session saved; relaunch to continue)", err)
 	}
 	return nil

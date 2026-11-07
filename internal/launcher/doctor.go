@@ -3,16 +3,18 @@ package launcher
 import (
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"os/exec"
 	"sort"
 	"strings"
+	"time"
 )
 
 // Doctor checks configuration and executable availability without contacting
 // targets, starting MCP servers, reading inboxes, or sending SMS.
 func Doctor(config string, stdout io.Writer) error {
-	for _, name := range []string{"pi", "node", "interceptor", "gog", "totp-cli", "jxscout", "gau", "curl", "jsluice", "npxconfuse"} {
+	for _, name := range []string{"pi", "node", "bun", "npm", "go", "python3", "bash", "curl", "git", "rg", "jq", "unzip", "zip", "xz", "file", "openssl", "awk", "sed", "grep", "base64", "tr", "sort", "uniq", "wc", "sha256sum", "find", "xargs", "diff", "ps", "tar", "gzip", "bzip2", "gori", "chromium", "certutil", "interceptor", "ffuf", "httpx", "gau", "jsluice", "npxconfuse", "interactsh-client", "gog", "totp-cli", "jxscout", "prettier", "webcrack"} {
 		path, err := exec.LookPath(name)
 		if err != nil {
 			fmt.Fprintf(stdout, "%s: MISSING\n", name)
@@ -56,7 +58,28 @@ func Doctor(config string, stdout io.Writer) error {
 	for _, name := range names {
 		fmt.Fprintf(stdout, "MCP %s: configured (connection not tested)\n", name)
 	}
-	for _, required := range []string{"burp", "caido", "textbee"} {
+	requiredNames := []string{"textbee"}
+	if os.Getenv("PENTEST_HARNES_STACK") != "" {
+		fmt.Fprintln(stdout, "MCP gori: generated per engagement at launch (connection not tested)")
+		for _, service := range []struct{ name, address string }{{"Gori proxy", "127.0.0.1:8070"}, {"jxscout listener", "127.0.0.1:3333"}} {
+			connection, err := net.DialTimeout("tcp", service.address, time.Second)
+			if err != nil {
+				fmt.Fprintf(stdout, "%s: not listening (starts with an engagement; jxscout requires scope)\n", service.name)
+			} else {
+				connection.Close()
+				fmt.Fprintf(stdout, "%s: TCP reachable (application health not verified)\n", service.name)
+			}
+		}
+	} else {
+		proxyFound := false
+		for _, name := range names {
+			proxyFound = proxyFound || strings.Contains(strings.ToLower(name), "gori") || legacyProxy(name)
+		}
+		if !proxyFound {
+			fmt.Fprintln(stdout, "MCP replay backend: MISSING configuration (Gori recommended; Burp/Caido supported)")
+		}
+	}
+	for _, required := range requiredNames {
 		found := false
 		for _, name := range names {
 			found = found || strings.Contains(strings.ToLower(name), required)
@@ -66,6 +89,7 @@ func Doctor(config string, stdout io.Writer) error {
 		}
 	}
 	fmt.Fprintln(stdout, "Bundled integration skills: interceptor, interceptor-browser, interceptor-research")
+	fmt.Fprintln(stdout, "Credentials: Gmail OAuth/account, TOTP store/unlock, and authorized SMS device are separate setup; executable availability does not verify authentication. No credentials checked.")
 	for _, path := range externalSkills(home) {
 		fmt.Fprintf(stdout, "Integration skill: %s\n", path)
 	}

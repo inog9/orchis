@@ -248,8 +248,13 @@ limits and account for all specialist traffic. Respect stricter skill bounds,
 429/Retry-After, WAF/challenge, and unexpected-error stop rules. Do not automatically
 retry mutations, SMS sends, or other possibly successful side effects.
 
-Use Interceptor for browser work; Burp/Caido MCP for replay and named evidence.
-Their integration skills are available alongside the bundled suite. Pi's built-in
+Use Interceptor for browser work, including Docker's headless Chromium extension.
+Docker uses Gori MCP for replay and named evidence; native configurations may
+retain Burp/Caido. Read `.pi/skills/pentest/references/gori.md` before Gori work.
+Capture and every MCP process must select `PENTEST_HARNES_GORI_DB`, never an
+active/MRU project. Record actual flow/repeater IDs and private exports.
+The jxscout bridge starts collection only after scope exists; verify saved assets
+and bridge failures rather than assuming full JS coverage. Pi's built-in
 MCP support loads `workspace/.pi/mcp.json` automatically. Discover tools with
 `tool_search` or codemode's `searchTools()` / `describeNamespace()`; native names
 are `mcp__<server>__<tool>`. In codemode, call them through `tools.<tool_name>()`.
@@ -266,7 +271,9 @@ business logic, historical/lazy JS collection reports, authz matrix, reflection
 reports, and reports/validation-ledger.md. Delegate final drafting only from
 verified artifacts. Deliver <target>_PENTEST_REPORT.md and
 <target>_VALIDATION_REASON.md, following the report skill's exact format and
-literal {{ai_repeater:<tab-name>}} placeholders. Client findings are VALIDATED
+Gori flow/repeater IDs and real exported request/response evidence links. Literal
+{{ai_repeater:<tab-name>}} placeholders apply only to actual legacy replay tabs
+whose integration supplies that renderer. Client findings are VALIDATED
 only. Confirm all referenced evidence exists. Reconcile every candidate and
 coverage registry before advancing report to complete/limited.
 

@@ -1,4 +1,4 @@
-# pentest-harnes
+# orchis-hackbot-lite
 
 A Go launcher for a persistent, interactive **Pi pentest orchestrator**. It bundles
 the orchestrator, all 21 skills, references, and a code-enforced workflow
@@ -7,14 +7,35 @@ controller. Each engagement has an isolated workspace and resumable Pi session.
 See the [harness workflow](docs/workflow.md) for Mermaid diagrams covering startup,
 sessions, phase ordering, and the verification/reflection/hypothesis loop.
 
+## Docker
+
+Run Pi, the harness, Gori, true headless Chromium with Interceptor, and the
+`r1pu5u/jxscout` fork together using the [Docker guide](docs/docker.md). Engagement
+data and Pi configuration persist across container restarts. The scoped bridge
+forwards Gori captures to jxscout; discovered chunk downloads pass back through
+Gori. No Burp installation or Java plugin is required in Docker.
+
+For another service to submit one prompt and run it unattended, use the image's
+`pentest-job` command after provisioning Pi model/provider authentication:
+
+```sh
+docker compose run --rm -T pentest pentest-job --prompt-file - < job-prompt.txt
+```
+
+It emits JSONL lifecycle status, keeps raw logs private, and supports
+`--session ID` for continuation. Exit codes distinguish complete (`0`), limited
+(`2`), required input (`3`), failure (`1`), and cancellation (`130`). Run one
+container per active engagement; see the [job submission guide](docs/docker.md#submit-one-prompt-from-another-service)
+for subprocess/file input, persistent credentials, and safe resume behavior.
+
 ## Install
 
 Requires Go 1.23+ to build, Node.js 22.19+, and Pi 1.5.0+ to run. This repository
 is private; authenticate to GitHub first.
 
 ```sh
-gh repo clone r1pu5u/pentest-harnes
-cd pentest-harnes
+gh repo clone r1pu5u/orchis-hackbot-lite
+cd orchis-hackbot-lite
 go install ./cmd/pentest-harnes
 
 # If Pi is not already installed (MCP support is built in):
@@ -339,8 +360,11 @@ use their own bounded rates.
 
 ### Integrations
 
-The launcher imports enabled OpenCode MCP entries plus the explicitly requested
-Burp, Caido, and Textbee entries even when marked disabled in OpenCode. This
+Docker generates an engagement-bound Gori MCP entry and starts its capture
+proxy separately; both use the same private database. Native installations can
+retain their existing proxy integrations. The launcher imports enabled OpenCode
+MCP entries plus the explicitly requested Gori, Burp, Caido, and Textbee entries
+even when marked disabled in OpenCode. This
 affects only the session's private copy; global OpenCode/Pi configuration is not
 changed. The harness writes a private, native `.pi/mcp.json` in the engagement
 workspace. Pi connects enabled servers in the background when the session starts.
@@ -363,8 +387,10 @@ and shared scheduler also apply to underlying calls made from codemode scripts.
   exposure or authorization headers.
 - Interceptor drives browser work using the bundled `interceptor`,
   `interceptor-browser`, and `interceptor-research` skills and their reference/
-  workflow files. Burp/Caido MCP provide HTTP replay/evidence; their integration
-  skills are loaded from your existing skill folders.
+  workflow files. Docker uses Gori for HTTP replay/evidence, with actual flow/
+  repeater IDs and exported request/response files. Read the bundled
+  [Gori reference](skills/pentest/references/gori.md). Optional native Burp/Caido
+  integration skills are loaded from your existing skill folders.
 - Gmail verification uses `gog`; authenticator challenges use `totp-cli`; phone
   verification uses Textbee. Only engagement-authorized accounts/phones are used.
 - MCP authentication and connection management use Pi's built-in `/mcp` UI and
@@ -476,19 +502,30 @@ and workflows. They are embedded in the Go binary and installed with the suite.
 
 ## Tools used by the skills
 
-The initializer installs instructions and references. Set up the tools needed
-by the chosen workflow separately:
+The Docker build installs the web/API toolkit described in the
+[Docker tool inventory](docs/docker.md#tool-inventory). Native installations must
+install the tools needed for their selected phases separately; `init` installs
+instructions, references, scripts, and bundled wordlists only. Installing a tool
+does not provision its account credentials or authorize its network activity.
 
-- Interceptor CLI for browser work; the Interceptor skills are bundled.
-- ffuf 2.1, Python 3.9+, curl and unzip for WordPress discovery/source retrieval.
+- Interceptor CLI, browser extension/native messaging host, and Chromium for
+  browser work; the Interceptor skills are bundled.
+- ffuf with the documented 2.1-compatible flags, Python 3.9+, curl and unzip
+  for WordPress discovery/source retrieval.
   `wordpress-pentest` bundles the unchanged 10,000/132,211-entry plugin lists,
   an offline preparer and a bounded ffuf supervisor; the supervisor requires
   Linux/macOS. The skill's references cover calibration, source versions,
   unauthenticated-first full review and live validation.
-  Bulk ffuf runs directly; Burp/Caido handles selected candidate replays and
+  Bulk ffuf runs directly; Gori (or a configured legacy proxy) handles selected candidate replays and
   evidence instead of the dictionary traffic.
-- Burp or Caido with its configured proxy/replay integration for HTTP evidence.
-- jxscout for JavaScript analysis when required.
+- Gori for capture/replay and HTTP evidence (included in Docker), or an explicitly
+  configured native Burp/Caido integration.
+- The `r1pu5u/jxscout` fork for JavaScript collection/analysis. Docker includes a
+  Gori ingestion bridge and patches its outbound transport to proxy chunk
+  downloads through Gori. The Burp plugin is a protocol reference, not a Docker
+  dependency.
+- ProjectDiscovery `httpx` for bounded HTTP probing when selected by the
+  engagement; this is the Go CLI, separate from Python's `httpx` package.
 - gau CLI first for historical URL discovery, followed by curl for Wayback CDX
   and reachable static JS/map downloads; the recon skill delegates collection
   gaps and review shards with per-file coverage.
@@ -497,7 +534,8 @@ by the chosen workflow separately:
   and the runner under that skill's `scripts/` directory. The original root-level
   `tree-sitter-query` collection now lives inside this skill so no separate copy
   is needed after installation.
-- gog CLI with an explicitly authorized Gmail account for email verification.
+- gog CLI with an explicitly authorized Gmail account, OAuth configuration,
+  and unlocked credential storage for email verification.
 - npxconfuse, when available, for registry-name checks alongside independent
   collected-JS analysis in `pentest-dependency-confusion`. No repository,
   package installation or exposed manifest is required for that workflow.
@@ -505,7 +543,14 @@ by the chosen workflow separately:
   token when the website requires authenticator-based 2FA. The skill checks the
   installed command help before use; `init` does not install or enroll tokens.
 - Specialist delegation is supplied by the Pi runtime's `pentest_delegate` tool.
-- Textbee MCP with the authorized test phone when SMS verification is required.
+- Textbee MCP connection with the explicitly authorized test phone when SMS
+  verification is required; the CLI image does not provision a phone or account.
+- An authorized Collaborator/interactsh callback service for OOB tests. Gori's
+  configured OAST workflow can supply this; installing binaries alone cannot.
+- ripgrep for source/corpus review, unzip for WordPress archives, and standard
+  shell utilities (`awk`, `sed`, `tr`, `cat`, `grep`, `sort`, `wc`, `file`). All
+  bundled Python helpers use the standard library; no pip packages or standalone
+  Tree-sitter installation are required.
 
 No mailbox is assumed or authenticated by `init`; supply the engagement's inbox
 before using account-creation or verification flows. Initialization itself does

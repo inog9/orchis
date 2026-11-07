@@ -90,7 +90,7 @@ while :; do
   i=$((i+1))
   if [ ${#chunk} -lt $chunkSize ]; then break; fi
 done
-base64 -D < "$out" > /tmp/export.png
+python3 -c 'import base64, sys; sys.stdout.buffer.write(base64.b64decode(sys.stdin.buffer.read()))' < "$out" > /tmp/export.png
 file /tmp/export.png
 ```
 
@@ -156,7 +156,7 @@ The `userActivation` override (in `extension/src/inject-net.ts`) isn't strictly 
   ↓
 [chunk-extract base64 from shell side]
   ↓
-[base64 -D > final.png/pdf/svg]
+[Python stdlib base64 decode > final.png/pdf/svg]
 ```
 
 Each stage is independent. If a particular app needs a different trigger (right-click menu, drag-and-drop, paste a URL into a field), only the trigger stage changes — the capture/extract stages are universal.

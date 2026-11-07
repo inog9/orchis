@@ -23,7 +23,75 @@ func isolate(t *testing.T) string {
 	t.Setenv("OPENCODE_CONFIG", "")
 	t.Setenv("PENTEST_HARNES_SUBAGENTS_DIR", "")
 	t.Setenv("BILI_CONFIG_FILE", "")
+	t.Setenv("PENTEST_HARNES_STACK", "")
+	t.Setenv("PENTEST_HARNES_JOB_STATUS_FILE", "")
 	return home
+}
+
+func TestServiceJobMetadataIsPrivateAndMatchesSelectedSession(t *testing.T) {
+	isolate(t)
+	status := filepath.Join(t.TempDir(), "job.json")
+	t.Setenv("PENTEST_HARNES_JOB_STATUS_FILE", status)
+	executable, _ := os.Executable()
+	var output bytes.Buffer
+	err := launcher.Run(launcher.Options{Dir: t.TempDir(), Pi: executable, New: true, RPC: true, Execute: func(command *exec.Cmd) error {
+		data, err := os.ReadFile(status)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var metadata struct {
+			SessionID string `json:"sessionId"`
+			Root      string `json:"root"`
+			Workspace string `json:"workspace"`
+		}
+		if err := json.Unmarshal(data, &metadata); err != nil {
+			t.Fatal(err)
+		}
+		if metadata.Workspace != command.Dir || metadata.Root != filepath.Dir(command.Dir) || metadata.SessionID != filepath.Base(metadata.Root) {
+			t.Fatalf("wrong job metadata: %s", data)
+		}
+		info, _ := os.Stat(status)
+		if os.PathSeparator != '\\' && info.Mode().Perm() != 0600 {
+			t.Fatal("job metadata is not private")
+		}
+		return nil
+	}}, pentestharnes.Skills(), pentestharnes.Runtime(), strings.NewReader(""), &output, &output)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestDockerGoriConfigurationAndOfflineOptOut(t *testing.T) {
+	isolate(t)
+	t.Setenv("PENTEST_HARNES_STACK", "/opt/pentest/docker/stack.py")
+	executable, _ := os.Executable()
+	for _, offline := range []bool{false, true} {
+		var output bytes.Buffer
+		err := launcher.Run(launcher.Options{Dir: t.TempDir(), Pi: executable, New: true, Offline: offline, Execute: func(command *exec.Cmd) error {
+			data, err := os.ReadFile(filepath.Join(command.Dir, ".pi", "mcp.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var config struct {
+				Servers map[string]json.RawMessage `json:"mcpServers"`
+			}
+			if err := json.Unmarshal(data, &config); err != nil {
+				t.Fatal(err)
+			}
+			_, hasGori := config.Servers["gori"]
+			if hasGori == offline {
+				t.Fatalf("Gori configuration offline=%v: %s", offline, data)
+			}
+			env := strings.Join(command.Env, "\n")
+			if !offline && (!strings.Contains(env, "PENTEST_HARNES_GORI_DB=") || !strings.Contains(env, "INTERCEPTOR_TEMP=")) {
+				t.Fatal("missing engagement environment")
+			}
+			return nil
+		}}, pentestharnes.Skills(), pentestharnes.Runtime(), strings.NewReader(""), &output, &output)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 func TestSessionIsolationContinuationAndFreshLaunchBudgets(t *testing.T) {
