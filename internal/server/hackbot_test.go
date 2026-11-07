@@ -38,6 +38,15 @@ func TestHackbotScanLifecycle(t *testing.T) {
 			}
 			var scan scans.Scan
 			launch.JSON(&scan)
+			var discoveryTarget string
+			var discoveryParams []byte
+			if err := env.Owner.QueryRow(ctx, `SELECT target,params FROM scan_jobs WHERE assessment_id=$1 AND tool='nmap'`, scan.ID).Scan(&discoveryTarget, &discoveryParams); err != nil {
+				t.Fatal(err)
+			}
+			if discoveryTarget != "127.0.0.1" || !strings.Contains(string(discoveryParams), `"ports": "8080"`) {
+				t.Fatalf("web discovery escaped origin: %s %s", discoveryTarget, discoveryParams)
+			}
+
 			again := a.do("POST", "/api/v1/scans", in, analyst, "Idempotency-Key", "hackbot-fixture")
 			var duplicate scans.Scan
 			again.JSON(&duplicate)

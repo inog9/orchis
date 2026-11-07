@@ -152,6 +152,7 @@ services:
     cpus: 1.0
     pids_limit: 256
   caddy:
+    init: true
     image: caddy:2.11.7-alpine@sha256:e70b164da81ef698b3ad19af799ea6086ce6d9e48ed4079eb9fe26f6fbf14ee5
     restart: unless-stopped
     read_only: true
@@ -215,6 +216,7 @@ services:
     mem_limit: 1g
     cpus: 1.0
   hackbot:
+    init: true
     image: orchis-hackbot-worker:${ORCHIS_VERSION:-local}
     build:
       context: .

@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"net/netip"
+	"net/url"
 	"orchis-go/internal/audit"
 	"orchis-go/internal/auth"
 	"orchis-go/internal/authz"
@@ -278,6 +279,14 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 		}
 		seen := map[string]bool{}
 		for _, t := range targets {
+			webTarget, e := s.Guard.Target(contract.KeyHackbot, t.addrs)
+			if e != nil {
+				return invalid("asset_ids", "Every web pentest requires an approved HTTP(S) URL.")
+			}
+			nmapTarget, nmapParams, e := webDiscovery(webTarget)
+			if e != nil {
+				return invalid("asset_ids", "The approved web URL has an invalid service port.")
+			}
 			for _, tool := range in.Tools {
 				ckey := map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
 				var cid uuid.UUID
@@ -291,7 +300,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				}
 				params, _ := json.Marshal(map[string]string{"language": language})
 				if tool == "nmap" {
-					params = json.RawMessage(`{"profile":"top1000","service_detection":true}`)
+					params = nmapParams
 				}
 				if tool == "nuclei" {
 					params = json.RawMessage(`{"severity":["info","low","medium","high","critical"]}`)
@@ -300,11 +309,11 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				if e != nil {
 					return e
 				}
-				target, e := s.Guard.Target(ckey, t.addrs)
-				reason := ""
-				if e != nil {
-					reason = e.Error()
+				target := webTarget
+				if tool == "nmap" {
+					target = nmapTarget
 				}
+				reason := ""
 				scope := contract.ScanScope{Target: target, CIDR: t.cidr, TestingAuthorized: true, InternetFacing: t.public, MaxHosts: s.hostLimit()}
 				if reason == "" {
 					if e = scope.Validate(target, s.Guard); e != nil {
@@ -535,4 +544,26 @@ func containsPipelineTools(tools []string) bool {
 		seen[tool] = true
 	}
 	return len(seen) == 3 && seen["nmap"] && seen["nuclei"] && seen["hackbot"]
+}
+
+// webDiscovery limits service discovery to the approved web origin's port.
+// Hosting providers may share their other ports with unrelated applications.
+func webDiscovery(target string) (string, json.RawMessage, error) {
+	u, err := url.Parse(target)
+	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
+		return "", nil, fmt.Errorf("invalid web origin")
+	}
+	port := u.Port()
+	if port == "" {
+		port = "80"
+		if u.Scheme == "https" {
+			port = "443"
+		}
+	}
+	raw, err := json.Marshal(map[string]any{"profile": "custom", "ports": port, "service_detection": true})
+	if err != nil {
+		return "", nil, err
+	}
+	normalized, err := contract.NormalizeVersion(contract.KeyNmapTCP, 1, raw)
+	return u.Hostname(), normalized, err
 }

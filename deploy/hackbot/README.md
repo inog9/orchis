@@ -3,7 +3,7 @@
 Orchis uses its current UI v2 and the existing queue and PDF report service.
 Users select approved HTTP(S) assets and click **Run pentest**. Per selected asset:
 
-1. Nmap service discovery and Nuclei vulnerability scanning run first, in parallel.
+1. Nmap service discovery on the approved URL’s port and Nuclei vulnerability scanning run first, in parallel.
 2. Hackbot starts only after both scanner jobs reach a terminal result.
 3. The worker snapshots the preliminary findings, targets, parameters, execution
    IDs and status/errors. Hackbot receives those files in its own engagement
