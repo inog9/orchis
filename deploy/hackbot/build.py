@@ -11,3 +11,10 @@ if not (source/'docker/export-result.mjs').is_file():raise SystemExit('The pinne
 for name,digest in lock['files'].items():
     if hashlib.sha256((source/name).read_bytes()).hexdigest()!=digest:raise SystemExit('Hackbot integration file does not match engine-lock.json: '+name)
 subprocess.run(['docker','build','--tag','orchis-hackbot-engine:orchis-v1',str(source)],check=True)
+engine=Path(os.environ.get('ORCHIS_OPENCODE_SOURCE',str(repo.parent/'orchis-opencode-hackbot'))).resolve()
+opencode=lock['opencode']
+head=subprocess.check_output(['git','-C',str(engine),'rev-parse','HEAD'],text=True).strip()
+if head!=opencode['revision']:raise SystemExit('OpenCode checkout must match the revision pinned in engine-lock.json.')
+for name,digest in opencode['files'].items():
+    if hashlib.sha256((engine/name).read_bytes()).hexdigest()!=digest:raise SystemExit('OpenCode integration file does not match engine-lock.json: '+name)
+subprocess.run(['docker','build','--tag','orchis-opencode-engine:orchis-v1',str(engine)],check=True)

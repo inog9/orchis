@@ -7,5 +7,15 @@
     "docker/export-result.mjs": "8c7f18a868c3d41b03c24e05fbbb039da88267a2a0c456bd4ae3510d4bc363c1",
     "docker/scanner-inputs.mjs": "e0a49fd91041c6e67b02b2835fe56b64bc548617873c5ea6e64c76329e4ee81b",
     "docker/stack.py": "06887ef11d4e4d6f82ff299949cd16c6237d855ab8ff31a6b1e52964c177c7e7"
+  },
+  "opencode": {
+    "repository": "https://github.com/r1pu5u/orchis-opencode-hackbot.git",
+    "revision": "d06881202111492ab47099c473c8880761b76eae",
+    "files": {
+      "Dockerfile": "fe3a79067e7298535c2aba938cb5fdcac4e9eee9194895a69c288db5f987bca8",
+      "src/job.mjs": "7ecdc279844dd01c40cacaa4afb164e89d383ca7b7c994f24f4f418b747eeecf",
+      "src/result.mjs": "5eb6bf23f7a6cc205f6bb2c8de10b42f1d403f7a5c82f01a9acca12ae2955b16",
+      "src/scanners.mjs": "934e6b0a18aaa582523d9662ecb1356424ab3501aa3f7511f561530171c8f0c4"
+    }
   }
 }

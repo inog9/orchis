@@ -39,7 +39,7 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 		return fail("Invalid Hackbot parameters.")
 	}
 	prompt := fmt.Sprintf(`Perform an unattended authorized web pentest of this exact web target: %s
-Only the supplied origin is authorized. Discovered hosts and APIs on other origins are leads, not authorized targets. Do not widen scope. Do not perform destructive actions or denial of service. Use anonymous access unless an authorized account has explicitly been provisioned. Never infer account authorization from ambient credentials. Continue independent work when credentials or tools are unavailable; record blocked coverage and deliver a limited report. Do not request interactive input. Follow all evidence, delegation and controller gates. Record each candidate with title, url, remediation, reproduction (safe prose steps), impactDescription, and actual private proof. Never put raw HTTP or credentials in the prose fields. Deliver both required reports in language %s. Redact secrets and personal data from shared reports.`, spec.Target, params.Language)
+Only the supplied origin is authorized. Discovered hosts and APIs on other origins are leads, not authorized targets. Do not widen scope. Do not perform destructive actions or denial of service. Use anonymous access unless an authorized account has explicitly been provisioned. Never infer account authorization from ambient credentials. Continue independent work when credentials or tools are unavailable; record blocked coverage and deliver a limited result. Do not request interactive input. Record each candidate with title, URL, remediation, reproduction, impact and actual private proof. Never put raw credentials in the result. Return the structured result in language %s. Redact secrets and personal data. Orchis renders the PDF.`, spec.Target, params.Language)
 	inputsDir, err := writeScannerInputs(dir, spec.ScannerInputs)
 	if err != nil {
 		return fail("Cannot prepare preliminary scanner findings: " + err.Error())
@@ -165,7 +165,7 @@ Only the supplied origin is authorized. Discovered hosts and APIs on other origi
 		return fail(err.Error())
 	}
 	if params.Language == "id" {
-		payload.Summary = fmt.Sprintf("Hackbot Lite menyelesaikan %d tugas spesialis terverifikasi dan memvalidasi %d temuan. Fase selesai: %s. Status hasil: %s. Batas cakupan tercatat: %d. Lihat laporan lengkap untuk metode pengujian, bukti, dan pekerjaan yang terblokir.", payload.VerifiedTasks, len(payload.Findings), strings.Join(payload.Phases, ", "), payload.Disposition, len(payload.Blockers))
+		payload.Summary = hackbot.LimitSummary(payload.Summary)
 	}
 	if len(spec.ScannerInputs) > 0 {
 		parts := []string{}
