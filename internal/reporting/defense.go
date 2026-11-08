@@ -266,7 +266,7 @@ func noteText(lang string, n defensebot.Note) string {
 	case "ports_unattributed":
 		return tr(lang, c+" listening ports belong to container proxies and could not be attributed to a package.", c+" port yang mendengarkan milik proxy kontainer dan tidak dapat dikaitkan ke paket.")
 	case "exposure_needs_scan":
-		return tr(lang, "No recent Nmap scan of this asset exists, so exposure is shown as listening or unknown. Run a web scan, then DefenseBot again.", "Belum ada scan Nmap terbaru untuk aset ini, sehingga paparan hanya ditampilkan sebagai mendengarkan atau tidak diketahui. Jalankan scan web, lalu DefenseBot lagi.")
+		return tr(lang, "No recent web scan of this asset exists, so exposure is shown as listening or unknown. Run a web pentest, then DefenseBot again.", "Belum ada scan web terbaru untuk aset ini, sehingga paparan hanya ditampilkan sebagai mendengarkan atau tidak diketahui. Jalankan pentest web, lalu DefenseBot lagi.")
 	}
 	return n.Code
 }
