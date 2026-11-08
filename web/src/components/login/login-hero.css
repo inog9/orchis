@@ -154,3 +154,17 @@
 :root[data-theme='light'] .radar__core--dim { background: #A1A1AA; }
 
 :root[data-theme='light'] .radar__emblem:hover .radar__raven { filter: brightness(.22) drop-shadow(0 0 20px rgba(143,98,8,.25)); }
+
+/* Kartu telemetri dan label radar memakai kartu terang agar senada dengan tema (alasan: permukaan gelap warisan tema gelap kontras buruk di atas latar terang). */
+:root[data-theme='light'] .tele { background: rgba(255,255,255,.72); color: #52525B; }
+:root[data-theme='light'] .tele__bar i { background: #D4D4D8; }
+:root[data-theme='light'] .tele__t { color: #71717A; }
+:root[data-theme='light'] .tele__k { color: #8F6208; }
+:root[data-theme='light'] .tele__v { color: #27272A; }
+:root[data-theme='light'] .tele__v--ok { color: #15803D; }
+:root[data-theme='light'] .radar__label { background: rgba(255,255,255,.92); color: #8F6208; }
+
+/* Kata ber-kilau: isi #EDEDED milik tema gelap menghilang di latar terang, maka isinya diganti tinta gelap dan kilauannya emas gelap. */
+:root[data-theme='light'] .hero-word--shine {
+  background-image: linear-gradient(100deg, transparent 42%, rgba(143,98,8,.85) 50%, transparent 58%), linear-gradient(#18181B, #18181B);
+}
