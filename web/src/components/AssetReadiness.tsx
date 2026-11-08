@@ -74,7 +74,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
         </li>))}
       </ul>
       <div className="chk-run">
-        {buttons.map((b) => (<button key={b.kind} type="button" className="btn btn--secondary btn--auto" disabled={!b.ok || busy !== '' || !can(me, 'assessment.run') || !can(me, 'simulation.run')} title={b.ok ? undefined : b.why} onClick={() => launch.mutate(b.kind)}>
+        {buttons.map((b) => (<button key={b.kind} type="button" className="btn btn--secondary btn--auto" disabled={!b.ok || busy !== '' || !can(me, 'assessment.run') || !can(me, 'simulation.run')} title={b.ok ? undefined : localizeReason(b.why)} onClick={() => launch.mutate(b.kind)}>
           {formatUI(busy === b.kind ? textUI('flow_wiz_launching') : b.label)}
         </button>))}
       </div>

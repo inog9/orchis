@@ -110,7 +110,7 @@ export function NewScanPage() {
       </ol>
       {step === 1 && (<fieldset className="fieldset wiz-pane">
         <legend className="sr-only">{textUI('flow_wiz_s1')}</legend>
-        <OrganizationFilter value={org} onChange={(v) => changeOrg(v, true)} required/>
+        <OrganizationFilter value={org} onChange={(v) => changeOrg(v, true)} required asList/>
         {formatUI(org && allAssets.length === 0 && !list.isPending && (<div className="state"><h2>{textUI('flow_wiz_empty')}</h2><p role="status">{textUI('flow_wiz_none_eligible')}</p><Link className="btn btn--secondary btn--auto" to={`/organizations/${org}?tab=assets&new=1`}>{textUI('flow_wiz_add_asset')}</Link></div>))}
         {formatUI(org && allAssets.length > 0 && <button type="button" className="btn btn--primary btn--auto" onClick={() => setStep(2)}>{textUI('flow_wiz_next')}</button>)}
       </fieldset>)}

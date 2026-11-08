@@ -52,7 +52,7 @@ const COUNT_LABELS: () => [
 const DEMO_DISMISS_KEY = 'orchis.demo.banner';
 // Banner demo bisa diciutkan jadi strip tipis; pilihan diingat (AUDIT UI-023).
 function demoDismissed(): boolean {
-    try { return localStorage.getItem(DEMO_DISMISS_KEY) === '1'; } catch { return false; }
+    try { return localStorage.getItem(DEMO_DISMISS_KEY) !== '0'; } catch { return true; }
 }
 function describeCounts(counts: Record<string, number>): string {
     const parts = COUNT_LABELS().filter(([key]) => (counts[key] ?? 0) > 0).map(([key, label]) => `${counts[key]} ${label}`);
@@ -80,7 +80,7 @@ export function DemoBanner() {
     const dismiss = () => { try { localStorage.setItem(DEMO_DISMISS_KEY, '1'); } catch { /* abaikan */ } setSlim(true); };
     if (slim && !cleanupPending) return (<div className="notice demo-banner demo-banner--slim" role="status" aria-label={textUI("m_ca3b29c75bb1")}>
       <strong>{textUI("m_71ddd59aa6f1")}</strong>
-      <span className="muted">{textUI("m_a7b605aae185")}</span>
+      <span className="muted demo-banner__sum">{formatUI(summary)}</span>
       {formatUI(canPurge && <button type="button" className="link-quiet demo-banner__action" onClick={() => setConfirming(true)} disabled={purge.isPending}>{textUI("m_39fe66bad2d4")}</button>)}
       <button type="button" className="link-quiet" aria-label={textUI("m_fnd_close")} onClick={dismiss}><X size={14} aria-hidden="true"/></button>
     </div>);

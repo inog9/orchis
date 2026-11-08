@@ -12,7 +12,7 @@ const ID: Record<string, string> = {
 };
 export function localizeReason(reason: string | undefined | null): string {
     if (!reason) return '';
-    return ID[reason] ?? reason;
+    return language() === 'id' ? (ID[reason] ?? reason) : reason;
 }
 export function currentLanguage(): string {
     return language();
