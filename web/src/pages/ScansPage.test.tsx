@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import { NewScanPage, ScanDetailPage } from './ScansPage';
-import { AgentNetworks } from '../components/AgentNetworks';
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
 const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status});
 const permissions=['organization.read','organization.write','asset.read','asset.write','asset.authorize','agent.read','finding.read','assessment.read','assessment.run','simulation.read','simulation.run','settings.manage','report.read'];

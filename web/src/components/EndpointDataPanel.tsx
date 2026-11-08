@@ -19,8 +19,6 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false,
     allowed: boolean;
     canDelete?: boolean;
     authorized?: boolean;
-    // Kept for the organisation page that embeds this panel; it no longer changes what is shown.
-    inOrganization?: boolean;
 }) {
     useLocale();
     const navigate = useNavigate();
