@@ -1796,7 +1796,7 @@ export const en = {
   "m_9ec336bb3650": "Approve asset addresses and testing permission, or ask an administrator to approve ranges reported by an agent.",
   "m_04ab162cdd89": "Earlier runs",
   "m_4310bb792a7d": "Existing run history is retained. New scans use the target and tool form above.",
-  "m_ee68966f9267": "← Simulations",
+  "m_ee68966f9267": "← Scans",
   "m_d573647405a4": "SERVER INJECTOR · {0}",
   "m_6e77528b9b49": "Detailed scan results expired under the retention policy. A frozen report remains available until its own expiry; missing results do not establish that a target is safe.",
   "m_5ff5c9fe1bac": "Choose targets",

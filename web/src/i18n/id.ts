@@ -1797,7 +1797,7 @@ export const id:Record<keyof typeof en,string> = {
   "m_9ec336bb3650": "Setujui alamat aset dan izin pengujian, atau minta administrator menyetujui rentang yang dilaporkan agent.",
   "m_04ab162cdd89": "Eksekusi sebelumnya",
   "m_4310bb792a7d": "Riwayat eksekusi yang ada dipertahankan. Scan baru menggunakan formulir target dan alat di atas.",
-  "m_ee68966f9267": "← Simulasi",
+  "m_ee68966f9267": "← Pindai",
   "m_d573647405a4": "INJECTOR SERVER · {0}",
   "m_6e77528b9b49": "Detail hasil scan kedaluwarsa sesuai kebijakan retensi. Laporan beku tetap tersedia sampai masa simpannya sendiri berakhir; hasil yang hilang tidak membuktikan target aman.",
   "m_5ff5c9fe1bac": "Pilih target",
