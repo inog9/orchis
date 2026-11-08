@@ -1,0 +1,5025 @@
+{
+ "shots": [
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/home--light--id--1440.jpg"
+  },
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/home--light--en--1440.jpg"
+  },
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/home--dark--id--1440.jpg"
+  },
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/home--dark--en--1440.jpg"
+  },
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/home--light--id--820.jpg"
+  },
+  {
+   "name": "home",
+   "path": "/",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/home--light--id--390.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/organizations--light--id--1440.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/organizations--light--en--1440.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/organizations--dark--id--1440.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/organizations--dark--en--1440.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/organizations--light--id--820.jpg"
+  },
+  {
+   "name": "organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/organizations--light--id--390.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/org-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/org-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/org-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/org-detail--dark--en--1440.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/org-detail--light--id--820.jpg"
+  },
+  {
+   "name": "org-detail",
+   "path": "/organizations/f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/org-detail--light--id--390.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/assets--light--id--1440.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/assets--light--en--1440.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/assets--dark--id--1440.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/assets--dark--en--1440.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/assets--light--id--820.jpg"
+  },
+  {
+   "name": "assets",
+   "path": "/assets",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/assets--light--id--390.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/asset-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/asset-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/asset-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/asset-detail--dark--en--1440.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/asset-detail--light--id--820.jpg"
+  },
+  {
+   "name": "asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/asset-detail--light--id--390.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/agents--light--id--1440.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/agents--light--en--1440.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/agents--dark--id--1440.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/agents--dark--en--1440.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/agents--light--id--820.jpg"
+  },
+  {
+   "name": "agents",
+   "path": "/assets/agents",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/agents--light--id--390.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/groups--light--id--1440.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/groups--light--en--1440.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/groups--dark--id--1440.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/groups--dark--en--1440.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/groups--light--id--820.jpg"
+  },
+  {
+   "name": "groups",
+   "path": "/assets/groups",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/groups--light--id--390.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/group-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/group-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/group-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/group-detail--dark--en--1440.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/group-detail--light--id--820.jpg"
+  },
+  {
+   "name": "group-detail",
+   "path": "/assets/groups/01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/group-detail--light--id--390.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/findings--light--id--1440.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/findings--light--en--1440.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/findings--dark--id--1440.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/findings--dark--en--1440.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/findings--light--id--820.jpg"
+  },
+  {
+   "name": "findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/findings--light--id--390.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/simulations--light--id--1440.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/simulations--light--en--1440.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/simulations--dark--id--1440.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/simulations--dark--en--1440.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/simulations--light--id--820.jpg"
+  },
+  {
+   "name": "simulations",
+   "path": "/simulations",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/simulations--light--id--390.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/new-scan--light--id--1440.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/new-scan--light--en--1440.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/new-scan--dark--id--1440.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/new-scan--dark--en--1440.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/new-scan--light--id--820.jpg"
+  },
+  {
+   "name": "new-scan",
+   "path": "/simulations/new?org=f555f899-f228-5336-b508-0dd6726e2b18",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/new-scan--light--id--390.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/scan-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/scan-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/scan-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/scan-detail--dark--en--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/scan-detail--light--id--820.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "path": "/simulations/undefined",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/scan-detail--light--id--390.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reports--light--id--1440.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reports--light--en--1440.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reports--dark--id--1440.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reports--dark--en--1440.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reports--light--id--820.jpg"
+  },
+  {
+   "name": "reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/reports--light--id--390.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/report-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/report-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/report-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/report-detail--dark--en--1440.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/report-detail--light--id--820.jpg"
+  },
+  {
+   "name": "report-detail",
+   "path": "/reports/fed4592a-e5f0-5d14-820f-597c1f64d72a",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/report-detail--light--id--390.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings--light--id--1440.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings--light--en--1440.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings--light--id--820.jpg"
+  },
+  {
+   "name": "settings",
+   "path": "/settings",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings--light--id--390.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-users--light--id--1440.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-users--light--en--1440.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-users--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-users--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-users--light--id--820.jpg"
+  },
+  {
+   "name": "settings-users",
+   "path": "/settings/users",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings-users--light--id--390.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-roles--light--id--1440.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-roles--light--en--1440.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-roles--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-roles--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-roles--light--id--820.jpg"
+  },
+  {
+   "name": "settings-roles",
+   "path": "/settings/roles",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings-roles--light--id--390.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-integrations--light--id--1440.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-integrations--light--en--1440.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-integrations--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-integrations--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-integrations--light--id--820.jpg"
+  },
+  {
+   "name": "settings-integrations",
+   "path": "/settings/integrations",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings-integrations--light--id--390.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-tags--light--id--1440.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-tags--light--en--1440.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-tags--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-tags--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-tags--light--id--820.jpg"
+  },
+  {
+   "name": "settings-tags",
+   "path": "/settings/tags",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings-tags--light--id--390.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-audit--light--id--1440.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-audit--light--en--1440.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-audit--dark--id--1440.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-audit--dark--en--1440.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/settings-audit--light--id--820.jpg"
+  },
+  {
+   "name": "settings-audit",
+   "path": "/settings/audit",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/settings-audit--light--id--390.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notifications--light--id--1440.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notifications--light--en--1440.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notifications--dark--id--1440.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notifications--dark--en--1440.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notifications--light--id--820.jpg"
+  },
+  {
+   "name": "notifications",
+   "path": "/notifications",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/notifications--light--id--390.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/profile--light--id--1440.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/profile--light--en--1440.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/profile--dark--id--1440.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/profile--dark--en--1440.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/profile--light--id--820.jpg"
+  },
+  {
+   "name": "profile",
+   "path": "/profile",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/profile--light--id--390.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/people--light--id--1440.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/people--light--en--1440.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/people--dark--id--1440.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/people--dark--en--1440.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/people--light--id--820.jpg"
+  },
+  {
+   "name": "people",
+   "path": "/people",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/people--light--id--390.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notfound--light--id--1440.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notfound--light--en--1440.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notfound--dark--id--1440.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notfound--dark--en--1440.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/notfound--light--id--820.jpg"
+  },
+  {
+   "name": "notfound",
+   "path": "/halaman-tidak-ada",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "ui-audit/shots/before/notfound--light--id--390.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--light--id--1440.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--light--en--1440.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--dark--id--1440.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--dark--en--1440.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--light--id--820.jpg"
+  },
+  {
+   "name": "login",
+   "path": "/login",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": false,
+   "file": "ui-audit/shots/before/login--light--id--390.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--light--id--1440.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--light--en--1440.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--dark--id--1440.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--dark--en--1440.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--light--id--820.jpg"
+  },
+  {
+   "name": "forgot",
+   "path": "/forgot",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": false,
+   "file": "ui-audit/shots/before/forgot--light--id--390.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--light--id--1440.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--light--en--1440.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--dark--id--1440.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "dark",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--dark--en--1440.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--light--id--820.jpg"
+  },
+  {
+   "name": "reset",
+   "path": "/reset?token=bogus-token",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": false,
+   "file": "ui-audit/shots/before/reset--light--id--390.jpg"
+  },
+  {
+   "name": "err-organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/err-organizations--light--id--1440.jpg"
+  },
+  {
+   "name": "err-findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/err-findings--light--id--1440.jpg"
+  },
+  {
+   "name": "err-asset-detail",
+   "path": "/assets/f97a43cb-48a1-5f47-b28f-10bee74ded09",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/err-asset-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "err-reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/err-reports--light--id--1440.jpg"
+  },
+  {
+   "name": "load-organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "file": "ui-audit/shots/before/load-organizations--1440.jpg"
+  },
+  {
+   "name": "load-findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "file": "ui-audit/shots/before/load-findings--1440.jpg"
+  },
+  {
+   "name": "load-assets",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "file": "ui-audit/shots/before/load-assets--1440.jpg"
+  },
+  {
+   "name": "empty-home",
+   "path": "/",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-home--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-organizations",
+   "path": "/organizations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-organizations--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-assets",
+   "path": "/assets",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-assets--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-agents",
+   "path": "/assets/agents",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-agents--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-groups",
+   "path": "/assets/groups",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-groups--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-findings",
+   "path": "/findings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-findings--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-simulations",
+   "path": "/simulations",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-simulations--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-new-scan",
+   "path": "/simulations/new",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-new-scan--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-reports",
+   "path": "/reports",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-reports--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-settings",
+   "path": "/settings",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-settings--light--id--1440.jpg"
+  },
+  {
+   "name": "empty-notifications",
+   "path": "/notifications",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "ui-audit/shots/before/empty-notifications--light--id--1440.jpg"
+  }
+ ],
+ "inventory": {
+  "organizations": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buat organisasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Semua",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Education",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Finance",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Manufacturing",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Retail",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Technology",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tampilan kisi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tampilan daftar",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cobalt Peak Retail (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ferrotech Manufacturing (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Harborlight Education (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Nimbus Finance (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Vantage Technology (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Urutkan",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [
+    {
+     "n": "Cari organisasi",
+     "tag": "input",
+     "type": "search",
+     "placeholder": "Cari organisasi",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "headings": [
+    "Organisasi",
+    "Cobalt Peak Retail (Demo)",
+    "Ferrotech Manufacturing (Demo)",
+    "Harborlight Education (Demo)",
+    "Nimbus Finance (Demo)",
+    "Vantage Technology (Demo)"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "org-detail": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Sunting organisasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ringkasan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Agent/Endpoint",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Scan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau penghapusan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "← Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Scan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinjau aset dan alamat →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Periksa worker scan →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent untuk melihat sisi dalam.",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka laporan organisasi terbaru",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "Vantage Technology (Demo)",
+    "Sebelum melakukan scan",
+    "Cakupan",
+    "Synthetic demo data - risk not evaluated.",
+    "Jendela waktu scan dan stop darurat",
+    "Hapus organisasi"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "assets": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Impor CSV",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tambah aset",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Muat lebih banyak",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tetapkan aset ke organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Endpoint",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Grup aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Agent",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-directory-service-account-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-api-service-pod-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-customer-portal-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-crm-saas-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-api-service-pod-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-directory-service-account-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-crm-saas-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-customer-portal-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-api-service-pod-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-primary-database-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-misc-inventory-item-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-customer-portal-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-directory-service-account-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-customer-portal-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-directory-service-account-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Kategori",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [
+    {
+     "n": "Cari aset",
+     "tag": "input",
+     "type": "search",
+     "placeholder": "Cari berdasarkan nama…",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "headings": [
+    "Aset",
+    "Cobalt Peak Retail (Demo)",
+    "Ferrotech Manufacturing (Demo)",
+    "Harborlight Education (Demo)",
+    "Nimbus Finance (Demo)",
+    "Vantage Technology (Demo)"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "asset-detail": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Sunting",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pentest web",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan aplikasi terpasang",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Jalankan penilaian penuh",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Hapus aset",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tetapkan aset ke organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Perbaiki",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Perbaiki",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Perbaiki",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat semua temuan aset ini →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat semua scan →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pasang agent",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "demo-customer-portal-02",
+    "Kesiapan",
+    "Detail",
+    "Aplikasi web",
+    "Alamat",
+    "Grup",
+    "Temuan",
+    "Riwayat scan",
+    "DefenseBot",
+    "Area berbahaya"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "findings": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Kritis + Tinggi50 kritis · 5 tinggi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Kritis0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinggi5",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Sedang15",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Rendah5",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Informasi0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Per organisasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Per aset",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Daftar datar",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Kritis",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tinggi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Sedang",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Rendah",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Informasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Sudah dieksploitasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Terlihat scanner",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Perlu ditangani",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cobalt Peak Retail (Demo)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "KritisOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "SedangVulnerability (demo)demo-vulnerability-2-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahService (demo)demo-service-1-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ferrotech Manufacturing (Demo)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "KritisOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "SedangVulnerability (demo)demo-vulnerability-2-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahService (demo)demo-service-1-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Harborlight Education (Demo)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "KritisOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahService (demo)demo-service-1-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Nimbus Finance (Demo)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "KritisOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahService (demo)demo-service-1-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Vantage Technology (Demo)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "KritisOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "SedangVulnerability (demo)demo-vulnerability-2-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahService (demo)demo-service-1-0",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "RendahOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "InformasiOpen Port (demo)tcp/80",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Muat lebih banyak",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Jalankan pemeriksaan untuk organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-05",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-04",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-03",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-02",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-edge-firewall-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-windows-server-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-macos-workstation-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "demo-linux-server-01",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Filter menurut jenis",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Urutkan",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [
+    {
+     "n": "Cari temuan",
+     "tag": "input",
+     "type": "search",
+     "placeholder": "Cari temuan",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "headings": [
+    "Temuan",
+    "Cobalt Peak Retail (Demo)",
+    "Ferrotech Manufacturing (Demo)",
+    "Harborlight Education (Demo)",
+    "Nimbus Finance (Demo)",
+    "Vantage Technology (Demo)"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "simulations": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Scan terbaru",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Scan lebih lama",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pilih organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Scan baru",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Scan baru",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "Pindai",
+    "Belum ada scan"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "new-scan": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lanjut",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pilih organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "← Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "Pindai baru"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "scan-detail": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pilih organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "reports": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Halaman pertama",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Laporan lebih lama",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Mulai dari organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Nimbus Finance (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Nimbus Finance (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Harborlight Education (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Cobalt Peak Retail (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Nimbus Finance (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Vantage Technology (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Cobalt Peak Retail (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Vantage Technology (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Harborlight Education (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Harborlight Education (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Ferrotech Manufacturing (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Ferrotech Manufacturing (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Ferrotech Manufacturing (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Vantage Technology (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Cobalt Peak Retail (Demo)",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Buka",
+     "tag": "a",
+     "disabled": false,
+     "visible": false
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "Laporan"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "report-detail": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Coba buat PDF lagi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Mulai dari organisasi →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "← Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Unduh PDF",
+     "tag": "a",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Unduh JSON",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Lihat organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Detail eksekusi assessment",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Filter menurut perubahan scan",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [],
+   "headings": [
+    "Nimbus Finance (Demo)",
+    "Synthetic demo data - risk not evaluated.",
+    "Kerentanan menurut tingkat keparahan",
+    "Postur endpoint",
+    "Perbandingan scan",
+    "Aset dan temuan",
+    "demo-linux-server-02",
+    "Open Port (demo)",
+    "demo-windows-server-02",
+    "Service (demo)",
+    "Open Port (demo)",
+    "demo-macos-workstation-02",
+    "Vulnerability (demo)",
+    "Open Port (demo)",
+    "demo-customer-portal-02",
+    "demo-edge-firewall-02",
+    "Open Port (demo)",
+    "demo-primary-database-02",
+    "demo-api-service-pod-02",
+    "demo-directory-service-account-02",
+    "demo-crm-saas-02",
+    "demo-misc-inventory-item-02",
+    "Remediasi"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  },
+  "settings": {
+   "buttons": [
+    {
+     "n": "Buka navigasi",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Cari atau buka (Ctrl K)",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tidak ada eksekusi aktif. Tidak ada yang berjalan",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Baru",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Notifikasi, 12 belum dibaca",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Beralih ke tema gelap",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Admin · Platform default",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Ciutkan bilah samping",
+     "tag": "button",
+     "disabled": false,
+     "visible": false
+    },
+    {
+     "n": "Bersihkan data demo",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tutup tips ini",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Stop semua scan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Simpan retensi",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Muat ulang kebijakan tersimpan",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Simpan",
+     "tag": "button",
+     "disabled": true,
+     "visible": true
+    },
+    {
+     "n": "Impor sekarang",
+     "tag": "button",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "links": [
+    {
+     "n": "Lewati ke konten",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Organisasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Aset",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pindai",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Temuan, 100 temuan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Laporan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengaturan",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Periksa worker scan →",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Platform",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Pengguna",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Peran",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Integrasi",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Log audit",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Tag",
+     "tag": "a",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "tabs": [],
+   "selects": [
+    {
+     "n": "EnglishIndonesia",
+     "tag": "select",
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "inputs": [
+    {
+     "n": "180",
+     "tag": "input",
+     "type": "number",
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "90",
+     "tag": "input",
+     "type": "number",
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "180",
+     "tag": "input",
+     "type": "number",
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "30",
+     "tag": "input",
+     "type": "number",
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "365",
+     "tag": "input",
+     "type": "number",
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    },
+    {
+     "n": "Platform default",
+     "tag": "input",
+     "type": null,
+     "placeholder": null,
+     "disabled": false,
+     "visible": true
+    }
+   ],
+   "headings": [
+    "Pengaturan",
+    "Stop darurat",
+    "Retensi data",
+    "Platform",
+    "Komponen",
+    "Data MITRE ATT&CK"
+   ],
+   "radii": [
+    "a.skip-link=8px",
+    "button.topbar__menu=10px",
+    "span.wordmark__dot=4px",
+    "button.gsearch=10px",
+    "button.runpill=999px",
+    "span.runpill__dot=50%",
+    "button.btn-new=10px",
+    "button.dock__icon=10px",
+    "span.dock__badge=50%",
+    "div.language-preference=10px",
+    "select.=9px",
+    "button.ws__button=999px"
+   ]
+  }
+ },
+ "notes": [],
+ "ids": {
+  "orgId": "f555f899-f228-5336-b508-0dd6726e2b18",
+  "assetId": "f97a43cb-48a1-5f47-b28f-10bee74ded09",
+  "reportId": "fed4592a-e5f0-5d14-820f-597c1f64d72a",
+  "groupId": "01a1b99f-d92b-7ebd-8ef8-5296fbdc6f88"
+ },
+ "consoleErrors": [
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  },
+  {
+   "tag": "guest",
+   "text": "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  },
+  {
+   "tag": "populated",
+   "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  }
+ ]
+}

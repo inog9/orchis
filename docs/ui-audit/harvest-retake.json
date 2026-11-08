@@ -1,0 +1,130 @@
+{
+ "report": [
+  {
+   "name": "scan-detail",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/scan-detail--light--id--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/scan-detail--dark--id--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/scan-detail--light--en--1440.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/scan-detail--light--id--820.jpg"
+  },
+  {
+   "name": "scan-detail",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/scan-detail--light--id--390.jpg"
+  },
+  {
+   "name": "org-detail-real",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/org-detail-real--light--id--1440.jpg"
+  },
+  {
+   "name": "org-detail-real",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/org-detail-real--dark--id--1440.jpg"
+  },
+  {
+   "name": "org-detail-real",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/org-detail-real--light--en--1440.jpg"
+  },
+  {
+   "name": "org-detail-real",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/org-detail-real--light--id--820.jpg"
+  },
+  {
+   "name": "org-detail-real",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/org-detail-real--light--id--390.jpg"
+  },
+  {
+   "name": "asset-detail-web",
+   "theme": "light",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/asset-detail-web--light--id--1440.jpg"
+  },
+  {
+   "name": "asset-detail-web",
+   "theme": "dark",
+   "lang": "id",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/asset-detail-web--dark--id--1440.jpg"
+  },
+  {
+   "name": "asset-detail-web",
+   "theme": "light",
+   "lang": "en",
+   "width": 1440,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/asset-detail-web--light--en--1440.jpg"
+  },
+  {
+   "name": "asset-detail-web",
+   "theme": "light",
+   "lang": "id",
+   "width": 820,
+   "overflow": false,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/asset-detail-web--light--id--820.jpg"
+  },
+  {
+   "name": "asset-detail-web",
+   "theme": "light",
+   "lang": "id",
+   "width": 390,
+   "overflow": true,
+   "file": "/root/work/orchis-ui-v3/docs/ui-audit/shots/before/asset-detail-web--light--id--390.jpg"
+  }
+ ],
+ "ids": {
+  "scan": "01a1b9ac-333b-7a4f-b394-bb2a8d9bfac7",
+  "org": "01a1b9aa-0886-7644-9d75-1b7e7560a4ca",
+  "webAsset": "01a1b9ac-32f1-701b-8dfc-d864d48926ed"
+ },
+ "errors": []
+}
