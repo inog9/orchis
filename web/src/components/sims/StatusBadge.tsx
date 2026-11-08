@@ -16,8 +16,9 @@ export function scanStatusLabel(status: string): string {
         default: return status;
     }
 }
-// Status selalu berteks (bukan hanya warna); titik hanya hiasan.
+// Status selalu berteks (bukan hanya warna); titik hanya hiasan. Teks penuh tersedia lewat title bila terpotong.
 export function StatusBadge({ status }: { status: string }) {
     useLocale();
-    return <span className={`sim-badge sim-badge--${statusTone(status)}`}><i aria-hidden="true"/>{formatUI(scanStatusLabel(status))}</span>;
+    const label = scanStatusLabel(status);
+    return <span className={`sim-badge sim-badge--${statusTone(status)}`} title={label}><i aria-hidden="true"/><span className="sim-badge__txt">{formatUI(label)}</span></span>;
 }
