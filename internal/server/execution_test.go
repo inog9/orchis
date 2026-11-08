@@ -45,7 +45,7 @@ func newScanFixture(t *testing.T, authorized bool) *scanFixture {
 	a, env := setup(t)
 	f := &scanFixture{a: a, admin: a.login("admin@a.test"), analyst: a.login("analyst@a.test"), viewer: a.login("viewer@a.test")}
 	f.asset = mkAsset(t, a, f.admin, map[string]any{"category": "host", "name": "target-1", "testing_authorized": authorized,
-		"addresses": []map[string]any{{"kind": "ip", "value": "127.0.0.1"}}})
+		"addresses": []map[string]any{{"kind": "ip", "value": "127.0.0.1"}, {"kind": "url", "value": "http://127.0.0.1:8080/"}}})
 	var tst struct{ ID string }
 	r := a.do("POST", "/api/v1/atomic-tests", map[string]any{"name": "Top ports", "contract_key": "nmap.tcp_connect",
 		"params": map[string]any{"profile": "top100"}, "target_asset_id": f.asset}, f.analyst)

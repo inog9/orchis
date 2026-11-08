@@ -44,7 +44,7 @@ func controlled(t *testing.T) *controlledScan {
 	if r := f.a.do("PUT", "/api/v1/organizations/"+org.ID.String()+"/assets", map[string]any{"assets": []map[string]any{{"id": f.asset, "version": 1}}}, f.admin); r.Status != 204 {
 		t.Fatalf("assign: %d %s", r.Status, r.Body)
 	}
-	return &controlledScan{f: f, org: org.ID, clock: clock, options: o, input: scans.Input{OrganizationID: org.ID, AssetIDs: []uuid.UUID{uuid.MustParse(f.asset)}, Tools: []string{"nmap", "nuclei"}, Preset: "quick"}}
+	return &controlledScan{f: f, org: org.ID, clock: clock, options: o, input: scans.Input{OrganizationID: org.ID, AssetIDs: []uuid.UUID{uuid.MustParse(f.asset)}, Tools: []string{"nmap", "nuclei", "hackbot"}, Preset: "quick"}}
 }
 func (c *controlledScan) path() string {
 	return "/api/v1/organizations/" + c.org.String() + "/scan-control"
@@ -209,8 +209,8 @@ func TestEmergencyStopIsolationDurabilityCASAndAudit(t *testing.T) {
 	c.tick(t)
 	id := c.execution(t, a.ID)
 	other := createOrg(t, c.f.a, c.f.admin, "other-control")
-	asset := mkAsset(t, c.f.a, c.f.admin, map[string]any{"name": "other target", "category": "host", "organization_id": other.ID, "testing_authorized": true, "addresses": []map[string]any{{"kind": "ip", "value": "127.0.0.2"}}})
-	in := scans.Input{OrganizationID: other.ID, AssetIDs: []uuid.UUID{uuid.MustParse(asset)}, Tools: []string{"nmap"}, Preset: "quick"}
+	asset := mkAsset(t, c.f.a, c.f.admin, map[string]any{"name": "other target", "category": "host", "organization_id": other.ID, "testing_authorized": true, "addresses": []map[string]any{{"kind": "ip", "value": "127.0.0.2"}, {"kind": "url", "value": "http://127.0.0.2:8080/"}}})
+	in := scans.Input{OrganizationID: other.ID, AssetIDs: []uuid.UUID{uuid.MustParse(asset)}, Tools: []string{"nmap", "nuclei", "hackbot"}, Preset: "quick"}
 	r := c.f.a.do("POST", "/api/v1/scans", in, c.f.analyst, "Idempotency-Key", "other")
 	if r.Status != 201 {
 		t.Fatal(r.Status)
