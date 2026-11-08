@@ -50,8 +50,8 @@ could not be mapped. A missing finding never means the software is safe. Advisor
   were created earlier (`ops.py hackbot-init` does the same explicitly) without rotating any existing secret.
 - Outbound access is limited to the `scan` network. Optional free NVD key: add `"ORCHIS_NVD_API_KEY"` to the worker's
   private file `defensebot.json`; it only raises the rate limit.
-- `ORCHIS_ENDPOINT_COLLECTION_SECONDS` defaults to `0`: collection happens only when a run is started. Set 60 to 86400 to
-  also collect periodically.
+- `ORCHIS_ENDPOINT_COLLECTION_SECONDS` defaults to `300`: approved checks are collected periodically every 5 minutes.
+  Set 0 for manual DefenseBot runs only, or 60 to 86400 for another interval.
 - Manual smoke test against the real services, never part of CI:
   `ORCHIS_LIVE_OSQUERY=/path/to/osqueryd go test -tags live -run TestLive -v ./internal/defensebot`.
 

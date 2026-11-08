@@ -120,6 +120,9 @@ services:
   server:
     <<: *app
     restart: unless-stopped
+    environment:
+      ORCHIS_ENV_FILE: /run/secrets/app.json
+      ORCHIS_ENDPOINT_COLLECTION_SECONDS: '300'
     volumes:
       - ${ORCHIS_STATE}/server.json:/run/secrets/app.json:ro
       - ${ORCHIS_STATE}/ai-master.key:/run/secrets/ai-master.key:ro

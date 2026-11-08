@@ -2364,8 +2364,8 @@ Persetujuan manual lama tidak otomatis mengizinkan jadwal baru: admin meninjau
 kembali versi/hash, query, tabel, sensitivitas dan retensi yang tetap latest-good.
 
 Worker memindai eligibility setiap5detik dan mengantrekan query yang disetujui
-setelah enrollment serta pada due time. ORCHIS_ENDPOINT_COLLECTION_SECONDS bawaan900,
-batas60..86400. Eligibility memerlukan agent online dengan heartbeat90detik, Linux
+setelah enrollment serta pada due time. ORCHIS_ENDPOINT_COLLECTION_SECONDS bawaan300,
+batas 0 (nonaktif) dan 60..86400. Eligibility memerlukan agent online dengan heartbeat90detik, Linux
 x86_64, non-demo, aset aktif/diotorisasi di organisasi yang sama, dan consent tepat.
 Satu definisi internal dipakai ulang per agent/query; endpoint_collection_schedule
 menyimpan due time secara durable. Advisory lock tenant dan pemeriksaan tugas ready/

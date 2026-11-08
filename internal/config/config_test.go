@@ -122,6 +122,19 @@ func TestProductionRejectsDefaultServiceAndInitialAdminCredentials(t *testing.T)
 	}
 }
 
+func TestEndpointCollectionRunsEveryFiveMinutesByDefault(t *testing.T) {
+	t.Setenv("ORCHIS_ENV_FILE", "")
+	t.Setenv("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "")
+	c, err := Load()
+	if err != nil || c.EndpointCollectionSeconds != 300 {
+		t.Fatalf("periodic default expected 300, got %d (%v)", c.EndpointCollectionSeconds, err)
+	}
+	t.Setenv("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "0")
+	if c, err = Load(); err != nil || c.EndpointCollectionSeconds != 0 {
+		t.Fatalf("explicit 0 must disable periodic collection: %d (%v)", c.EndpointCollectionSeconds, err)
+	}
+}
+
 func TestAdvancedFeaturesDefaultsOffAndRequiresBoolean(t *testing.T) {
 	t.Setenv("ORCHIS_ENV_FILE", "")
 	t.Setenv("ORCHIS_PRODUCTION", "false")
