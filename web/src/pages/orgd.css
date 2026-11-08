@@ -13,6 +13,7 @@
 .orgd .stat:first-child { border-left: 0; }
 .orgd .stat__label { color: var(--v2-text-2); } .orgd .stat__value { color: var(--v2-text); }
 .orgd .stat__sub { font-size: 12px; color: var(--v2-text-3); }
+.orgd__metrics .stat__label, .orgd__metrics .stat__sub { color: var(--v2-text-2); } /* text-3 di permukaan strip terukur 4.44:1 */
 .orgd .sevbar { background: var(--v2-surface-2); }
 .orgd .sevbar__seg--critical { background: var(--v2-critical); } .orgd .sevbar__seg--high { background: var(--v2-high); } .orgd .sevbar__seg--medium { background: var(--v2-medium); } .orgd .sevbar__seg--low { background: var(--v2-low); }
 .orgd .alert { border-color: var(--v2-critical); background: var(--v2-critical-soft); color: var(--v2-text); }

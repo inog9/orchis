@@ -33,7 +33,9 @@ const agent = (secret, path, body) => fetch(BASE + '/api/v1/agent/' + path, { me
 const see = async (loc) => { try { await loc.waitFor({ timeout: 8000 }); return true; } catch { return false; } };
 const tick = (box) => box.evaluate((el) => el.click());
 async function answerCollections(secret, rows) {
-  for (let i = 0; i < 12; i++) {
+  // Klaim sampai antrean kosong (batas wajar): koleksi berkala otomatis bisa mendahului
+  // eksekusi scan di antrean agent yang sama, jadi jumlah tetap tidak cukup.
+  for (let i = 0; i < 60; i++) {
     const r = await agent(secret, 'executions/claim');
     if (r.status !== 200) return;
     const spec = await r.json();
@@ -89,14 +91,15 @@ await page.goto(BASE + '/login');
 await page.getByLabel('Email').fill('admin@orchis.local');
 await page.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await page.getByRole('button', { name: /sign in/i }).click();
-await page.waitForURL(BASE + '/organizations');
+await page.waitForURL(BASE + '/overview');
 
 const org = await api('POST', '/organizations', { name: 'Flow laboratory', slug: 'flow-laboratory' });
 const fakeInjector = await startFakeInjector();
 
 // ---------- Skenario 1: organisasi baru menunjukkan langkah berikutnya ----------
 await page.goto(`${BASE}/simulations/new?org=${org.id}`);
-await wait(async () => (await page.getByRole('combobox', { name: 'Organisation' }).inputValue()) === org.id ? true : null);
+// Wizard baru memakai grup radio organisasi pada langkah 1 (bukan combobox).
+await wait(async () => (await page.getByRole('radiogroup', { name: 'Organisation' }).getByRole('radio', { name: /Flow laboratory/ }).getAttribute('aria-checked')) === 'true' ? true : null);
 await page.getByText('This organisation has no assets yet.').waitFor();
 check(true, 'S1: wizard organisasi kosong meminta menambah aset');
 await page.goto(`${BASE}/organizations/${org.id}`);
@@ -143,19 +146,15 @@ await page.screenshot({ path: `${shots}/s3-checklist-agent.png`, fullPage: true 
 // ---------- Skenario 4: setujui koleksi -> DefenseBot -> temuan ----------
 const catalog = await api('GET', '/osquery/catalog');
 const consent = { version: catalog.consent.version, sha256: catalog.consent.sha256 };
-const settings = (await api('GET', `/organizations/${org.id}/osquery`)).items;
-for (const q of catalog.queries.filter((q) => q.os?.includes('linux') && !q.pack)) {
-  const s = settings.find((i) => i.key === q.key);
-  if (!s) continue;
-  await api('PUT', `/organizations/${org.id}/osquery/${q.key}`, { enabled: true, consent, version: s.version });
-}
+// Server menanam baris DefenseBot + pack runnable otomatis begitu aset terikat organisasi;
+// versi dibaca ulang tepat sebelum tiap PUT agar tidak balapan dengan penanam baris.
+const approve = async (key) => {
+  const version = ((await api('GET', `/organizations/${org.id}/osquery`)).items.find((i) => i.key === key)?.version) ?? 0;
+  await api('PUT', `/organizations/${org.id}/osquery/${key}`, { enabled: true, consent, version });
+};
+for (const q of catalog.queries.filter((q) => q.os?.includes('linux') && !q.pack)) await approve(q.key);
 for (const pack of catalog.packs.filter((pk) => pk.platform === 'linux')) {
-  const keys = catalog.queries.filter((q) => q.pack === pack.name && q.os?.includes('linux'));
-  if (!keys.length) continue;
-  const versions = {};
-  for (const q of keys) { const s = settings.find((i) => i.key === q.key); if (s) versions[q.key] = s.version; }
-  if (!Object.keys(versions).length) continue;
-  await api('PUT', `/organizations/${org.id}/osquery/${keys[0].key}`, { enabled: true, consent, versions });
+  for (const q of catalog.queries.filter((q) => q.pack === pack.name && q.os?.includes('linux'))) await approve(q.key);
 }
 await page.goto(`${BASE}/simulations/new?org=${org.id}&asset=${agentAsset}`);
 await page.getByRole('button', { name: 'Continue' }).click();
@@ -236,8 +235,8 @@ check(await see(page.getByText('No agent').first()), 'S7: cakupan menandai aset 
 await page.screenshot({ path: `${shots}/s7-coverage.png`, fullPage: true });
 
 // ---------- Skenario 8: dua bahasa dan dua tema ----------
-await page.locator('.ws__button').click();
-await page.locator('#language-preference').selectOption('id');
+// Bilah atas kini memakai toggle bahasa EN|ID (dropdown lama diganti, keputusan desain).
+await page.locator('.lang-toggle').getByRole('button', { name: 'ID', exact: true }).click();
 await page.waitForFunction(() => document.documentElement.lang === 'id');
 await page.goto(`${BASE}/simulations/new?org=${org.id}`);
 await page.getByRole('heading', { name: 'Pindai baru' }).waitFor();

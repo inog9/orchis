@@ -40,8 +40,8 @@ export function NewScanPage() {
         const byID = new Map((readiness.data?.items ?? []).map((r) => [r.id, r]));
         return allAssets.map((a) => ({ asset: a, r: byID.get(a.id) ?? synthesizedReadiness(a) }));
     }, [allAssets, readiness.data]);
-    const webReady = (r?: ReadinessItem) => !!r && !r.web_reason;
-    const defReady = (r?: ReadinessItem) => !!r && !r.defense_reason;
+    const webReady = (r?: ReadinessItem) => !!r && !r.web_reason && r.authorized !== false;
+    const defReady = (r?: ReadinessItem) => !!r && !r.defense_reason && r.authorized !== false;
     const eligible = (k: EngineKind | '', r?: ReadinessItem) => k === '' ? false : k === 'web' ? webReady(r) : k === 'defense' ? defReady(r) : webReady(r) || defReady(r);
     const reasonFor = (k: EngineKind | '', r?: ReadinessItem) =>
         !r ? textUI('flow_wiz_empty') : localizeReason(k === 'web' ? r.web_reason : k === 'defense' ? r.defense_reason : r.web_reason || r.defense_reason);
