@@ -28,8 +28,8 @@ it('wizard: ganti organisasi mengulang ke langkah organisasi dengan pilihan koso
 it('detail: ringkasan Hackbot, baris engine dengan error, dan laporan PDF tanpa mengklaim scan bersih',async()=>{
  stub().mockImplementation(async(input)=>String(input).includes('/auth/me')?json({permissions}):json({id:'s2',organization_id:A,name:'Acme',status:'incomplete',report_id:'r1',report_status:'ready',runner:'injector',created_at:'2026-11-01T00:00:00Z',options:{preset:'standard',tools:['hackbot']},summary:'Explored public routes. Authenticated coverage was blocked.',jobs:[{id:'j1',asset_id:'a1',range_id:null,name:'Web app',target:'https://fixture.test',tool:'hackbot',status:'incomplete',phase:'report',disposition:'input_required',error:'Credentials unavailable',findings:[]}]}));
  mount(<ScanDetailPage/>,'/simulations/s2','/simulations/:id');
- expect(await screen.findByRole('region',{name:'Pentest activity summary'})).toHaveTextContent('Authenticated coverage was blocked');
- expect(screen.getByText('Hackbot')).toBeVisible();expect(screen.getByText('Credentials unavailable')).toBeVisible();expect(screen.getByTitle('Pentest report')).toHaveAttribute('src','/api/v1/reports/r1/export/pdf?preview=1');expect(screen.queryByRole('link',{name:/download/i})).toBeNull();
+ expect(await screen.findByRole('region',{name:'Hackbot activity summary'})).toHaveTextContent('Authenticated coverage was blocked');
+ expect(screen.getByText('Hackbot')).toBeVisible();expect(screen.getByText('Credentials unavailable')).toBeVisible();expect(screen.getByTitle('Report')).toHaveAttribute('src','/api/v1/reports/r1/export/pdf?preview=1');expect(screen.queryByRole('link',{name:/download/i})).toBeNull();
 });
 
 it('detail: dua engine tampil sebagai dua baris per aset, tanpa nama Nmap atau Nuclei',async()=>{

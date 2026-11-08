@@ -62,7 +62,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
             <span role="cell">{formatUI(engineSetLabel(s.options.tools))}</span>
-            <span role="cell">{formatUI(s.options.preset)}</span>
+            <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
           </div>)}
@@ -98,7 +98,7 @@ export function ScanDetailPage() {
     return <section className="page sims" aria-labelledby="scan-title">
       <Link className="sims__back" to="/simulations">{textUI("m_sim_back")}</Link>
       <div className="page__head"><div>
-        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(s.options.preset)])}</p>
+        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(engineSetLabel(s.options.tools))])}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
         <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
