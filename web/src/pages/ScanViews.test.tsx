@@ -66,12 +66,12 @@ describe('ScanDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Cancel scan' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Scan report' })).toBeInTheDocument();
   });
-  it('berjalan: tombol batal memanggil endpoint, tanpa link laporan, "belum selesai"', async () => {
+  it('berjalan: tombol batal memanggil endpoint, tanpa link laporan, "masih berjalan"', async () => {
     const fetch = route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', status: 'running', ended_at: null, jobs: [job({ status: 'running' })] }) : u.pathname.endsWith('/cancel') ? {} : undefined);
     mount(<ScanDetailPage />, '/simulations/s1', '/simulations/:id');
     await userEvent.click(await screen.findByRole('button', { name: 'Cancel scan' }));
     await waitFor(() => expect(fetch.mock.calls.some(([u, i]) => String(u).endsWith('/scans/s1/cancel') && i?.method === 'POST')).toBe(true));
-    expect(screen.getByText('not finished yet (ended_at = null)')).toBeInTheDocument();
+    expect(screen.getByText('still running')).toBeInTheDocument(); // tanpa ekspresi debug (AUDIT UI-015)
     expect(screen.queryByRole('link', { name: 'Scan report' })).toBeNull();
   });
   it('gagal: pesan job.error terlihat di kolom catatan', async () => {

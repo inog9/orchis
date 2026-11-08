@@ -77,7 +77,7 @@ func (r *Result) Validate() error {
 	}
 	r.Summary = LimitSummary(r.Summary)
 	if r.Summary == "" {
-		r.Summary = fmt.Sprintf("Hackbot Lite completed %d verified tasks and validated %d findings. Delivery: %s. See the report for coverage and limitations.", r.VerifiedTasks, len(r.Findings), r.Disposition)
+		r.Summary = fmt.Sprintf("Hackbot completed %d verified tasks and validated %d findings. Delivery: %s. See the report for coverage and limitations.", r.VerifiedTasks, len(r.Findings), r.Disposition)
 	}
 	for _, f := range r.Findings {
 		var details struct {

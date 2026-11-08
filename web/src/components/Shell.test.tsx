@@ -42,14 +42,16 @@ describe('Shell', () => {
   it('lencana temuan menampilkan jumlah dengan teks, bukan hanya warna', async () => {
     mount();
     const link = await screen.findByRole('link', { name: /findings, 12 findings/i });
-    expect(link.querySelector('.nav-badge--hot')?.textContent).toBe('12');
+    expect(link.querySelector('.nav-badge')?.textContent).toBe('12'); // count nav netral (AUDIT UI-025)
   });
 
   it('pemilih bahasa tetap terlihat di bilah atas, tanpa membuka menu', async () => {
+    // Keputusan pemilik (AUDIT UI-028): dropdown bahasa diganti toggle minimal EN | ID.
     const { container } = mount();
     await screen.findByRole('link', { name: /organisations/i });
-    expect(container.querySelector('.topbar #language-preference')).not.toBeNull();
-    expect(screen.getByRole('combobox', { name: 'Language' })).toBeVisible();
+    expect(container.querySelector('.topbar .lang-toggle')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'EN', pressed: true })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'ID' })).toBeVisible();
   });
 });
 

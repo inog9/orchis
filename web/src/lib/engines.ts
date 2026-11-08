@@ -79,3 +79,12 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
     }
     return rows;
 }
+
+// Nama engine yang tampil untuk daftar injector luring: pipeline Hackbot (nmap/nuclei/hackbot)
+// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "DefenseBot" (AUDIT UI-004d).
+export function engineNames(keys: string[]): string[] {
+    const out: string[] = [];
+    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('Hackbot');
+    if (keys.some(k => k === 'defensebot')) out.push('DefenseBot');
+    return out;
+}

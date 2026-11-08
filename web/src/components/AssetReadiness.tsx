@@ -9,6 +9,7 @@ import { useScans, type Scan, type ScanInput } from '../api/scans';
 import { useReadiness, type ReadinessItem } from '../api/readiness';
 import { describeError } from './ErrorNote';
 import { kindLabel, toolsFor, type EngineKind } from '../lib/engines';
+import { localizeReason } from '../lib/readinessReason';
 
 // Checklist kesiapan per aset: satu tempat untuk melihat prasyarat kedua engine dan memulai run.
 export function AssetReadiness({ asset }: { asset: Asset }) {
@@ -50,12 +51,12 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
     });
     const steps: { label: string; done: boolean; why?: string; fix?: string }[] = [
         { label: textUI('flow_chk_step_org'), done: !!org, fix: org ? undefined : '/organizations' },
-        { label: textUI('flow_chk_step_auth'), done: authorized, why: authorized ? undefined : (item?.web_reason ?? undefined), fix: org ? `/organizations/${org}?tab=assets` : undefined },
-        { label: textUI('flow_chk_step_agent'), done: agentState === 'online', why: agentState === 'none' ? (item?.defense_reason ?? undefined) : agentState === 'offline' ? item?.defense_reason : undefined, fix: '/assets/agents' },
-        { label: textUI('flow_chk_step_platform'), done: agentState !== 'online' || supported, why: agentState === 'online' && !supported ? item?.defense_reason : undefined },
-        { label: textUI('flow_chk_step_consent'), done: agentState !== 'online' || consented, why: agentState === 'online' && !consented ? item?.defense_reason : undefined, fix: org ? `/organizations/${org}?tab=agents` : undefined },
-        { label: textUI('flow_chk_step_url'), done: webOK, why: !webOK ? item?.web_reason : undefined, fix: '/assets' },
-        { label: textUI('flow_chk_step_window'), done: windowOpen, why: !windowOpen ? readiness.data?.control_reason : undefined },
+        { label: textUI('flow_chk_step_auth'), done: authorized, why: authorized ? undefined : localizeReason(item?.web_reason), fix: org ? `/organizations/${org}?tab=assets` : undefined },
+        { label: textUI('flow_chk_step_agent'), done: agentState === 'online', why: agentState === 'none' ? localizeReason(item?.defense_reason) : agentState === 'offline' ? localizeReason(item?.defense_reason) : undefined, fix: '/assets/agents' },
+        { label: textUI('flow_chk_step_platform'), done: agentState !== 'online' || supported, why: agentState === 'online' && !supported ? localizeReason(item?.defense_reason) : undefined },
+        { label: textUI('flow_chk_step_consent'), done: agentState !== 'online' || consented, why: agentState === 'online' && !consented ? localizeReason(item?.defense_reason) : undefined, fix: org ? `/organizations/${org}?tab=agents` : undefined },
+        { label: textUI('flow_chk_step_url'), done: webOK, why: !webOK ? localizeReason(item?.web_reason) : undefined, fix: '/assets' },
+        { label: textUI('flow_chk_step_window'), done: windowOpen, why: !windowOpen ? localizeReason(readiness.data?.control_reason) : undefined },
     ];
     const buttons: { kind: EngineKind; label: string; ok: boolean; why: string }[] = [
         { kind: 'web', label: textUI('flow_chk_run_web'), ok: webOK && windowOpen && !emergency, why: item?.web_reason ?? '' },
@@ -67,8 +68,9 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
       <ul className="chk-list">
         {steps.map((s) => (<li key={s.label} className="chk-item">
           <span className={`status${s.done ? ' status--ok' : ''}`}>{s.done ? '✓' : '○'}</span>
-          <span>{formatUI(s.label)}{formatUI(!s.done && s.why ? <span className="chk-item__why"> — {s.why}</span> : null)}</span>
-          {formatUI(!s.done && s.fix && <Link className="link-quiet" to={s.fix}>{textUI('flow_wiz_fix')}</Link>)}
+          <span className="chk-item__label">{formatUI(s.label)}</span>
+          {formatUI(!s.done && s.why ? <span className="chk-item__why">{s.why}</span> : null)}
+          {formatUI(!s.done && s.fix && <Link className="link-quiet chk-item__fix" to={s.fix}>{textUI('flow_wiz_fix')}</Link>)}
         </li>))}
       </ul>
       <div className="chk-run">

@@ -57,12 +57,12 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
         : items.length === 0 && q.data ? <div className="state" role="status"><h2>{formatUI(org ? textUI("m_sim_none_t") : textUI("m_3c2ec23816e3"))}</h2><p>{formatUI(org ? textUI("m_sim_none_b") : textUI("m_9ec336bb3650"))}</p>{canRun && <p className="field__hint">{textUI("flow_hint_scan")}</p>}{org && !organizationID ? <button type="button" className="btn btn--secondary btn--auto" onClick={() => setOrg('')}>{textUI("m_sim_clear_filter")}</button> : canRun && <Link className="btn btn--secondary btn--auto" to="/simulations/new">{textUI("m_sim_new")}</Link>}</div>
         : !q.data ? null
         : <div className="sims__table" role="table" aria-label={textUI("m_sim_list")}>
-          <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_preset")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
+          <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
             <span role="cell">{formatUI(engineSetLabel(s.options.tools))}</span>
-            <span role="cell">{formatUI(s.options.preset)}</span>
+            
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
           </div>)}
@@ -98,7 +98,7 @@ export function ScanDetailPage() {
     return <section className="page sims" aria-labelledby="scan-title">
       <Link className="sims__back" to="/simulations">{textUI("m_sim_back")}</Link>
       <div className="page__head"><div>
-        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(s.options.preset)])}</p>
+        <p className="eyebrow">{textUI("m_sim_eyebrow")}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
         <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
@@ -113,9 +113,9 @@ export function ScanDetailPage() {
       {formatUI(s.results_expired_at && <p role="status" className="alert">{textUI("m_6e77528b9b49")}</p>)}
       <div className="sims__stats">
         <div className="stat" role="group" aria-label={textUI("m_sim_d_status")}><span className="stat__label">{textUI("m_sim_d_status")}</span><span className="sims__stat-v"><StatusBadge status={s.status}/></span><span className="stat__sub">{formatUI(s.ended_at ? textUI("m_sim_ended_at", [stamp(s.ended_at)]) : textUI("m_sim_not_ended"))}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value mono">{formatDuration(durationMs(s), units())}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value mono">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value mono">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value">{formatDuration(durationMs(s), units())}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
       </div>
       <section className="sims__panel" aria-labelledby="engines-h"><h2 id="engines-h" className="sims__h">{textUI("flow_wiz_s2")}</h2>
         {Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>

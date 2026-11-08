@@ -73,7 +73,7 @@ function Group({ g, title, linkTo, collapsed, onToggle, children }: { g: Finding
       <header className="fnd-group__head">
         <button type="button" className="fnd-group__toggle" aria-expanded={!collapsed} onClick={onToggle}><ChevronRight size={15} aria-hidden="true" className={collapsed ? '' : 'is-open'}/><h2>{formatUI(title)}</h2></button>
         <span className="fnd-group__sum">{richUI("m_grp_n_findings", [formatUI(g.items.length)])}</span>
-        <span className="fnd-group__sevs">{SEVERITIES.filter((s) => counts[s]).map((s) => <span key={s} className="fnd-group__sev"><i className={`fnd-dot fnd-dot--${s}`} aria-hidden="true"/><span className="sr-only">{SEV_LABEL(s)}</span>{formatUI(counts[s])}</span>)}</span>
+        <span className="fnd-group__sevs">{SEVERITIES.filter((s) => counts[s]).map((s) => <span key={s} className="fnd-group__sev"><i className={`fnd-dot fnd-dot--${s}`} aria-hidden="true"/>{formatUI(SEV_LABEL(s))} {formatUI(counts[s])}</span>)}</span>
         {formatUI(linkTo && <Link className="fnd-group__open" to={linkTo}>{textUI("m_grp_open_org")}</Link>)}
       </header>
       {!collapsed && children}

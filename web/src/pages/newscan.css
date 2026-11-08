@@ -1,11 +1,11 @@
 /* Form Scan baru v2: tiga bagian bernomor sebagai kartu. */
 .newscan { display: flex; flex-direction: column; gap: 16px; color: var(--v2-text); max-width: 880px; }
 .newscan .dialog__form { display: flex; flex-direction: column; gap: 16px; padding: 0; background: none; border: 0; }
-.newscan .fieldset { margin: 0; padding: 20px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.newscan .fieldset { margin: 0; padding: 20px; border: 1px solid var(--v2-border); border-radius: var(--radius-panel); background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .newscan .fieldset:disabled { opacity: .7; }
 .newscan legend { padding: 0 8px; font-size: 15px; font-weight: 600; color: var(--v2-text); }
 .newscan h2 { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--v2-text-3); margin: 4px 0 0; }
-.newscan .stack-list li { padding: 10px 12px; border: 1px solid var(--v2-border); border-radius: 10px; background: var(--v2-surface); }
+.newscan .stack-list li { padding: 10px 12px; border: 1px solid var(--v2-border); border-radius: var(--radius-ctl); background: var(--v2-surface); }
 .newscan .stack-list li:hover { border-color: var(--v2-accent-line); }
 .newscan .notice, .newscan .small, .newscan .field__hint { color: var(--v2-text-2); }
 .newscan .alert { border-color: var(--v2-critical); background: var(--v2-critical-soft); color: var(--v2-text); }
@@ -16,29 +16,29 @@
 
 /* Wizard Pindai baru: empat langkah, kartu engine, sasaran dengan alasan. */
 .wiz-steps { display: flex; gap: var(--space-2, 8px); flex-wrap: wrap; list-style: none; margin: 0 0 var(--space-4, 16px); padding: 0; }
-.wiz-step { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; color: var(--text-2); font-size: 13px; }
+.wiz-step { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius-ctl); color: var(--text-2); font-size: 13px; }
 .wiz-step.is-current { border-color: var(--accent); color: var(--text); }
 .wiz-step.is-done { color: var(--text-3); }
-.wiz-step__n { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); font-size: 11px; }
+.wiz-step__n { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--radius-ctl); background: var(--surface-2); font-size: 11px; }
 .wiz-step.is-current .wiz-step__n { background: var(--accent); color: var(--accent-ink); }
 .wiz-pane { margin: 0 0 var(--space-4, 16px); }
 .wiz-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3, 12px); margin: 0 0 var(--space-4, 16px); }
-.wiz-card { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: var(--space-4, 16px); border: 1px solid var(--border); border-radius: var(--radius-panel, 6px); background: var(--surface); color: var(--text); cursor: pointer; }
+.wiz-card { display: flex; gap: 12px; align-items: flex-start; text-align: left; padding: var(--space-4, 16px); border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--surface); color: var(--text); cursor: pointer; }
 .wiz-card:hover { border-color: var(--accent-line); }
-.wiz-card.is-on { border-color: var(--accent); outline: 1px solid var(--accent); }
-.wiz-card__icon { display: inline-flex; padding: 8px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.wiz-card.is-on { border-color: var(--accent-line); outline: 1px solid var(--accent); background: var(--accent-soft); }  /* terpilih: fill + border + outline (DESIGN.md 7) */
+.wiz-card__icon { display: inline-flex; padding: 8px; border-radius: var(--radius-ctl); background: var(--accent-soft); color: var(--accent); }
 .wiz-card__body { display: grid; gap: 6px; font-size: 13px; color: var(--text-2); }
 .wiz-card__body strong { color: var(--text); font-size: 14px; }
 .wiz-card__meta { font-size: 12px; color: var(--text-3); }
 .wiz-card__meta b { color: var(--text-2); font-weight: 600; }
 .wiz-targets { list-style: none; margin: 0 0 var(--space-3, 12px); padding: 0; display: grid; gap: 6px; }
-.wiz-target { border: 1px solid var(--border); border-radius: var(--radius-ctl, 4px); background: var(--surface); }
+.wiz-target { border: 1px solid var(--border); border-radius: var(--radius-ctl); background: var(--surface); }
 .wiz-target.is-off { opacity: 0.75; }
 .wiz-target .check { padding: 10px 12px; }
 .wiz-target__name { font-weight: 600; }
 .wiz-target__why { display: block; font-size: 12px; color: var(--text-3); }
 .wiz-chips { display: inline-flex; gap: 6px; margin-left: auto; }
-.wiz-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-3); }
+.wiz-chip { font-size: 11px; padding: 2px 8px; border-radius: var(--radius-ctl); border: 1px solid var(--border); color: var(--text-3); }
 .wiz-chip.is-on { border-color: var(--success-line); background: var(--success-soft); color: var(--success); }
 .wiz-review { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0 0 var(--space-4, 16px); }
 .wiz-review dt { color: var(--text-3); font-size: 13px; }
@@ -51,9 +51,13 @@
 .chk-run { display: flex; flex-wrap: wrap; gap: 8px; margin: var(--space-3, 12px) 0 0; }
 /* Dashboard cakupan */
 .cov-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
-.cov-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-ctl, 4px); background: var(--surface); font-size: 13px; flex-wrap: wrap; }
+.cov-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-ctl); background: var(--surface); font-size: 13px; flex-wrap: wrap; }
 .cov-row__name { font-weight: 600; }
 .cov-row__why { color: var(--text-3); font-size: 12px; }
 .cov-row__fix { margin-left: auto; }
 
 .wiz-orgbar { margin: 0 0 var(--space-3, 12px); }
+
+.wiz-step__back { display: inline-flex; align-items: center; gap: 8px; background: none; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; }
+.wiz-step__back:hover { color: var(--text); }
+.wiz-step__back:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

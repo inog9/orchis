@@ -76,7 +76,7 @@ Only the supplied origin is authorized. Discovered hosts and APIs on other origi
 		return fail("Cannot open Hackbot status stream.")
 	}
 	if err = cmd.Start(); err != nil {
-		return fail("Cannot start Hackbot Lite; check worker installation.")
+		return fail("Cannot start Hackbot; check worker installation.")
 	}
 	scanner := bufio.NewScanner(pipe)
 	scanner.Buffer(make([]byte, 4096), 1<<20)
@@ -165,7 +165,7 @@ Only the supplied origin is authorized. Discovered hosts and APIs on other origi
 		return fail(err.Error())
 	}
 	if params.Language == "id" {
-		payload.Summary = fmt.Sprintf("Hackbot Lite menyelesaikan %d tugas spesialis terverifikasi dan memvalidasi %d temuan. Fase selesai: %s. Status hasil: %s. Batas cakupan tercatat: %d. Lihat laporan lengkap untuk metode pengujian, bukti, dan pekerjaan yang terblokir.", payload.VerifiedTasks, len(payload.Findings), strings.Join(payload.Phases, ", "), payload.Disposition, len(payload.Blockers))
+		payload.Summary = fmt.Sprintf("Hackbot menyelesaikan %d tugas spesialis terverifikasi dan memvalidasi %d temuan. Fase selesai: %s. Status hasil: %s. Batas cakupan tercatat: %d. Lihat laporan lengkap untuk metode pengujian, bukti, dan pekerjaan yang terblokir.", payload.VerifiedTasks, len(payload.Findings), strings.Join(payload.Phases, ", "), payload.Disposition, len(payload.Blockers))
 	}
 	if len(spec.ScannerInputs) > 0 {
 		parts := []string{}

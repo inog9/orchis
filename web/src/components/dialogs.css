@@ -1,6 +1,6 @@
 /* Dialog v2: kartu bersih, stepper bernomor, kategori sebagai kartu. Token --v2-*. */
 .modal { background: var(--v2-scrim); }
-.dialog { background: var(--v2-surface); border: 1px solid var(--v2-border); border-radius: 16px; color: var(--v2-text); box-shadow: 0 24px 64px #0006; }
+.dialog { background: var(--v2-surface); border: 1px solid var(--v2-border); border-radius: var(--radius-panel); color: var(--v2-text); box-shadow: 0 24px 64px #0006; }
 .dialog h2, .dialog__title { color: var(--v2-text); }
 .dialog .subtitle, .dialog .hint, .dialog .dialog-purpose { color: var(--v2-text-2); }
 .dialog .dialog-purpose { border-bottom-color: var(--v2-border); }
@@ -20,10 +20,10 @@
 .steps .is-done { color: var(--v2-success); }
 
 .category-grid { gap: 12px; }
-.category { background: var(--v2-surface); border: 1px solid var(--v2-border); border-radius: 12px; color: var(--v2-text); transition: border-color .15s, background-color .15s; }
+.category { background: var(--v2-surface); border: 1px solid var(--v2-border); border-radius: var(--radius-panel); color: var(--v2-text); transition: border-color .15s, background-color .15s; }
 .category:hover { border-color: var(--v2-accent-line); background: var(--v2-accent-soft); }
 .category:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
-.category__icon { background: var(--v2-accent-soft); color: var(--v2-accent); border-radius: 10px; }
+.category__icon { background: var(--v2-accent-soft); color: var(--v2-accent); border-radius: var(--radius-ctl); }
 .category__text strong { color: var(--v2-text); font-size: 14px; }
 .category__text span { color: var(--v2-text-3); }
 @media (max-width: 679px) { .category-grid { grid-template-columns: minmax(0, 1fr); } .dialog { padding: 16px; } }

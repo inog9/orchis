@@ -462,7 +462,7 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 				}
 			}
 			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
-				j.Summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
+				j.Summary = "Hackbot did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
 			}
 			j.Summary = hackbot.LimitSummary(reporting.Redact(j.Summary, 32000))
 			if j.Summary != "" {

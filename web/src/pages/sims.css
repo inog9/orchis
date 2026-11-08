@@ -6,7 +6,7 @@
 .sims__caveat { font-size: 13px; color: var(--v2-text-3); max-width: 70ch; margin: 8px 0 0; }
 .sims__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .sims__actions .btn { text-decoration: none; display: inline-flex; align-items: center; }
-.sims__table, .sims__list, .sims__jobs, .sims__finds { border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); overflow: hidden; list-style: none; margin: 0; padding: 0; }
+.sims__table, .sims__list, .sims__jobs, .sims__finds { border: 1px solid var(--v2-border); border-radius: var(--radius-panel); background: var(--v2-surface); overflow: hidden; list-style: none; margin: 0; padding: 0; }
 .sims__row, .sims__jrow, .sims__frow { display: grid; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--v2-border); font-size: 13px; }
 .sims__row { grid-template-columns: minmax(0, 2fr) 130px minmax(0, 1.2fr) 100px 170px 100px; }
 .sims__jrow { grid-template-columns: 90px minmax(0, 1.6fr) 130px 80px minmax(0, 1.4fr); }
@@ -21,12 +21,14 @@
 .sims__scan code { font-size: 11px; color: var(--v2-text-3); }
 .sims__row--skeleton { display: block; }
 .sims__note { white-space: normal !important; overflow-wrap: anywhere; color: var(--v2-text-2); }
-.sims__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.sims .stat { padding: 14px 16px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 6px; }
-.sims .stat__label { color: var(--v2-text-2); font-size: 12px; } .sims .stat__value { font-size: 24px; font-weight: 600; color: var(--v2-text); }
+.sims__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--v2-border); background: var(--v2-surface); }
+.sims__stats > .stat { border: 0; border-left: 1px solid var(--v2-border); }
+.sims__stats > .stat:first-child { border-left: 0; }
+.sims .stat { padding: 14px 16px; border: 1px solid var(--v2-border); border-radius: var(--radius-panel); background: var(--v2-surface); display: flex; flex-direction: column; gap: 6px; }
+.sims .stat__label { color: var(--v2-text-2); font-size: 12px; } .sims .stat__value { font-size: 28px; font-weight: 500; color: var(--v2-text); }
 .sims .stat__sub { font-size: 12px; color: var(--v2-text-3); overflow-wrap: anywhere; }
 .sims__stat-v { min-height: 28px; display: flex; align-items: center; }
-.sims__panel { padding: 16px; border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; }
+.sims__panel { padding: 16px; border: 1px solid var(--v2-border); border-radius: var(--radius-panel); background: var(--v2-surface); display: flex; flex-direction: column; gap: 12px; }
 .sims__h { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; color: var(--v2-text-3); margin: 0; text-transform: uppercase; }
 .sims__timeline { list-style: none; margin: 0; padding: 0 0 0 16px; border-left: 2px solid var(--v2-border); display: flex; flex-direction: column; gap: 12px; }
 .sims__timeline li { display: flex; flex-direction: column; gap: 2px; font-size: 13px; position: relative; }
