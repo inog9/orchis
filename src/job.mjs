@@ -54,6 +54,7 @@ try {
   const key = auth['opencode-go']?.key;
   if (!key) throw Error('OpenCode Go credential unavailable');
   const instructions = `${prompt}\nUse the pentest skill at .agent/skills/pentest/SKILL.md as reference and use available Gori MCP tools, Interceptor and jxscout. Work directly without subagents or Pi workflow gates. Review the preliminary scanner observations and test relevant leads. Inspect JavaScript and perform bounded security checks. Do not claim untested coverage. Never generate PDF or Markdown reports. Write result-draft.json in the workspace containing JSON {summary, report, validation, blockers: [strings], findings: [{id,title,severity,value,evidence_file,details:{verdict:"VALIDATED",reproduction,impact,remediation,evidence}}]}. Store actual private proof for each finding under private/evidence/ and set evidence_file to its workspace-relative path. Only include findings supported by actual reproducible evidence; evidence must describe observed requests and responses. Severity is info, low, medium, high or critical. report and validation are plain text. Clearly state limitations. Return promptly after bounded testing.`;
+  if (interrupted) throw Error('cancelled');
   const log = fs.openSync(path.join(root,'opencode.jsonl'), 'a', 0o600);
   child = spawn('opencode', ['run','--standalone','--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',instructions], {cwd:root,env:{...process.env,OPENCODE_API_KEY:key},stdio:['ignore',log,log],detached:true});
   let timedOut = false;
