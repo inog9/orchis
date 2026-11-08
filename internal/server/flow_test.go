@@ -53,12 +53,20 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 		t.Fatalf("full assessment must create one job per engine: %+v", tools)
 	}
 
-	// URL-only asset tanpa agent harus ditolak dengan alasan per-aset yang jelas.
+	// Full assessment campuran per aset: aset URL-only tanpa agent hanya mendapat Hackbot (tanpa job DefenseBot).
 	urlOnly := mkAsset(t, f.a, f.admin, map[string]any{"category": "web_application", "name": "web-only", "organization_id": org, "testing_authorized": true, "addresses": []map[string]any{{"kind": "url", "value": "http://127.0.0.2:8080/"}}})
-	reject := full
-	reject.AssetIDs = []uuid.UUID{uuid.MustParse(urlOnly)}
-	if r := f.a.do("POST", "/api/v1/scans", reject, f.analyst, "Idempotency-Key", "full-reject"); r.Status != 422 || !strings.Contains(string(r.Body), "enrolled agent") {
-		t.Fatalf("full on agent-less asset must be refused with a reason: %d %s", r.Status, r.Body)
+	mixed := full
+	mixed.AssetIDs = []uuid.UUID{uuid.MustParse(urlOnly)}
+	var mixedScan scans.Scan
+	if r := f.a.do("POST", "/api/v1/scans", mixed, f.analyst, "Idempotency-Key", "full-mixed"); r.Status != 201 {
+		t.Fatalf("full on URL-only asset must run Hackbot only: %d %s", r.Status, r.Body)
+	} else {
+		r.JSON(&mixedScan)
+	}
+	for _, j := range mixedScan.Jobs {
+		if j.Tool == "defensebot" {
+			t.Fatalf("URL-only asset must not get a DefenseBot job: %+v", mixedScan.Jobs)
+		}
 	}
 
 	// Urutan: Nmap dan Nuclei berjalan; Hackbot menunggu keduanya; DefenseBot menunggu Nmap.
@@ -152,7 +160,7 @@ func TestReadinessCoversBothEngines(t *testing.T) {
 		t.Fatalf("readiness: %d %s", r.Status, r.Body)
 	}
 	var state struct {
-		Total          int `json:"total"`
+		Total          int  `json:"total"`
 		ScanWindowOpen bool `json:"scan_window_open"`
 		EmergencyStop  bool `json:"emergency_stop"`
 		Items          []struct {
