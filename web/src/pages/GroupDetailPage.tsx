@@ -1,4 +1,5 @@
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
+import './group-detail.css';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -30,7 +31,7 @@ export function GroupDetailPage() {
       </div>);
     }
     const g = q.data;
-    return (<section className="page" aria-labelledby="group-name">
+    return (<section className="page assets" aria-labelledby="group-name">
       <div className="page__head">
         <div>
           <nav className="crumbs" aria-label={textUI("m_2bd873d6c734")}>

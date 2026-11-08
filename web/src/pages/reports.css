@@ -33,3 +33,28 @@
   .rep__row > :nth-child(2), .rep__row > :nth-child(7) { display: none; }
   .rep__row > :nth-child(6) { grid-column: 2; grid-row: 1; }
 }
+
+/* Detail laporan v3: bagian datar, strip severity, temuan sebagai baris bergaris kiri (tanpa kotak bersarang). */
+.rep--detail { max-width: 1040px; }
+.rep--detail > .org-card, .rep--detail .org-card { border-radius: 0; box-shadow: none; }
+.rep--detail > .org-card { background: transparent; border: 0; border-top: 1px solid var(--border); padding: 20px 0 8px; margin: 0; }
+.rep--detail > .org-card > .eyebrow { margin: 0 0 6px; }
+.rep--detail > .org-card h2 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
+.rep--detail > .org-card h3 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 20px 0 8px; }
+.rep--detail > h2 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 28px 0 0; }
+.rep--detail .org-card .org-card { background: transparent; border: 0; border-left: 2px solid var(--border); padding: 6px 0 6px 16px; margin: 14px 0; }
+.rep--detail .org-card .org-card h3 { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); margin: 2px 0 6px; }
+.rep--detail .org-card .org-card .eyebrow { margin: 0; }
+.rep--detail .notice { border-radius: 0; margin: 0 0 16px; }
+.rep--detail .severity-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); margin: 0 0 20px; }
+.rep--detail .severity-strip .sev-cell { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 14px 16px; border-left: 1px solid var(--border); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+.rep--detail .severity-strip .sev-cell:first-child { border-left: 0; }
+.rep--detail .severity-strip .sev-cell strong { font-size: 28px; font-weight: 500; letter-spacing: 0; color: var(--text); font-family: var(--font-ui, inherit); }
+.rep--detail .sev-cell--critical strong { color: var(--sev-critical); }
+.rep--detail .sev-cell--high strong { color: var(--sev-high); }
+.rep--detail .sev-cell--medium strong { color: var(--sev-medium); }
+.rep--detail .sev-cell--low strong { color: var(--sev-low); }
+.rep--detail .pentest-pdf { width: 100%; min-height: 640px; border: 1px solid var(--border); border-radius: 0; background: var(--surface); }
+.rep--detail .report-relations { display: flex; gap: 16px; margin: 16px 0 0; font-size: 13px; }
+.rep--detail details { margin: 10px 0 0; font-size: 12px; color: var(--text-2); }
+@media (max-width: 679px) { .rep--detail .severity-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rep--detail .severity-strip .sev-cell:nth-child(odd) { border-left: 0; } .rep--detail .severity-strip .sev-cell:nth-child(n+3) { border-top: 1px solid var(--border); } }

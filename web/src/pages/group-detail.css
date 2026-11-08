@@ -1,0 +1,13 @@
+/* Detail grup aset v3: aturan sebagai baris datar, anggota sebagai tabel baris. */
+.assets .grp-rules, .assets section[aria-labelledby="rules-h"] { background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; padding: 16px 0 0; margin: 0 0 24px; }
+.assets section[aria-labelledby="rules-h"] .panel__title, .assets section[aria-labelledby="members-h"] .panel__title { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 0 0 12px; }
+.assets section[aria-labelledby="rules-h"] .plain-list { list-style: none; margin: 8px 0 0; padding: 0; border: 1px solid var(--border); background: var(--surface); }
+.assets section[aria-labelledby="rules-h"] .plain-list li { padding: 10px 16px; border-bottom: 1px solid var(--border-2, var(--border)); font-size: 13px; }
+.assets section[aria-labelledby="rules-h"] .plain-list li:last-child { border-bottom: 0; }
+.assets section[aria-labelledby="members-h"] { background: var(--surface); border: 1px solid var(--border); border-radius: 0; padding: 0; margin: 0 0 24px; }
+.assets section[aria-labelledby="members-h"] .list__title { padding: 12px 16px; margin: 0; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.assets .member { display: grid; grid-template-columns: 32px minmax(0, 1.4fr) minmax(0, 1fr) 90px; gap: 12px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border-2, var(--border)); }
+.assets .member:last-child { border-bottom: 0; }
+.assets .member:hover { background: var(--surface-2); }
+.assets .member__name { font-weight: 500; overflow-wrap: anywhere; }
+@media (max-width: 679px) { .assets .member { grid-template-columns: 32px minmax(0, 1fr) auto; } .assets .member > .muted { display: none; } }

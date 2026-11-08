@@ -63,9 +63,22 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
         { kind: 'defense', label: textUI('flow_chk_run_def'), ok: defOK && windowOpen && !emergency, why: item?.defense_reason ?? '' },
         { kind: 'full', label: textUI('flow_chk_run_full'), ok: webOK && defOK && windowOpen && !emergency, why: item?.web_reason || item?.defense_reason || '' },
     ];
-    return (<section className="panel" aria-labelledby="chk-h">
-      <h2 id="chk-h" className="panel__title">{textUI('flow_chk_title')}</h2>
-      <ul className="chk-list">
+    const allDone = steps.every((x) => x.done);
+    return (<section className="ready" aria-labelledby="chk-h">
+      <h2 id="chk-h" className="ready__title">{textUI('flow_chk_title')}</h2>
+      <ul className="run-rows">
+        {buttons.map((b) => (<li key={b.kind} className="run-row">
+          <div className="run-row__body">
+            <strong>{formatUI(kindLabel(b.kind))}</strong>
+            {formatUI(!b.ok && b.why && <span className="run-row__why">{localizeReason(b.why)}</span>)}
+          </div>
+          <button type="button" className="btn btn--secondary btn--auto" disabled={!b.ok || busy !== '' || !can(me, 'assessment.run') || !can(me, 'simulation.run')} title={b.ok ? undefined : localizeReason(b.why)} onClick={() => launch.mutate(b.kind)}>
+            {formatUI(busy === b.kind ? textUI('flow_wiz_launching') : b.label)}
+          </button>
+        </li>))}
+      </ul>
+      {formatUI(launch.error && <p className="alert" role="alert">{formatUI(describeError(launch.error).message)}</p>)}
+      <ul className={`chk-list chk-list--grid${allDone ? ' is-done' : ''}`}>
         {steps.map((s) => (<li key={s.label} className="chk-item">
           <span className={`status${s.done ? ' status--ok' : ''}`}>{s.done ? '✓' : '○'}</span>
           <span className="chk-item__label">{formatUI(s.label)}</span>
@@ -73,17 +86,10 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
           {formatUI(!s.done && s.fix && <Link className="link-quiet chk-item__fix" to={s.fix}>{textUI('flow_wiz_fix')}</Link>)}
         </li>))}
       </ul>
-      <div className="chk-run">
-        {buttons.map((b) => (<button key={b.kind} type="button" className="btn btn--secondary btn--auto" disabled={!b.ok || busy !== '' || !can(me, 'assessment.run') || !can(me, 'simulation.run')} title={b.ok ? undefined : localizeReason(b.why)} onClick={() => launch.mutate(b.kind)}>
-          {formatUI(busy === b.kind ? textUI('flow_wiz_launching') : b.label)}
-        </button>))}
-      </div>
-      {formatUI(launch.error && <p className="alert" role="alert">{formatUI(describeError(launch.error).message)}</p>)}
       <p className="field__hint">
         {formatUI(mine.length === 0 ? textUI('flow_chk_no_runs') : `${textUI('flow_chk_latest')}: ${kindLabel('web')} · ${mine[0]!.status}`)}
         {formatUI(mine.length > 0 && <Link to={`/simulations/${mine[0]!.id}`}>{' '}{textUI('m_sim_open_org')}</Link>)}
-      </p>
-      <p className="field__hint">
+        {' '}
         {formatUI(agentState === 'none' && `${textUI('flow_hint_agent')} `)}
         {formatUI(agentState === 'online' && !consented && `${textUI('flow_hint_consent')} `)}
         {formatUI(mine.length === 0 && textUI('flow_hint_scan'))}
