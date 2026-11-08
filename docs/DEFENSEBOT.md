@@ -52,6 +52,12 @@ could not be mapped. A missing finding never means the software is safe. Advisor
   private file `defensebot.json`; it only raises the rate limit.
 - `ORCHIS_ENDPOINT_COLLECTION_SECONDS` defaults to `300`: approved checks are collected periodically every 5 minutes.
   Set 0 for manual DefenseBot runs only, or 60 to 86400 for another interval.
+- `ORCHIS_AUTO_CONSENT` defaults to on: installing an agent (enrollment token bound to an organisation) automatically
+  approves the DefenseBot-category and official-pack-runnable checks for that organisation, and a periodic sweeper seeds
+  the same scope for organisations that already have agents and refreshes them when the consent document rotates.
+  Checks of the Endpoint/network categories (`osquery.inventory`, `osquery.users`, `osquery.network`,
+  `osquery.network_ranges`) are never auto-approved, and a check an administrator disabled is never re-enabled.
+  Set `ORCHIS_AUTO_CONSENT=0` for manual approval only.
 - Manual smoke test against the real services, never part of CI:
   `ORCHIS_LIVE_OSQUERY=/path/to/osqueryd go test -tags live -run TestLive -v ./internal/defensebot`.
 

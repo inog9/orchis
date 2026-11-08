@@ -177,7 +177,7 @@ func TestEndpointCollectionSchedulerNeverUsesUnapprovedRevokedOrUnsupportedAgent
 		t.Fatal(e)
 	}
 	var n int
-	f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM endpoint_collection_schedule WHERE tenant_id=$1`, f.a.env.TenantA).Scan(&n)
+	f.a.env.Owner.QueryRow(ctx, `SELECT count(DISTINCT agent_id) FROM endpoint_collection_schedule WHERE tenant_id=$1`, f.a.env.TenantA).Scan(&n)
 	if n != 1 {
 		t.Fatalf("eligible automatic agent missing: %d", n)
 	}
@@ -267,7 +267,7 @@ func TestEndpointCollectionSchedulerIncludesMacOSAgents(t *testing.T) {
 		t.Fatal(e)
 	}
 	var n int
-	f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM endpoint_collection_schedule WHERE tenant_id=$1`, f.a.env.TenantA).Scan(&n)
+	f.a.env.Owner.QueryRow(ctx, `SELECT count(DISTINCT agent_id) FROM endpoint_collection_schedule WHERE tenant_id=$1`, f.a.env.TenantA).Scan(&n)
 	if n != 1 {
 		t.Fatalf("macOS agent was not scheduled: %d", n)
 	}

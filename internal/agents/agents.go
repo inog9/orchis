@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/netip"
+	"orchis-go/internal/endpoint"
 	"orchis-go/internal/scancontrol"
 	"regexp"
 	"strings"
@@ -44,6 +45,8 @@ type Service struct {
 	AfterEnd   func(ctx context.Context, tx pgx.Tx, tenant, simulation uuid.UUID) error
 	Now        func() time.Time
 	CollectNow func(context.Context, *auth.Principal, uuid.UUID, string, string) ([]uuid.UUID, error)
+	// AutoConsent: tanam persetujuan koleksi DefenseBot saat agent berhasil terdaftar.
+	AutoConsent bool
 }
 
 func (s *Service) now() time.Time {
@@ -293,6 +296,14 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),$11,$12,NULLIF($13,''))`, agentID, 
 		if err := audit.Write(ctx, tx, audit.Entry{Tenant: s.Tenant, ActorUser: &createdBy, Action: "agent.enroll", ResourceType: "agent", ResourceID: &agentID, IP: ip,
 			Detail: map[string]any{"hostname": in.Hostname, "os": in.OS, "arch": in.Arch, "mode": mode, "asset_id": assetID}}); err != nil {
 			return err
+		}
+		if org != nil && s.AutoConsent {
+			// Kebijakan pemilik: memasang agent berarti menyetujui koleksi DefenseBot untuk
+			// organisasinya. Baris yang sudah ada tidak pernah ditimpa; aktor persetujuan
+			// adalah pembuat token pemasangan, jadi jejak auditnya tetap jujur.
+			if _, err := endpoint.SeedAutoConsent(ctx, tx, s.Tenant, *org, createdBy, []string{in.OS}); err != nil {
+				return err
+			}
 		}
 		out = &Enrolled{AgentID: agentID, Secret: secret, Mode: mode, PollSeconds: PollSeconds}
 		return nil

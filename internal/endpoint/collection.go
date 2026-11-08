@@ -237,7 +237,9 @@ func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant,
 func (s *Service) RunCollection(ctx context.Context, tenant uuid.UUID, interval time.Duration) {
 	tick := time.NewTicker(5 * time.Second)
 	defer tick.Stop()
+	var lastSweep time.Time
 	for {
+		s.maybeAutoConsent(ctx, tenant, &lastSweep)
 		if err := s.CollectTick(ctx, tenant, interval); err != nil {
 			slog.Error("endpoint collection failed", "err", err)
 		}

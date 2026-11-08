@@ -47,7 +47,7 @@ func newApp(t *testing.T, env *testutil.Env, tenant uuid.UUID) *app {
 var testReleaseDir string
 
 func newAppGuard(t *testing.T, env *testutil.Env, tenant uuid.UUID, g contract.Guard) *app {
-	srv := httptest.NewServer(server.New(server.Options{DB: env.App, Tenant: tenant, Guard: g, AgentRelease: testReleaseDir}))
+	srv := httptest.NewServer(server.New(server.Options{DB: env.App, Tenant: tenant, Guard: g, AgentRelease: testReleaseDir, AutoConsent: true}))
 	t.Cleanup(srv.Close)
 	return &app{t: t, env: env, srv: srv}
 }

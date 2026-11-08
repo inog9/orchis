@@ -53,12 +53,14 @@ type Options struct {
 	ScanMaxHosts              int
 	ScanConcurrency           int
 	EndpointCollectionSeconds int
-	WebDir                    string
-	Version                   string
-	Checks                    []settings.Check
-	AgentRelease              string // direktori rilis agent (manifest.json + biner); kosong = tidak ada rilis
-	MitreSource               string // sumber STIX (URL atau berkas beku); kosong = impor manual dinonaktifkan
-	MitreSHA256               string // hash bundel yang dipatok; kosong = tidak diperiksa (hanya pengembangan)
+	// AutoConsent mengaktifkan penanaman persetujuan koleksi otomatis (kebijakan pemilik produk).
+	AutoConsent  bool
+	WebDir       string
+	Version      string
+	Checks       []settings.Check
+	AgentRelease string // direktori rilis agent (manifest.json + biner); kosong = tidak ada rilis
+	MitreSource  string // sumber STIX (URL atau berkas beku); kosong = impor manual dinonaktifkan
+	MitreSHA256  string // hash bundel yang dipatok; kosong = tidak diperiksa (hanya pengembangan)
 
 	// Eksekusi. Guard menentukan sasaran yang boleh dipindai; Search/Store boleh nil.
 	Guard         contract.Guard
@@ -178,7 +180,7 @@ func mitreService(o Options) *mitre.Service {
 // AgentService membangun layanan agent; AfterEnd menjaga chain maju saat eksekusi agent dibatalkan karena pencabutan.
 func AgentService(o Options) *agents.Service {
 	eng := &simulation.Engine{Guard: o.Guard, Now: o.Now}
-	return &agents.Service{Now: o.Now, CollectNow: EndpointService(o).CollectNow, DB: o.DB, Tenant: o.Tenant, Release: &agents.Release{Dir: o.AgentRelease}, AfterEnd: eng.Advance}
+	return &agents.Service{AutoConsent: o.AutoConsent, Now: o.Now, CollectNow: EndpointService(o).CollectNow, DB: o.DB, Tenant: o.Tenant, Release: &agents.Release{Dir: o.AgentRelease}, AfterEnd: eng.Advance}
 }
 
 func OrganizationService(o Options) *organizations.Service {
@@ -233,7 +235,7 @@ func EndpointService(o Options) *endpoint.Service {
 	if seconds == 0 {
 		seconds = 900
 	}
-	return &endpoint.Service{DB: o.DB, Exec: &execution.Service{Now: o.Now, DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
+	return &endpoint.Service{AutoConsent: o.AutoConsent, DB: o.DB, Exec: &execution.Service{Now: o.Now, DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
 }
 
 func ScanControlService(o Options) *scancontrol.Service {

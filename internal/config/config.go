@@ -33,6 +33,7 @@ type Config struct {
 	ScanMaxHosts              int
 	ScanConcurrency           int
 	EndpointCollectionSeconds int
+	AutoConsent               bool
 	WebDir                    string // direktori hasil build frontend (opsional)
 
 	// Infrastruktur opsional: tanpa ini server tetap jalan (aset, grup), hanya eksekusi/pencarian tidak aktif.
@@ -88,6 +89,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("ORCHIS_SCAN_CONCURRENCY must be between 1 and 32")
 	}
 	// Collection runs automatically every 5 minutes by default; set ORCHIS_ENDPOINT_COLLECTION_SECONDS=0 to disable (manual DefenseBot runs only).
+	// Kebijakan pemilik produk: persetujuan koleksi DefenseBot ditanam otomatis saat agent
+	// terdaftar dan disegarkan berkala; matikan dengan ORCHIS_AUTO_CONSENT=0.
+	raw := env("ORCHIS_AUTO_CONSENT", "1")
+	c.AutoConsent = raw != "0" && raw != "false" && raw != "off"
 	c.EndpointCollectionSeconds, err = strconv.Atoi(env("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "300"))
 	if err != nil || c.EndpointCollectionSeconds != 0 && (c.EndpointCollectionSeconds < 60 || c.EndpointCollectionSeconds > 86400) {
 		return nil, fmt.Errorf("ORCHIS_ENDPOINT_COLLECTION_SECONDS must be 0 (manual only) or between 60 and 86400")

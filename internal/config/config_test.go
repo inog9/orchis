@@ -122,6 +122,25 @@ func TestProductionRejectsDefaultServiceAndInitialAdminCredentials(t *testing.T)
 	}
 }
 
+func TestAutoConsentOnByDefault(t *testing.T) {
+	t.Setenv("ORCHIS_STATE", t.TempDir())
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c.AutoConsent {
+		t.Fatal("auto consent harus aktif secara bawaan")
+	}
+	t.Setenv("ORCHIS_AUTO_CONSENT", "0")
+	c, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.AutoConsent {
+		t.Fatal("ORCHIS_AUTO_CONSENT=0 harus mematikan auto consent")
+	}
+}
+
 func TestEndpointCollectionRunsEveryFiveMinutesByDefault(t *testing.T) {
 	t.Setenv("ORCHIS_ENV_FILE", "")
 	t.Setenv("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "")
