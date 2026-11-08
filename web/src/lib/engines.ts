@@ -20,8 +20,12 @@ export function engineLabel(tool: string): string {
 }
 
 // Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
+// Nama engine yang benar menurut alat yang dipilih: hanya DefenseBot -> "DefenseBot", hanya jalur web -> "Hackbot".
 export function engineSetLabel(tools: string[] | undefined): string {
-    return isFullTools(tools) ? textUI('flow_eng_full_sub') : 'Hackbot';
+    const list = tools ?? ['nmap', 'nuclei', 'hackbot'];
+    if (isFullTools(list)) return textUI('flow_eng_full_sub');
+    if (list.includes('defensebot') && !list.includes('hackbot')) return 'DefenseBot';
+    return 'Hackbot';
 }
 
 export function kindLabel(kind: EngineKind): string {

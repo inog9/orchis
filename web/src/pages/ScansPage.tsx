@@ -57,11 +57,12 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
         : items.length === 0 && q.data ? <div className="state" role="status"><h2>{formatUI(org ? textUI("m_sim_none_t") : textUI("m_3c2ec23816e3"))}</h2><p>{formatUI(org ? textUI("m_sim_none_b") : textUI("m_9ec336bb3650"))}</p>{canRun && <p className="field__hint">{textUI("flow_hint_scan")}</p>}{org && !organizationID ? <button type="button" className="btn btn--secondary btn--auto" onClick={() => setOrg('')}>{textUI("m_sim_clear_filter")}</button> : canRun && <Link className="btn btn--secondary btn--auto" to="/simulations/new">{textUI("m_sim_new")}</Link>}</div>
         : !q.data ? null
         : <div className="sims__table" role="table" aria-label={textUI("m_sim_list")}>
-          <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
+          <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_preset")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
             <span role="cell">{formatUI(engineSetLabel(s.options.tools))}</span>
+            <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
             
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
@@ -98,7 +99,7 @@ export function ScanDetailPage() {
     return <section className="page sims" aria-labelledby="scan-title">
       <Link className="sims__back" to="/simulations">{textUI("m_sim_back")}</Link>
       <div className="page__head"><div>
-        <p className="eyebrow">{textUI("m_sim_eyebrow")}</p>
+        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(engineSetLabel(s.options.tools))])}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
         <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>

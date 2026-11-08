@@ -95,3 +95,25 @@ describe('DefenseBot scan', () => {
     expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
   });
 });
+
+describe('Engine names follow what actually ran', () => {
+  it('lists a DefenseBot-only scan as DefenseBot and a web scan as Hackbot, never the other way round', async () => {
+    route((u) => u.pathname === '/api/v1/scans' ? { items: [
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000001', options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000002', options: { tools: ['nmap', 'nuclei', 'hackbot'], preset: 'standard', asset_ids: ['a1', 'a2'], range_ids: [], organization_id: 'o1' } }),
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000003', options: { tools: ['nmap', 'nuclei', 'hackbot', 'defensebot'], preset: 'standard', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
+    ], next_cursor: null } : undefined);
+    mount(<ScanList />, '/simulations');
+    const table = await screen.findByRole('table', { name: 'Scans' });
+    const rows = await within(table).findAllByRole('row');
+    const text = rows.slice(1).map((r) => r.textContent ?? '');
+    expect(text[0]).toContain('DefenseBot');
+    expect(text[0]).not.toContain('Hackbot');
+    expect(text[1]).toContain('Hackbot');
+    expect(text[1]).not.toContain('DefenseBot');
+    expect(text[2]).toContain('Hackbot + DefenseBot');
+    // Internal words never leak into the list: no preset names and no tool names.
+    for (const t of text) expect(t).not.toMatch(/standard|defense\b|nmap|nuclei|preset/i);
+    expect(text[1]).toContain('2 assets');
+  });
+});
