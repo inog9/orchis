@@ -118,7 +118,7 @@ async function fixture(t, options = {}) {
           atomicJSON(path.join(asyncDir, "process-terminal.json"), proof);
           return proof;
         },
-        seal({ state = "complete", proof = true, report = true } = {}) {
+        seal({ state = "complete", proof = true, report = true, response = "Local native final summary. Evidence is in the worker-written task report.\n" } = {}) {
           status.state = state;
           status.steps[0].status = state;
           status.steps[0].exitCode = state === "failed" ? 1 : 0;
@@ -127,7 +127,7 @@ async function fixture(t, options = {}) {
             fs.writeFileSync(reportFile, "# Local synthetic report\nNo model or target was contacted.\n");
           }
           fs.mkdirSync(path.dirname(params.output), { recursive: true });
-          fs.writeFileSync(params.output, "Local native final summary. Evidence is in the worker-written task report.\n");
+          fs.writeFileSync(params.output, response);
           native.persist();
           if (proof) native.proof();
           bus.emit("subagent:async-complete", { runId, asyncDir, state });
@@ -412,6 +412,24 @@ test("native final summary is private and cannot overwrite or substitute for the
   const missingReport = await backend.run("summary-only");
   assert.equal(missingReport.status, "failed");
   assert.ok(fs.statSync(missingReport.responseFile).size > 0, "a final summary exists but is not the task report");
+});
+
+test("recover a substantive report authored in the native response file without accepting summary-only output", async t => {
+  const f = await fixture(t);
+  const backend = await f.setup();
+  const task = f.task("misplaced-report");
+  const report = "# Reflection report\n\nEvidence: private/evidence/observed.txt\nCoverage: offline review of supplied evidence.\nVerdict: partial.\n".repeat(8);
+  f.onSpawn = request => {
+    const native = f.native(request);
+    fs.appendFileSync(native.childSessionFile, JSON.stringify({ type: "message", timestamp: new Date().toISOString(),
+      message: { role: "assistant", content: [{ type: "toolCall", name: "write", arguments: { path: native.params.output, content: report } }] } }) + "\n");
+    native.receipt();
+    native.seal({ report: false, response: report });
+  };
+  const result = await backend.run(task.id);
+  assert.equal(result.status, "returned");
+  assert.equal(fs.readFileSync(path.join(f.workspace, task.output), "utf8"), report);
+  assert.equal(result.execution.responseFile, f.runs[0].params.output);
 });
 
 test("start-only cancellation retains unproven ownership and guards until retry observes proof", async t => {

@@ -55,8 +55,30 @@ function observedProof(proof, runId, instanceId) {
     valid(item) && (item.kind === "runner" || (item.kind === "pi-writer" && item.processTree?.state === "observed")));
 }
 
-function promptFor(task, scratch) {
-  return `You are specialist ${task.id}. Read the assigned SKILL.md and relevant references first. Execute only this contract; do not perform parent orchestration, delegate further, or modify central ledgers/checkpoints. Keep secrets private and use the pinned actor/session. ${task.network === false ? "This is OFFLINE work: no target requests, HTTP replay, live browser automation, or operational MCP calls. Analyze only supplied local artifacts." : "Use only the scoped target URLs/methods and request bounds; stop on the skill's challenge/error conditions."} Your scratch is ${scratch}. Write a substantive initial report to ${task.output} early, then update it as evidence accumulates so a deadline preserves honest partial coverage; its parent directory already exists. Keep underlying evidence in your private scratch. Return a concise summary, report path, underlying evidence paths, verdicts, coverage, restoration/final state, unresolved blockers and suggested follow-up as your final answer. Do not claim a tool worked without observing it.\nContract:\n${JSON.stringify(task, null, 2)}`;
+function promptFor(task, scratch, workspace) {
+  const reportPath = path.resolve(workspace, task.output);
+  return `You are specialist ${task.id}. Read the assigned SKILL.md and relevant references first. Execute only this contract; do not perform parent orchestration, delegate further, or modify central ledgers/checkpoints. Keep secrets private and use the pinned actor/session. ${task.network === false ? "This is OFFLINE work: no target requests, HTTP replay, live browser automation, or operational MCP calls. Analyze only supplied local artifacts." : "Use only the scoped target URLs/methods and request bounds; stop on the skill's challenge/error conditions."} Your scratch is ${scratch}. Write a substantive initial report to ${task.output} early, using the exact absolute path ${reportPath}, then update it as evidence accumulates so a deadline preserves honest partial coverage; its parent directory already exists. Pi also supplies a separate private final-response file. The task report must be written to ${reportPath}; verify that file exists before finishing. Keep underlying evidence in your private scratch. Return a concise summary, report path, underlying evidence paths, verdicts, coverage, restoration/final state, unresolved blockers and suggested follow-up as your final answer. Do not claim a tool worked without observing it.\nContract:\n${JSON.stringify(task, null, 2)}`;
+}
+
+function recoverNativeReport(entry, workspace) {
+  const destination = path.resolve(workspace, entry.task.output);
+  if (fs.existsSync(destination)) return;
+  const source = entry.record.responseFile;
+  const session = entry.record.sessionFile;
+  if (!text(source) || !text(session) || !inside(path.join(workspace, "private", "native-results"), source)) return;
+  if (!fs.lstatSync(source, { throwIfNoEntry: false })?.isFile()) return;
+  const evidence = artifact(workspace, path.relative(workspace, source));
+  if (evidence.bytes < 512) return;
+  if (fs.statSync(session).size > 64 * 1024 * 1024) return;
+  const authored = fs.readFileSync(session, "utf8").split("\n").some(line => {
+    if (!line.trim()) return false;
+    let event;
+    try { event = JSON.parse(line); } catch { return false; }
+    return event.message?.role === "assistant" && event.message.content?.some(part =>
+      part.type === "toolCall" && part.name === "write" && typeof part.arguments?.path === "string" &&
+      path.resolve(workspace, part.arguments.path) === source);
+  });
+  if (authored) fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
 }
 
 /** Native pi-subagents adapter. admission and timing are local-test seams. */
@@ -290,6 +312,7 @@ export async function createFleetBackend({ pi, context, controller, root = contr
             if (!record.pid || !record.sessionId || !record.sessionFile || !record.guardClaim) throw new Error("Native specialist lacks actual PID, child session, or mandatory guard claim");
             if (native.status.steps?.[0]?.exitCode && native.status.steps[0].exitCode !== 0) throw new Error("Native specialist exited unsuccessfully");
             if (native.proof.instances.some(item => item.exitCode !== 0 || item.signal !== null)) throw new Error("Native specialist process proof records an unsuccessful exit");
+            recoverNativeReport(entry, controller.workspace);
             artifact(controller.workspace, entry.task.output);
             status = "returned"; reason = "Awaiting lead evidence verification";
           } catch (error) { reason = error.message; }
@@ -355,7 +378,7 @@ export async function createFleetBackend({ pi, context, controller, root = contr
       // A pre-aborted call has no native run to stop and creates no worker.
       if (entry.stopReason || entry.signal?.aborted || Date.now() >= entry.deadline) return finish(entry, "interrupted", entry.stopReason ?? "Specialist interrupted before native spawn");
       entry.spawnSent = true;
-      const receipt = await request("spawn", { agent: LEAF, task: promptFor(task, entry.scratch), async: true, context: "fresh",
+      const receipt = await request("spawn", { agent: LEAF, task: promptFor(task, entry.scratch, controller.workspace), async: true, context: "fresh",
         cwd: controller.workspace, sessionDir: entry.record.sessionDir, timeoutMs: Math.max(1, Math.floor(entry.deadline - Date.now())),
         extensionBindings, output: entry.record.responseFile, outputMode: "file-only", artifacts: true,
         model: entry.record.model }, entry.attempt.requestId);
