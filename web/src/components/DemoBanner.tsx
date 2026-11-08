@@ -1,5 +1,6 @@
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { useState } from 'react';
+import { X } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../api/hooks';
@@ -48,6 +49,11 @@ const COUNT_LABELS: () => [
     ['atomic_tests', textUI("m_fb1be9513f4d")],
     ['ai_jobs', textUI("m_93f0480558c6")]
 ];
+const DEMO_DISMISS_KEY = 'orchis.demo.banner';
+// Banner demo bisa diciutkan jadi strip tipis; pilihan diingat (AUDIT UI-023).
+function demoDismissed(): boolean {
+    try { return localStorage.getItem(DEMO_DISMISS_KEY) !== '0'; } catch { return true; }
+}
 function describeCounts(counts: Record<string, number>): string {
     const parts = COUNT_LABELS().filter(([key]) => (counts[key] ?? 0) > 0).map(([key, label]) => `${counts[key]} ${label}`);
     return parts.length > 0 ? parts.join(', ') : textUI("m_a7b605aae185");
@@ -58,6 +64,7 @@ export function DemoBanner() {
     const status = useDemoStatus(can(me, 'organization.read'));
     const purge = usePurgeDemo();
     const [confirming, setConfirming] = useState(false);
+    const [slim, setSlim] = useState(demoDismissed);
     if (!status.data?.has_demo && !status.data?.cleanup_pending)
         return null;
     const { counts, seed } = status.data!;
@@ -70,6 +77,13 @@ export function DemoBanner() {
         purge.reset();
         setConfirming(false);
     };
+    const dismiss = () => { try { localStorage.setItem(DEMO_DISMISS_KEY, '1'); } catch { /* abaikan */ } setSlim(true); };
+    if (slim && !cleanupPending) return (<div className="notice demo-banner demo-banner--slim" role="status" aria-label={textUI("m_ca3b29c75bb1")}>
+      <strong>{textUI("m_71ddd59aa6f1")}</strong>
+      <span className="muted demo-banner__sum">{formatUI(summary)}</span>
+      {formatUI(canPurge && <button type="button" className="link-quiet demo-banner__action" onClick={() => setConfirming(true)} disabled={purge.isPending}>{textUI("m_39fe66bad2d4")}</button>)}
+      <button type="button" className="link-quiet" aria-label={textUI("m_fnd_close")} onClick={dismiss}><X size={14} aria-hidden="true"/></button>
+    </div>);
     return (<div className="notice demo-banner" role="status" aria-label={textUI("m_ca3b29c75bb1")}>
       <div className="demo-banner__body">
         <strong>{formatUI(cleanupPending ? textUI("m_c6dd96e18456") : textUI("m_71ddd59aa6f1"))}</strong>
@@ -82,6 +96,7 @@ export function DemoBanner() {
       {formatUI(canPurge && (<button type="button" className="btn btn--secondary btn--sm demo-banner__action" onClick={() => cleanupPending ? purge.mutate() : setConfirming(true)} disabled={purge.isPending}>
           {formatUI(purge.isPending ? textUI("m_347a864f14b1") : cleanupPending ? textUI("m_6100a8a01208") : textUI("m_39fe66bad2d4"))}
         </button>))}
+      {!cleanupPending && <button type="button" className="link-quiet" aria-label={textUI("m_fnd_close")} onClick={dismiss}><X size={14} aria-hidden="true"/></button>}
       {formatUI(confirming && (<Modal labelledBy="demo-purge-title" onClose={closeConfirm} width={440}>
           <>
             <h2 id="demo-purge-title" className="dialog__title">{textUI("m_11a4764b8580")}</h2>

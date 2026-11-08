@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
 import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
 import { engineLabel, engineRows, engineSetLabel } from '../lib/engines';
+import { defenseWhyIncomplete } from '../components/DefenseNotes';
 import { SeverityBadge } from '../components/RunBadges';
 import './sims.css';
 import './newscan.css';
@@ -62,7 +63,8 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
             <span role="cell">{formatUI(engineSetLabel(s.options.tools))}</span>
-            <span role="cell">{formatUI(s.options.preset)}</span>
+            <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
+            
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
           </div>)}
@@ -98,7 +100,7 @@ export function ScanDetailPage() {
     return <section className="page sims" aria-labelledby="scan-title">
       <Link className="sims__back" to="/simulations">{textUI("m_sim_back")}</Link>
       <div className="page__head"><div>
-        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(s.options.preset)])}</p>
+        <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(engineSetLabel(s.options.tools))])}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
         <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
@@ -113,9 +115,9 @@ export function ScanDetailPage() {
       {formatUI(s.results_expired_at && <p role="status" className="alert">{textUI("m_6e77528b9b49")}</p>)}
       <div className="sims__stats">
         <div className="stat" role="group" aria-label={textUI("m_sim_d_status")}><span className="stat__label">{textUI("m_sim_d_status")}</span><span className="sims__stat-v"><StatusBadge status={s.status}/></span><span className="stat__sub">{formatUI(s.ended_at ? textUI("m_sim_ended_at", [stamp(s.ended_at)]) : textUI("m_sim_not_ended"))}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value mono">{formatDuration(durationMs(s), units())}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value mono">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value mono">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value">{formatDuration(durationMs(s), units())}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
       </div>
       <section className="sims__panel" aria-labelledby="engines-h"><h2 id="engines-h" className="sims__h">{textUI("flow_wiz_s2")}</h2>
         {Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>
@@ -126,7 +128,7 @@ export function ScanDetailPage() {
               <span role="cell">{e.stage || '—'}</span>
               <span role="cell"><StatusBadge status={e.status}/></span>
               <span role="cell" className="mono">{e.findings}</span>
-              <span role="cell" className="sims__note"><span>{formatUI(e.error || '—')}</span>{e.engine === 'DefenseBot' && e.jobs[0]?.defense && <span className="muted small">{textUI("m_def_job_note", [e.jobs[0].defense.findings, e.jobs[0].defense.known_exploited])}</span>}</span>
+              <span role="cell" className="sims__note"><span>{formatUI(e.error || (e.engine === 'DefenseBot' && e.status === 'incomplete' && e.jobs[0]?.defense ? defenseWhyIncomplete(e.jobs[0].defense.notes) : '—'))}</span>{e.engine === 'DefenseBot' && e.jobs[0]?.defense && <span className="muted small">{textUI("m_def_job_note", [e.jobs[0].defense.findings, e.jobs[0].defense.known_exploited])}</span>}</span>
             </div>)}
           </div></div>)}
       </section>

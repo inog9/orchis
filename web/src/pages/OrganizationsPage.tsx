@@ -91,7 +91,8 @@ export function OrganizationsPage() {
     const [q, setQ] = useState('');
     const [industry, setIndustry] = useState('');
     const [sort, setSort] = useStoredChoice<SortKey>('orchis.orgs.sort', 'name', SORTS);
-    const [view, setView] = useStoredChoice<ViewMode>('orchis.orgs.view', 'grid', ['grid', 'list']);
+    // Bawaan daftar (baris) sesuai fixed.pen "BARIS TABEL"; pilihan pengguna tetap diingat.
+    const [view, setView] = useStoredChoice<ViewMode>('orchis.orgs.view', 'list', ['grid', 'list']);
     const [page, setPage] = useState(1);
     useEffect(() => setPage(1), [q, industry, sort]);
 

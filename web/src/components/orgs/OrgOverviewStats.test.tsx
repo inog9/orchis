@@ -29,7 +29,7 @@ it('kartu: aset dan otorisasi dari /home, agent online/offline, temuan dari lapo
   expect(within(screen.getByRole('group', { name: 'Findings' })).getByLabelText('13')).toBeInTheDocument();
   const last = screen.getByRole('group', { name: 'Last scan' });
   expect(await within(last).findByText('Finished')).toBeInTheDocument();
-  expect(within(last).getByText(/standard/)).toBeInTheDocument();
+  expect(within(last).queryByText(/standard/)).toBeNull();
 });
 
 it('tanpa izin tidak ada kartu dan tidak ada panggilan API', () => {

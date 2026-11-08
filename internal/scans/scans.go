@@ -209,6 +209,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			addrs        []contract.Address
 			cidr         string
 			public       bool
+			agent        bool // agent terdaftar: sisi dalam (DefenseBot) tersedia
 		}
 		targets := []target{}
 		for _, asset := range in.AssetIDs {
@@ -233,13 +234,11 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				return httpx.Conflict("Hackbot is already testing " + t.name + "; wait for that run to finish before starting another.")
 			}
 			// Full assessment juga menjalankan DefenseBot: aset butuh agent terdaftar, bukan hanya URL web.
+			// Penilaian penuh boleh campuran: aset ber-agent menjalankan DefenseBot, aset ber-URL menjalankan Hackbot,
+			// aset dengan keduanya menjalankan keduanya. Aset tanpa satu pun ditolak di bawah.
 			if full {
-				var enrolled bool
-				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked')`, p.TenantID, asset).Scan(&enrolled); err != nil {
+				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked')`, p.TenantID, asset).Scan(&t.agent); err != nil {
 					return err
-				}
-				if !enrolled {
-					return invalid("asset_ids", "A full assessment needs an enrolled agent on "+t.name+" for the DefenseBot engine; use a web pentest for URL-only assets.")
 				}
 			}
 			rows, e := tx.Query(ctx, `SELECT kind,value,is_primary FROM asset_addresses WHERE tenant_id=$1 AND asset_id=$2 AND scan_approved ORDER BY is_primary DESC,created_at,id`, p.TenantID, asset)
@@ -308,16 +307,24 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 		seen := map[string]bool{}
 		for _, t := range targets {
 			webTarget, e := s.Guard.Target(contract.KeyHackbot, t.addrs)
-			if e != nil {
+			hasWeb := e == nil
+			if !hasWeb && !(full && t.agent) {
+				if full {
+					return invalid("asset_ids", t.name+" needs an approved web URL for Hackbot or an enrolled agent for DefenseBot.")
+				}
 				return invalid("asset_ids", "Every web pentest requires an approved HTTP(S) URL.")
 			}
-			nmapTarget, nmapParams, e := webDiscovery(webTarget)
-			if e != nil {
-				return invalid("asset_ids", "The approved web URL has an invalid service port.")
+			var nmapTarget string
+			var nmapParams []byte
+			if hasWeb {
+				nmapTarget, nmapParams, e = webDiscovery(webTarget)
+				if e != nil {
+					return invalid("asset_ids", "The approved web URL has an invalid service port.")
+				}
 			}
 			for _, tool := range in.Tools {
-				if tool == "defensebot" {
-					continue // job DefenseBot dibuat di blok full assessment; kontraknya dipilih di sana.
+				if tool == "defensebot" || !hasWeb {
+					continue // job DefenseBot dibuat di blok full assessment; aset tanpa URL melewati sisi web.
 				}
 				ckey := map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
 				var cid uuid.UUID
@@ -369,7 +376,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 					return e
 				}
 			}
-			if full {
+			if full && t.agent {
 				// Engine DefenseBot untuk sisi dalam (aplikasi terpasang): kumpulan baru diantrikan di transaksi yang
 				// sama sehingga agent offline atau persetujuan yang belum ada menggagalkan launch dengan alasan jelas.
 				// Worker menahan job ini sampai Nmap aset yang sama selesai agar tag "seen by scanner" terisi.
@@ -462,7 +469,7 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 				}
 			}
 			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
-				j.Summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
+				j.Summary = "Hackbot did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
 			}
 			j.Summary = hackbot.LimitSummary(reporting.Redact(j.Summary, 32000))
 			if j.Summary != "" {

@@ -1,0 +1,49 @@
+{
+ "log": [
+  {
+   "id": "W1",
+   "msg": "langkah 1 dirender"
+  },
+  {
+   "id": "W3",
+   "msg": "langkah 2 (yang dijalankan)"
+  },
+  {
+   "id": "W4",
+   "msg": "probe engine: [{\"text\":\"Pentest web (Hackbot)Hackbot m\",\"cls\":\"wiz-card\",\"bg\":\"rgb(255, 255, 255)\",\"border\":\"rgb(228, 228, 231)\",\"aria\":\"false\"},{\"text\":\"Penilaian penuhKedua engine pa\",\"cls\":\"wiz-card\",\"bg\":\"rgb(255, 255, 255)\",\"border\":\"rgb(228, 228, 231)\",\"aria\":\"false\"}]"
+  },
+  {
+   "id": "W5",
+   "msg": "tidak bisa lanjut: TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button',"
+  },
+  {
+   "id": "W6",
+   "msg": "probe sasaran: [{\"text\":\"OrganisasiPilih organisasiVantage Technology (Demo\",\"bg\":\"rgba(0, 0, 0, 0)\",\"checkbox\":false,\"disabled\":false}]"
+  },
+  {
+   "id": "W7",
+   "msg": "checkbox tidak bisa dicentang: TimeoutError: locator.check: Timeout 3000ms exceeded.\nCall log:\n  - waiting for "
+  },
+  {
+   "id": "W8",
+   "msg": "tidak bisa ke tinjauan: TimeoutError: locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByRole('button',"
+  },
+  {
+   "id": "F1",
+   "msg": "drawer temuan dibuka (atau gagal klik)"
+  },
+  {
+   "id": "A1",
+   "msg": "dialog tambah aset"
+  },
+  {
+   "id": "K1",
+   "msg": "tab order: [{\"tag\":\"A\",\"name\":\"Lewati ke konten\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Cari atau buka (Ctrl K)\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Baru\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Notifikasi, 16 belum dibac\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Beralih ke tema gelap\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"EN\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"ID\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Admin · Platform default\",\"outline\":\"solid 2px\",\"ring\":false}]"
+  },
+  {
+   "id": "L1",
+   "msg": "login dengan kredensial salah"
+  }
+ ],
+ "errors": []
+}

@@ -2,7 +2,7 @@
 .rep { display: flex; flex-direction: column; gap: 16px; color: var(--v2-text); }
 .rep__back { font-size: 13px; color: var(--v2-text-2); text-decoration: none; width: fit-content; }
 .rep__back:hover { color: var(--v2-accent); }
-.rep__table, .rep__list { border: 1px solid var(--v2-border); border-radius: 12px; background: var(--v2-surface); overflow: hidden; list-style: none; margin: 0; padding: 0; }
+.rep__table, .rep__list { border: 1px solid var(--v2-border); border-radius: var(--radius-panel); background: var(--v2-surface); overflow: hidden; list-style: none; margin: 0; padding: 0; }
 .rep__row { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1.1fr) minmax(0, 1.2fr) 130px 170px 120px 120px; gap: 12px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--v2-border); font-size: 13px; }
 .rep__row:last-child { border-bottom: 0; }
 .rep__row:not(.rep__head):hover { background: var(--v2-surface-2); }
@@ -17,7 +17,7 @@
 .rep__acts { display: flex; gap: 12px; }
 .rep__acts a { color: var(--v2-accent); text-decoration: none; } .rep__acts a:hover { text-decoration: underline; }
 .rep .sim-badge { vertical-align: middle; margin-left: 6px; }
-.rep--detail .org-card, .rep--detail .notice { background: var(--v2-surface); border: 1px solid var(--v2-border); color: var(--v2-text); border-radius: 12px; }
+.rep--detail .org-card, .rep--detail .notice { background: var(--v2-surface); border: 1px solid var(--v2-border); color: var(--v2-text); border-radius: var(--radius-panel); }
 .rep--detail .org-card .org-card { background: var(--v2-surface-2); }
 .rep__notice--bad { border-color: var(--v2-critical) !important; background: var(--v2-critical-soft) !important; }
 .rep__notice--live { border-color: var(--v2-accent-line) !important; background: var(--v2-accent-soft) !important; }
@@ -33,3 +33,28 @@
   .rep__row > :nth-child(2), .rep__row > :nth-child(7) { display: none; }
   .rep__row > :nth-child(6) { grid-column: 2; grid-row: 1; }
 }
+
+/* Detail laporan v3: bagian datar, strip severity, temuan sebagai baris bergaris kiri (tanpa kotak bersarang). */
+.rep--detail { max-width: 1040px; }
+.rep--detail > .org-card, .rep--detail .org-card { border-radius: 0; box-shadow: none; }
+.rep--detail > .org-card { background: transparent; border: 0; border-top: 1px solid var(--border); padding: 20px 0 8px; margin: 0; }
+.rep--detail > .org-card > .eyebrow { margin: 0 0 6px; }
+.rep--detail > .org-card h2 { font-size: 20px; font-weight: 500; margin: 0 0 8px; }
+.rep--detail > .org-card h3 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 20px 0 8px; }
+.rep--detail > h2 { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 28px 0 0; }
+.rep--detail .org-card .org-card { background: transparent; border: 0; border-left: 2px solid var(--border); padding: 6px 0 6px 16px; margin: 14px 0; }
+.rep--detail .org-card .org-card h3 { font-size: 14px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--text); margin: 2px 0 6px; }
+.rep--detail .org-card .org-card .eyebrow { margin: 0; }
+.rep--detail .notice { border-radius: 0; margin: 0 0 16px; }
+.rep--detail .severity-strip { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); margin: 0 0 20px; }
+.rep--detail .severity-strip .sev-cell { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 14px 16px; border-left: 1px solid var(--border); font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+.rep--detail .severity-strip .sev-cell:first-child { border-left: 0; }
+.rep--detail .severity-strip .sev-cell strong { font-size: 28px; font-weight: 500; letter-spacing: 0; color: var(--text); font-family: var(--font-ui, inherit); }
+.rep--detail .sev-cell--critical strong { color: var(--sev-critical); }
+.rep--detail .sev-cell--high strong { color: var(--sev-high); }
+.rep--detail .sev-cell--medium strong { color: var(--sev-medium); }
+.rep--detail .sev-cell--low strong { color: var(--sev-low); }
+.rep--detail .pentest-pdf { width: 100%; min-height: 640px; border: 1px solid var(--border); border-radius: 0; background: var(--surface); }
+.rep--detail .report-relations { display: flex; gap: 16px; margin: 16px 0 0; font-size: 13px; }
+.rep--detail details { margin: 10px 0 0; font-size: 12px; color: var(--text-2); }
+@media (max-width: 679px) { .rep--detail .severity-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rep--detail .severity-strip .sev-cell:nth-child(odd) { border-left: 0; } .rep--detail .severity-strip .sev-cell:nth-child(n+3) { border-top: 1px solid var(--border); } }

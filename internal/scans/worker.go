@@ -270,7 +270,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					return e
 				}
 				if summary == "" {
-					summary = "Hackbot Lite did not complete this pentest. Coverage: " + j.status + ". See the execution details for the blocker."
+					summary = "Hackbot did not complete this pentest. Coverage: " + j.status + ". See the execution details for the blocker."
 				}
 				x.Summary = hackbot.LimitSummary(reporting.Redact(summary, 32000))
 				x.CompletedPhases = phases

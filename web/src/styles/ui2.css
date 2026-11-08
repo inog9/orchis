@@ -5,7 +5,7 @@
   --v2-accent: #E2B65C; --v2-accent-soft: #E2B65C1A; --v2-accent-line: #E2B65C40; --v2-accent-ink: #1A1306;
   --v2-success: #34D399; --v2-success-soft: #34D3991F;
   --v2-critical: #FF8096; --v2-high: #FB923C; --v2-medium: #FACC15; --v2-low: #38BDF8; --v2-info: #8E9AB5;  /* teks gelap memakai tone terbaca; soft/line memakai solid .pen */
-  --v2-r-ctl: 4px; --v2-r-tag: 3px; --v2-r-panel: 6px;
+  --v2-r-ctl: 0px; --v2-r-tag: 0px; --v2-r-panel: 0px;  /* Keputusan pemilik: sudut kotak semua (§1b-1); hanya radio, dot status, avatar yang bulat. */
   --v2-critical-soft: #F43F5E24; --v2-high-soft: #FB923C24; --v2-medium-soft: #FACC1522; --v2-low-soft: #38BDF824; --v2-info-soft: #8E9AB51F;
   --v2-scrim: #000000A6;
 }
@@ -27,7 +27,76 @@
   --hover: #00000010; --hover-soft: #0000000A;
   --surface-0: #F4F4F5; --surface-1: #FFFFFF; --surface-2: #F4F4F5; --dialog-bg: #FFFFFF; --skel-hi: #E4E4E7;
 }
-/* Halaman masuk dan hero-nya dirancang gelap; tetap gelap di tema terang. */
-:root[data-theme='light'] .auth, :root[data-theme='light'] .auth * { --bg: #0A0B0D; --ink: #ECEEF1; --ink-2: #A3A8B1; --ink-3: #A1A6B0; --line: #7A7F88; --ring: #1D2024; --bronze: #C19A5B; --on-bronze: #0A0B0D; --control-border: #737985; --error: #FF8A8A; --tile: #1E2227; --input-bg: #121417; --input-line: #737985; --panel: #0F1114; --success: #6FCF97; --warn: #E8B86A; color-scheme: dark; }
+/* Halaman masuk mengikuti tema (keputusan pemilik §1b-3): kunci gelap paksa dihapus;
+   bawaan terang lewat tema global, gelap tetap tersedia lewat toggle di halaman. */
 
 :root[data-theme='light'] .orgs { --surface: #FFFFFF; --elev: #F4F4F5; --edge: #E4E4E7; --muted: #6B6B76; --gold: #8F6208; --gold-hi: #8F6208; --gold-dim: #8F620840; }
+
+/* ===== Lapisan token v3 (fixed.pen) — nama token desain dipetakan 1:1 ke palet v2 ===== */
+/* Perbaikan fondasi: sebelumnya nama-nama ini DIPAKAI CSS (newscan.css, shell.css, dll) tetapi
+   tidak pernah didefinisikan, sehingga deklarasi jatuh ke nilai awal (AUDIT UI-006 akar masalah). */
+:root {
+  --radius-ctl: 0px; --radius-tag: 0px; --radius-panel: 0px;  /* keputusan pemilik §1b-1: sudut kotak */
+  --border: #232328; --border-2: #1A1A1E;
+  --surface: #111113; --surface-1: #111113; --surface-2: #18181B;
+  --text: #F4F4F5; --text-2: #A8A8B3; --text-3: #80808C;
+  --accent: #E2B65C; --accent-soft: #E2B65C1A; --accent-line: #E2B65C40; --accent-ink: #1A1306;
+  --success: #34D399; --success-soft: #34D3991F; --success-line: #34D39940;
+  /* alias lama yang dipakai lintas halaman tapi hanya pernah didefinisikan untuk tema terang */
+  --edge: #232328; --elev: #18181B; --muted: #80808C;
+  --gold: #E2B65C; --gold-hi: #E2B65C; --gold-dim: #E2B65C40;
+}
+:root[data-theme='light'] {
+  --border: #E4E4E7; --border-2: #EFEFF1;
+  --surface: #FFFFFF; --surface-1: #FFFFFF; --surface-2: #F4F4F5;
+  --text: #18181B; --text-2: #52525B; --text-3: #6B6B76;
+  --accent: #8F6208; --accent-soft: #8F62081A; --accent-line: #8F620840; --accent-ink: #FFFFFF;
+  --success: #036749; --success-soft: #0478571A; --success-line: #04785740;
+  --edge: #E4E4E7; --elev: #F4F4F5; --muted: #6B6B76;
+  --gold: #8F6208; --gold-hi: #8F6208; --gold-dim: #8F620840;
+}
+
+/* ===== Revisi v3 (review pemilik) ===== */
+/* 1) Input: satu cincin fokus saja. Dulu pembungkus (border + outline) dan input di dalamnya (outline global) bergaris ganda. */
+.field__input input, .field__input input:focus, .field__input input:focus-visible,
+.search-input input, .search-input input:focus, .search-input input:focus-visible { outline: 0; box-shadow: none; border: 0; background: transparent; }
+.field__input:focus-within, .search-input:focus-within { outline: 0; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+input:not([type=checkbox]):not([type=radio]):focus-visible, select:focus-visible, textarea:focus-visible { outline: 0; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.field__input input:focus-visible, .search-input input:focus-visible { box-shadow: none; }
+.auth .field__input:focus-within { outline: 0; box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* 2) Chip admin di kanan atas: tanpa kotak, hanya avatar dan nama. */
+.topbar .ws__button { border: 0; background: transparent; padding: 4px 6px 4px 4px; height: 40px; }
+.topbar .ws__button:hover { background: var(--surface-2); border: 0; }
+
+/* 3) Zona berbahaya: baris datar, judul + penjelasan kiri, tombol kanan, tanpa kotak merah. */
+.danger { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 0 0; margin-top: 12px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
+.danger > div { min-width: 0; max-width: 560px; }
+.danger .panel__title { margin: 0 0 4px; font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); padding: 0; }
+.danger .muted { margin: 0; font-size: 12px; color: var(--text-3); }
+.danger .btn { flex: none; }
+.btn--danger { border-color: var(--sev-critical-line, var(--sev-critical)); color: var(--sev-critical); background: transparent; }
+.btn--danger:hover:not(:disabled) { background: var(--sev-critical-soft); }
+@media (max-width: 679px) { .danger { flex-direction: column; align-items: flex-start; } }
+
+/* 4) Drawer temuan: triage dan retest sebagai bagian rapi, bukan tombol bertumpuk. */
+.fnd-triage { display: flex; flex-direction: column; gap: 12px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.fnd-triage > h3 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.fnd-triage__form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
+.fnd-triage__form .select, .fnd-triage__form select { width: 100%; height: 36px; }
+.fnd-triage__form .fnd-triage__reason { grid-column: 1 / -1; }
+.fnd-triage__form .fnd-triage__reason input { width: 100%; height: 36px; }
+.fnd-triage__form .btn, .fnd-triage__retest .btn { height: 36px; padding: 0 14px; font-size: 12px; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.fnd-triage__retest { margin: 0; display: flex; }
+.fnd-triage__retest .btn { width: 100%; justify-content: center; }
+.fnd-drawer__body select, .fnd-drawer__body input[type=text], .fnd-drawer__body input[type=date] { height: 36px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 0 10px; font-size: 12px; border-radius: 0; }
+.prerequisites { border: 0; background: transparent; padding: 0; margin: 0 0 20px; }
+.prerequisites__line { margin: 0 0 8px; font-size: 13px; display: flex; gap: 16px; align-items: baseline; }
+.prerequisites details { font-size: 12px; margin-top: 6px; }
+.field__input input, .field__input input:focus, .field__input input:focus-visible, .search-input input:focus-visible,
+.dialog .field__input input:focus-visible, .auth .field__input input:focus-visible { outline: 0 !important; box-shadow: none !important; }
+.page .danger, .assets .danger, .settings .danger { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 16px 0 0; margin-top: 12px; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: transparent; }
+.fnd-drawer__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 0; }
+.fnd-drawer__row h3 { margin: 0; font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
+.fnd-drawer__row .btn, .fnd-drawer__row button { width: auto; height: 28px; padding: 0 10px; font-size: 12px; flex: none; }
+.fnd-drawer__link { align-self: flex-start; }

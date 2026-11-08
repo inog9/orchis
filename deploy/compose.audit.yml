@@ -1,0 +1,33 @@
+# Stack dev terisolasi khusus audit UI (port berbeda dari orchisgo-dev; hanya 127.0.0.1).
+name: orchis-audit
+services:
+  pg:
+    image: postgres:17-alpine
+    environment: { POSTGRES_USER: orchis, POSTGRES_PASSWORD: orchis, POSTGRES_DB: orchis }
+    ports: ["127.0.0.1:15433:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U orchis -d orchis"], interval: 3s, timeout: 3s, retries: 20 }
+  mq:
+    image: rabbitmq:4.4-management
+    environment: { RABBITMQ_DEFAULT_USER: orchis, RABBITMQ_DEFAULT_PASS: orchis }
+    ports: ["127.0.0.1:15673:5672"]
+    healthcheck: { test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"], interval: 5s, timeout: 5s, retries: 30 }
+  es:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.23
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      xpack.ml.enabled: "false"
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports: ["127.0.0.1:19201:9200"]
+    volumes: [esdata:/usr/share/elasticsearch/data]
+    healthcheck: { test: ["CMD-SHELL", "curl -s localhost:9200/_cluster/health | grep -qE 'green|yellow'"], interval: 5s, timeout: 5s, retries: 40 }
+  minio:
+    image: pgsty/silo:latest
+    environment: { MINIO_ROOT_USER: orchis, MINIO_ROOT_PASSWORD: orchis-dev-secret }
+    command: server /data
+    ports: ["127.0.0.1:19001:9000"]
+    volumes: [s3data:/data]
+volumes: { pgdata: {}, esdata: {}, s3data: {} }

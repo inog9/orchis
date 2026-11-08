@@ -1,4 +1,4 @@
-import { LanguagePreference } from '../i18n/LanguagePreference';
+import { LanguageToggle } from '../i18n/LanguageToggle';
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { useScans } from '../api/scans';
 import { advancedEnabled, navigationFor } from './navigation';
@@ -10,7 +10,7 @@ import { useAlertAction, useAlerts, useHome, useLogout, useMe, useSettings, useS
 import { AlertItem, alertTarget } from '../pages/NotificationsPage';
 import { CommandPalette, useCommandPalette } from './CommandPalette';
 import { can } from '../api/types';
-import { toggleTheme, useTheme } from '../lib/theme';
+import { ThemeToggle as SharedThemeToggle } from './ThemeToggle';
 import { DemoBanner } from './DemoBanner';
 import './shell.css';
 import { Wordmark } from './Wordmark';
@@ -82,7 +82,7 @@ export function NavDock({ collapsed = false, onToggle, open = false, onClose }: 
                 const Icon = n.icon;
                 const b = badge(n.id);
                 return <div className="nav-entry" key={n.id} onMouseEnter={() => setTip(n.id)} onMouseLeave={() => setTip(null)}>
-        <Link ref={el => { links.current[n.id] = el; }} to={n.to} className={`dock__item ${active(n) ? 'is-active' : ''}`} aria-current={active(n) ? 'page' : undefined} aria-label={b ? `${n.label}, ${b.label}` : n.label} aria-describedby={tip === n.id ? `nav-tip-${n.id}` : undefined} onClick={onClose} onFocus={() => setTip(n.id)} onBlur={() => setTip(null)}><Icon size={17} aria-hidden="true"/><span className="nav-label">{formatUI(n.label)}</span>{formatUI(b && <span className={`nav-badge nav-badge--${b.tone} mono`} aria-hidden="true">{b.text}</span>)}</Link>
+        <Link ref={el => { links.current[n.id] = el; }} to={n.to} className={`dock__item ${active(n) ? 'is-active' : ''}`} aria-current={active(n) ? 'page' : undefined} aria-label={b ? `${n.label}, ${b.label}` : n.label} aria-describedby={tip === n.id ? `nav-tip-${n.id}` : undefined} onClick={onClose} onFocus={() => setTip(n.id)} onBlur={() => setTip(null)}><Icon size={17} aria-hidden="true"/><span className="nav-label">{formatUI(n.label)}</span>{formatUI(b && <span className="nav-badge" aria-hidden="true">{b.text}</span>)}</Link>
         {formatUI(tip === n.id && <span id={`nav-tip-${n.id}`} role="tooltip" className="nav-tip"><strong>{formatUI(n.label)}</strong>{formatUI(n.hint)}</span>)}
       </div>;
             }))}
@@ -149,9 +149,7 @@ function WorkspaceMenu() {
 }
 function ThemeToggle() {
     useLocale();
-    const theme = useTheme();
-    const toLight = theme === 'dark';
-    return (<button type="button" className="dock__icon theme-toggle" onClick={toggleTheme} aria-label={toLight ? textUI("m_theme_to_light") : textUI("m_theme_to_dark")} title={toLight ? textUI("m_theme_to_light") : textUI("m_theme_to_dark")}>{toLight ? <Moon size={18} aria-hidden="true"/> : <Sun size={18} aria-hidden="true"/>}</button>);
+    return <SharedThemeToggle className="dock__icon"/>;
 }
 function Notifications() {
     useLocale();
@@ -201,7 +199,8 @@ function ActionDock({ openPalette }: {
     return (<>
       <button type="button" className="gsearch" onClick={openPalette} aria-label={textUI("m_e48ebb022089")}>{richUI("m_bab439bb84cf", [<Search size={16} aria-hidden="true"/>, <kbd>⌘K</kbd>])}</button>
       <div className="topbar__actions" ref={ref} role="region" aria-label={textUI("m_1810407f5ab7")}>
-        {formatUI(can(me, 'simulation.read') && <button type="button" className={`runpill${n > 0 ? ' is-live' : ''}`} onClick={() => navigate('/simulations')} title={runSub} aria-label={`${runTitle}. ${runSub}`}>
+        {/* Indikator run yang tenang: hanya tampil saat benar-benar ada run (keputusan pemilik, AUDIT UI-027). */}
+        {formatUI(can(me, 'simulation.read') && n > 0 && <button type="button" className="runpill is-live" onClick={() => navigate('/simulations')} title={runSub} aria-label={`${runTitle}. ${runSub}`}>
           <span className="runpill__dot" aria-hidden="true"/>
           <span>{formatUI(runTitle)}</span>
         </button>)}
@@ -218,7 +217,7 @@ function ActionDock({ openPalette }: {
         </div>)}
         <Notifications />
         <ThemeToggle />
-        <LanguagePreference />
+        <LanguageToggle />
         <WorkspaceMenu />
       </div>
     </>);

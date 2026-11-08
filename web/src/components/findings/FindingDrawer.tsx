@@ -37,6 +37,8 @@ export function FindingDrawer({ finding, onClose, canAsset }: { finding: Finding
         return () => { document.removeEventListener('keydown', onKey); previous?.focus?.(); };
     }, []);
     const json = JSON.stringify(current.details ?? {}, null, 2);
+    // Rincian tampil sebagai pasangan kunci-nilai yang terbaca; JSON utuh tetap tersedia lewat Salin (AUDIT UI-016).
+    const pairs = Object.entries(current.details ?? {}).filter(([, v]) => v !== null && v !== undefined && v !== '');
     const def = defenseOf(current);
     const exposureText = (v: string) => (v === 'exposed' ? textUI("m_def_exp_exposed") : v === 'listening' ? textUI("m_def_exp_listening") : v === 'local' ? textUI("m_def_exp_local") : '—');
     const statusText = (v: string) => (v === 'fix_available' ? textUI("m_def_fixed_in", [def?.fixed ?? '']) : v === 'no_fix_yet' ? textUI("m_def_no_fix") : v === 'fix_requires_subscription' ? textUI("m_def_needs_sub") : v === 'fix_pending_reboot' ? textUI("m_def_pending_reboot") : '—');
@@ -72,7 +74,9 @@ export function FindingDrawer({ finding, onClose, canAsset }: { finding: Finding
             </dl></section>))}
           <section aria-labelledby="fnd-details-h">
             <div className="fnd-drawer__row"><h3 id="fnd-details-h">{textUI("m_fnd_details")}</h3><CopyButton value={json}/></div>
-            <pre className="fnd-json mono" tabIndex={0}>{json}</pre>
+            {formatUI(pairs.length > 0
+              ? <dl className="fnd-kv">{pairs.map(([k, v]) => <div key={k} className="fnd-kv__row"><dt>{k}</dt><dd>{formatUI(String(v))}</dd></div>)}</dl>
+              : <p className="muted small">{textUI("m_fnd_details_empty")}</p>)}
           </section>
           {formatUI(current.asset_id && canAsset && <Link className="btn btn--secondary btn--auto fnd-drawer__link" to={`/assets/${current.asset_id}`}>{textUI("m_fnd_view_asset")}</Link>)}
         </div>

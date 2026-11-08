@@ -1,0 +1,40 @@
+/* Detail aset v3: strip status, kolom utama + samping, baris datar tanpa kotak bersarang. */
+.assets .kv-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--border); background: var(--surface); margin: 0 0 24px; }
+.kv-cell { display: flex; flex-direction: column; gap: 6px; padding: 14px 20px; border-left: 1px solid var(--border); min-width: 0; }
+.kv-cell:first-child { border-left: 0; }
+.kv-cell__k { font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-3); }
+.kv-cell__v { font-size: 14px; color: var(--text); display: inline-flex; align-items: center; gap: 8px; }
+
+.asset-cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 32px; align-items: start; }
+.asset-main, .asset-side { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+/* panel di halaman ini: datar, hanya garis atas, tanpa kotak */
+.asset-cols .panel, .asset-cols .ready { background: transparent; border: 0; border-top: 1px solid var(--border); padding: 16px 0 0; margin: 0; box-shadow: none; }
+.asset-cols .panel__title, .ready__title { font-size: 11px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); margin: 0 0 12px; }
+
+/* baris run: satu engine per baris */
+.run-rows { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--border); background: var(--surface); }
+.run-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; border-bottom: 1px solid var(--border-2, var(--border)); }
+.run-row:last-child { border-bottom: 0; }
+.run-row__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.run-row__body strong { font-size: 13px; font-weight: 600; }
+.run-row__why { font-size: 12px; color: var(--text-3); }
+.run-row .btn { flex: none; }
+
+/* checklist ringkas dua kolom */
+.chk-list--grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; }
+.chk-list--grid .chk-item { padding: 6px 0; border-bottom: 1px solid var(--border-2, var(--border)); font-size: 12px; }
+.chk-list--grid .chk-item .status { min-width: 20px; height: 20px; padding: 0; text-align: center; }
+.chk-list--grid.is-done .chk-item { color: var(--text-2); }
+
+/* samping: daftar kunci-nilai rapat */
+.asset-side .dl { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 8px 12px; margin: 0; font-size: 12px; }
+.asset-side .dl dt { color: var(--text-3); }
+.asset-side .dl dd { margin: 0; overflow-wrap: anywhere; }
+.asset-side .plain-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 12px; }
+
+@media (max-width: 1023px) { .asset-cols { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 679px) { .assets .kv-strip { grid-template-columns: 1fr 1fr; } .kv-cell:nth-child(3) { border-left: 0; } .kv-cell:nth-child(n+3) { border-top: 1px solid var(--border); } .chk-list--grid { grid-template-columns: 1fr; } .run-row { flex-direction: column; align-items: stretch; } }
+.asset-cols .panel__title { padding: 0; }
+.chk-list--grid { grid-template-columns: 1fr; }
+.chk-list--grid .chk-item { flex-wrap: nowrap; }
+.chk-list--grid .chk-item__why { flex: 1; min-width: 0; }

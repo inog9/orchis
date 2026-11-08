@@ -59,6 +59,7 @@ function Guard({ children, guest = false }: {
         <h1 className="title">{textUI("m_8128da536c8b")}</h1>
         <p className="subtitle">{formatUI(describeError(me.error).message)}</p>
         {formatUI(describeError(me.error).errorId && <code className="mono">{describeError(me.error).errorId}</code>)}
+        <button type="button" className="btn btn--secondary btn--auto" onClick={() => window.location.reload()}>{textUI("ui_retry")}</button>
       </div>);
     }
     if (guest)

@@ -1,5 +1,5 @@
 /* Lencana status bersama (Simulations, Reports). */
-.sim-badge { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.sim-badge { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--radius-ctl); font-size: 12px; font-weight: 600; }
 .sim-badge i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 .sim-badge--ok { color: var(--v2-success); background: var(--v2-success-soft); }
 .sim-badge--live { color: var(--v2-accent); background: var(--v2-accent-soft); }

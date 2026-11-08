@@ -66,12 +66,12 @@ describe('ScanDetailPage', () => {
     expect(screen.queryByRole('button', { name: 'Cancel scan' })).toBeNull();
     expect(screen.getByRole('link', { name: 'Scan report' })).toBeInTheDocument();
   });
-  it('berjalan: tombol batal memanggil endpoint, tanpa link laporan, "belum selesai"', async () => {
+  it('berjalan: tombol batal memanggil endpoint, tanpa link laporan, "masih berjalan"', async () => {
     const fetch = route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', status: 'running', ended_at: null, jobs: [job({ status: 'running' })] }) : u.pathname.endsWith('/cancel') ? {} : undefined);
     mount(<ScanDetailPage />, '/simulations/s1', '/simulations/:id');
     await userEvent.click(await screen.findByRole('button', { name: 'Cancel scan' }));
     await waitFor(() => expect(fetch.mock.calls.some(([u, i]) => String(u).endsWith('/scans/s1/cancel') && i?.method === 'POST')).toBe(true));
-    expect(screen.getByText('not finished yet (ended_at = null)')).toBeInTheDocument();
+    expect(screen.getByText('still running')).toBeInTheDocument(); // tanpa ekspresi debug (AUDIT UI-015)
     expect(screen.queryByRole('link', { name: 'Scan report' })).toBeNull();
   });
   it('gagal: pesan job.error terlihat di kolom catatan', async () => {
@@ -90,8 +90,29 @@ describe('DefenseBot scan', () => {
     expect(await screen.findByRole('heading', { name: 'DefenseBot result' })).toBeInTheDocument();
     expect(screen.getAllByText('DefenseBot').length).toBeGreaterThan(0);
     expect(screen.getByText('4 advisories · 1 known exploited')).toBeInTheDocument();
-    expect(screen.getByText(/Incomplete result/)).toBeInTheDocument();
-    expect(screen.getByText('The vulnerability service could not be reached; no result is shown as clean.')).toBeInTheDocument();
-    expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
+    expect(screen.getAllByText('The vulnerability service could not be reached; no result is shown as clean.').length).toBeGreaterThan(0);
+    expect(screen.queryByText('3 applications could not be mapped to vulnerability data.')).toBeNull();
+  });
+});
+
+describe('Engine names follow what actually ran', () => {
+  it('lists a DefenseBot-only scan as DefenseBot and a web scan as Hackbot, never the other way round', async () => {
+    route((u) => u.pathname === '/api/v1/scans' ? { items: [
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000001', options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000002', options: { tools: ['nmap', 'nuclei', 'hackbot'], preset: 'standard', asset_ids: ['a1', 'a2'], range_ids: [], organization_id: 'o1' } }),
+      scan({ id: 'aaaaaaaa-0000-0000-0000-000000000003', options: { tools: ['nmap', 'nuclei', 'hackbot', 'defensebot'], preset: 'standard', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
+    ], next_cursor: null } : undefined);
+    mount(<ScanList />, '/simulations');
+    const table = await screen.findByRole('table', { name: 'Scans' });
+    const rows = await within(table).findAllByRole('row');
+    const text = rows.slice(1).map((r) => r.textContent ?? '');
+    expect(text[0]).toContain('DefenseBot');
+    expect(text[0]).not.toContain('Hackbot');
+    expect(text[1]).toContain('Hackbot');
+    expect(text[1]).not.toContain('DefenseBot');
+    expect(text[2]).toContain('Hackbot + DefenseBot');
+    // Internal words never leak into the list: no preset names and no tool names.
+    for (const t of text) expect(t).not.toMatch(/standard|defense\b|nmap|nuclei|preset/i);
+    expect(text[1]).toContain('2 assets');
   });
 });

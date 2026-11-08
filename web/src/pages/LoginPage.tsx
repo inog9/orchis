@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useForgot, useLogin } from '../api/hooks';
 import { LoginHeroPanel } from '../components/login/LoginHeroPanel';
+import { ThemeToggle } from '../components/ThemeToggle';
 import './auth.css';
 import { Field } from '../components/Field';
 function Countdown({ seconds }: {
@@ -30,6 +31,7 @@ export function AuthLayout({ children }: {
 }) {
     useLocale();
     return (<div className="auth">
+      <ThemeToggle className="auth__theme-toggle"/>
       <LoginHeroPanel />
       <main className="auth__form-panel">
         <div className="auth__help">

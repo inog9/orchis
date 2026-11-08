@@ -17,9 +17,11 @@ export function SettingsPage() {
     ].filter((t) => t.show);
     return (<section className="page settings" aria-labelledby="settings-title">
       <div className="page__head"><div><h1 id="settings-title" className="page__title">{textUI("m_74a883a037bc")}</h1><p className="page__sub">{textUI("m_ed4a86bd0509")}</p></div></div>
-      <nav className="tabs" aria-label={textUI("m_e26d51d36781")}>
-        {formatUI(tabs.map((t) => <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'is-active' : ''}`}>{formatUI(t.label)}</NavLink>))}
-      </nav>
-      <Suspense fallback={<span className="skeleton" role="status" aria-label={textUI("m_f458d7c761f0")}/>}><Outlet /></Suspense>
+      <div className="settings__body">
+        <nav className="tabs settings__nav" aria-label={textUI("m_e26d51d36781")}>
+          {formatUI(tabs.map((t) => <NavLink key={t.to} to={t.to} end={t.end} className={({ isActive }) => `tab ${isActive ? 'is-active' : ''}`}>{formatUI(t.label)}</NavLink>))}
+        </nav>
+        <div className="settings__content"><Suspense fallback={<span className="skeleton" role="status" aria-label={textUI("m_f458d7c761f0")}/>}><Outlet /></Suspense></div>
+      </div>
     </section>);
 }

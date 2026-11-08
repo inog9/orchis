@@ -1,13 +1,13 @@
 .def-panel__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
 .def-panel__actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .def-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:14px 0}
-.def-stat{background:var(--surface-1);border:1px solid var(--edge-1);border-radius:10px;padding:10px 12px}
+.def-stat{background:var(--surface-1);border:1px solid var(--edge-1);border-radius: var(--radius-ctl);padding:10px 12px}
 .def-stat__label{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3)}
 .def-stat__value{display:block;font-size:22px;font-weight:600;margin-top:2px}
-.def-warn{border:1px solid var(--warn);border-radius:10px;padding:10px 12px;margin:10px 0;background:color-mix(in srgb,var(--warn) 12%,transparent)}
+.def-warn{border:1px solid var(--warn);border-radius: var(--radius-ctl);padding:10px 12px;margin:10px 0;background:color-mix(in srgb,var(--warn) 12%,transparent)}
 .def-notes{margin:6px 0 0;padding-left:18px}
 .def-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0}
-.def-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--edge-2);border-radius:999px;padding:1px 8px;font-size:11.5px;font-weight:600}
+.def-chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--edge-2);border-radius: var(--radius-ctl);padding:1px 8px;font-size:11.5px;font-weight:600}
 .def-chip--kev{border-color:var(--error);color:var(--error)}
 .def-chip--exposed{border-color:var(--warn);color:var(--warn)}
 .def-chip--muted{color:var(--ink-3);font-weight:500}

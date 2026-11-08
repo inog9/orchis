@@ -55,7 +55,7 @@ describe('ReportDetailPage status', () => {
     mount(<ReportDetailPage />, '/reports/r1', '/reports/:id');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('renderer down');
-    expect(screen.getByRole('link', { name: 'Download PDF' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: 'Download PDF' })).toBeDisabled(); // PDF gagal: tombol disabled dengan alasan, bukan tautan mati
     expect(screen.queryByRole('link', { name: 'Open PDF preview' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(fetch.mock.calls.some(([u, i]) => String(u).endsWith('/reports/r1/retry') && i?.method === 'POST')).toBe(true));

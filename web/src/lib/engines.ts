@@ -20,8 +20,12 @@ export function engineLabel(tool: string): string {
 }
 
 // Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
+// Nama engine yang benar menurut alat yang dipilih: hanya DefenseBot -> "DefenseBot", hanya jalur web -> "Hackbot".
 export function engineSetLabel(tools: string[] | undefined): string {
-    return isFullTools(tools) ? textUI('flow_eng_full_sub') : 'Hackbot';
+    const list = tools ?? ['nmap', 'nuclei', 'hackbot'];
+    if (isFullTools(list)) return textUI('flow_eng_full_sub');
+    if (list.includes('defensebot') && !list.includes('hackbot')) return 'DefenseBot';
+    return 'Hackbot';
 }
 
 export function kindLabel(kind: EngineKind): string {
@@ -78,4 +82,13 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
         rows.push({ engine: 'DefenseBot', stage, status, jobs: defense, findings: defense.reduce((n, x) => n + (x.findings?.length ?? 0), 0), error: j.error });
     }
     return rows;
+}
+
+// Nama engine yang tampil untuk daftar injector luring: pipeline Hackbot (nmap/nuclei/hackbot)
+// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "DefenseBot" (AUDIT UI-004d).
+export function engineNames(keys: string[]): string[] {
+    const out: string[] = [];
+    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('Hackbot');
+    if (keys.some(k => k === 'defensebot')) out.push('DefenseBot');
+    return out;
 }

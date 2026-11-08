@@ -13,6 +13,7 @@ import { OrganizationFilter } from '../components/OrganizationFilter';
 import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { kindLabel, toolsFor, type EngineKind } from '../lib/engines';
+import { localizeReason } from '../lib/readinessReason';
 import { useReadiness, synthesizedReadiness, type ReadinessItem } from '../api/readiness';
 import './newscan.css';
 
@@ -41,9 +42,9 @@ export function NewScanPage() {
     }, [allAssets, readiness.data]);
     const webReady = (r?: ReadinessItem) => !!r && !r.web_reason;
     const defReady = (r?: ReadinessItem) => !!r && !r.defense_reason;
-    const eligible = (k: EngineKind | '', r?: ReadinessItem) => k === '' ? false : k === 'web' ? webReady(r) : k === 'defense' ? defReady(r) : webReady(r) && defReady(r);
+    const eligible = (k: EngineKind | '', r?: ReadinessItem) => k === '' ? false : k === 'web' ? webReady(r) : k === 'defense' ? defReady(r) : webReady(r) || defReady(r);
     const reasonFor = (k: EngineKind | '', r?: ReadinessItem) =>
-        !r ? textUI('flow_wiz_empty') : k === 'web' ? r.web_reason : k === 'defense' ? r.defense_reason : r.web_reason || r.defense_reason;
+        !r ? textUI('flow_wiz_empty') : localizeReason(k === 'web' ? r.web_reason : k === 'defense' ? r.defense_reason : r.web_reason || r.defense_reason);
     const fixFor = (k: EngineKind | '', r?: ReadinessItem) => {
         if (!r) return null;
         if (k !== 'defense' && r.agent_status === 'none') return '/assets/agents';
@@ -101,12 +102,15 @@ export function NewScanPage() {
       </div></div>
       <ol className="wiz-steps">
         {steps.map((label, i) => (<li key={label} className={`wiz-step${step === i + 1 ? ' is-current' : step > i + 1 ? ' is-done' : ''}`} aria-current={step === i + 1 ? 'step' : undefined}>
-          <span className="wiz-step__n mono" aria-hidden="true">{step > i + 1 ? '✓' : i + 1}</span><span>{formatUI(label)}</span>
+          {/* Langkah yang sudah tercapai bisa diklik untuk kembali (AUDIT UI-007). */}
+          {step > i + 1
+            ? <button type="button" className="wiz-step__back link-quiet" onClick={() => setStep(i + 1)}><span className="wiz-step__n" aria-hidden="true">✓</span><span>{formatUI(label)}</span></button>
+            : <><span className="wiz-step__n" aria-hidden="true">{i + 1}</span><span>{formatUI(label)}</span></>}
         </li>))}
       </ol>
       {step === 1 && (<fieldset className="fieldset wiz-pane">
         <legend className="sr-only">{textUI('flow_wiz_s1')}</legend>
-        <OrganizationFilter value={org} onChange={(v) => changeOrg(v, true)} required/>
+        <OrganizationFilter value={org} onChange={(v) => changeOrg(v, true)} required asList/>
         {formatUI(org && allAssets.length === 0 && !list.isPending && (<div className="state"><h2>{textUI('flow_wiz_empty')}</h2><p role="status">{textUI('flow_wiz_none_eligible')}</p><Link className="btn btn--secondary btn--auto" to={`/organizations/${org}?tab=assets&new=1`}>{textUI('flow_wiz_add_asset')}</Link></div>))}
         {formatUI(org && allAssets.length > 0 && <button type="button" className="btn btn--primary btn--auto" onClick={() => setStep(2)}>{textUI('flow_wiz_next')}</button>)}
       </fieldset>)}
@@ -135,7 +139,7 @@ export function NewScanPage() {
       {step === 3 && (<fieldset className="fieldset wiz-pane">
         <legend className="sr-only">{textUI('flow_wiz_s3')}</legend>
         <p className="field__hint">{textUI('flow_wiz_targets_hint')}</p>
-        {formatUI(readiness.data && !windowOpen && <p role="alert" className="alert">{formatUI(textUI('flow_wiz_window_closed', [readiness.data.control_reason || '—']))}</p>)}
+        {formatUI(readiness.data && !windowOpen && <p role="alert" className="alert">{formatUI(textUI('flow_wiz_window_closed', [localizeReason(readiness.data.control_reason) || '—']))}</p>)}
         {formatUI(list.isPending && <p role="status">{textUI('m_ba3bbbe10d8b')}</p>)}
         {formatUI(list.error && <p role="alert">{formatUI(describeError(list.error).message)}</p>)}
         {formatUI(org && allAssets.length === 0 && !list.isPending && (<div className="state"><h2>{textUI('flow_wiz_empty')}</h2><Link className="btn btn--secondary btn--auto" to={`/organizations/${org}?tab=assets&new=1`}>{textUI('flow_wiz_add_asset')}</Link></div>))}
@@ -150,8 +154,8 @@ export function NewScanPage() {
                   <span className="check__box" aria-hidden="true"/>
                   <span className="wiz-target__name">{formatUI(a.name)}</span>
                   {formatUI(r && <span className="wiz-chips">
-                    <span className={`wiz-chip${webReady(r) ? ' is-on' : ''}`} title={r.web_reason || undefined}>{formatUI(textUI('flow_wiz_chip_web'))}</span>
-                    <span className={`wiz-chip${defReady(r) ? ' is-on' : ''}`} title={r.defense_reason || undefined}>{formatUI(textUI('flow_wiz_chip_agent'))}</span>
+                    <span className={`wiz-chip${webReady(r) ? ' is-on' : ''}`} title={localizeReason(r.web_reason) || undefined}>{formatUI(textUI('flow_wiz_chip_web'))}</span>
+                    <span className={`wiz-chip${defReady(r) ? ' is-on' : ''}`} title={localizeReason(r.defense_reason) || undefined}>{formatUI(textUI('flow_wiz_chip_agent'))}</span>
                   </span>)}
                   {formatUI(!ok && why && <span className="wiz-target__why">{formatUI(why)}{formatUI(r?.url && <>{' '}<a className="link-quiet" href={r.url} target="_blank" rel="noreferrer">{textUI('flow_wiz_fix')}</a></>)}{formatUI(fix && <>{' '}<Link className="link-quiet" to={fix}>{textUI('flow_wiz_fix')}</Link></>)}</span>)}
                 </label>

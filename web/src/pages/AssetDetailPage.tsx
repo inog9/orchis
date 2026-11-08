@@ -2,6 +2,7 @@ import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "..
 import { AssetFindings } from '../components/AssetFindings';
 import { AssetScanHistory } from '../components/AssetScanHistory';
 import './assets.css';
+import './asset-detail.css';
 import { EndpointDataPanel } from '../components/EndpointDataPanel';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { useState, Fragment } from 'react';
@@ -49,7 +50,7 @@ export function AssetDetailPage() {
           </nav>
           <div className="page__title-row">
             <span className="asset-row__icon"><Icon size={17}/></span>
-            <h1 id="asset-title" className="page__title mono-title">{formatUI(a.name)}</h1>
+            <h1 id="asset-title" className="page__title">{formatUI(a.name)}</h1>
           </div>
           <p className="page__sub">
             {formatUI(cat.label)}{formatUI(a.platform ? ` · ${PLATFORM_LABEL[a.platform] ?? a.platform}` : '')}{formatUI(a.arch ? ` · ${a.arch}` : '')}
@@ -59,15 +60,24 @@ export function AssetDetailPage() {
         {formatUI(can(me, 'asset.write') && (<button type="button" className="btn btn--secondary btn--auto" onClick={() => setEditing(true)}>{richUI("m_12a64771a7ec", [<Pencil size={15} aria-hidden="true"/>])}</button>))}
       </div>
 
+      <div className="kv-strip" role="group" aria-label={textUI("m_45989de49fb7")}>
+        <div className="kv-cell"><span className="kv-cell__k">{textUI("m_e806a291cfc3")}</span><span className="kv-cell__v">{formatUI(a.testing_authorized ? <span className="status status--ok">{textUI("m_67f542ba6d8f")}</span> : <span className="status">{textUI("m_52c79c7b5ba0")}</span>)}</span></div>
+        <div className="kv-cell"><span className="kv-cell__k">{textUI("m_bb186757b4bf")}</span><span className="kv-cell__v">{formatUI(a.agent_state === 'online' ? <span className="status status--ok">{textUI("m_2d59e6737ad8")}</span> : a.agent_state === 'offline' ? <span className="status status--bad">{textUI("m_8853f5f45fe6")}</span> : <span className="status">{textUI("m_1f0d3f74b799")}</span>)}</span></div>
+        <div className="kv-cell"><span className="kv-cell__k">{textUI("m_afdc3ea3ef86")}</span><span className="kv-cell__v"><span className={`crit crit--${a.criticality}`}>{formatUI(a.criticality[0]!.toUpperCase() + a.criticality.slice(1))}</span></span></div>
+        <div className="kv-cell"><span className="kv-cell__k">{textUI("m_8cc5257478f0")}</span><span className="kv-cell__v">{formatUI(a.is_internet_facing ? textUI("m_85a39ab345d6") : textUI("m_1ea442a134b2"))}</span></div>
+      </div>
+
+      <div className="asset-cols">
+      <div className="asset-main">
       <AssetReadiness asset={a}/>
-      <div className="grid-2">
+      <AssetFindings assetID={a.id} allowed={can(me, 'finding.read')}/>
+      <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')}/>
+      <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={false} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
+      </div>
+      <aside className="asset-side">
         <section className="panel" aria-labelledby="details-h">
           <h2 id="details-h" className="panel__title">{textUI("m_45989de49fb7")}</h2>
           <dl className="dl">
-            <dt>{textUI("m_afdc3ea3ef86")}</dt><dd><span className={`crit crit--${a.criticality}`}>{formatUI(a.criticality[0]!.toUpperCase() + a.criticality.slice(1))}</span></dd>
-            <dt>{textUI("m_8cc5257478f0")}</dt><dd>{formatUI(a.is_internet_facing ? textUI("m_85a39ab345d6") : textUI("m_1ea442a134b2"))}</dd>
-            <dt>{textUI("m_bb186757b4bf")}</dt><dd>{formatUI(a.agent_state === 'online' ? <span className="status status--ok">{textUI("m_2d59e6737ad8")}</span> : a.agent_state === 'offline' ? <span className="status status--bad">{textUI("m_8853f5f45fe6")}</span> : <span className="status">{textUI("m_1f0d3f74b799")}</span>)}</dd>
-            <dt>{textUI("m_e806a291cfc3")}</dt><dd>{formatUI(a.testing_authorized ? <span className="status status--ok">{textUI("m_67f542ba6d8f")}</span> : <span className="status">{textUI("m_52c79c7b5ba0")}</span>)}</dd>
             <dt>{textUI("m_0e570ca6fabe")}</dt><dd>{formatUI(a.source)}</dd>
             <dt>{textUI("m_6b02e0d363a4")}</dt><dd>{formatUI(fmt(a.created_at))}</dd>
             <dt>{textUI("m_3a5ecca188c0")}</dt><dd>{formatUI(fmt(a.updated_at))}</dd>
@@ -101,9 +111,7 @@ export function AssetDetailPage() {
             </ul>))}
           <p className="muted small">{textUI("m_850f42574055")}</p>
         </section>
-        <AssetFindings assetID={a.id} allowed={can(me, 'finding.read')}/>
-        <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')}/>
-        <EndpointDataPanel assetID={a.id} allowed={can(me, 'asset.read')} canRun={false} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')}/>
+      </aside>
       </div>
 
       {formatUI(can(me, 'asset.delete') && (<section className="danger" aria-labelledby="danger-h">

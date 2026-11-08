@@ -1,0 +1,16 @@
+import { chromium } from 'playwright';
+const POP='http://127.0.0.1:18190', OUT='/tmp/uifix';
+const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:1440,height:900}});
+const page=await ctx.newPage();
+await page.goto(POP+'/login',{waitUntil:'networkidle'});
+await page.locator('input[type=email]').first().fill('admin@orchis.local'); await page.locator('input[type=password]').first().fill('Orchis-Dev-Pass-1'); await page.keyboard.press('Enter'); await page.waitForTimeout(2000);
+await ctx.request.patch(POP+'/api/v1/auth/preferences',{headers:{'X-Requested-With':'orchis-web'},data:{ui_language:'en'}});
+const api=async p=>(await ctx.request.get(POP+'/api/v1'+p,{headers:{'X-Requested-With':'orchis-web'}})).json();
+const assets=(await api('/assets?limit=100')).items; const a=assets.find(x=>x.category==='web_application')||assets[0];
+await page.goto(POP+'/findings',{waitUntil:'networkidle'}); await page.waitForTimeout(800);
+await page.getByText('Open Port (demo)').first().click(); await page.waitForTimeout(800); await page.screenshot({path:OUT+'/drawer.png'});
+await page.keyboard.press('Escape');
+await page.goto(POP+'/organizations',{waitUntil:'networkidle'}); await page.getByRole('button',{name:/Create organisation/}).first().click(); await page.waitForTimeout(500); await page.locator('input').first().focus().catch(()=>{}); await page.locator('dialog input, [role=dialog] input').first().focus(); await page.waitForTimeout(300); await page.screenshot({path:OUT+'/inputfocus.png'});
+await page.keyboard.press('Escape');
+await page.goto(POP+'/assets/'+a.id,{waitUntil:'networkidle'}); await page.waitForTimeout(600); await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight)); await page.screenshot({path:OUT+'/asset-bottom.png'});
+await b.close();
