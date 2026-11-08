@@ -1,6 +1,7 @@
-# Nmap + Nuclei → Hackbot web pentest
+# Nmap + Nuclei → OpenCode (Hackbot) web pentest
 
-Orchis uses its current UI v2 and the existing queue and PDF report service.
+Orchis uses UI v3 and the existing queue and PDF report service. The Hackbot
+worker runs OpenCode; Hackbot Lite supplies the underlying pentest tools.
 Users select approved HTTP(S) assets and click **Run pentest**. Per selected asset:
 
 1. Nmap service discovery on the approved URL’s port and Nuclei vulnerability scanning run first, in parallel.
@@ -12,16 +13,14 @@ Users select approved HTTP(S) assets and click **Run pentest**. Per selected ass
    returns its results. Findings, coverage, a summary of at most 300 words, and
    the PDF report are saved and displayed automatically inside Orchis.
 
-The exact handoff location, next to Hackbot's reports and recon folders, is:
+The OpenCode handoff location is:
 
 ```
-<data>/<hackbot-execution-id>/.pentest-harnes/sessions/<session-id>/workspace/
+<data>/<hackbot-execution-id>/
   inputs/scanners/
-    manifest.json     # version, filenames, SHA-256 digests and byte sizes
+    manifest.json     # schema, filenames, SHA-256 digests and byte sizes
     nmap.json         # preliminary Nmap findings and execution metadata
     nuclei.json       # preliminary Nuclei findings and execution metadata
-  recon/
-  reports/
   private/
 ```
 
@@ -38,43 +37,76 @@ finishes. Cancellation or revoked authorization prevents further stages.
 
 ## Build and configure
 
-Keep compatible source checkouts next to one another:
+The build needs **both private Git checkouts**, not extracted source archives:
 
 ```
 orchis/
 orchis-hackbot-lite/
+orchis-opencode-hackbot/
 ```
 
-Check out the companion engine commit pinned in `engine-lock.json`.
-`ops.py build` builds the server, report renderer, scanner image, pinned local
-engine and Hackbot worker. `ORCHIS_HACKBOT_SOURCE` selects another engine checkout.
-GitHub credentials are needed only for cloning, not inside image layers.
-
-Fresh `ops.py init` generates credentials for all three workers. Existing setups
-run `ops.py hackbot-init --state /path/to/existing/state` before provisioning the
-updated images. It preserves existing valid scanner tokens and adds missing
-worker files. Apply migration 36 and use the normal migrate/provision services.
-Nmap/Nuclei workers run as UID 10001; the Hackbot worker uses UID 1001.
-
-Configure Pi model/provider authentication once in the persistent engine home:
+Clone with an account that can read the repositories named in
+[`engine-lock.json`](engine-lock.json), then check out the exact pinned revisions.
+From the Orchis root:
 
 ```sh
-# Use the same Compose environment and state as the installation.
-docker compose run --rm --no-deps hackbot pi
+git clone https://github.com/r1pu5u/orchis-hackbot-lite.git ../orchis-hackbot-lite
+git clone https://github.com/r1pu5u/orchis-opencode-hackbot.git ../orchis-opencode-hackbot
+python3 - <<'PINS'
+import json, subprocess
+from pathlib import Path
+lock = json.loads(Path('deploy/hackbot/engine-lock.json').read_text())
+for directory, pin in [('../orchis-hackbot-lite', lock), ('../orchis-opencode-hackbot', lock['opencode'])]:
+    subprocess.run(['git', '-C', directory, 'checkout', '--detach', pin['revision']], check=True)
+PINS
+make hackbot-check
 ```
 
-Provider credentials are not supplied by Orchis. Missing authorized test accounts
-produce coverage limitations. Hackbot receives permission for the exact selected
-origin; discovered origins require separate approval. Its full tools are not a
-network sandbox. No user Markdown viewer or download is required.
+Existing checkouts must contain the pinned commits; fetch them if necessary before
+checking out. Review local changes before switching revisions.
+`ORCHIS_HACKBOT_SOURCE` and `ORCHIS_OPENCODE_SOURCE` select alternate paths.
+Export both when building with custom locations; preserve them when invoking the
+build under another operator account.
+
+`make hackbot-check` checks revisions and integration file hashes without Docker.
+`make hackbot-engines` validates both sources before building the tool image and
+then the OpenCode image. `make hackbot-image` also builds the worker injector from
+this Orchis checkout. `make prod-build` runs the same source preflight **before any
+production image build**, then builds the complete stack. GitHub credentials are
+used only for cloning, never passed into Docker layers.
+
+If a checkout is missing, the preflight prints its path, repository and required
+revision. An image already present in Docker is not a substitute for the source
+checkouts needed by a reproducible build. Do not bypass the revision/hash checks
+or create artificial Git metadata around an archive.
+
+Fresh `ops.py init` generates credentials for all four workers. Existing setups
+run `ops.py hackbot-init --state /path/to/existing/state` before provisioning the
+updated images. It preserves existing valid scanner tokens and adds missing
+worker files. Apply the pending migrations and use the normal migrate/provision services.
+Nmap/Nuclei/DefenseBot workers run as UID 10001; the Hackbot worker uses UID 1001.
+
+The pinned OpenCode worker reads the `opencode-go` credential from the private
+`/home/pentest/.pi/agent/auth.json` store in the persistent `hackbot-home` volume.
+This legacy path is retained for compatibility; OpenCode runs the engagement,
+not Pi. Provision the credential securely once; Orchis does not supply model
+credentials. The pinned worker uses `opencode-go/deepseek-v4.1-flash` and bounds
+its model run to 25 minutes. Source and configuration details are in the pinned
+OpenCode repository.
+
+Missing authorized test accounts produce coverage limitations. Hackbot receives
+permission for the exact selected origin; discovered origins require separate
+approval. Its full tools are not a network sandbox. No user Markdown viewer or
+download is required.
 
 ## Operations
 
-- A Run click queues three jobs per asset; it does not create a Docker container.
+- A web pentest queues three jobs per web asset; it does not create a Docker container.
   One active Hackbot engagement runs per worker container. Scale workers for
   parallel testing. Existing scanner concurrency remains bounded.
 - Execution leases, scan controls and live authorization apply throughout the
-  pipeline. Hackbot is exempt from scanner and simulation duration limits.
+  pipeline. Orchis scanner/simulation duration limits do not terminate Hackbot;
+  the pinned OpenCode worker applies its own 25-minute model limit.
 - Claimed Hackbot jobs are not automatically retried. Reconcile ambiguous target
   state before operator-led continuation.
 - Reports retain individual Nmap, Nuclei and Hackbot method provenance. Partial
@@ -91,11 +123,20 @@ network sandbox. No user Markdown viewer or download is required.
 `go test ./internal/server -run ^TestHackbot` covers stage ordering, immutable
 scanner handoff, scanner failure, result ingestion, PDF access, authorization
 revocation and lease expiry. Worker tests cover private files, changed handoffs
-and claim payload size. Engine tests exercise imports into the actual Pi workspace
-before prompting, hashes, unsafe paths and partial delivery.
+and claim payload size. OpenCode engine tests cover scanner-input imports, hashes and private-evidence
+result validation. Run `npm test` in that companion checkout. Build preflight
+and orchestration tests run without Docker via `make build-test`.
 
 The explicit production smoke profile uses real local Nmap/Nuclei stages and a
 synthetic Hackbot result transport fixture, with no paid model. It never claims
 that the synthetic Hackbot phase performed a real pentest. Older E2E fixtures
 that submit partial tool selections need migration to the three-stage scan API;
 advanced scanner contracts and historical APIs remain available.
+
+## Verify a deployment
+
+Use `make prod-up` with the existing `ORCHIS_STATE` to wait for core health and
+worker heartbeats. `GET /api/healthz` confirms API health; it does not prove that a
+model-backed pentest succeeded. Inspect the Hackbot container logs and its
+integration heartbeat after replacement, and compare the running container image
+ID with the image just built. A real engagement is a separate authorized test.

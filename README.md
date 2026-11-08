@@ -1,237 +1,82 @@
-# orchis-go
+# Orchis
 
-Web pentests run **Nmap + Nuclei first, then Hackbot Lite**, using the latest Orchis UI v2. Scanner findings are placed in Hackbot's engagement workspace before testing. The PDF report and activity summary (maximum 300 words) are saved and displayed inside Orchis. See [engine setup](deploy/hackbot/README.md).
+Orchis adalah platform validasi keamanan self-hosted dengan backend Go, frontend
+React (UI v3), dan laporan PDF/JSON. Alur utama:
 
+**Organisasi → Aset dan agent → Pindai → Temuan → Laporan → Perbaikan dan retest**
 
-Orchis adalah platform validasi keamanan self-hosted dengan backend Go dan frontend React.
-Alurnya sederhana:
+| Pilihan pindai | Yang dijalankan |
+|---|---|
+| Web pentest (Hackbot) | Nmap dan Nuclei sebagai persiapan, lalu pengujian web melalui worker OpenCode |
+| Installed software check (DefenseBot) | Koleksi osquery yang disetujui dari endpoint, lalu pencocokan kerentanan dan hardening |
+| Full assessment | Memilih engine per aset: URL yang disetujui menjalankan Hackbot, agent menjalankan DefenseBot, aset dengan keduanya menjalankan keduanya |
 
-**Organisasi → Agent/Endpoint atau Asset → Scan (Nmap/Nuclei) → Findings → Reports (PDF/JSON)**
+Aset dalam satu Full assessment boleh campuran. Pengujian memerlukan otorisasi,
+prasyarat engine, dan jendela pindai yang berlaku. Kegagalan atau cakupan parsial
+tercatat sebagai keterbatasan; hasil kosong tidak membuktikan aset aman.
+Lihat [alur produk](docs/FLOW.md), [Hackbot](deploy/hackbot/README.md), dan
+[DefenseBot](docs/DEFENSEBOT.md).
 
-Keputusan desain dan batasan dicatat di [docs/ARSITEKTUR.md](docs/ARSITEKTUR.md).
-Panduan operasi, upgrade, dan backup ada di [docs/OPERASI.md](docs/OPERASI.md).
-Persiapan dan daftar go/no-go pilot ada di [docs/PILOT.md](docs/PILOT.md).
-Dokumentasi API dengan **Swagger UI / OpenAPI** ada di [docs/API.md](docs/API.md).
+## Mulai
 
-## Status
-
-- Alur utama (organisasi, agent, asset, scan, findings, reports) berjalan dan diuji end-to-end secara lokal.
-- Scan Nmap dan Nuclei dijalankan oleh injector di server Orchis, bukan oleh agent.
-- Koleksi data endpoint (osquery) hanya terbukti di Linux amd64. macOS, Windows, dan arsitektur lain tampil sebagai *unsupported*.
-- Fitur lanjutan (Chains, Single tests/Atomic, AI, MITRE) tersembunyi secara bawaan.
-- Integrasi AI hanya diuji dengan API palsu lokal; provider nyata belum diuji.
-- HTTPS publik dan backup off-host belum dibuktikan.
-
-## Alur utama
-
-Menu utama: **Organisations, Simulations, Findings, Assets, Reports, Settings**.
-Detail organisasi memiliki tab Overview, Agents/Endpoints, Assets, Scans, Findings, dan Reports.
-
-1. **Organisasi.** Buat organisasi, lalu pasang agent atau tambahkan asset satu per satu.
-   Asset lama tanpa organisasi tetap tersedia sebagai *Unassigned*.
-2. **Otorisasi.** Pendaftaran agent tidak memberi izin scan. Admin menetapkan alamat target
-   dan mengotorisasi pengujian per asset atau per rentang jaringan.
-3. **Scan.** Tombol Scan (`/simulations/new`) memilih organisasi, beberapa asset dan/atau
-   rentang dari satu agent, lalu Nmap/Nuclei dengan preset Quick atau Standard. Target berjalan
-   paralel dengan batas konkurensi; kegagalan satu target tidak menghentikan target lain.
-4. **Findings dan Assets.** Keduanya dapat difilter per organisasi (`?org=<uuid>` di URL;
-   filter dilakukan di server). Tab organisasi memakai filter yang terkunci.
-5. **Reports.** Snapshot beku per organisasi, diekspor sebagai PDF atau JSON.
-
-### Scan
-
-- Injector berjalan di server Orchis, jadi rentang jaringan agent harus dapat dijangkau dari
-  server. Rentang yang tidak terjangkau tercatat gagal; hasil gagal tidak berarti host aman.
-- Approval rentang memerlukan admin, consent endpoint yang berlaku, dan data interface/routes
-  dari agent yang berhasil dalam 24 jam terakhir.
-- Host yang ditemukan bisa ditambahkan sebagai asset, tetapi tidak otomatis boleh diuji.
-- Batas bawaan: 256 alamat per scan dan 4 job aktif per tenant.
-
-| Variabel | Rentang | Bawaan |
-|---|---|---|
-| `ORCHIS_SCAN_MAX_HOSTS` | 1–4096 | 256 |
-| `ORCHIS_SCAN_CONCURRENCY` | 1–32 | 4 |
-| `ORCHIS_INJECTOR_CONCURRENCY` | 1–32 | 4 per injector |
-
-### Data endpoint (osquery)
-
-osquery bagian dari agent, bukan pilihan tool scan. Buka **Organisations → Agents/Endpoints →
-pilih endpoint → Configure endpoint collection**. Semua query yang didukung OS endpoint dipilih
-sebagai usulan awal, tetapi checkbox persetujuan tetap kosong sampai admin menyetujuinya; semua
-query, termasuk sensitivitas rendah, memerlukan consent.
-
-Setelah consent dan otorisasi asset, koleksi berjalan berkala (bawaan 15 menit;
-`ORCHIS_ENDPOINT_COLLECTION_SECONDS`, 60–86400). Isi persetujuan ada di
-[docs/ENDPOINT-CONSENT.md](docs/ENDPOINT-CONSENT.md); versi, hash, pemberi persetujuan, dan
-waktunya disimpan. Admin dapat menghapus dataset terakhir dari detail asset.
-
-### Reports
-
-PDF dan JSON berasal dari snapshot yang sama. JSON memakai skema `orchis.report.v1`
-([docs/REPORT-SCHEMA.md](docs/REPORT-SCHEMA.md)). PDF dirender tanpa akses jaringan keluar;
-bila gagal, **Retry PDF generation** mencoba ulang tanpa menjalankan scan lagi. Ekspor HTML/CSV
-sudah dihapus.
-
-### Fitur lanjutan
-
-`/scenarios` dan halaman Actions dihapus dari UI; data dan API lama tetap ada. Chains,
-Single tests/Atomic, AI, dan MITRE disembunyikan. Set `ORCHIS_ADVANCED_FEATURES=true` lalu
-restart server untuk membukanya lewat palet perintah (izin API dan consent tetap berlaku).
-Flag ini tidak mengembalikan Scenarios atau Actions. Inti Scenario/Actions tetap dipakai
-Chains/Atomic/Scan. API assessment historis dan tabelnya dipertahankan untuk kompatibilitas;
-lihat [batas penghapusan dan pemakai aktif](docs/FEATURE-COMPATIBILITY.md).
-
-## Menjalankan (pengembangan)
+Untuk deployment, siapkan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, Python 3.12+,
+dan akses ke dua repo engine privat yang dipatok di
+[`engine-lock.json`](deploy/hackbot/engine-lock.json).
+**Siapkan checkout engine terlebih dahulu** mengikuti [panduan build Hackbot](deploy/hackbot/README.md#build-and-configure).
 
 ```bash
-make dev-up                     # PostgreSQL di 127.0.0.1:15432
-make build                      # frontend + server
-./bin/server migrate
-ORCHIS_WEB_DIR=$PWD/web/dist ORCHIS_ADMIN_EMAIL=admin@orchis.local ./bin/server serve
+make hackbot-check                 # validasi source dan pin, tanpa Docker
+sudo make prod-init                # sekali untuk state baru; secret di /var/lib/orchis
+sudo python3 deploy/prod/ops.py env > .env
+sudo make prod-build               # server/web, renderer, scanner, engine, worker Hackbot
+sudo make prod-up
+sudo make prod-probe
 ```
 
-Bila `ORCHIS_ADMIN_PASSWORD` kosong, password admin pertama dibuat acak dan dicetak sekali di log.
-Server tidak menjalankan migrasi sendiri saat start; jalankan `./bin/server migrate` setiap upgrade.
-Akun baru dibuat admin di **Settings → Users** dan mendapat link sekali pakai (30 menit) untuk
-memilih password.
+Jalankan build dengan akun yang memiliki akses Docker dan dapat membaca checkout engine.
+Untuk state yang sudah ada, gunakan `ORCHIS_STATE` yang sama dan ikuti
+[prosedur upgrade](docs/OPERASI.md); jangan menjalankan init ulang.
+Login pertama ada di `initial-admin.json` dalam direktori state privat.
 
-### Scanner (Nmap/Nuclei)
+Panduan [deployment](docs/DEPLOY.md) menjelaskan HTTPS, agent, dan konfigurasi
+instalasi. Untuk bekerja pada source, lihat [pengembangan dan tes](docs/DEVELOPMENT.md).
 
-```bash
-make dev-up-full                 # + RabbitMQ, Elasticsearch, MinIO
-make injector-image              # image nmap + nuclei
-export ORCHIS_AMQP_URL=amqp://orchis:orchis@127.0.0.1:15672/ ORCHIS_ES_URL=http://127.0.0.1:19200 \
-  ORCHIS_S3_ENDPOINT=127.0.0.1:19000 ORCHIS_S3_ACCESS_KEY=orchis ORCHIS_S3_SECRET_KEY=orchis-dev-secret
-./bin/server serve &
-TOKEN=$(./bin/server injector-token nmap)        # ulangi untuk nuclei
-docker run -d --network host -e ORCHIS_SERVER_URL=http://127.0.0.1:8090 -e ORCHIS_INJECTOR_TOKEN=$TOKEN \
-  -e ORCHIS_AMQP_URL=$ORCHIS_AMQP_URL orchis-injector:dev --kind nmap
-```
+## Struktur repo
 
-Token injector juga bisa dibuat dari **Settings → Integrations**. Alamat loopback ditolak
-kecuali `ORCHIS_ALLOW_LOOPBACK_TARGETS=true` (hanya untuk pengembangan).
+| Lokasi | Isi |
+|---|---|
+| `cmd/` | Entry point server, agent, injector, dan utilitas rilis |
+| `internal/` | Domain, layanan, API, worker, dan tes Go |
+| `web/` | Aplikasi React dan tes frontend |
+| `migrations/` | Migrasi PostgreSQL; dijalankan sebelum server versi baru |
+| `deploy/` | Dockerfile, konfigurasi pengembangan/produksi, engine lock, dan CI |
+| `e2e/` | Fixture, tes browser, dan pemeriksaan alur lengkap |
+| `docs/` | Panduan produk, API, operasi, arsitektur, dan bukti audit |
+| `docker-compose.yaml` | Stack produksi; konfigurasi non-rahasia dari `.env` |
 
-### Agent endpoint
+`bin/`, `dist/`, `work/`, dan `node_modules/` adalah hasil lokal dan diabaikan Git.
+Setiap komponen Node (`web/`, `e2e/`, `deploy/report/`) memiliki lockfile sendiri;
+jalankan npm dengan `--prefix`, bukan dari root repo.
+Checkout engine privat berada di luar repo Orchis. Secret, token model, dan state
+produksi juga disimpan di luar checkout.
 
-```bash
-make agent-release VERSION=1.0.0          # bangun + tandatangani semua platform ke dist/agent
-make osquery-fetch                        # artefak osquery yang dipatok (diverifikasi SHA-256)
-go run ./cmd/agenttool -file deploy/osquery/osquery-5.24.0_1.linux_x86_64.tar.gz \
-  -key dist/release.key -out dist/agent   # sajikan osquery untuk agent Linux
-go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch amd64 \
-  -key dist/release.key -out dist/agent   # macOS Intel
-go run ./cmd/agenttool -file deploy/osquery/osqueryd-macos-bare-5.24.0.tar.gz -os darwin -arch arm64 \
-  -key dist/release.key -out dist/agent   # macOS Apple Silicon
-ORCHIS_AGENT_RELEASE_DIR=$PWD/dist/agent ./bin/server serve
-```
+## Dokumentasi
 
-Lalu **Organisations → organisasi → Install agent** memberi perintah pemasangan sekali pakai.
-Untuk rilis baru, gunakan versi lebih tinggi dan kunci yang **sama** agar agent terpasang dapat
-memperbarui diri. Simpan `dist/release.key` dengan aman: siapa pun yang memegangnya bisa merilis
-agent. Beberapa agent di satu mesin memerlukan nama instance berbeda (`--name`).
+- [Indeks dokumentasi](docs/README.md) — rute panduan menurut kebutuhan.
+- [Alur produk dan kesiapan aset](docs/FLOW.md), [peran pengguna](docs/ROLES.md).
+- [API dan Swagger/OpenAPI](docs/API.md), [skema laporan](docs/REPORT-SCHEMA.md).
+- [Operasi, upgrade, backup dan restore](docs/OPERASI.md).
+- [Arsitektur](docs/ARSITEKTUR.md), [kompatibilitas fitur historis](docs/FEATURE-COMPATIBILITY.md).
+- [Changelog](CHANGELOG.md), [lisensi](LICENSE), [komponen pihak ketiga](NOTICE).
 
-Build Windows, macOS, dan arm64 tersedia, tetapi belum dijalankan pada perangkat nyata.
+## Batasan
 
-### Renderer PDF
+DefenseBot mendukung koleksi endpoint Linux/macOS dengan cakupan pemetaan yang
+dijelaskan di panduannya; Windows dan distribusi RPM belum didukung.
+Hackbot memerlukan konfigurasi autentikasi model pada home worker persisten.
+Nmap/Nuclei berjalan dari jaringan server, sehingga hasil keterjangkauan mengikuti
+posisi scanner. Aset atau origin baru memerlukan persetujuan tersendiri.
 
-```bash
-npm --prefix deploy/report ci
-./deploy/report/node_modules/.bin/playwright install chromium
-node deploy/report/render.test.mjs   # membuktikan renderer tidak mengakses HTTP eksternal
-```
-
-MinIO harus dikonfigurasi untuk PDF. JSON tetap tersedia bila rendering PDF gagal.
-
-### Pengaturan lain
-
-- `ORCHIS_MITRE_URL`: sumber STIX ATT&CK (URL atau berkas di dev; `off` mematikan impor).
-  Produksi memakai bundel Enterprise beku dengan `ORCHIS_MITRE_SHA256` wajib. Lihat
-  [operasi MITRE](docs/OPERASI.md#attck-mitre-beku).
-
-## Data demo
-
-Data demo bertanda dan dapat dihapus kembali. Butuh database yang sudah dimigrasikan dan memiliki admin.
-
-```bash
-DEMO_SEED=7 make demo-seed
-make demo-status
-make demo-purge
-```
-
-Fixture mengisi organisasi, asset, agent, temuan, laporan, data endpoint, dan contoh fitur
-lanjutan. Hasil sintetis tidak dihitung sebagai hasil scan nyata, akun demo tidak dapat login,
-dan alamat berizin hanya loopback. Bila `cleanup_pending>0`, pulihkan backend lalu ulangi purge.
-Lihat [operasi data demo](docs/OPERASI.md#data-demo).
-
-## Deployment
-
-Instalasi server memakai satu `docker-compose.yaml` di root dan `.env.example`
-(layanan `migrate` berjalan sekali sebelum server). Langkahnya ada di
-[docs/DEPLOY.md](docs/DEPLOY.md). Agent dipasang dengan `install.sh` yang disajikan server di
-`/install.sh` (lihat [docs/PANDUAN.md](docs/PANDUAN.md) atau [docs/USER-GUIDE.md](docs/USER-GUIDE.md)).
-
-Image server, compose terisolasi, HTTPS lokal, renderer internal, backup terenkripsi dengan
-restore, dan metrik Prometheus/Grafana tersedia melalui target `make prod-*` dan
-`deploy/prod/ops.py`. Ikuti [docs/OPERASI.md](docs/OPERASI.md) untuk secret di luar repo,
-batas resource, dan prosedur upgrade (backup → migrate → start → smoke).
-
-Worker AI (fitur lanjutan, mati bawaan) memakai `deploy/ai/compose.yml` serta
-`ORCHIS_AI_ENCRYPTION_KEY` (32 byte acak, base64) dan `ORCHIS_AI_WORKER_TOKEN` (minimal 32 karakter).
-
-## Tes
-
-```bash
-make dev-up-full injector-image
-make mitre-fetch osquery-fetch     # artefak yang dipatok; flow14/15 gagal tanpa ini
-(cd e2e && npx playwright install chromium)
-make check                         # Go vet/test, frontend, seluruh flow E2E, egress AI
-```
-
-`make check` menjalankan tes backend dengan PostgreSQL, RabbitMQ, Elasticsearch, MinIO, dan
-scanner asli di container; tes frontend; serta flow E2E di Chromium termasuk pemeriksaan
-responsif (1280/834/390 px) dan aksesibilitas axe-core. Butuh juga dependensi renderer PDF.
-
-- Alur sederhana saja: `E2E_SCRIPT=flow16.mjs ./e2e/run.sh` (dua agent Linux, osquery/Nmap/Nuclei
-  nyata pada fixture lokal, PDF/JSON).
-- Bila broker RabbitMQ dipakai instalasi lain, buat vhost khusus tes dan set **keduanya**
-  `ORCHIS_TEST_AMQP_URL` dan `E2E_AMQP_URL` ke vhost itu. Hapus hanya vhost tes sesudahnya.
-
-Uji mutasi untuk cek keamanan berjalan di salinan terisolasi `work/` dan memulihkan kode setelahnya:
-
-```bash
-python3 e2e/mutation-organization-scope.py
-python3 e2e/mutation-scan-scope.py
-python3 e2e/mutation-endpoint-collection.py
-python3 e2e/mutation-report-snapshot.py
-python3 e2e/mutation-agent-address.py
-python3 e2e/mutation-core.py
-```
-
-## API lama
-
-`POST /api/v1/organizations/{id}/assessments` (profil `quick|full|web`, header `Idempotency-Key`
-wajib) masih tersedia untuk kompatibilitas. Alur baru memakai `POST /api/v1/scans`.
-
-### Peran pengguna
-
-Admin mengelola izin target, consent dan platform. Analyst mengelola inventaris,
-menjalankan scan pada target yang sudah diotorisasi dan membuat report. Viewer
-hanya membaca findings dan snapshot report. Migrasi peran lama tidak memperluas
-izin secara otomatis; akun yang terlalu sempit dinonaktifkan untuk ditinjau Admin.
-Lihat [kebijakan peran dan pemulihan upgrade](docs/ROLES.md).
-
-
-### Jendela scan dan stop darurat
-
-Admin mengatur jendela mingguan pada organisasi. **Stop all scans** pada detail
-organisasi atau Settings membatalkan antrean dan menghentikan scanner; scan baru
-ditahan sampai **Resume scanning**. Resume tidak mengulang job yang dihentikan.
-Lihat [aturan waktu, API dan pemulihan](docs/SCAN-CONTROLS.md).
-
-Perbandingan hasil Scan dan laporan: [aturan serta format snapshot](docs/SCAN-COMPARISON.md).
-
-Retensi data dan penghapusan organisasi: [docs/RETENTION.md](docs/RETENTION.md).
-
-Kontrol Admin, rollout dan uninstall agent: [docs/AGENT-CONTROLS.md](docs/AGENT-CONTROLS.md).
-
-Notifikasi: lihat [panduan notifikasi](docs/NOTIFICATIONS.md).
+Chains, Single tests/Atomic, AI, dan MITRE merupakan fitur lanjutan yang disembunyikan
+secara bawaan (`ORCHIS_ADVANCED_FEATURES=true`). Data dan API historis tetap mengikuti
+[batas kompatibilitas](docs/FEATURE-COMPATIBILITY.md).

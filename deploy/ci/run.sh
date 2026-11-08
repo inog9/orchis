@@ -19,6 +19,7 @@ npm --prefix web audit
 npm --prefix e2e audit
 npm --prefix deploy/report audit
 make check
+python3 -m unittest discover -s deploy/hackbot -p "*_test.py"
 python3 -m unittest discover -s deploy/prod -p "*_test.py"
 # Rules are executable configuration; test their firing conditions locally.
 promtool(){ docker run --rm --network none --read-only --tmpfs /tmp:size=32m,mode=1777 --cap-drop ALL --security-opt no-new-privileges:true --memory 128m --pids-limit 32 -v "$PWD/deploy/prod/monitoring:/rules:ro" -w /rules --entrypoint /bin/promtool prom/prometheus:v3.15.1@sha256:fa3302279710be2f21a8301ec17a8b4f2301fd829bd113839b3b6b02b6f191a2 "$@"; }

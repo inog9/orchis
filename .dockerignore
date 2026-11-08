@@ -11,3 +11,8 @@ e2e/shots
 **/*.key
 PROGRESS.md
 result-infra.txt
+
+# Documentation evidence and host-only caches are not application build inputs.
+docs/ui-audit/shots
+**/__pycache__
+**/*.pyc

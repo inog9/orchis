@@ -3,9 +3,19 @@
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Produk dan agent memakai nomor versi **terpisah**: agent menolak turun versi
 (anti-downgrade), jadi jalur versinya tidak boleh dipaksa sama dengan produk.
-Prosedur rilis agent ada di [README](README.md#agent-endpoint).
+Prosedur rilis agent ada di [panduan pengembangan](docs/DEVELOPMENT.md#agent-endpoint).
 
 ## Produk
+
+### [Unreleased]
+
+- Rapikan README, indeks dokumentasi, dan panduan pengembangan untuk UI v3 serta
+  Full assessment campuran per aset.
+- Periksa kedua checkout engine dan hash integrasinya sebelum memulai build produksi;
+  tampilkan petunjuk ketika source atau revisi yang dikunci tidak tersedia.
+- Selaraskan toolchain Go worker Hackbot dengan server dan teruskan versi build ke injector.
+- Tambahkan target Make dan tes untuk build Hackbot; keluarkan bukti gambar audit UI
+  serta cache Python dari konteks build, dan hapus lockfile npm root yang tidak dipakai.
 
 ### [1.0.0] — belum dirilis
 

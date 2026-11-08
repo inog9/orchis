@@ -1,7 +1,7 @@
 # DefenseBot
 
 DefenseBot maps the software installed on an enrolled endpoint to known vulnerabilities and lists a short set of
-hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, Hackbot Lite). A person decides when it
+hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, then the OpenCode/Hackbot worker). A person decides when it
 runs: press **Run DefenseBot** on an asset that has an agent.
 
 ## Flow

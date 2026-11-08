@@ -113,3 +113,21 @@ class HackbotSetup(unittest.TestCase):
    self.assertEqual((state/'hackbot.json').read_bytes(),first)
    self.assertEqual((state/'hackbot.json').stat().st_mode&0o777,0o600)
    provision=json.loads((state/'provision.json').read_text());self.assertEqual(provision['ORCHIS_PROVISION_HACKBOT_TOKEN'],token);self.assertEqual(provision['ORCHIS_PROVISION_NMAP_TOKEN'],'oij_'+('h'*43))
+
+
+class BuildPreflight(unittest.TestCase):
+ def test_invalid_engine_source_stops_before_compose_build(self):
+  import subprocess
+  with tempfile.TemporaryDirectory() as directory, mock.patch('sys.argv',['ops.py','build','--state',directory]), mock.patch.object(ops,'compose') as compose, mock.patch.object(ops.subprocess,'run',side_effect=subprocess.CalledProcessError(1,['build.py','--check'])) as run:
+   with self.assertRaises(subprocess.CalledProcessError):ops.main()
+   self.assertEqual(run.call_args.args[0],['python3',str(ops.REPO/'deploy/hackbot/build.py'),'--check'])
+   compose.assert_not_called()
+
+ def test_builds_engines_before_dependent_workers(self):
+  with tempfile.TemporaryDirectory() as directory, mock.patch('sys.argv',['ops.py','build','--state',directory]):
+   calls=mock.Mock()
+   with mock.patch.object(ops,'compose',calls.compose), mock.patch.object(ops.subprocess,'run',calls.run):ops.main()
+   self.assertEqual([call[0] for call in calls.mock_calls],['run','compose','run','compose'])
+   self.assertEqual(calls.run.call_args_list[0].args[0][-1],'--check')
+   self.assertEqual(calls.compose.call_args_list[0].args[1:],('build','server','renderer'))
+   self.assertEqual(calls.compose.call_args_list[1].args[1:],('build','nmap','hackbot','defensebot'))

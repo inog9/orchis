@@ -6,12 +6,16 @@ belum dibuktikan. Ikuti batasan runtime dan platform pada bagian terkait.
 
 ## Menyiapkan satu instalasi terisolasi
 
-Prasyarat: Linux amd64, Docker Engine + Compose v2, Python 3.12+, akses registry
+Prasyarat: Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Python 3.12+, akses registry
 image dan modul saat build, serta ruang/RAM sesuai batas di compose. Go dan Node
 host tidak diperlukan untuk image server: frontend dan biner dibangun dalam
 multi-stage Dockerfile. Runtime server statis memakai UID 10001, rootfs hanya
 baca, tanpa capability. PostgreSQL/RabbitMQ/Elasticsearch/MinIO tidak memublikasikan
 port host. Server hanya dapat dijangkau melalui Caddy pada port HTTPS loopback.
+
+Siapkan kedua checkout engine privat dan jalankan `make hackbot-check` sebelum
+build; revisi dan hash mengikuti [panduan engine](../deploy/hackbot/README.md).
+Go/Node host juga tidak dibutuhkan untuk image worker: binary dibuat dalam Docker.
 
 Jalankan sebagai operator root agar secret 0600 dapat dimiliki UID container:
 

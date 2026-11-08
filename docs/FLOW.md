@@ -31,7 +31,7 @@ internal Hackbot dan tidak pernah ditampilkan di UI.
  Detail pindai (satu baris engine per aset)
     │  Hackbot:      Bersiap → Menguji → Menyusun laporan
     │  DefenseBot:   Menunggu pemindai → Mengumpulkan → Mencocokkan
-    │  Full assessment: sisi luar selesai lebih dulu, lalu DefenseBot
+    │  Full assessment: engine dipilih per aset (URL, agent, atau keduanya)
     ▼
  Temuan
     │  metode (luar/dalam), sumber severity, status perbaikan,
@@ -42,6 +42,11 @@ internal Hackbot dan tidak pernah ditampilkan di UI.
     ▼
  Perbaiki → Retest → "resolved / still present" (cakupan parsial tidak pernah mengklaim resolved)
 ```
+
+Full assessment menerima aset campuran dalam satu pindai: aset dengan URL yang disetujui
+menjalankan Hackbot, aset dengan agent menjalankan DefenseBot, dan aset dengan keduanya
+menjalankan kedua engine. DefenseBot menunggu Nmap aset yang sama bila tahap itu ada;
+ia tidak menunggu seluruh pentest Hackbot selesai.
 
 ## Siapa boleh apa
 

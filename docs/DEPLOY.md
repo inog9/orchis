@@ -1,17 +1,34 @@
 # Menjalankan Orchis dengan Docker Compose
 
 Satu berkas `docker-compose.yaml` di root repo menjalankan seluruh stack: server, PostgreSQL, RabbitMQ,
-Elasticsearch, MinIO, renderer PDF, injector Nmap/Nuclei, dan Caddy (HTTPS). Layanan `migrate` berjalan
+Elasticsearch, MinIO, renderer PDF, worker Nmap/Nuclei, Hackbot/OpenCode, DefenseBot, dan Caddy (HTTPS). Layanan `migrate` berjalan
 sekali sebelum server (migrasi lalu provisioning); server baru start setelah keduanya sukses.
+
+## Prasyarat build
+
+Gunakan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, dan Python 3.12+.
+Siapkan **kedua checkout privat** (`orchis-hackbot-lite` dan
+`orchis-opencode-hackbot`) sesuai revisi dan hash di
+[`engine-lock.json`](../deploy/hackbot/engine-lock.json). Lihat
+[panduan setup engine](../deploy/hackbot/README.md#build-and-configure).
+
+```bash
+make hackbot-check                       # berhenti dengan petunjuk bila source/pin tidak cocok
+```
+
+Lokasi bawaan adalah direktori saudara repo Orchis. Gunakan
+`ORCHIS_HACKBOT_SOURCE` dan `ORCHIS_OPENCODE_SOURCE` untuk lokasi lain.
+`prod-build` memeriksa keduanya sebelum memulai build image server atau engine.
+Akun operator build harus dapat membaca source tersebut dan mengakses Docker.
 
 ## Langkah
 
 ```bash
 sudo make prod-init                      # rahasia acak di /var/lib/orchis (di luar checkout, izin 0600)
-python3 deploy/prod/ops.py env > .env    # nilai non-rahasia untuk compose (lihat .env.example)
-make prod-build                          # bangun image server, renderer, injector
-make prod-up                             # docker compose up + tunggu health dan heartbeat injector
-make prod-probe                          # HTTPS, login, renderer
+sudo python3 deploy/prod/ops.py env > .env    # nilai non-rahasia untuk compose (lihat .env.example)
+sudo make prod-build                     # server, renderer, scanner, engine dan worker Hackbot
+sudo make prod-up                        # docker compose up + tunggu health dan heartbeat injector
+sudo make prod-probe                     # HTTPS, login, renderer
 ```
 
 Login pertama memakai `/var/lib/orchis/initial-admin.json` (email dan password acak); ganti password setelah masuk.
@@ -23,7 +40,7 @@ karena menunggu seluruh health check dan memastikan migrasi sukses.
 
 ## HTTPS (self-signed dahulu)
 
-Caddy memakai CA internalnya sendiri (`tls internal`). Sertifikat tidak dikenal browser sampai CA
+Bawaan Caddy memakai CA internalnya sendiri (`tls internal`). Sertifikat tidak dikenal browser sampai CA
 dipercaya. Root CA diambil dari `https://<host>:<port>/ca.pem`; sidik jarinya dicetak oleh
 
 ```bash
@@ -31,7 +48,9 @@ python3 deploy/prod/ops.py ca-fingerprint
 ```
 
 Bandingkan sidik jari itu lewat jalur lain sebelum mempercayai CA. Bila nanti ada domain publik,
-ganti `tls internal` di `deploy/prod/Caddyfile` dengan ACME; rahasia dan data tidak berubah.
+konfigurasikan `ORCHIS_TLS` dan `ORCHIS_AUTO_HTTPS` pada environment Compose Caddy
+serta port/DNS untuk ACME; rahasia dan data tidak berubah. Lihat Caddyfile dan
+[operasi HTTPS](OPERASI.md#https-dan-akses-awal).
 
 ## Backup
 

@@ -78,7 +78,7 @@ ai-image: ## Bangun worker/proxy AI non-root; tidak membutuhkan API key untuk bu
 .PHONY: prod-init prod-build prod-up prod-down prod-status
 prod-init: ## Buat secret di luar checkout (root; ORCHIS_STATE opsional)
 	python3 deploy/prod/ops.py init
-prod-build: ## Bangun image server/web, renderer dan scanner
+prod-build: ## Validasi engine lalu bangun server/web, renderer, scanner dan Hackbot
 	python3 deploy/prod/ops.py build
 prod-mitre-config: ## Terapkan pin MITRE checkout pada konfigurasi project terpilih; restart eksplisit sesudah build
 	python3 deploy/prod/ops.py mitre-config
@@ -111,3 +111,17 @@ prod-smoke: ## Stack baru lokal, scan nyata, PDF, backup terenkripsi, restore te
 .PHONY: volume-study
 volume-study: ## Ukur sintetis 50 organisasi/5000 aset/200000 temuan pada DB/ES disposable
 	python3 deploy/ci/volume.py
+
+.PHONY: hackbot-check hackbot-engines hackbot-image build-test
+hackbot-check: ## Periksa checkout engine dan hash integrasi tanpa Docker
+	python3 deploy/hackbot/build.py --check
+
+hackbot-engines: ## Bangun kedua engine dari checkout yang dikunci
+	python3 deploy/hackbot/build.py
+
+hackbot-image: hackbot-engines ## Bangun worker Hackbot dari kode checkout ini
+	docker build --build-arg VERSION=$(or $(VERSION),local) -f deploy/hackbot/Dockerfile -t orchis-hackbot-worker:$(or $(VERSION),local) .
+
+build-test: ## Tes validasi source engine dan orkestrasi build, tanpa Docker
+	python3 -m unittest discover -s deploy/hackbot -p '*_test.py'
+	python3 -m unittest discover -s deploy/prod -p 'ops_test.py'

@@ -257,6 +257,7 @@ def main():
             from mitre_config import configure
             configure(args,REPO,private)
         elif args.command=="build":
+            subprocess.run(["python3",str(REPO/"deploy/hackbot/build.py"),"--check"],check=True)
             compose(args,"build","server","renderer")
             subprocess.run(["python3",str(REPO/"deploy/hackbot/build.py")],check=True)
             compose(args,"build","nmap","hackbot","defensebot")
