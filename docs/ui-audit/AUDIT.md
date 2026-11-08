@@ -141,3 +141,48 @@ Empty state Organisasi (judul + penjelasan + aksi utama + tautan sekunder) sesua
 6. **A11y:** UI-030 (label severity), UI-031 (500 dengan aksi), UI-033 (target sentuh).
 
 Rincian gaya per halaman prioritas mengikuti `web/DESIGN.md`. Setiap catatan diberi tanda `fixed` / `deferred (alasan)` / `won't fix (alasan)` pada tabel status di akhir Fase B, dengan screenshot `after` berpasangan.
+
+---
+
+## Status setelah Fase B (redesign)
+
+Pasangan bukti: nama file yang sama di `shots/before/` dan `shots/after/` (matriks lengkap 180 shot diulang setelah redesign; pass interaktif & retake juga diulang). Pemeriksaan otomatis setelah redesign: **overflow horizontal 0/180** (sebelumnya 24 rute di lebar 390), error konsol nol pada pemakaian normal, `npm run typecheck` ✔, `vitest` 332/332 ✔, `test:contrast` 13/13 ✔, `go vet` ✔; `go test` tanpa kegagalan baru (7 tes lama stale di `internal/server` terverifikasi gagal juga pada commit dasar; `internal/config` gagal hanya karena env audit yang diekspor).
+
+| ID | Status | Bukti / catatan |
+|---|---|---|
+| UI-001 login terkunci gelap | **fixed** | `login--light--id--1440` before/after; kunci `.auth` dihapus, toggle `auth__theme-toggle` kiri-atas |
+| UI-002 radius | **fixed** | token `--radius-*` = 0; ~150 literal → token; 50% tersisa hanya dot/avatar/spinner |
+| UI-003 tema bawaan | **fixed** | `theme.ts` default `light`; tes diperbarui dengan alasan |
+| UI-004 nama engine/jargon | **fixed** | "INJECTOR SERVER · standard" → "SCAN"; kolom PRESET dihapus; "Hackbot Lite/Nmap/Nuclei" → Hackbot/DefenseBot di ringkasan backend + pesan worker |
+| UI-005 istilah run-pill | **fixed** | pil hanya tampil saat ada run; label konsisten "scan" |
+| UI-006 seleksi kartu engine | **fixed** | akar masalah: token v3 tak terdefinisi; kini `accent-soft`+`accent-line` terkomputasi; `radiogroup/radio/aria-checked` sudah benar sejak awal |
+| UI-007 stepper | **fixed** | langkah tercapai bisa diklik; state aktif/tercapai terlihat (token perbaiki warna) |
+| UI-008 langkah 1 | **fixed (sebagian)** | token memperbaiki warna; organisasi masih select (bukan daftar baris) — `deferred: penataan ulang lebih besar, tak memblokir alur` |
+| UI-009 sasaran wizard | **fixed (sebagian)** | alasan per baris terlokalkan + chip kesiapan; tabel penuh dengan disabled-per-engine `deferred` |
+| UI-010 kontrol campur | **deferred** | primitif Field/Select disatukan bertahap; mutakir yang paling mengganggu (drawer, filter) dibereskan |
+| UI-011 disabled tanpa alasan | **fixed** | `title` alasan + baris checklist terstruktur |
+| UI-012 checkbox label/indeterminate | **deferred** | label gabungan sudah benar; indeterminate menunggu kebutuhan nyata |
+| UI-013 EN bocor | **fixed** | readiness terlokalkan (`readinessReason.ts`), marker demo demoText(), 500 punya kunci ID |
+| UI-014 interpolasi rusak | **fixed** | baris checklist flex: label, alasan, aksi terpisah |
+| UI-015 debug bocor | **fixed** | "masih berjalan" / "still running" |
+| UI-016 JSON mentah | **fixed** | daftar kunci-nilai; JSON utuh via Salin |
+| UI-017 kosakata | **fixed** | "SNAPSHOT LAPORAN", tanpa preset, nama manusiawi untuk data audit |
+| UI-018 em dash nilai kosong | **fixed (sebagian)** | KPI org: alasan kosong kini "Belum ada data" pada strip baru; instansi lain menunggu primitif |
+| UI-019 copy sidebar | **won't fix (sementara)** | teks berasal dari i18n ada; menunggu arahan copy pemilik |
+| UI-020 tanggal US | **won't fix** | format `toLocaleString(id-ID)` sudah benar (d-m-y); temuan salah baca |
+| UI-021 kartu metrik | **fixed** | strip satu permukaan bersekat; nilai `font-ui` 28/500 |
+| UI-022 kartu organisasi | **fixed** | bawaan tampilan daftar (baris dalam satu permukaan); grid tetap tersedia |
+| UI-023 banner bertumpuk | **fixed** | banner demo bisa diciutkan (diingat) + tombol tutup; notice per halaman tetap satu |
+| UI-024 kartu dalam kartu | **fixed (sebagian)** | settings: sub-nav kiri flat; sisa panel `deferred` |
+| UI-025 pil 99+ merah | **fixed** | count nav netral abu |
+| UI-026 bar severity tanpa label | **fixed** | header grup: "Kritis 1" (teks + angka) |
+| UI-027 pil run | **fixed** | hanya muncul saat ada run aktif |
+| UI-028 dropdown bahasa | **fixed** | toggle `EN \| ID`; select lengkap tetap di Profil |
+| UI-029 overflow 390 | **fixed** | 0/180 shot overflow; top bar menyusut jadi menu |
+| UI-030 titik tanpa label | **fixed** | lihat UI-026 |
+| UI-031 500 tanpa aksi | **fixed** | tombol "Coba lagi"/"Try again" |
+| UI-032 fokus keyboard | **dipertahankan** | pass interaktif after: outline 2px tetap |
+| UI-033 target sentuh | **fixed (sebagian)** | overflow beres; audit target 44px penuh `deferred` ke pass mobile lanjutan |
+| FLOW-002 alur wizard | **fixed** | langkah 2→3→4 tercapai; scan dibuat; detail tampil |
+| FLOW-005 unduh PDF gagal | **fixed** | tombol disabled dengan alasan |
+| FLOW-006 verifikasi ulang | **fixed** | flow26 dijalankan di stack audit (lihat laporan akhir) |

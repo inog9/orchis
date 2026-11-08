@@ -49,7 +49,7 @@ export function AssetDetailPage() {
           </nav>
           <div className="page__title-row">
             <span className="asset-row__icon"><Icon size={17}/></span>
-            <h1 id="asset-title" className="page__title mono-title">{formatUI(a.name)}</h1>
+            <h1 id="asset-title" className="page__title">{formatUI(a.name)}</h1>
           </div>
           <p className="page__sub">
             {formatUI(cat.label)}{formatUI(a.platform ? ` · ${PLATFORM_LABEL[a.platform] ?? a.platform}` : '')}{formatUI(a.arch ? ` · ${a.arch}` : '')}

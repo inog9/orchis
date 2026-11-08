@@ -3,11 +3,11 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 
-const POP = 'http://127.0.0.1:18190';
-const EMPTY = 'http://127.0.0.1:18191';
+const POP = process.env.AUDIT_POP || 'http://127.0.0.1:18190';
+const EMPTY = process.env.AUDIT_EMPTY || 'http://127.0.0.1:18191';
 for (const u of [POP, EMPTY]) { const p = new URL(u); if (p.hostname !== '127.0.0.1' || p.protocol !== 'http:') throw new Error('hanya 127.0.0.1 http'); }
-const OUT = 'docs/ui-audit/shots/before';
-const REPORT = 'docs/ui-audit/harvest.json';
+const OUT = process.env.AUDIT_OUT || 'docs/ui-audit/shots/before';
+const REPORT = process.env.AUDIT_REPORT || 'docs/ui-audit/harvest.json';
 await mkdir(OUT, { recursive: true });
 
 const ADMIN = { email: 'admin@orchis.local', password: 'Orchis-Dev-Pass-1' };

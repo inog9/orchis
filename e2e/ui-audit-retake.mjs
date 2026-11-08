@@ -2,7 +2,7 @@
 import { chromium } from 'playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 const POP = 'http://127.0.0.1:18190';
-const OUT = '/root/work/orchis-ui-v3/docs/ui-audit/shots/before';
+const OUT = process.env.AUDIT_OUT || '/root/work/orchis-ui-v3/docs/ui-audit/shots/before';
 await mkdir(OUT, { recursive: true });
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });

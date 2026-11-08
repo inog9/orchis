@@ -87,7 +87,8 @@ describe('FindingsPage', () => {
     const btn = (await screen.findByText('Judul tinggi')).closest('button')!;
     await userEvent.click(btn);
     const dlg = await screen.findByRole('dialog', { name: 'Judul tinggi' });
-    expect(within(dlg).getByText(/"k": 1/)).toBeInTheDocument();
+    expect(within(dlg).getAllByText('k').length).toBeGreaterThan(0); // rincian kini pasangan kunci-nilai, JSON utuh lewat Salin (AUDIT UI-016)
+    expect(within(dlg).getByText('1', { exact: true })).toBeInTheDocument();
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(btn).toHaveFocus();

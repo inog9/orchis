@@ -10,7 +10,7 @@
   },
   {
    "id": "W4",
-   "msg": "probe engine: [{\"text\":\"Pentest web (Hackbot)Hackbot m\",\"cls\":\"wiz-card\",\"bg\":\"rgba(0, 0, 0, 0)\",\"border\":\"rgb(24, 24, 27)\",\"aria\":\"false\"},{\"text\":\"Penilaian penuhKedua engine pa\",\"cls\":\"wiz-card\",\"bg\":\"rgba(0, 0, 0, 0)\",\"border\":\"rgb(24, 24, 27)\",\"aria\":\"false\"}]"
+   "msg": "probe engine: [{\"text\":\"Pentest web (Hackbot)Hackbot m\",\"cls\":\"wiz-card\",\"bg\":\"rgb(255, 255, 255)\",\"border\":\"rgb(228, 228, 231)\",\"aria\":\"false\"},{\"text\":\"Penilaian penuhKedua engine pa\",\"cls\":\"wiz-card\",\"bg\":\"rgb(255, 255, 255)\",\"border\":\"rgb(228, 228, 231)\",\"aria\":\"false\"}]"
   },
   {
    "id": "W5",
@@ -18,7 +18,7 @@
   },
   {
    "id": "W6",
-   "msg": "probe sasaran: [{\"text\":\"Bahasa\",\"bg\":\"rgba(0, 0, 0, 0)\",\"checkbox\":false,\"disabled\":false},{\"text\":\"OrganisasiPilih organisasiVantage Technology (Demo\",\"bg\":\"rgba(0, 0, 0, 0)\",\"checkbox\":false,\"disabled\":false}]"
+   "msg": "probe sasaran: [{\"text\":\"OrganisasiPilih organisasiVantage Technology (Demo\",\"bg\":\"rgba(0, 0, 0, 0)\",\"checkbox\":false,\"disabled\":false}]"
   },
   {
    "id": "W7",
@@ -38,7 +38,7 @@
   },
   {
    "id": "K1",
-   "msg": "tab order: [{\"tag\":\"A\",\"name\":\"Lewati ke konten\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Cari atau buka (Ctrl K)\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"1 eksekusi aktif. PT Audit\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Baru\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Notifikasi, 12 belum dibac\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Beralih ke tema gelap\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"SELECT\",\"name\":\"EnglishIndonesia\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Admin · Platform default\",\"outline\":\"solid 2px\",\"ring\":false}]"
+   "msg": "tab order: [{\"tag\":\"A\",\"name\":\"Lewati ke konten\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Cari atau buka (Ctrl K)\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Baru\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Notifikasi, 16 belum dibac\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Beralih ke tema gelap\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"EN\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"ID\",\"outline\":\"solid 2px\",\"ring\":false},{\"tag\":\"BUTTON\",\"name\":\"Admin · Platform default\",\"outline\":\"solid 2px\",\"ring\":false}]"
   },
   {
    "id": "L1",
