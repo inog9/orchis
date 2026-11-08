@@ -597,6 +597,45 @@ func TestRunMapsAMacApplicationThroughTheDictionary(t *testing.T) {
 	}
 }
 
+func TestAMacRunRequiresTheAppListNotLinuxPackages(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, nil, nil)})
+	found := false
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" {
+			found = true
+			if !strings.Contains(note.Detail, QueryApps) {
+				t.Fatalf("macOS harus dituntut daftar aplikasi, bukan paket Linux: %+v", note)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("tanpa daftar aplikasi harus ada dataset_missing: %+v", out.Summary.Notes)
+	}
+}
+
+func TestAMacRunWithTheAppListHasNoMissingDataset(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps:      {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Cursor.app", "bundle_identifier": "com.todesktop.230313mzl4w4u92", "version": "1.3.0"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" {
+			t.Fatalf("daftar aplikasi ada, tidak boleh ada dataset_missing: %+v", note)
+		}
+	}
+	if out.Summary.Findings != 1 {
+		t.Fatalf("summary: %+v", out.Summary)
+	}
+}
+
 func TestADeadNVDMakesTheRunIncompleteNotClean(t *testing.T) {
 	n, _, _ := fakeNVD(t, http.StatusServiceUnavailable)
 	at := time.Now()

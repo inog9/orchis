@@ -73,10 +73,17 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 		addNote(n)
 	}
 	// Collection coverage.
-	for _, key := range RequiredQueries {
-		if _, _, ok := okRows(in, key); !ok {
-			d := in.Datasets[key]
-			addNote(Note{Code: "dataset_missing", Detail: key + dsReason(d), Limiting: true})
+	for _, group := range requiredGroups(p.Platform) {
+		present := false
+		for _, key := range group {
+			if _, _, ok := okRows(in, key); ok {
+				present = true
+				break
+			}
+		}
+		if !present {
+			d := in.Datasets[group[0]]
+			addNote(Note{Code: "dataset_missing", Detail: strings.Join(group, " / ") + dsReason(d), Limiting: true})
 		}
 	}
 	var oldest *time.Time

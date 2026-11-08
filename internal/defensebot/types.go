@@ -32,8 +32,15 @@ const (
 // Queries lists every osquery check a DefenseBot run reads, in a stable order.
 var Queries = []string{QueryOSRelease, QueryPackages, QueryNPM, QueryApps, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
 
-// RequiredQueries must have data for a run to produce anything useful.
-var RequiredQueries = []string{QueryOSRelease, QueryPackages}
+// requiredGroups mengembalikan data yang wajib ada agar satu run berguna, per platform.
+// Setiap grup adalah alternatif yang saling menggantikan: cukup satu anggota terkumpul.
+// macOS tidak pernah punya paket deb/rpm, jadi daftar software-nya adalah aplikasi atau Homebrew.
+func requiredGroups(platform string) [][]string {
+	if platform == "darwin" {
+		return [][]string{{QueryOSRelease}, {QueryApps, QueryBrew}}
+	}
+	return [][]string{{QueryOSRelease}, {QueryPackages}}
+}
 
 // DatasetInput is the latest stored result of one check for the asset, as prepared by the server.
 type DatasetInput struct {
