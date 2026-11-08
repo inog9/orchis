@@ -502,9 +502,16 @@ func defenseHTML(lang string, s Snapshot) template.HTML {
 			}
 			b.WriteString(`</ul>`)
 		}
-		if len(sum.Notes) > 0 {
+		var shown []defensebot.Note
+		for _, n := range sum.Notes {
+			if n.Code == "apps_unmapped" || n.Code == "dataset_missing" {
+				continue // informasi redundan: tidak ditampilkan di laporan
+			}
+			shown = append(shown, n)
+		}
+		if len(shown) > 0 {
 			b.WriteString(`<h4>` + esc(tr(lang, "Coverage notes", "Catatan cakupan")) + `</h4><ul>`)
-			for _, n := range sum.Notes {
+			for _, n := range shown {
 				b.WriteString(`<li>` + esc(noteText(lang, n)) + `</li>`)
 			}
 			b.WriteString(`</ul>`)

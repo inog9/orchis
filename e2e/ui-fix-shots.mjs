@@ -7,7 +7,10 @@ await page.locator('input[type=email]').first().fill('admin@orchis.local'); awai
 await ctx.request.patch(POP+'/api/v1/auth/preferences',{headers:{'X-Requested-With':'orchis-web'},data:{ui_language:'en'}});
 const api=async p=>(await ctx.request.get(POP+'/api/v1'+p,{headers:{'X-Requested-With':'orchis-web'}})).json();
 const assets=(await api('/assets?limit=100')).items; const a=assets.find(x=>x.category==='web_application')||assets[0];
-const rep=(await api('/reports')).items[0]; const scan=((await api('/scans')).items||[])[0]; const grp=(await api('/asset-groups')).items?.[0]; const org=(await api('/organizations')).items[0];
-const T=[['asset','/assets/'+a.id],['report','/reports/'+rep.id],['group','/assets/groups/'+grp.id],['org','/organizations/'+org.id+'?tab=overview']]; if(scan) T.push(['scan','/simulations/'+scan.id]);
-for (const [n,p] of T){await page.goto(POP+p,{waitUntil:'networkidle'}); await page.waitForTimeout(700); await page.screenshot({path:OUT+'/'+n+'.png',fullPage:false});}
+await page.goto(POP+'/findings',{waitUntil:'networkidle'}); await page.waitForTimeout(800);
+await page.getByText('Open Port (demo)').first().click(); await page.waitForTimeout(800); await page.screenshot({path:OUT+'/drawer.png'});
+await page.keyboard.press('Escape');
+await page.goto(POP+'/organizations',{waitUntil:'networkidle'}); await page.getByRole('button',{name:/Create organisation/}).first().click(); await page.waitForTimeout(500); await page.locator('input').first().focus().catch(()=>{}); await page.locator('dialog input, [role=dialog] input').first().focus(); await page.waitForTimeout(300); await page.screenshot({path:OUT+'/inputfocus.png'});
+await page.keyboard.press('Escape');
+await page.goto(POP+'/assets/'+a.id,{waitUntil:'networkidle'}); await page.waitForTimeout(600); await page.evaluate(()=>window.scrollTo(0,document.body.scrollHeight)); await page.screenshot({path:OUT+'/asset-bottom.png'});
 await b.close();

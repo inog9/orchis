@@ -136,7 +136,7 @@ describe('DefenseBot panel', () => {
     expect(within(adv).getByText('4')).toBeInTheDocument();
     expect(within(screen.getByText('Known exploited').parentElement!).getByText('1')).toBeInTheDocument();
     expect(screen.getByText(/Incomplete result/)).toBeInTheDocument();
-    expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
+    expect(screen.queryByText('3 applications could not be mapped to vulnerability data.')).toBeNull();
     expect(screen.getByRole('link', { name: 'Open report' })).toHaveAttribute('href', '/reports?assessment_id=s1');
     expect(screen.getByRole('link', { name: 'Open scan' })).toHaveAttribute('href', '/simulations/s1');
     expect(screen.queryByText('Installed packages')).toBeNull();

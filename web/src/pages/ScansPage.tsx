@@ -6,6 +6,7 @@ import { StatusBadge } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
 import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
 import { engineLabel, engineRows, engineSetLabel } from '../lib/engines';
+import { defenseWhyIncomplete } from '../components/DefenseNotes';
 import { SeverityBadge } from '../components/RunBadges';
 import './sims.css';
 import './newscan.css';
@@ -127,7 +128,7 @@ export function ScanDetailPage() {
               <span role="cell">{e.stage || '—'}</span>
               <span role="cell"><StatusBadge status={e.status}/></span>
               <span role="cell" className="mono">{e.findings}</span>
-              <span role="cell" className="sims__note"><span>{formatUI(e.error || '—')}</span>{e.engine === 'DefenseBot' && e.jobs[0]?.defense && <span className="muted small">{textUI("m_def_job_note", [e.jobs[0].defense.findings, e.jobs[0].defense.known_exploited])}</span>}</span>
+              <span role="cell" className="sims__note"><span>{formatUI(e.error || (e.engine === 'DefenseBot' && e.status === 'incomplete' && e.jobs[0]?.defense ? defenseWhyIncomplete(e.jobs[0].defense.notes) : '—'))}</span>{e.engine === 'DefenseBot' && e.jobs[0]?.defense && <span className="muted small">{textUI("m_def_job_note", [e.jobs[0].defense.findings, e.jobs[0].defense.known_exploited])}</span>}</span>
             </div>)}
           </div></div>)}
       </section>

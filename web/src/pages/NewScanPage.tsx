@@ -42,7 +42,7 @@ export function NewScanPage() {
     }, [allAssets, readiness.data]);
     const webReady = (r?: ReadinessItem) => !!r && !r.web_reason;
     const defReady = (r?: ReadinessItem) => !!r && !r.defense_reason;
-    const eligible = (k: EngineKind | '', r?: ReadinessItem) => k === '' ? false : k === 'web' ? webReady(r) : k === 'defense' ? defReady(r) : webReady(r) && defReady(r);
+    const eligible = (k: EngineKind | '', r?: ReadinessItem) => k === '' ? false : k === 'web' ? webReady(r) : k === 'defense' ? defReady(r) : webReady(r) || defReady(r);
     const reasonFor = (k: EngineKind | '', r?: ReadinessItem) =>
         !r ? textUI('flow_wiz_empty') : localizeReason(k === 'web' ? r.web_reason : k === 'defense' ? r.defense_reason : r.web_reason || r.defense_reason);
     const fixFor = (k: EngineKind | '', r?: ReadinessItem) => {

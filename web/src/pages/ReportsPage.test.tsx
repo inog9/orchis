@@ -11,7 +11,7 @@ it('shows tested/skipped/incomplete counts and failure before opening methodolog
  mount([asset('tested','finished',[method('success')]),asset('failed','finished',[method('error','Web endpoint unreachable <img src=x>')]),asset('unapproved','skipped',[],'Not authorized'),asset('no-address','skipped',[],'No address')]);
  expect(await screen.findByText('4 assets in scope · 1 fully tested · 2 skipped · 1 incomplete')).toBeInTheDocument();
  expect(screen.getByText('nuclei.scan: Web endpoint unreachable <img src=x>')).toBeVisible();expect(document.querySelector('img')).toBeNull();
- expect(screen.getByRole('heading',{name:'Vulnerabilities by severity'})).toBeInTheDocument();
+ expect(screen.getByRole('group',{name:'Vulnerabilities by severity'})).toBeInTheDocument();
  expect(screen.getAllByText('Methodology and execution')).toHaveLength(2);expect(document.querySelector('details[open]')).toBeNull();
 });
 it('does not count a finished asset without methods as fully tested',async()=>{
@@ -39,7 +39,7 @@ it('shows endpoint posture with the outside-vs-inside port comparison',async()=>
 });
 it('has no endpoint section when no asset reported endpoint data',async()=>{
  mount([{id:'a',name:'Asset A',status:'finished',methods:[],skip_reason:'',findings:[]}]);
- await screen.findByText('Vulnerabilities by severity');
+ await screen.findByRole('group',{name:'Vulnerabilities by severity'});
  expect(screen.queryByText('Endpoint posture')).toBeNull();
 });
 it('caps a long list of endpoint findings in the report table',async()=>{

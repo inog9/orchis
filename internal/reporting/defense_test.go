@@ -45,7 +45,7 @@ func TestDefenseChapterIsOrderedByRiskAndEscaped(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(out)
-	for _, want := range []string{"Software vulnerabilities (DefenseBot)", "Fleet overview", "Fix first", "Most affected software", "Hardening gaps", "ASLR is not fully enabled", "Coverage notes", "3 applications could not be mapped", "Incomplete result."} {
+	for _, want := range []string{"Software vulnerabilities (DefenseBot)", "Fleet overview", "Fix first", "Most affected software", "Hardening gaps", "ASLR is not fully enabled", "Incomplete result."} {
 		if !strings.Contains(page, want) {
 			t.Errorf("report lacks %q", want)
 		}

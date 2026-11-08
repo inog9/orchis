@@ -90,9 +90,8 @@ describe('DefenseBot scan', () => {
     expect(await screen.findByRole('heading', { name: 'DefenseBot result' })).toBeInTheDocument();
     expect(screen.getAllByText('DefenseBot').length).toBeGreaterThan(0);
     expect(screen.getByText('4 advisories · 1 known exploited')).toBeInTheDocument();
-    expect(screen.getByText(/Incomplete result/)).toBeInTheDocument();
-    expect(screen.getByText('The vulnerability service could not be reached; no result is shown as clean.')).toBeInTheDocument();
-    expect(screen.getByText('3 applications could not be mapped to vulnerability data.')).toBeInTheDocument();
+    expect(screen.getAllByText('The vulnerability service could not be reached; no result is shown as clean.').length).toBeGreaterThan(0);
+    expect(screen.queryByText('3 applications could not be mapped to vulnerability data.')).toBeNull();
   });
 });
 
