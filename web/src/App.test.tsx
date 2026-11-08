@@ -12,7 +12,8 @@ vi.mock('./pages/ChainWorkspacePage',()=>({ChainWorkspacePage:()=> <h1>Advanced 
 function mount(path:string){render(<QueryClientProvider client={new QueryClient()}><MemoryRouter initialEntries={[path]}><App/></MemoryRouter></QueryClientProvider>)}
 afterEach(()=>{state.advanced=false});
 describe('Runtime advanced routes',()=>{
- it.each(['/chains','/chains/example','/atomic','/mitre','/organizations/example/ai','/ai/jobs/example','/overview'])('hides %s with the default server flag',async path=>{mount(path);expect(await screen.findByRole('heading',{name:'Organisation hub'})).toBeVisible()});
+ it.each(['/chains','/chains/example','/atomic','/mitre','/organizations/example/ai','/ai/jobs/example'])('hides %s with the default server flag',async path=>{mount(path);expect(await screen.findByRole('heading',{name:'Organisation hub'})).toBeVisible()});
+ it('renders overview for everyone without the advanced flag',async()=>{mount('/overview');expect(await screen.findByRole('heading',{name:'Advanced overview'})).toBeVisible()});
  it('opens a retained advanced editor after an explicit server opt in',async()=>{state.advanced=true;mount('/chains/example');expect(await screen.findByRole('heading',{name:'Advanced chain editor'})).toBeVisible()});
  it.each([false,true])('never restores the removed scenario route (advanced=%s)',async advanced=>{state.advanced=advanced;mount('/scenarios');expect(await screen.findByRole('heading',{name:'Page missing'})).toBeVisible()});
 });

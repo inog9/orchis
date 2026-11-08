@@ -383,7 +383,7 @@ describe('NotificationsPage', () => {
 describe('CommandPalette', () => {
   it('entri mengikuti izin pengguna, dan pencarian menyaring label dan petunjuk', () => {
     const v = entriesFor({ ...viewer, permissions: ['atomic.read'] }).map((e) => e.id);
-    expect(v).not.toContain('overview'); expect(v).not.toContain('atomic'); expect(v).not.toContain('settings');
+    expect(v).toContain('overview'); expect(v).not.toContain('atomic'); expect(v).not.toContain('settings');
     expect(v).not.toContain('findings'); expect(v).not.toContain('new-asset'); expect(v).not.toContain('people');
     const all = entriesFor({...admin,features:{advanced:true}});
     expect(all.filter((e) => matches(e, 'vulnerabilities')).map((e) => e.id)).toEqual(['findings']);

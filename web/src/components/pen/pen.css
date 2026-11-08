@@ -1,0 +1,29 @@
+/* Primitif bersama redesain v2fixed.pen. Warna memakai token --v2-* di styles/ui2.css (dark + light). */
+.pen-pill { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 3px; border: 1px solid var(--pen-sev, var(--v2-border)); color: var(--pen-sev, var(--v2-text-2)); background: transparent; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pen-pill--critical { --pen-sev: var(--v2-critical); }
+.pen-pill--high { --pen-sev: var(--v2-high); }
+.pen-pill--medium { --pen-sev: var(--v2-medium); }
+.pen-pill--low { --pen-sev: var(--v2-low); }
+.pen-pill--info { --pen-sev: var(--v2-info); }
+
+.pen-tag { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 3px; border: 1px solid var(--pen-line, var(--v2-border)); color: var(--pen-fg, var(--v2-text-2)); background: var(--pen-bg, transparent); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pen-tag--success { --pen-line: color-mix(in srgb, var(--v2-success) 40%, transparent); --pen-bg: var(--v2-success-soft, transparent); --pen-fg: var(--v2-success); }
+.pen-tag--accent { --pen-line: var(--v2-accent-line, var(--v2-border)); --pen-bg: var(--v2-accent-soft, transparent); --pen-fg: var(--v2-accent); }
+.pen-tag--warn { --pen-line: var(--v2-high); --pen-bg: transparent; --pen-fg: var(--v2-high); }
+
+.pen-sevbar { display: flex; height: 4px; border-radius: 2px; overflow: hidden; background: var(--v2-surface-2); }
+.pen-sevbar--empty { background: var(--v2-surface-2); }
+.pen-sevbar__seg--critical { background: var(--v2-critical); }
+.pen-sevbar__seg--high { background: var(--v2-high); }
+.pen-sevbar__seg--medium { background: var(--v2-medium); }
+.pen-sevbar__seg--low { background: var(--v2-low); }
+.pen-sevbar__seg--info { background: var(--v2-info); }
+
+.pen-metric { display: flex; flex-direction: column; gap: 6px; padding: 16px; border: 1px solid var(--v2-border); border-radius: 6px; background: var(--v2-surface); min-width: 0; }
+.pen-metric__label { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); }
+.pen-metric__value { margin: 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: 26px; font-weight: 600; line-height: 1.1; color: var(--v2-text); }
+.pen-metric__caption { margin: 0; font-size: 12px; color: var(--v2-text-3); }
+
+.pen-panel { display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--v2-border); border-radius: 6px; background: var(--v2-surface); padding: 16px; min-width: 0; }
+.pen-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pen-panel__title { margin: 0; font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); }

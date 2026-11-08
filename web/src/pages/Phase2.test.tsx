@@ -48,10 +48,10 @@ describe('AssetDetailPage', () => {
     api(perms(), () => json(asset()));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
     expect(await screen.findByRole('heading', { name: 'WINTERFELL' })).toBeInTheDocument();
-    expect(screen.getByText('crown-jewel')).toBeInTheDocument();
+    expect(screen.getAllByText('crown-jewel').length).toBeGreaterThan(0); // chip tag di kepala dan panel detail
     expect(screen.getByText('74.234.220.121')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'All Windows x86_64' })).toHaveAttribute('href', '/assets/groups/g1');
-    expect(screen.getByText('Authorized')).toBeInTheDocument();
+    expect(screen.getAllByText('Testing authorized').length).toBeGreaterThan(0); // caption metrik + label field detail
     expect(screen.getByText(/Your role cannot read findings/)).toBeInTheDocument();
     expect(screen.queryByText(/No findings yet/)).not.toBeInTheDocument();
   });
@@ -60,7 +60,7 @@ describe('AssetDetailPage', () => {
     api(perms(), () => json(asset({ category: 'cloud_resource', name: 'prod-bucket', platform: null, arch: null, description: 'Holds invoices', attributes: { provider: 'aws', account_id: '123456789012', resource_type: 'S3 bucket', resource_id: 'arn:aws:s3:::prod-bucket' }, addresses: [] })));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
     await screen.findByRole('heading', { name: 'prod-bucket' });
-    const panel = screen.getByRole('heading', { name: 'Cloud resource', level: 2 }).closest('section')!;
+    const panel = screen.getByRole('heading', { name: 'Asset details', level: 2 }).closest('section')!;
     expect(panel).toHaveTextContent('Provider');
     expect(panel).toHaveTextContent('AWS');
     expect(panel).toHaveTextContent('123456789012');
@@ -72,7 +72,7 @@ describe('AssetDetailPage', () => {
     api(perms(), () => json(asset({ source: 'agent', platform: 'macos', arch: 'x86_64', attributes: { agent_os_version: 'macOS 10.15.7' } })));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
     await screen.findByRole('heading', { name: 'WINTERFELL' });
-    const panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    const panel = screen.getByRole('heading', { name: 'Asset details', level: 2 }).closest('section')!;
     expect(panel).toHaveTextContent('macOS 10.15.7');
     expect(panel).toHaveTextContent('(from the agent)');
     expect(panel).toHaveTextContent('Not set. Add it with Edit.');
@@ -84,7 +84,7 @@ describe('AssetDetailPage', () => {
     const spy = api(perms(), () => json(asset({ source: 'agent', attributes: { os_version: 'Custom OS 1', agent_os_version: 'macOS 10.15.7' } })));
     const { unmount } = mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
     await screen.findByRole('heading', { name: 'WINTERFELL' });
-    let panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    let panel = screen.getByRole('heading', { name: 'Asset details', level: 2 }).closest('section')!;
     expect(panel).toHaveTextContent('Custom OS 1');
     expect(panel).not.toHaveTextContent('macOS 10.15.7');
     unmount();
@@ -92,7 +92,7 @@ describe('AssetDetailPage', () => {
     api(perms(), () => json(asset({ source: 'agent', attributes: {} })));
     mount(detailRoute(<AssetDetailPage />, '/assets/:id'), '/assets/a1');
     await screen.findByRole('heading', { name: 'WINTERFELL' });
-    panel = screen.getByRole('heading', { name: 'Host', level: 2 }).closest('section')!;
+    panel = screen.getByRole('heading', { name: 'Asset details', level: 2 }).closest('section')!;
     expect(panel).toHaveTextContent("Waiting for the agent's next report.");
   });
 

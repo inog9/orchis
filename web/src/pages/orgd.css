@@ -35,3 +35,71 @@
 .orgd .severity-strip p:first-child { border-left: 0; }
 .orgd .severity-strip strong { font-size: 24px; font-weight: 500; letter-spacing: 0; color: var(--text); }
 @media (max-width: 679px) { .orgd .severity-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Detail organisasi v4 (fixed.pen "ORGANISASI DETAIL"): kepala halaman, metric strip,
+   section Aset (tabel kesiapan) dan Agen terpasang (kartu). Token --v2-* dark + light. */
+
+/* Kepala halaman: overline, judul 20px, slug+deskripsi, aksi di kanan (mockup "Page Heading"). */
+.orgd__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.orgd__heading { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.orgd__overline { margin: 0; font-size: 10px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); }
+.orgd__title { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -.2px; color: var(--v2-text); overflow-wrap: anywhere; }
+.orgd__desc { margin: 0; font-size: 13px; color: var(--v2-text-2); max-width: 80ch; overflow-wrap: anywhere; }
+.orgd__meta { margin: 0; font-size: 12px; color: var(--v2-text-3); }
+.orgd__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.orgd__intro { margin: 0 0 4px; font-size: 13px; color: var(--v2-text-2); max-width: 80ch; }
+
+/* Metric strip: satu permukaan penuh, sel KPI dipisah garis (MetricCard dari pen/primitives). */
+.orgd__metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--v2-border); border-radius: var(--radius-panel, 6px); background: var(--v2-surface); overflow: hidden; }
+.orgd__metrics .pen-metric { border: 0; border-left: 1px solid var(--v2-border); border-radius: 0; padding: 18px 20px; }
+.orgd__metrics .pen-metric:first-child { border-left: 0; }
+.orgd__metrics .pen-metric__label { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 400; color: var(--v2-text-2); }
+.orgd__metrics .pen-metric__value { font-size: 28px; font-weight: 400; letter-spacing: -.5px; }
+.orgd__metrics .pen-metric__caption { font-size: 11px; }
+
+/* Section "Aset": panel dengan tabel garis; kolom waktu rata kanan, nilai teknis mono. */
+.orgd__tablewrap { border: 1px solid var(--v2-border); border-radius: var(--radius-panel, 6px); background: var(--v2-surface); overflow-x: auto; }
+.orgd__table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.orgd__table th { padding: 10px 16px; text-align: left; font-size: 10px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--v2-text-3); border-bottom: 1px solid var(--v2-border); white-space: nowrap; }
+.orgd__table td { padding: 12px 16px; border-bottom: 1px solid var(--v2-border); color: var(--v2-text-2); vertical-align: middle; }
+.orgd__table tbody tr:last-child td { border-bottom: 0; }
+.orgd__table th:last-child, .orgd__table td:last-child { text-align: right; }
+.orgd__table td.mono, .orgd__table .mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.orgd__asset { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.orgd__monogram { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--v2-border); border-radius: var(--radius-ctl, 4px); font-size: 11px; font-weight: 500; color: var(--v2-text-2); }
+.orgd__asset-text { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.orgd__asset-name { color: var(--v2-text); font-weight: 500; text-decoration: none; overflow-wrap: anywhere; }
+.orgd__asset-name:hover { text-decoration: underline; }
+.orgd__asset-name:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+.orgd__asset-tag { display: inline-flex; max-width: 100%; }
+.orgd__agentcell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.orgd__agentcell--on { color: var(--v2-success); }
+.orgd__dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--v2-text-3); }
+.orgd__dot--on { background: var(--v2-success); }
+
+/* Section "Agen terpasang": kartu 2 kolom (mockup "Agents Row"). */
+.orgd__agents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.orgd__agent { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border: 1px solid var(--v2-border); border-radius: var(--radius-panel, 6px); background: var(--v2-surface); min-width: 0; }
+.orgd__agent-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.orgd__agent-top h3 { margin: 0; font-size: 14px; font-weight: 500; color: var(--v2-text); overflow-wrap: anywhere; }
+.orgd__agent-os { margin: 0; font-size: 12px; color: var(--v2-text-2); }
+.orgd__agent-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; }
+.orgd__agent-meta dt { font-size: 11px; color: var(--v2-text-3); }
+.orgd__agent-meta dd { margin: 2px 0 0; font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; color: var(--v2-text); overflow-wrap: anywhere; }
+
+/* State di dalam PanelCard: padding panel sudah ada, state tidak menumpuk padding. */
+.orgd .pen-panel > .state { padding: 16px 0; }
+.orgd .pen-panel > .alert { margin: 0; }
+
+@media (max-width: 1023px) {
+  .orgd__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .orgd__metrics .pen-metric:nth-child(3) { border-left: 0; }
+  .orgd__metrics .pen-metric:nth-child(n+3) { border-top: 1px solid var(--v2-border); }
+}
+@media (max-width: 767px) { .orgd__agents { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 639px) {
+  .orgd__metrics { grid-template-columns: minmax(0, 1fr); }
+  .orgd__metrics .pen-metric { border-left: 0; border-top: 1px solid var(--v2-border); }
+  .orgd__metrics .pen-metric:first-child { border-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .orgd .tab, .orgd__asset-name { transition: none; } }

@@ -1,5 +1,6 @@
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {render,screen} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {MemoryRouter,Route,Routes} from 'react-router-dom';
 import {afterEach,expect,it,vi} from 'vitest';
 import {ReportDetailPage} from './ReportsPage';
@@ -9,14 +10,15 @@ function mount(assets:unknown[],snapExtra:object={}){const report={id:'r',organi
 it('shows tested/skipped/incomplete counts and failure before opening methodology',async()=>{
  const asset=(id:string,status:string,methods:unknown[],skip_reason='')=>({id,name:id,status,methods,skip_reason,findings:[]});
  mount([asset('tested','finished',[method('success')]),asset('failed','finished',[method('error','Web endpoint unreachable <img src=x>')]),asset('unapproved','skipped',[],'Not authorized'),asset('no-address','skipped',[],'No address')]);
- expect(await screen.findByText('4 assets in scope · 1 fully tested · 2 skipped · 1 incomplete')).toBeInTheDocument();
+ expect(await screen.findByText('4 assets in scope')).toBeInTheDocument();
+ expect(screen.getByText('1 fully tested · 2 skipped · 1 incomplete')).toBeInTheDocument();
  expect(screen.getByText('nuclei.scan: Web endpoint unreachable <img src=x>')).toBeVisible();expect(document.querySelector('img')).toBeNull();
- expect(screen.getByRole('group',{name:'Vulnerabilities by severity'})).toBeInTheDocument();
+ expect(screen.getByText('Total findings')).toBeInTheDocument();
  expect(screen.getAllByText('Methodology and execution')).toHaveLength(2);expect(document.querySelector('details[open]')).toBeNull();
 });
 it('does not count a finished asset without methods as fully tested',async()=>{
  mount([{id:'empty',name:'No methods',status:'finished',methods:[],skip_reason:'',findings:[]}]);
- expect(await screen.findByText('1 assets in scope · 0 fully tested · 0 skipped · 1 incomplete')).toBeInTheDocument();expect(screen.queryByText('Methodology and execution')).toBeNull();
+ expect(await screen.findByText('0 fully tested · 0 skipped · 1 incomplete')).toBeInTheDocument();expect(screen.queryByText('Methodology and execution')).toBeNull();
 });
 
 it('renders a finding that has no evidence object without crashing',async()=>{
@@ -26,6 +28,9 @@ it('renders a finding that has no evidence object without crashing',async()=>{
 
 it('shows a MITRE technique on a finding as an estimate',async()=>{
  mount([{id:'a',name:'Asset A',status:'finished',methods:[],skip_reason:'',findings:[{id:'f',type:'vulnerability',value:'v',title:'Exposed panel',severity:'high',evidence:{},mitre:[{id:'T1190',name:'Exploit Public-Facing Application',basis:'estimate',reason:'Estimate only.'}]}]}]);
+ expect(await screen.findByText('Exposed panel')).toBeInTheDocument();
+ // Estimasi MITRE kini ada di panel bukti yang dibuka lewat tombol chevron pada baris temuan.
+ await userEvent.click(screen.getByRole('button',{name:'Evidence details'}));
  expect(await screen.findByText(/MITRE ATT&CK \(estimate\): T1190 Exploit Public-Facing Application\. Estimate only\./)).toBeInTheDocument();
 });
 
@@ -39,7 +44,7 @@ it('shows endpoint posture with the outside-vs-inside port comparison',async()=>
 });
 it('has no endpoint section when no asset reported endpoint data',async()=>{
  mount([{id:'a',name:'Asset A',status:'finished',methods:[],skip_reason:'',findings:[]}]);
- await screen.findByRole('group',{name:'Vulnerabilities by severity'});
+ await screen.findByText('Total findings');
  expect(screen.queryByText('Endpoint posture')).toBeNull();
 });
 it('caps a long list of endpoint findings in the report table',async()=>{
@@ -50,7 +55,7 @@ it('caps a long list of endpoint findings in the report table',async()=>{
 });
 
 it('offers only PDF and JSON exports and uses a PDF preview',async()=>{
- mount([]);await screen.findByRole('heading',{name:'LOCAL FIXTURE'});
+ mount([]);await screen.findByRole('heading',{name:/LOCAL FIXTURE/});
  expect(screen.getByRole('link',{name:'Download PDF'})).toHaveAttribute('href','/api/v1/reports/r/export/pdf');
  expect(screen.getByRole('link',{name:'Download JSON'})).toHaveAttribute('href','/api/v1/reports/r/export/json');
  expect(screen.getByRole('link',{name:'Open PDF preview'})).toHaveAttribute('href','/api/v1/reports/r/export/pdf?preview=1');
@@ -59,5 +64,6 @@ it('offers only PDF and JSON exports and uses a PDF preview',async()=>{
 it('keeps the server comparison summary visible in English even when structured details exist',async()=>{
  mount([],{comparison_details:{version:1,totals:{new:0,persistent:1,resolved:2,uncompared:0},by_severity:{},rows:[],checks:[]}});
  expect(await screen.findByText('Incomplete assets excluded.')).toBeTruthy();
- expect(screen.getByText('Scan comparison')).toBeTruthy();
+ // Label kartu metrik memakai teks yang sama; section perbandingan dibedakan lewat role region-nya.
+ expect(screen.getByRole('region', { name: 'Scan comparison' })).toBeTruthy();
 });

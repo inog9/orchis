@@ -65,7 +65,7 @@ export function LoginPage() {
     const locked = err?.status === 429;
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        login.mutate({ email, password, remember_me: false }, { onSuccess: () => navigate('/', { replace: true }) });
+        login.mutate({ email, password, remember_me: false }, { onSuccess: () => navigate('/overview', { replace: true }) });
     };
     if (locked) {
         return (<AuthLayout>

@@ -1,0 +1,134 @@
+/* Gaya khusus halaman Overview (redesain pen: overview.json).
+   Semua warna memakai token --v2-* dari styles/ui2.css sehingga ikut mode dark + light. */
+
+.pen-ov-loading { display: flex; flex-direction: column; gap: 20px; }
+
+/* ---------- kerangka halaman ---------- */
+.pen-ov__notice { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px solid var(--v2-accent-line, var(--v2-border)); background: var(--v2-accent-soft, transparent); border-radius: 6px; padding: 10px 14px; font-size: 12px; color: var(--v2-text-2); }
+.pen-ov__notice-warn { color: var(--v2-high); }
+.pen-ov__notice-spacer { flex: 1 1 12px; }
+.pen-ov__refresh { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--v2-border); background: transparent; color: var(--v2-text-2); border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.pen-ov__refresh:hover:not(:disabled) { color: var(--v2-text); border-color: var(--v2-control-border); }
+.pen-ov__refresh:disabled { opacity: .6; cursor: default; }
+.pen-ov__refresh svg { width: 13px; height: 13px; }
+.pen-ov__refresh.is-busy svg { animation: pen-ov-spin 1s linear infinite; }
+@keyframes pen-ov-spin { to { transform: rotate(360deg); } }
+
+.pen-ov__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.pen-ov__overline { margin: 0; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); }
+.pen-ov__title { margin: 4px 0 0; font-size: 20px; font-weight: 600; letter-spacing: -.01em; color: var(--v2-text); }
+.pen-ov__desc { margin: 4px 0 0; font-size: 13px; color: var(--v2-text-2); }
+.pen-ov__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pen-ov-sec-title { margin: 0; font-size: 14px; font-weight: 600; color: var(--v2-text); }
+.pen-ov-panel-link { font-size: 11px; font-weight: 500; color: var(--v2-accent); text-decoration: none; }
+.pen-ov-panel-link:hover { text-decoration: underline; }
+.pen-ov-empty { margin: 0; font-size: 12px; color: var(--v2-text-3); }
+.pen-ov-more { font-size: 11px; font-weight: 500; color: var(--v2-accent); text-decoration: none; }
+.pen-ov-more:hover { text-decoration: underline; }
+
+/* ---------- live scan box ---------- */
+.pen-ov-live { display: flex; flex-direction: column; gap: 14px; border: 1px solid var(--v2-border); border-radius: 6px; background: var(--v2-surface-2); padding: 20px; }
+.pen-ov-live__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.pen-ov-live__title { margin: 0; font-size: 15px; font-weight: 600; color: var(--v2-text); }
+.pen-ov-live__spacer { flex: 1 1 12px; }
+.pen-ov-live__meta { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--v2-text-3); flex-wrap: wrap; }
+.pen-ov-live__link { font-size: 11px; font-weight: 500; color: var(--v2-accent); text-decoration: none; }
+.pen-ov-live__link:hover { text-decoration: underline; }
+.pen-ov-live__foot { margin: 0; font-size: 11.5px; color: var(--v2-text-3); }
+
+.pen-ov-live__badge { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--v2-border); border-radius: 3px; padding: 2px 8px; font-size: 10px; font-weight: 600; letter-spacing: .03em; color: var(--v2-text-2); }
+.pen-ov-live__badge--live { border-color: color-mix(in srgb, var(--v2-success) 40%, transparent); background: var(--v2-success-soft, transparent); color: var(--v2-success); }
+
+.pen-ov-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--v2-text-3); flex: none; }
+.pen-ov-dot--live { background: var(--v2-success); animation: pen-ov-pulse 1.6s ease-in-out infinite; }
+.pen-ov-dot--ok { background: var(--v2-success); }
+@keyframes pen-ov-pulse { 50% { opacity: .35; } }
+
+.pen-ov-graphs { display: flex; flex-direction: column; gap: 12px; }
+.pen-ov-graph { display: flex; flex-direction: column; gap: 10px; border: 1px solid var(--v2-border-2, var(--v2-border)); border-radius: 4px; background: var(--v2-surface); padding: 14px 16px 16px; min-width: 0; }
+.pen-ov-graph__head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--v2-text-2); }
+.pen-ov-graph__code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; color: var(--v2-text-3); }
+.pen-ov-graph__name { font-weight: 500; color: var(--v2-text); }
+.pen-ov-graph__meta { font-size: 11px; color: var(--v2-text-3); }
+
+.pen-ov-graph__grid { display: grid; grid-template-columns: minmax(0, 1fr) 26px minmax(0, .8fr) 26px minmax(0, 1.4fr); gap: 8px 0; align-items: stretch; }
+.pen-ov-graph__colhead { margin: 0; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); align-self: end; }
+.pen-ov-cell { display: flex; flex-direction: column; gap: 8px; min-width: 0; justify-content: center; }
+.pen-ov-link { align-self: center; height: 1px; min-width: 16px; background: var(--v2-border); }
+.pen-ov-graph--live .pen-ov-link { background: var(--v2-success); }
+
+/* ---------- node diagram ---------- */
+.pen-ov-node { display: flex; flex-direction: column; gap: 6px; border: 1px solid var(--v2-border); border-radius: 4px; background: var(--v2-surface-2); padding: 10px 12px; min-width: 0; }
+a.pen-ov-node { text-decoration: none; color: inherit; }
+a.pen-ov-node:hover { border-color: var(--v2-control-border); }
+.pen-ov-node__top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.pen-ov-node__top svg { width: 13px; height: 13px; color: var(--v2-text-2); flex: none; }
+.pen-ov-node__name { font-size: 12px; font-weight: 500; color: var(--v2-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-node__badge { align-self: flex-start; border: 1px solid var(--v2-border); border-radius: 3px; padding: 1px 6px; font-size: 9px; font-weight: 600; letter-spacing: .04em; color: var(--v2-text-3); }
+
+button.pen-ov-node { text-align: left; cursor: pointer; font: inherit; color: inherit; }
+button.pen-ov-node:hover { border-color: var(--v2-accent-line, var(--v2-border)); }
+button.pen-ov-node:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+button.pen-ov-node .pen-ov-node__top { justify-content: space-between; gap: 8px; }
+button.pen-ov-node .pen-ov-node__top svg { width: 12px; height: 12px; color: var(--v2-text-3); }
+.pen-ov-node__title { font-size: 11.5px; font-weight: 500; line-height: 1.3; color: var(--v2-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-node.is-open .pen-ov-node__title { white-space: normal; }
+.pen-ov-node__detail { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--v2-border); padding-top: 6px; }
+.pen-ov-node__line { font-family: var(--font-mono, ui-monospace, monospace); font-size: 10.5px; color: var(--v2-text-3); overflow-wrap: anywhere; }
+
+/* ---------- strip metrik ---------- */
+.pen-ov-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+
+/* ---------- dua kolom ---------- */
+.pen-ov-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.pen-ov-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pen-ov-xrow, .pen-ov-srow { padding: 12px 2px; border-bottom: 1px solid var(--v2-border); }
+.pen-ov-list > li:last-child { border-bottom: 0; }
+.pen-ov-xrow { display: flex; flex-direction: column; gap: 6px; }
+.pen-ov-xrow__top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.pen-ov-xrow__name { font-size: 12.5px; font-weight: 500; color: var(--v2-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-xrow__name:hover { text-decoration: underline; }
+.pen-ov-xrow__ports { flex: none; font-size: 11px; color: var(--v2-text-3); }
+.pen-ov-xrow__cap { margin: 0; font-size: 10.5px; color: var(--v2-text-3); }
+.pen-ov-srow { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+.pen-ov-srow__code { flex: none; font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; color: var(--v2-text-3); }
+.pen-ov-srow__name { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--v2-text); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-srow__name:hover { text-decoration: underline; }
+.pen-ov-srow__at { flex: none; font-size: 11px; color: var(--v2-text-3); }
+
+/* ---------- status engine ---------- */
+.pen-ov-engines { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.pen-ov-engine { display: flex; align-items: center; gap: 10px; border: 1px solid var(--v2-border); border-radius: 6px; background: var(--v2-surface); padding: 14px 16px; min-width: 0; }
+.pen-ov-engine__icon { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--v2-border); border-radius: 4px; background: var(--v2-surface-2); color: var(--v2-text-2); }
+.pen-ov-engine__icon svg { width: 14px; height: 14px; }
+.pen-ov-engine__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pen-ov-engine__name { margin: 0; font-size: 13px; font-weight: 500; color: var(--v2-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-engine__status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--v2-text-3); }
+.pen-ov-engine__status--online { color: var(--v2-success); }
+.pen-ov-engines__note { margin: 0; font-size: 11.5px; color: var(--v2-text-3); }
+.pen-ov-engines__note a { color: var(--v2-accent); text-decoration: none; }
+.pen-ov-engines__note a:hover { text-decoration: underline; }
+
+/* ---------- skeleton ---------- */
+.pen-ov-skel { display: block; border-radius: 4px; background: var(--v2-surface-2); animation: pen-ov-breathe 1.4s ease-in-out infinite; }
+.pen-ov-skel--bar { height: 36px; width: 100%; }
+.pen-ov-skel--block { height: 200px; width: 100%; }
+.pen-ov-skel--card { height: 120px; width: 100%; }
+@keyframes pen-ov-breathe { 50% { opacity: .55; } }
+
+/* ---------- responsif + gerak ---------- */
+@media (max-width: 980px) {
+  .pen-ov-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pen-ov-cols { grid-template-columns: 1fr; }
+}
+@media (max-width: 620px) {
+  .pen-ov-metrics { grid-template-columns: 1fr; }
+  .pen-ov-graph__grid { grid-template-columns: minmax(0, 1fr); }
+  .pen-ov-graph__grid > .pen-ov-link,
+  .pen-ov-graph__grid > span:not(.pen-ov-link) { display: none; }
+  .pen-ov-graph__colhead:not(:first-child) { margin-top: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pen-ov-dot--live, .pen-ov__refresh.is-busy svg, .pen-ov-skel { animation: none; }
+}

@@ -3,7 +3,9 @@ import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI, language 
 import { ScanComparison, type Comparison } from '../components/ScanComparison';
 import { OrganizationFilter } from '../components/OrganizationFilter';
 import { advancedEnabled } from '../components/navigation';
-import { useState } from 'react';
+import { MetricCard, PanelCard, SeverityBar, SeverityPill, StateTag } from '../components/pen/primitives';
+import { Fragment, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
@@ -11,6 +13,7 @@ import { useMe } from '../api/hooks';
 import { can } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { StatusBadge } from '../components/sims/StatusBadge';
+import '../components/pen/pen.css';
 import './reports.css';
 
 // Marker data demo pada snapshot adalah teks tetap dari server (internal/demo/snapshots.go).
@@ -48,7 +51,8 @@ type Finding = {
     value: string;
     title: string;
     severity: string;
-    evidence: Record<string, unknown>;
+    // Evidence bebas bentuknya (internal/reporting/export.go): paket, CVE, EPSS, dst. Bisa tidak ada.
+    evidence?: Record<string, unknown>;
     mitre?: {
         id: string;
         name: string;
@@ -58,6 +62,8 @@ type Finding = {
 };
 type Snapshot = {
  summary?:string;
+    language?: string;
+    schema_version?: string;
     is_demo?: boolean;
     label?: string;
     comparison_details?: Comparison;
@@ -80,6 +86,7 @@ type Snapshot = {
         status: string;
         skip_reason: string;
         endpoint?: Posture;
+        defense?: Record<string, unknown>;
         findings: Finding[];
         methods: {
             mitre?: string[];
@@ -143,22 +150,205 @@ export function ReportsPage({ organizationID, organizationName }: {
         </div>}
       <div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_0bdbb750609c")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_8b99e4a0a612")}</button></div></section>;
 }
+
+// ===== Detail laporan (redesain pen) =====
+
+// Jumlah temuan yang ditampilkan per aset sebelum tombol "Muat lagi"; larang render ratusan baris sekaligus.
+const FINDINGS_PAGE = 20;
+// Kolom evidence yang sudah tampil di baris utama; sisanya masuk panel detail yang bisa dibuka.
+const EVIDENCE_INLINE = new Set(['package', 'installed_version', 'fixed_version', 'fix_status', 'data_as_of']);
+
+// Ambil nilai evidence sebagai teks; evidence bisa hilang sama sekali atau berisi angka/boolean.
+function evString(evidence: Record<string, unknown> | undefined, key: string): string {
+    const value = evidence?.[key];
+    if (value === null || value === undefined || value === '') return '';
+    return String(value);
+}
+
+// Label fix_status dari server (internal/defensebot/run.go); nilai di luar daftar tampil apa adanya.
+function fixLabel(status: string): string {
+    switch (status) {
+        case 'fix_available': return textUI("pen_rpt_fix_available");
+        case 'no_fix_yet': return textUI("pen_rpt_fix_none");
+        case 'fix_requires_subscription': return textUI("pen_rpt_fix_subscription");
+        case 'fix_pending_reboot': return textUI("pen_rpt_fix_reboot");
+        default: return status;
+    }
+}
+
+// data_as_of biasanya tanggal; bila tidak bisa diurai tampilkan teks mentahnya.
+function dayText(iso: string): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale(), { dateStyle: 'medium' });
+}
+
 export function ReportDetailPage() {
     useLocale();
     const { id = '' } = useParams();
     const { data: me } = useMe();
+    // Batas tampil temuan per aset (kunci id aset) dan baris bukti yang terbuka (kunci id temuan).
+    const [limits, setLimits] = useState<Record<string, number>>({});
+    const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
     const q = useQuery({ queryKey: ['report', id], queryFn: () => api.get<Report>(`/api/v1/reports/${id}`), refetchInterval: query => query.state.data?.status === 'ready' ? false : 3000 });
     const retry = useMutation({ mutationFn: () => api.post(`/api/v1/reports/${id}/retry`), onSuccess: () => q.refetch() });
     if (q.isPending)
-        return <p role="status">{textUI("m_3b475fd2f1e9")}</p>;
+        return <section className="page rep" aria-busy="true"><p role="status">{textUI("m_3b475fd2f1e9")}</p></section>;
     if (!q.data)
-        return <p role="alert">{formatUI(describeError(q.error).message)}</p>;
+        return <section className="page rep"><div className="state state--error" role="alert"><p>{formatUI(describeError(q.error).message)}</p><button type="button" className="btn btn--secondary btn--auto" onClick={() => q.refetch()}>{textUI("m_sim_retry")}</button></div></section>;
     const r = q.data;
     const s = r.snapshot;
-    const skipped = s.assets.filter(a => a.status === 'skipped' || !!a.skip_reason).length;
-    const tested = s.assets.filter(a => a.status === 'finished' && !a.skip_reason && a.methods.length > 0 && a.methods.every(m => m.outcome === 'success')).length;
-    const incomplete = s.assets.length - skipped - tested;
-    return <section className="page rep rep--detail"><Link className="rep__back" to="/reports">{textUI("m_c912bea5a73c")}</Link><div className="page__head"><div><p className="eyebrow">{richUI("m_a8a0511b45e0", [formatUI(s.scan_id ? textUI("m_0fe8524d1d55") : textUI("m_e1cf71e6c627")), formatUI(r.version)])}</p><h1 className="page__title">{formatUI(s.organization)}</h1><p className="page__sub">{formatUI(new Date(r.created_at).toLocaleString(locale()))} <StatusBadge status={r.status}/></p></div><div className="row">{formatUI(r.status === 'ready' && <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/pdf?preview=1`} target="_blank" rel="noreferrer">{textUI("m_995032218e76")}</a>)}{formatUI(['pdf', 'json'].map(format => format === 'pdf' && r.status !== 'ready'
-                ? <button type="button" key={format} className="btn btn--secondary btn--auto" disabled title={r.error || undefined}>{richUI("m_465e0e809a40", [formatUI(format.toUpperCase())])}</button>
-                : <a className="btn btn--secondary btn--auto" key={format} href={`/api/v1/reports/${id}/export/${format}`} download>{richUI("m_465e0e809a40", [formatUI(format.toUpperCase())])}</a>))}</div></div>{formatUI(s.is_demo && <div className="notice" role="status">{formatUI(demoText(s.label) || 'DEMO / SYNTHETIC DATA - not a real assessment.')}</div>)}{formatUI(r.status !== 'ready' && <div className={`notice rep__notice rep__notice--${r.status === 'failed' ? 'bad' : 'live'}`} role={r.status === 'failed' ? 'alert' : 'status'}><p>{richUI("m_43e72fde1467", [formatUI(displayLabel(r.status)), formatUI(r.error)])}</p>{formatUI(r.status === 'failed' && can(me, 'report.generate') && <button className="btn btn--secondary btn--auto" disabled={retry.isPending} onClick={() => retry.mutate()}>{textUI("m_2cdede71ecc0")}</button>)}</div>)}{formatUI(retry.error && <p role="alert">{formatUI(describeError(retry.error).message)}</p>)}<article className="org-card"><h2>{formatUI(displayLabel(demoText(s.risk)))}</h2><p>{richUI("m_eb8d9e1bbe4c", [formatUI(s.assets.length), formatUI(tested), formatUI(skipped), formatUI(incomplete)])}</p><div className="severity-strip" role="group" aria-label={textUI("m_22fe13ca6a2a")}>{formatUI(['critical', 'high', 'medium', 'low', 'info'].map(severity => <p key={severity} className={`sev-cell sev-cell--${severity}`}><strong>{formatUI(s.by_severity[severity] ?? 0)}</strong> {formatUI(displayLabel(severity))}</p>))}</div>{formatUI(s.endpoint_summary && <section aria-label={textUI("m_28c9aeab86c9")}><h2>{textUI("m_28c9aeab86c9")}</h2><p>{richUI("m_b692f52058c0", [formatUI(s.endpoint_summary.assets_with_data), formatUI(s.endpoint_summary.assets_total)])}</p><p className="muted small">{textUI("m_c0897afc8d4f")}</p><div className="ed-scroll" role="region" aria-label={textUI("m_d7800ca39df8")} tabIndex={0}><table className="org-table ed-report"><thead><tr><th>{textUI("m_80d298c9f240")}</th><th>{textUI("m_6725e7bbcd28")}</th><th>{textUI("m_7f7ecd155f4a")}</th><th>{textUI("m_c2584dfa6903")}</th></tr></thead><tbody>{formatUI(s.assets.filter(a => a.endpoint).map(a => { const e = a.endpoint!; const at = e.attributes; return <tr key={a.id}><td>{formatUI(a.name)}</td><td>{formatUI(String(at.os_name ?? ''))} {formatUI(String(at.os_version ?? ''))}{formatUI(at.kernel ? `, kernel ${String(at.kernel)}` : '')}</td><td>{formatUI(e.findings.length === 0 ? textUI("m_dc937b598926") : <ul className="stack-list">{formatUI(e.findings.slice(0, 8).map((f, i) => <li key={i}>{formatUI(`${displayLabel(f.severity)}: ${f.title}`)}</li>))}{formatUI(e.findings.length > 8 && <li className="muted small">{formatUI(textUI("m_cca2a7065289", [e.findings.length - 8]))}</li>)}</ul>)}</td><td>{formatUI(e.ports ? textUI("m_3bca60964638", [e.ports.both.join(', ') || 'none', e.ports.scan_only.join(', ') || 'none', e.ports.host_only.join(', ') || 'none']) : textUI("m_c7bcc01273bc"))}</td></tr>; }))}</tbody></table></div><p className="muted small">{textUI("m_303b527be639")}</p></section>)}{s.summary && <section className="org-card" aria-label={textUI("hackbot_summary")}><h2>{textUI("hackbot_summary")}</h2><p>{s.summary}</p></section>}{s.summary && r.status==='ready' && <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${id}/export/pdf?preview=1`}/>} {(locale() === 'en-US' || !s.comparison_details) && <p>{formatUI(displayLabel(s.comparison))}</p>}<ScanComparison comparison={s.comparison_details}/><div className="report-relations">{formatUI(can(me, 'organization.read') && <Link to={`/organizations/${r.organization_id}`}>{textUI("m_81acc0a4d1ff")}</Link>)}{formatUI(can(me, s.scan_id ? 'simulation.read' : 'assessment.read') && <Link to={s.scan_id ? `/simulations/${s.scan_id}` : `/assessments/${r.assessment_id}`}>{formatUI(s.scan_id ? textUI("m_b5e09d8b7d1e") : textUI("m_7cb1f270ab5b"))}</Link>)}</div></article><h2>{textUI("m_36fb48e6a063")}</h2>{formatUI(s.assets.map(a => <article className="org-card" key={a.id}><h2>{formatUI(a.name)}</h2><p>{formatUI(displayLabel(a.status))}{formatUI(a.skip_reason ? ` · ${a.skip_reason}` : '')}</p>{formatUI(a.methods.some(m => m.outcome !== 'success') && <div className="notice" role="status"><p>{textUI("m_3f3e8a4c4961")}</p><ul>{formatUI(a.methods.filter(m => m.outcome !== 'success').map((m, i) => <li key={i}>{formatUI(m.action)}: {formatUI(m.error || m.outcome || textUI("m_0192502471c4"))}</li>))}</ul></div>)}{formatUI(a.findings.map(f => <section className="org-card" key={f.id}><p className="eyebrow">{formatUI(displayLabel(f.severity))} · {formatUI(displayLabel(f.type))}</p><h3>{formatUI(f.title)}</h3><p className="mono">{formatUI(f.value)}</p>{formatUI((f.mitre ?? []).map((t) => <p key={t.id} className="muted small">{richUI("m_446d40d8d310", [formatUI(t.basis), formatUI(t.id), formatUI(t.name), formatUI(t.reason)])}</p>))}{formatUI(Object.entries(f.evidence ?? {}).map(([key, value]) => <p key={key}><strong>{formatUI(key)}:</strong> {formatUI(String(value))}</p>))}</section>))}{formatUI(a.findings.length === 0 && <p>{textUI("m_12686d00c818")}</p>)}{formatUI(a.methods.length > 0 && <details><summary>{textUI("m_c9d16df2aa67")}</summary>{formatUI(a.methods.map((m, i) => <p key={i}>{richUI("m_2be959524133", [formatUI(m.action), formatUI(m.version), formatUI(m.target), formatUI(displayLabel(m.outcome)), formatUI(m.error), formatUI(m.mitre?.length ? ` · MITRE ATT&CK: ${m.mitre.join(', ')}` : '')])}</p>))}</details>)}</article>))}<article className="org-card"><h2>{textUI("m_5a0ee3452091")}</h2><p>{formatUI(displayLabel(demoText(s.remediation)))}</p>{formatUI(advancedEnabled(me) && can(me, 'ai.read') && <Link to={`/organizations/${r.organization_id}/ai`}>{textUI("m_9f7b9389a0d3")}</Link>)}</article></section>;
+    const assets = s.assets ?? [];
+    const sev = s.by_severity ?? {};
+    const severities = ['critical', 'high', 'medium', 'low', 'info'] as const;
+    const findingsTotal = severities.reduce((acc, k) => acc + (sev[k] ?? 0), 0);
+    const skipped = assets.filter(a => a.status === 'skipped' || !!a.skip_reason).length;
+    const tested = assets.filter(a => a.status === 'finished' && !a.skip_reason && a.methods.length > 0 && a.methods.every(m => m.outcome === 'success')).length;
+    const incomplete = assets.length - skipped - tested;
+    const comparison = s.comparison_details;
+    const totals = comparison?.totals;
+    const comparedTotal = totals ? totals.new + totals.persistent + totals.resolved + totals.uncompared : 0;
+    // Temuan berstatus "baru" menurut perbandingan scan, dipetakan dari finding_id baris comparison.
+    const newFindingIds = new Set((comparison?.rows ?? []).filter(row => row.change === 'new').map(row => row.finding_id));
+    const created = new Date(r.created_at);
+    const createdText = Number.isNaN(created.getTime()) ? '' : created.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' });
+    const severityCaption = severities.filter(k => (sev[k] ?? 0) > 0).map(k => `${sev[k]} ${displayLabel(k)}`).join(' · ');
+    return <section className="page rep rep--detail">
+      <nav className="rep__crumbs" aria-label={textUI("pen_rpt_breadcrumb")}>
+        {can(me, 'organization.read') ? <Link to={`/organizations/${r.organization_id}`}>{formatUI(s.organization)}</Link> : <span>{formatUI(s.organization)}</span>}
+        <span aria-hidden="true">/</span>
+        <span aria-current="page">{richUI("pen_rpt_crumb_current", [formatUI(r.version)])}</span>
+      </nav>
+      <p className="rep__frozen">
+        {richUI("m_a8a0511b45e0", [formatUI(s.scan_id ? textUI("m_0fe8524d1d55") : textUI("m_e1cf71e6c627")), formatUI(r.version)])}
+        <StatusBadge status={r.status}/>
+      </p>
+      <div className="page__head">
+        <div>
+          <h1 className="page__title">{richUI("pen_rpt_title", [formatUI(s.organization), formatUI(r.version)])}</h1>
+          <p className="page__sub">{richUI("pen_rpt_meta", [formatUI(displayLabel(r.status)), formatUI(createdText), formatUI(displayLabel(s.profile))])}</p>
+        </div>
+        <div className="rep__actions">
+          {/* Tautan export dipertahankan persis dari implementasi lama; JSON tetap tersedia walau PDF gagal. */}
+          <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/json`} download>{textUI("pen_rpt_action_json")}</a>
+          {r.status !== 'ready' ? <button type="button" className="btn btn--secondary btn--auto" disabled title={r.error || undefined}>{textUI("pen_rpt_action_pdf")}</button>
+            : <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/pdf`} download>{textUI("pen_rpt_action_pdf")}</a>}
+          {r.status === 'ready' && <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/pdf?preview=1`} target="_blank" rel="noreferrer">{textUI("pen_rpt_action_preview")}</a>}
+        </div>
+      </div>
+      {s.is_demo && <div className="notice" role="status">{formatUI(demoText(s.label) || 'DEMO / SYNTHETIC DATA - not a real assessment.')}</div>}
+      {r.status !== 'ready' && <div className={`notice rep__notice rep__notice--${r.status === 'failed' ? 'bad' : 'live'}`} role={r.status === 'failed' ? 'alert' : 'status'}>
+        <p>{richUI("m_43e72fde1467", [formatUI(displayLabel(r.status)), formatUI(r.error)])}</p>
+        {r.status === 'failed' && can(me, 'report.generate') && <button className="btn btn--secondary btn--auto" disabled={retry.isPending} onClick={() => retry.mutate()}>{textUI("m_2cdede71ecc0")}</button>}
+      </div>}
+      {retry.error && <p role="alert">{formatUI(describeError(retry.error).message)}</p>}
+      <div className="rep__metrics">
+        <MetricCard label={textUI("pen_rpt_metric_risk")} value={formatUI(displayLabel(demoText(s.risk)))} caption={richUI("pen_rpt_scope", [formatUI(assets.length)])}/>
+        <MetricCard label={textUI("pen_rpt_metric_assets")} value={formatUI(assets.length)} caption={richUI("pen_rpt_assets_caption", [formatUI(tested), formatUI(skipped), formatUI(incomplete)])}/>
+        <MetricCard label={textUI("pen_rpt_metric_findings")} value={formatUI(findingsTotal)} bar={{ bySeverity: sev }} caption={severityCaption || textUI("pen_rpt_findings_none")}/>
+        <MetricCard label={textUI("pen_rpt_metric_compare")} value={comparison ? formatUI(comparedTotal) : '-'} caption={totals ? richUI("pen_rpt_compare_totals", [formatUI(totals.new), formatUI(totals.persistent), formatUI(totals.resolved), formatUI(totals.uncompared)]) : textUI("pen_rpt_compare_none")}/>
+      </div>
+      {s.endpoint_summary && <PanelCard title={textUI("m_28c9aeab86c9")}>
+        <p>{richUI("m_b692f52058c0", [formatUI(s.endpoint_summary.assets_with_data), formatUI(s.endpoint_summary.assets_total)])}</p>
+        <SeverityBar bySeverity={s.endpoint_summary.by_severity ?? {}}/>
+        <div className="ed-scroll" role="region" aria-label={textUI("m_d7800ca39df8")} tabIndex={0}>
+          <table className="org-table ed-report">
+            <thead><tr><th scope="col">{textUI("m_80d298c9f240")}</th><th scope="col">{textUI("m_6725e7bbcd28")}</th><th scope="col">{textUI("m_7f7ecd155f4a")}</th><th scope="col">{textUI("m_c2584dfa6903")}</th></tr></thead>
+            <tbody>{assets.filter(a => a.endpoint).map(a => { const e = a.endpoint!; const at = e.attributes; return <tr key={a.id}>
+              <th scope="row">{formatUI(a.name)}</th>
+              <td>{formatUI(String(at.os_name ?? ''))} {formatUI(String(at.os_version ?? ''))}{formatUI(at.kernel ? `, kernel ${String(at.kernel)}` : '')}</td>
+              <td>{formatUI(e.findings.length === 0 ? textUI("m_dc937b598926") : <ul className="stack-list">{formatUI(e.findings.slice(0, 8).map((f, i) => <li key={i}>{formatUI(`${displayLabel(f.severity)}: ${f.title}`)}</li>))}{formatUI(e.findings.length > 8 && <li className="muted small">{formatUI(textUI("m_cca2a7065289", [e.findings.length - 8]))}</li>)}</ul>)}</td>
+              <td>{formatUI(e.ports ? textUI("m_3bca60964638", [e.ports.both.join(', ') || 'none', e.ports.scan_only.join(', ') || 'none', e.ports.host_only.join(', ') || 'none']) : textUI("m_c7bcc01273bc"))}</td>
+            </tr>; })}</tbody>
+          </table>
+        </div>
+        <p className="muted small">{textUI("m_c0897afc8d4f")}</p>
+        <p className="muted small">{textUI("m_303b527be639")}</p>
+      </PanelCard>}
+      {(locale() === 'en-US' || !s.comparison_details) && <p>{formatUI(displayLabel(s.comparison))}</p>}
+      <ScanComparison comparison={s.comparison_details}/>
+      {s.summary && <PanelCard title={textUI("hackbot_summary")}><p>{s.summary}</p></PanelCard>}
+      {s.summary && r.status === 'ready' && <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${id}/export/pdf?preview=1`}/>}
+      <PanelCard title={textUI("pen_rpt_findings_title")}>
+        <p className="muted small">{textUI("pen_rpt_findings_desc")}</p>
+        {/* Satu tabel, dikelompokkan per aset lewat tbody + th scope="rowgroup" agar pembaca layar tetap paham konteks. */}
+        <table className="rep__fnd">
+          <thead><tr>
+            <th scope="col">{textUI("pen_rpt_fnd_col_severity")}</th>
+            <th scope="col">{textUI("pen_rpt_fnd_col_finding")}</th>
+            <th scope="col">{textUI("pen_rpt_fnd_col_package")}</th>
+            <th scope="col">{textUI("pen_rpt_fnd_col_fix")}</th>
+            <th scope="col">{textUI("pen_rpt_fnd_col_updated")}</th>
+            <th scope="col"><span className="sr-only">{textUI("pen_rpt_fnd_evidence")}</span></th>
+          </tr></thead>
+          {assets.map(a => {
+            const findings = a.findings ?? [];
+            const shown = Math.min(limits[a.id] ?? FINDINGS_PAGE, findings.length);
+            const failedMethods = a.methods.filter(m => m.outcome !== 'success');
+            const criticalCount = findings.filter(f => f.severity === 'critical').length;
+            const highCount = findings.filter(f => f.severity === 'high').length;
+            return <tbody key={a.id} className="rep__fgroup">
+              <tr className="rep__fgroup-row"><th colSpan={6} scope="rowgroup">
+                <div className="rep__fgroup-head">
+                  <span className="rep__monogram" aria-hidden="true">{(a.name.trim()[0] ?? '?').toUpperCase()}</span>
+                  <div className="rep__fgroup-name">
+                    <h3>{formatUI(a.name)}</h3>
+                    <p className="muted small">{formatUI(displayLabel(a.status))}{formatUI(a.skip_reason ? ` · ${a.skip_reason}` : '')}</p>
+                  </div>
+                  {criticalCount > 0 && <span className="rep__fmini rep__fmini--critical" title={displayLabel('critical')}>{formatUI(criticalCount)}</span>}
+                  {highCount > 0 && <span className="rep__fmini rep__fmini--high" title={displayLabel('high')}>{formatUI(highCount)}</span>}
+                  <span className="rep__fgroup-count">{richUI("pen_rpt_fnd_count", [formatUI(findings.length)])}</span>
+                  {can(me, 'asset.read') && <Link className="rep__fgroup-open" to={`/assets/${a.id}`}>{textUI("pen_rpt_open_asset")}</Link>}
+                </div>
+              </th></tr>
+              {failedMethods.length > 0 && <tr className="rep__fmeta"><td colSpan={6}><div className="notice" role="status"><p>{textUI("m_3f3e8a4c4961")}</p><ul>{failedMethods.map((m, i) => <li key={i}>{formatUI(m.action)}: {formatUI(m.error || m.outcome || textUI("m_0192502471c4"))}</li>)}</ul></div></td></tr>}
+              {findings.length === 0 && <tr className="rep__fmeta"><td colSpan={6} className="muted small">{textUI("m_12686d00c818")}</td></tr>}
+              {findings.slice(0, shown).map(f => {
+                const pkg = evString(f.evidence, 'package');
+                const installed = evString(f.evidence, 'installed_version');
+                const fixed = evString(f.evidence, 'fixed_version');
+                const packageText = pkg ? (fixed ? `${pkg} ${installed} → ${fixed}` : [pkg, installed].filter(Boolean).join(' ')) : f.value;
+                const fixStatus = evString(f.evidence, 'fix_status');
+                const asOf = evString(f.evidence, 'data_as_of');
+                const expanded = !!openRows[f.id];
+                const rest = Object.entries(f.evidence ?? {}).filter(([key]) => !EVIDENCE_INLINE.has(key));
+                return <Fragment key={f.id}>
+                  <tr className="rep__frow">
+                    <td><SeverityPill severity={f.severity}>{formatUI(displayLabel(f.severity))}</SeverityPill></td>
+                    <td>
+                      <p className="rep__ftitle">{formatUI(f.title)}{formatUI(newFindingIds.has(f.id) && <StateTag tone="accent">{textUI("pen_rpt_fnd_new")}</StateTag>)}</p>
+                      {pkg && <p className="mono rep__fvalue">{formatUI(f.value)}</p>}
+                    </td>
+                    <td className="mono">{formatUI(packageText)}</td>
+                    <td>{formatUI(fixStatus ? fixLabel(fixStatus) : '-')}</td>
+                    <td>{formatUI(asOf ? dayText(asOf) : '-')}</td>
+                    <td className="rep__fexp">
+                      <button type="button" className="rep__fexp-btn" aria-expanded={expanded} aria-label={textUI("pen_rpt_fnd_evidence")} onClick={() => setOpenRows(prev => ({ ...prev, [f.id]: !prev[f.id] }))}><ChevronDown size={14} aria-hidden="true"/></button>
+                    </td>
+                  </tr>
+                  {expanded && <tr className="rep__fexp-row"><td colSpan={6}>
+                    {(f.mitre ?? []).map(t => <p key={t.id} className="muted small">{richUI("m_446d40d8d310", [formatUI(t.basis), formatUI(t.id), formatUI(t.name), formatUI(t.reason)])}</p>)}
+                    {rest.map(([key, value]) => <p key={key} className="rep__fev">{key === 'advisory_url' && typeof value === 'string' && value.startsWith('http') ? <a href={value} target="_blank" rel="noreferrer">{formatUI(key)}</a> : <><strong>{formatUI(key)}:</strong> {formatUI(String(value))}</>}</p>)}
+                    {rest.length === 0 && (f.mitre ?? []).length === 0 && <p className="muted small">{textUI("pen_rpt_fnd_evidence")}: -</p>}
+                  </td></tr>}
+                </Fragment>;
+              })}
+              {findings.length > FINDINGS_PAGE && <tr className="rep__fload"><td colSpan={6}>
+                <span className="muted small">{richUI("pen_rpt_fnd_shown", [formatUI(shown), formatUI(findings.length)])}</span>
+                {shown < findings.length && <button type="button" className="btn btn--secondary btn--auto" onClick={() => setLimits(prev => ({ ...prev, [a.id]: (prev[a.id] ?? FINDINGS_PAGE) + FINDINGS_PAGE }))}>{textUI("pen_rpt_load_more")}</button>}
+              </td></tr>}
+              {a.methods.length > 0 && <tr className="rep__fmeta"><td colSpan={6}><details><summary>{textUI("m_c9d16df2aa67")}</summary>{a.methods.map((m, i) => <p key={i}>{richUI("m_2be959524133", [formatUI(m.action), formatUI(m.version), formatUI(m.target), formatUI(displayLabel(m.outcome)), formatUI(m.error), formatUI(m.mitre?.length ? ` · MITRE ATT&CK: ${m.mitre.join(', ')}` : '')])}</p>)}</details></td></tr>}
+            </tbody>;
+          })}
+        </table>
+      </PanelCard>
+      <PanelCard title={textUI("m_5a0ee3452091")}>
+        <p>{formatUI(displayLabel(demoText(s.remediation)))}</p>
+        {advancedEnabled(me) && can(me, 'ai.read') && <Link to={`/organizations/${r.organization_id}/ai`}>{textUI("m_9f7b9389a0d3")}</Link>}
+      </PanelCard>
+      <div className="report-relations">
+        {can(me, 'organization.read') && <Link to={`/organizations/${r.organization_id}`}>{textUI("m_81acc0a4d1ff")}</Link>}
+        {can(me, s.scan_id ? 'simulation.read' : 'assessment.read') && <Link to={s.scan_id ? `/simulations/${s.scan_id}` : `/assessments/${r.assessment_id}`}>{formatUI(s.scan_id ? textUI("m_b5e09d8b7d1e") : textUI("m_7cb1f270ab5b"))}</Link>}
+      </div>
+    </section>;
 }

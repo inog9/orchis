@@ -1,6 +1,6 @@
-import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
+import { t as textUI, tr as richUI, useLocale, fv as formatUI, locale } from "../i18n/runtime";
 import { DeleteOrganization } from '../components/DeleteOrganization';
-import { ScanControls } from '../components/ScanControls';
+import { ScanControls, useScanControl } from '../components/ScanControls';
 import { ReportsPage } from './ReportsPage';
 import { ScanList } from './ScansPage';
 import { advancedEnabled } from '../components/navigation';
@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import './orgs.css';
 import './orgd.css';
+import '../components/pen/pen.css';
 import { EmptyState } from '../components/orgs/EmptyState';
 import { OrgCard, OrgCardSkeleton, SeverityBar } from '../components/orgs/OrgCard';
 import { OrgToolbar, type SortKey, type ViewMode } from '../components/orgs/OrgToolbar';
@@ -22,11 +23,15 @@ import { OrgOverviewStats } from '../components/orgs/OrgOverviewStats';
 import { CoveragePanel } from '../components/orgs/CoveragePanel';
 import { totalFindings, useAllOrganizations, useOrgReports, useStoredChoice } from '../components/orgs/useOrgData';
 import { relativeTime } from '../lib/relativeTime';
+import { MetricCard, PanelCard, StateTag } from '../components/pen/primitives';
+import { StatusBadge } from '../components/sims/StatusBadge';
+import { useReadiness, type ReadinessItem } from '../api/readiness';
+import { localizeReason } from '../lib/readinessReason';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useAgents, useHome, useMe } from '../api/hooks';
-import { can, type Asset } from '../api/types';
+import { can, type Asset, type AgentRow } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { Modal } from '../components/Modal';
 import { InstallDialog } from './AgentsPage';
@@ -156,6 +161,69 @@ export function OrganizationsPage() {
       {filtered && pageItems.length === 0 ? null : <Pagination page={page} total={sorted.length} pageSize={PAGE_SIZE} onPage={setPage}/>}
       {formatUI(create && <OrgForm onClose={() => { setCreate(false); setSearchParams({}, { replace: true }); }}/>)}</section>;
 }
+// Waktu lokal untuk kolom "Waktu" dan heartbeat; ISO kosong atau tak valid mengembalikan kosong.
+function whenLabel(iso: string | null | undefined, timeStyle: 'short' | 'medium' = 'short'): string {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle });
+}
+
+// Bagian "Aset" (spec HALAMAN 5): tabel kesiapan dari GET /organizations/{id}/readiness.
+// Kolom: nama, platform, status agent (titik hijau bila online), status pindai terakhir, waktu.
+function OrgAssetsSection({ orgID, readiness, canWrite }: {
+    orgID: string;
+    readiness: ReturnType<typeof useReadiness>;
+    canWrite: boolean;
+}) {
+    useLocale();
+    const rows = readiness.data?.items ?? [];
+    return <PanelCard title={textUI("pen_orgd_assets_title")} actions={<Link className="link-quiet" to={`/organizations/${orgID}?tab=assets`}>{textUI("pen_orgd_assets_manage")}</Link>}>
+      {readiness.isError && <div className="alert" role="alert"><span>{formatUI(describeError(readiness.error).message)}</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => readiness.refetch()}>{textUI("m_d8b8392e2c54")}</button></div>}
+      {readiness.isPending && <p role="status">{textUI("m_6470b2b671b5")}</p>}
+      {!readiness.isPending && !readiness.isError && rows.length === 0 && <div className="state" role="status"><h2>{textUI("pen_orgd_assets_empty_t")}</h2><p>{textUI("pen_orgd_assets_empty_b")}</p>{formatUI(canWrite && <Link className="link-quiet" to={`/organizations/${orgID}?tab=assets&new=1`}>{textUI("m_719aca414b88")}</Link>)}</div>}
+      {rows.length > 0 && <div className="orgd__tablewrap" role="region" aria-label={textUI("pen_orgd_assets_aria")} tabIndex={0}><table className="orgd__table">
+        <thead><tr><th scope="col">{textUI("pen_orgd_col_asset")}</th><th scope="col">{textUI("pen_orgd_col_platform")}</th><th scope="col">{textUI("pen_orgd_col_agent")}</th><th scope="col">{textUI("pen_orgd_col_scan")}</th><th scope="col">{textUI("pen_orgd_col_time")}</th></tr></thead>
+        <tbody>{rows.map(item => <OrgAssetRow key={item.id} item={item}/>)}</tbody>
+      </table></div>}
+    </PanelCard>;
+}
+
+// Satu baris aset: titik hijau hanya saat agent_status=online (spec HALAMAN 5).
+function OrgAssetRow({ item }: { item: ReadinessItem }) {
+    const platform = [item.os, item.arch].filter(Boolean).join(' · ');
+    return <tr>
+      <td><div className="orgd__asset"><span className="orgd__monogram" aria-hidden="true">{item.name.slice(0, 2).toUpperCase()}</span>
+        <div className="orgd__asset-text"><Link className="orgd__asset-name" to={`/assets/${item.id}`}>{formatUI(item.name)}</Link>
+          <span className="orgd__asset-tag" title={item.reason ? localizeReason(item.reason) : undefined}><StateTag tone={item.reason ? 'neutral' : 'success'}>{item.reason ? textUI("pen_orgd_not_ready") : textUI("pen_orgd_ready")}</StateTag></span>
+        </div></div></td>
+      <td>{platform || '-'}</td>
+      <td><span className={`orgd__agentcell${item.agent_status === 'online' ? ' orgd__agentcell--on' : ''}`}><span className={`orgd__dot${item.agent_status === 'online' ? ' orgd__dot--on' : ''}`} aria-hidden="true"/>{textUI(item.agent_status === 'online' ? "pen_orgd_agent_online" : item.agent_status === 'offline' ? "pen_orgd_agent_offline" : "pen_orgd_agent_none")}</span></td>
+      <td>{item.last_scan_status ? <StatusBadge status={item.last_scan_status}/> : textUI("pen_orgd_scan_none")}</td>
+      <td className="mono">{whenLabel(item.last_scan_at) || '-'}</td>
+    </tr>;
+}
+
+// Bagian "Agen terpasang" (spec HALAMAN 5): kartu ringkas per agent milik organisasi ini:
+// hostname, os/arch, tag status, versi agent, dan heartbeat terakhir (nilai teknis memakai mono).
+function OrgAgentsSection({ agents, canInstall, onInstall }: {
+    agents: AgentRow[];
+    canInstall: boolean;
+    onInstall: () => void;
+}) {
+    useLocale();
+    return <PanelCard title={textUI("pen_orgd_agents_title")} actions={canInstall ? <button type="button" className="btn btn--secondary btn--sm" onClick={onInstall}>{textUI("m_2816f2ffe728")}</button> : undefined}>
+      {agents.length === 0 ? <p role="status">{textUI("pen_orgd_agents_empty")}</p> : <ul className="orgd__agents">
+        {agents.map(a => <li key={a.id} className="orgd__agent">
+          <div className="orgd__agent-top"><h3>{a.hostname || a.asset_name}</h3><StateTag tone={a.status === 'online' ? 'success' : 'neutral'}>{textUI(a.status === 'online' ? "pen_orgd_agent_online" : "pen_orgd_agent_offline")}</StateTag></div>
+          <p className="orgd__agent-os">{`${a.os} · ${a.arch}`}</p>
+          <dl className="orgd__agent-meta">
+            <div><dt>{textUI("pen_orgd_agent_version")}</dt><dd className="mono">{a.version}</dd></div>
+            <div><dt>{textUI("pen_orgd_agent_heartbeat")}</dt><dd className="mono">{whenLabel(a.last_heartbeat_at, 'medium') || '-'}</dd></div>
+          </dl>
+        </li>)}
+      </ul>}
+    </PanelCard>;
+}
 export function OrganizationDetailPage() {
     useLocale();
     const { id = '' } = useParams();
@@ -185,7 +253,11 @@ export function OrganizationDetailPage() {
     const members = useMutation({ mutationFn: (options: {
             testing_authorized?: boolean;
             unassign?: boolean;
-        }) => api.put(`/api/v1/organizations/${id}/assets`, { assets: Object.entries(selected).map(([id, version]) => ({ id, version })), ...options }), onSuccess: async () => { setSelected({}); await Promise.all(['organization-assets', 'organization-readiness', 'assets', 'asset', 'agents', 'home'].map(key => qc.invalidateQueries({ queryKey: [key] }))); } });
+        }) => api.put(`/api/v1/organizations/${id}/assets`, { assets: Object.entries(selected).map(([id, version]) => ({ id, version })), ...options }), onSuccess: async () => { setSelected({}); await Promise.all(['organization-assets', 'organization-readiness', 'readiness', 'assets', 'asset', 'agents', 'home'].map(key => qc.invalidateQueries({ queryKey: [key] }))); } });
+    // Data metric strip dan section Aset/Agen (spec HALAMAN 5). useReadiness dari api/readiness
+    // punya shape penuh sesuai handler Go (internal/organizations/readiness.go): scan_window_open + emergency_stop.
+    const readiness = useReadiness(id, can(me, 'asset.read') && can(me, 'organization.read'));
+    const control = useScanControl(id);
     if (q.isPending)
         return <p role="status">{textUI("m_580b0448c5b8")}</p>;
     if (!q.data)
@@ -193,13 +265,58 @@ export function OrganizationDetailPage() {
     const o = q.data;
     const localAgents = agents.data?.filter(a => a.organization_id === id) ?? [];
     const bySev = latest.data?.items[0]?.snapshot.by_severity;
-    return <section className="page orgd"><Link to="/organizations" className="link-quiet">{textUI("m_c242e176c772")}</Link><div className="page__head"><div><p className="eyebrow">{formatUI(o.industry || textUI("org_eyebrow_default"))}</p><h1 className="page__title">{formatUI(o.name)}</h1><p className="page__sub">{formatUI(o.description || textUI("m_938d049615ff"))}</p><p className="muted">{formatUI(o.contact)}</p></div><div className="row">{formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new?org=${id}`}>{textUI("m_ea1c510d1ddb")}</Link>)}{formatUI(can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setEdit(true)}>{textUI("m_e735f16f97b6")}</button>)}{formatUI(can(me, 'agent.manage') && can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setInstall(true)}>{textUI("m_2816f2ffe728")}</button>)}</div></div>
+    // Agent milik organisasi ini; yang dicabut tidak dihitung sebagai terpasang.
+    const installedAgents = localAgents.filter(a => a.status !== 'revoked');
+    const onlineAgents = installedAgents.filter(a => a.status === 'online').length;
+    // Metric strip: angka hanya saat datanya benar-benar ada (tidak menebak dari undefined).
+    const r = readiness.data;
+    const readyValue = r && typeof r.total === 'number' && typeof r.ready === 'number' ? `${r.ready}/${r.total}` : '-';
+    const readyCaption = r && typeof r.authorized === 'number' ? textUI("pen_orgd_metric_ready_caption", [r.authorized]) : undefined;
+    const authorizedValue = r && typeof r.authorized === 'number' ? formatUI(r.authorized) : '-';
+    const authorizedCaption = r && typeof r.total === 'number' ? textUI("pen_orgd_metric_authorized_caption", [r.total]) : undefined;
+    // Jendela pindai: nilai dari readiness.scan_window_open; caption paused/emergency_stop dari scan-control.
+    const windowOpen = r?.scan_window_open ?? (control.data ? control.data.allowed_now : undefined);
+    const emergency = control.data ? (control.data.paused || control.data.global_paused) : r?.emergency_stop;
+    const windowCaptionParts: string[] = [];
+    if (control.data) windowCaptionParts.push(textUI(control.data.paused ? "pen_orgd_window_paused" : "pen_orgd_window_not_paused"));
+    if (emergency !== undefined) windowCaptionParts.push(textUI("pen_orgd_window_emergency", [emergency ? textUI("pen_orgd_yes") : textUI("pen_orgd_no")]));
+    const windowCaption = windowCaptionParts.length > 0 ? windowCaptionParts.join(' · ') : undefined;
+    return <section className="page orgd">
+    <Link to="/organizations" className="link-quiet">{textUI("m_c242e176c772")}</Link>
+    {/* Kepala halaman: overline ORGANISASI, nama, slug+deskripsi (mockup "Page Heading"). */}
+    <header className="orgd__head">
+      <div className="orgd__heading">
+        <p className="orgd__overline">{textUI("pen_orgd_overline")}</p>
+        <h1 className="orgd__title">{formatUI(o.name)}</h1>
+        <p className="orgd__desc">{formatUI([o.slug, o.description].filter(Boolean).join(' · ') || textUI("m_938d049615ff"))}</p>
+        {formatUI((o.industry || o.contact) && <p className="orgd__meta">{formatUI([o.industry, o.contact].filter(Boolean).join(' · '))}</p>)}
+      </div>
+      <div className="orgd__actions">
+        {formatUI(can(me, 'report.read') && <Link className="btn btn--secondary btn--auto" to={`/reports?organization_id=${id}`}>{textUI("pen_orgd_action_reports")}</Link>)}
+        {formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new?org=${id}`}>{textUI("pen_orgd_action_scan")}</Link>)}
+        {formatUI(can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setEdit(true)}>{textUI("m_e735f16f97b6")}</button>)}
+        {formatUI(can(me, 'agent.manage') && can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setInstall(true)}>{textUI("m_2816f2ffe728")}</button>)}
+      </div>
+    </header>
+    {/* Metric strip selalu di atas tab (spec HALAMAN 5): satu permukaan, sel dipisah garis. */}
+    <div className="orgd__metrics" aria-label={textUI("pen_orgd_metrics_aria")} aria-busy={readiness.isPending || undefined}>
+      <MetricCard label={textUI("pen_orgd_metric_ready")} value={readyValue} caption={readyCaption}/>
+      <MetricCard label={textUI("pen_orgd_metric_authorized")} value={authorizedValue} caption={authorizedCaption}/>
+      <MetricCard label={textUI("pen_orgd_metric_agents")} value={agents.data ? formatUI(onlineAgents) : '-'} caption={agents.data ? textUI("pen_orgd_metric_agents_caption", [installedAgents.length]) : undefined}/>
+      <MetricCard label={textUI("pen_orgd_metric_window")} value={windowOpen === undefined ? '-' : windowOpen ? textUI("pen_orgd_window_open") : textUI("pen_orgd_window_closed")} caption={windowCaption}/>
+    </div>
     <ScanControls org={id} compact/>
+    <nav className="tabs" aria-label={textUI("m_3c324254fabb")}>{formatUI(['overview', ...(can(me, 'agent.read') ? ['agents'] : []), ...(can(me, 'asset.read') ? ['assets'] : []), ...(can(me, 'assessment.read') ? ['scans'] : []), ...(can(me, 'finding.read') ? ['findings'] : []), ...(can(me, 'report.read') ? ['reports'] : [])].map(t => <button key={t} className={`tab ${tab === t ? 'is-active' : ''}`} aria-pressed={tab === t} onClick={() => setTab(t)}>{formatUI(t === 'agents' ? textUI("m_a6ea76b2725e") : textUI(({overview:'tab_overview',assets:'tab_assets',scans:'tab_scans',findings:'tab_findings',reports:'tab_reports'} as const)[t as 'overview']))}</button>))}</nav>
+    <ErrorMessage error={members.error}/>
+    {/* Konten tab Overview: section Aset dan Agen diletakkan di tab Overview (bukan di atas tab)
+        agar tab lain tetap fokus dan tabel besar tidak diduplikasi di setiap tab; strip metrik
+        tetap selalu terlihat di atas. Overview adalah tab default, susunan mockup langsung terlihat. */}
+    {formatUI(tab === 'overview' && <p className="orgd__intro">{textUI("m_7d392c72d06d")}</p>)}
+    {formatUI(tab === 'overview' && can(me, 'asset.read') && can(me, 'organization.read') && <OrgAssetsSection orgID={id} readiness={readiness} canWrite={can(me, 'asset.write')}/>)}
+    {formatUI(tab === 'overview' && can(me, 'agent.read') && <OrgAgentsSection agents={installedAgents} canInstall={can(me, 'agent.manage') && can(me, 'organization.write')} onInstall={() => setInstall(true)}/>)}
     {formatUI(tab === 'overview' && <OrgOverviewStats orgID={id} agents={localAgents} bySeverity={bySev} canAssets={can(me, 'asset.read')} canScans={can(me, 'assessment.read') && can(me, 'simulation.read')} canFindings={can(me, 'report.read') && can(me, 'finding.read')}/>)}
     {formatUI(advancedEnabled(me) && can(me, 'ai.read') && <p><Link to={`/organizations/${id}/ai`}>{textUI("m_c7db80dbcbe1")}</Link></p>)}{formatUI(tab === 'overview' && can(me, 'asset.read') && <><AssessmentReadiness id={id}/><CoveragePanel orgID={id}/></>)}
     {formatUI(tab === 'overview' && latest.data?.items[0] && <section className="org-card" aria-label={textUI("m_205881c06747")}><p className="eyebrow">{textUI("m_d57cfdbf6eb3")}</p><h2>{formatUI(latest.data.items[0].snapshot.risk)}</h2><div className="severity-strip">{formatUI(['critical', 'high', 'medium', 'low', 'info'].map(severity => <p key={severity}><strong>{formatUI(latest.data!.items[0]!.snapshot.by_severity[severity] ?? 0)}</strong> {formatUI(severity)}</p>))}</div><Link to={`/reports/${latest.data.items[0].id}`}>{textUI("m_a7ff4f55b2f9")}</Link></section>)}
-    <ErrorMessage error={members.error}/><nav className="tabs" aria-label={textUI("m_3c324254fabb")}>{formatUI(['overview', ...(can(me, 'agent.read') ? ['agents'] : []), ...(can(me, 'asset.read') ? ['assets'] : []), ...(can(me, 'assessment.read') ? ['scans'] : []), ...(can(me, 'finding.read') ? ['findings'] : []), ...(can(me, 'report.read') ? ['reports'] : [])].map(t => <button key={t} className={`tab ${tab === t ? 'is-active' : ''}`} aria-pressed={tab === t} onClick={() => setTab(t)}>{formatUI(t === 'agents' ? textUI("m_a6ea76b2725e") : textUI(({overview:'tab_overview',assets:'tab_assets',scans:'tab_scans',findings:'tab_findings',reports:'tab_reports'} as const)[t as 'overview']))}</button>))}</nav>
-    {formatUI(tab === 'overview' && <p>{textUI("m_7d392c72d06d")}</p>)}
     {formatUI(tab === 'reports' && <ReportsPage organizationID={id} organizationName={o.name}/>)}
     {formatUI(tab === 'findings' && <FindingsPage organizationID={id} organizationName={o.name}/>)}
     {formatUI(tab === 'assets' && <><AssetsPage organizationID={id} organizationName={o.name}/><details><summary>{textUI("m_9403bbbdfcc2")}</summary><div className="row"><button className="btn btn--secondary btn--auto" onClick={() => { setAssign(!assign); setSelected({}); setCursor(''); }}>{formatUI(assign ? textUI("m_50994d4c508b") : textUI("m_3a634c05b884"))}</button>{formatUI(can(me, 'organization.write') && can(me, 'asset.write') && <button className="btn btn--secondary btn--auto" disabled={!Object.keys(selected).length || members.isPending} onClick={() => members.mutate(assign ? {} : { unassign: true })}>{formatUI(assign ? textUI("m_fe751c91825c") : textUI("m_de9c719b5627"))}</button>)}{formatUI(can(me, 'asset.authorize') && can(me, 'organization.write') && !assign && <button className="btn btn--secondary btn--auto" disabled={!Object.keys(selected).length || members.isPending} onClick={() => members.mutate({ testing_authorized: true })}>{textUI("m_5cf9ccd97a0e")}</button>)}</div><ErrorMessage error={assets.error}/>

@@ -12,7 +12,7 @@ function mount() {
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={<p>beranda</p>} />
+          <Route path="/overview" element={<p>beranda</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

@@ -4,6 +4,7 @@ import { lazy, Suspense } from 'react';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { LandingPage } from './pages/LandingPage';
 import { useMe } from './api/hooks';
 import { can } from './api/types';
 import { describeError } from './components/ErrorNote';
@@ -66,7 +67,6 @@ function Guard({ children, guest = false }: {
         return me.data ? <Navigate to="/" replace/> : <>{formatUI(children)}</>;
     return me.data ? <>{formatUI(children)}</> : <Navigate to="/login" replace state={{ from: loc.pathname }}/>;
 }
-function Landing() { useLocale(); const { data: me } = useMe(); return <Navigate to={can(me, 'organization.read') ? '/organizations' : '/findings'} replace/>; }
 // Flag presentasi saja: API tetap memeriksa permission, scope dan consent yang sama.
 function Advanced({ children }: {
     children: React.ReactNode;
@@ -77,9 +77,9 @@ export function App() {
       <Route path="/login" element={<Guard guest><LoginPage /></Guard>}/>
       <Route path="/forgot" element={<Guard guest><ForgotPage /></Guard>}/>
       <Route path="/reset" element={<Guard guest><ResetPage /></Guard>}/>
+      <Route path="/" element={<LandingPage />}/>
       <Route element={<Guard><Shell /></Guard>}>
-        <Route index element={<Landing />}/>
-        <Route path="overview" element={<Advanced><HomePage /></Advanced>}/>
+        <Route path="overview" element={<HomePage />}/>
         <Route path="reports" element={<ReportsPage />}/>
         <Route path="reports/:id" element={<ReportDetailPage />}/>
         <Route path="organizations" element={<OrganizationsPage />}/>

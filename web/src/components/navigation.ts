@@ -1,8 +1,15 @@
 import { t as textUI } from "../i18n/runtime";
-import { Building2, FileText, Flag, Server, Settings, ShieldAlert } from 'lucide-react';
+import { Building2, FileText, Flag, LayoutDashboard, Server, Settings, ShieldAlert } from 'lucide-react';
 import { can, type User } from '../api/types';
 // Menu utama tetap enam area; fitur lanjutan hanya tersedia melalui palet saat diaktifkan server.
 export const navigation = [
+    { id: 'overview', get label() {
+            return textUI("pen_overview_nav");
+        }, get hint() {
+            return textUI("pen_overview_nav_hint");
+        }, to: '/overview', get group() {
+            return textUI("m_87bb59ba2f92");
+        }, icon: LayoutDashboard },
     { id: 'organizations', get label() {
             return textUI("m_7bd34abba2ae");
         }, get hint() {
