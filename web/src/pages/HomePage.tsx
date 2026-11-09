@@ -12,6 +12,7 @@ import { capitalLabel, displayLabel } from '../i18n/display';
 import { OrganisationSetup } from '../components/OrganisationSetup';
 import { useAllAssets, useFindings, useHome, useMe, useSimulationFindings, useSimulations } from '../api/hooks';
 import { can, type Asset, type Finding, type HomeSummary, type Simulation, type User } from '../api/types';
+import { GEO } from '../lib/worldGeo';
 import { describeError } from '../components/ErrorNote';
 import { MetricCard, PanelCard, SeverityBar, SeverityPill, StateTag } from '../components/pen/primitives';
 import { relativeTime } from '../lib/relativeTime';
@@ -275,11 +276,11 @@ function ScanGraph({ assets, pinned, engines, findings, live, head, emptyText }:
     );
 }
 
-// ---------- Live scan: world map (mockup v2fixed.pen, Konsep A versi peta) ----------
-// Peta dunia equirectangular sederhana; tiap aset jadi ikon gedung di negara acak
-// (hash dari asset id — mis. bisa jatuh di Korea Utara atau Israel). Aset web (Hackbot)
-// mendapat garis traffic attack masuk; aset host (orchis-defense-agent) berdenyut.
-// Event stream di kanan bergerak mengikuti alur temuan.
+// ---------- Live scan: world map asli (mockup orchis-live-scan.html, data GEO) ----------
+// Peta memakai path negara asli dari GEO. Dua pill engine menempel di "rumah"-nya:
+// Hackbot di Pyongyang (GEO.hackbot), orchis-defense-agent di Tel Aviv (GEO.defense).
+// Tiap aset ditempatkan di titik GEO.pool (acak dari hash asset id) sebagai ikon gedung;
+// garis arc menghubungkan engine ke aset (merah=attack web, gold=temuan host).
 const SEV_COLOR: Record<string, string> = {
     critical: 'var(--v2-critical, var(--sev-critical))',
     high: 'var(--v2-high, var(--sev-high))',
@@ -287,45 +288,11 @@ const SEV_COLOR: Record<string, string> = {
     low: 'var(--v2-low, var(--sev-low))',
     info: 'var(--v2-info, #8a8f98)',
 };
-const COUNTRIES: [string, number, number][] = [
-    ['United States', 39.8, -98.6], ['Canada', 56.1, -106.3], ['Brazil', -10.8, -52.9], ['Mexico', 23.6, -102.5],
-    ['United Kingdom', 54.0, -2.5], ['Germany', 51.1, 10.4], ['France', 46.6, 2.3], ['Israel', 31.0, 34.8],
-    ['Egypt', 26.8, 30.8], ['South Africa', -29.0, 24.9], ['India', 21.0, 78.0], ['China', 35.0, 103.8],
-    ['Japan', 36.2, 138.3], ['South Korea', 36.5, 127.9], ['North Korea', 40.3, 127.5], ['Indonesia', -2.5, 118.0],
-    ['Australia', -25.3, 133.8], ['Russia', 60.0, 90.0], ['Turkey', 39.0, 35.2], ['Saudi Arabia', 24.0, 45.0],
-    ['Nigeria', 9.1, 8.7], ['Argentina', -34.6, -64.4], ['Spain', 40.4, -3.7], ['Italy', 42.8, 12.8],
-];
-const MAP_W = 960, MAP_H = 480;
-
-// Poligon kontinen kasar (lon, lat) — cukup untuk peta bergaya di UI.
-const CONTINENTS: [number, number][][] = [
-    [[-168, 66], [-140, 70], [-125, 72], [-110, 73], [-95, 72], [-85, 70], [-80, 73], [-70, 62], [-65, 60], [-60, 52], [-65, 45], [-70, 42], [-75, 38], [-80, 32], [-81, 26], [-90, 20], [-97, 26], [-105, 22], [-110, 24], [-115, 30], [-120, 35], [-125, 40], [-125, 48], [-130, 55], [-140, 60], [-155, 58]],
-    [[-80, 10], [-70, 12], [-60, 8], [-50, 0], [-42, -3], [-35, -8], [-40, -20], [-48, -28], [-58, -35], [-65, -42], [-70, -52], [-72, -54], [-70, -45], [-75, -35], [-78, -20], [-80, -5]],
-    [[-10, 36], [0, 38], [10, 38], [20, 35], [30, 36], [40, 42], [50, 45], [60, 50], [40, 55], [30, 60], [25, 65], [18, 70], [10, 64], [0, 60], [-10, 58], [-10, 50], [-10, 44]],
-    [[-17, 15], [-10, 5], [0, 5], [10, 4], [20, 0], [30, -2], [35, -10], [40, -15], [42, -25], [35, -30], [30, -32], [25, -34], [18, -34], [15, -28], [12, -18], [8, -10], [0, 4], [-8, 4]],
-    [[30, 36], [40, 42], [50, 45], [60, 45], [70, 40], [80, 30], [90, 22], [100, 15], [105, 10], [110, 5], [120, 0], [125, -8], [140, -5], [150, 0], [160, 10], [170, 20], [180, 30], [180, 45], [170, 55], [160, 60], [150, 65], [140, 70], [130, 72], [120, 73], [110, 74], [100, 76], [90, 75], [80, 72], [70, 70], [60, 68], [50, 66], [40, 64], [30, 60], [30, 50], [30, 42]],
-    [[115, -22], [130, -22], [140, -18], [147, -20], [153, -27], [150, -35], [140, -38], [130, -32], [118, -35], [113, -28]],
-];
 
 function hashNum(id: string): number {
     let hsh = 0;
     for (let i = 0; i < id.length; i++) hsh = (hsh * 31 + id.charCodeAt(i)) >>> 0;
     return hsh;
-}
-function project(lon: number, lat: number): [number, number] {
-    return [((lon + 180) / 360) * MAP_W, ((90 - lat) / 180) * MAP_H];
-}
-function pickCountry(seed: string): [string, number, number] {
-    return COUNTRIES[hashNum(seed) % COUNTRIES.length] ?? ['International Waters', 0, 0];
-}
-function countryOf(assetId: string): [string, number, number] {
-    return pickCountry(assetId);
-}
-function continentPath(poly: [number, number][]): string {
-    return poly.map(([lon, lat], i) => {
-        const [x, y] = project(lon, lat);
-        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-    }).join(' ') + ' Z';
 }
 
 function MapPanel({ h, engines, findings, live }: { h: HomeSummary; engines: EngineNodeData[]; findings: Finding[]; live: boolean }) {
@@ -338,54 +305,65 @@ function MapPanel({ h, engines, findings, live }: { h: HomeSummary; engines: Eng
         return () => clearInterval(t);
     }, [events.length]);
     useEffect(() => { setActiveEvent(0); }, [findings]);
-    const blips = h.most_exposed.slice(0, MAX_ASSET_NODES).map((row, i) => {
-        const [country, lat, lon] = countryOf(row.asset_id);
-        const [x, y] = project(lon, lat);
+
+    const hb = GEO.hackbot, df = GEO.defense;
+    const hbEng = engines.find((e) => e.key === 'hackbot') ?? { key: 'hackbot', name: 'Hackbot' };
+    const dfEng = engines.find((e) => e.key === 'defensebot') ?? { key: 'defensebot', name: 'orchis-defense-agent' };
+
+    const blips = h.most_exposed.slice(0, 3).map((row, i) => {
+        const p = GEO.pool[(hashNum(row.asset_id) + i * 7) % GEO.pool.length] ?? { country: 'International Waters', city: '', x: GEO.W / 2, y: GEO.H / 2 };
         const top = row.critical > 0 ? 'critical' : row.high > 0 ? 'high' : row.medium > 0 ? 'medium' : 'low';
         const web = /https?:\/\//i.test(row.name);
-        // sumber "penyerang" untuk traffic attack ke aset web
-        const attackers = [0, 1, 2].map((k) => {
-            const c = pickCountry(row.asset_id + k);
-            return project(c[2], c[1]);
-        });
-        return { row, country, x, y: y + (i % 2) * 14 - 7, top, web, attackers };
+        return { row, x: p.x, y: p.y, country: p.country, side: p.x < GEO.W * 0.5 ? 'r' : 'l', top, web };
     });
+    const hl = new Set(blips.map((b) => b.country));
     const last = h.latest_simulations[0];
+
+    const pill = (eng: EngineNodeData, geo: { x: number; y: number; city: string; country: string }, color: string, IconC: LucideIcon, id: string) => (
+        <div className="pen-ov-pn" id={id} style={{ left: `${(geo.x / GEO.W) * 100}%`, top: `${(geo.y / GEO.H) * 100}%`, color }}>
+            <div className="pen-ov-pill">
+                <IconC size={16} aria-hidden="true" />
+                <b>{formatUI(eng.name)}</b>
+                <span className="pen-ov-pill__st">{textUI('pen_ov_ready')}<i className="pen-ov-pill__dot" /></span>
+            </div>
+            <div className="pen-ov-geo">{formatUI(`${geo.city} · ${geo.country}`.toUpperCase())}</div>
+            <div className="pen-ov-stem" aria-hidden="true" />
+            <div className="pen-ov-mk" aria-hidden="true" />
+        </div>
+    );
+
     return (
         <div className="pen-ov-map-row">
             <div className={`pen-ov-map${live ? ' is-live' : ''}`}>
-                <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="img" aria-label={textUI('pen_ov_map_aria')}>
-                    <defs>
-                        <marker id="pen-ov-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                            <path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="var(--v2-accent)" strokeWidth="1.6" />
-                        </marker>
-                    </defs>
-                    {CONTINENTS.map((poly, i) => <path key={i} d={continentPath(poly)} className="pen-ov-land" />)}
-                    {blips.flatMap((b) => b.web ? b.attackers.map((a, k) => (
-                        <line key={`${b.row.asset_id}-${k}`} x1={a[0]} y1={a[1]} x2={b.x} y2={b.y} className="pen-ov-attack" markerEnd="url(#pen-ov-arrow)" />
-                    )) : [])}
-                    {blips.map((b) => (
-                        <g key={b.row.asset_id}>
-                            {b.web ? null : <circle cx={b.x} cy={b.y} r={16} className="pen-ov-pulse" stroke={SEV_COLOR[b.top]} />}
-                            <circle cx={b.x} cy={b.y} r={13} fill="var(--v2-surface)" stroke={SEV_COLOR[b.top]} strokeWidth={1.5} />
-                            <Building2 size={13} x={b.x - 6.5} y={b.y - 6.5} className="pen-ov-blip-icon" />
-                            <text x={b.x + 16} y={b.y - 2} className="pen-ov-blip-name">{formatUI(b.row.name)}</text>
-                            <text x={b.x + 16} y={b.y + 12} className="pen-ov-blip-meta">{b.country} · {b.web ? 'WEB' : 'HOST'} · {formatUI(b.row.critical)}C · {formatUI(b.row.high)}H · {formatUI(b.row.medium)}M</text>
+                <div className="pen-ov-stage">
+                    <svg viewBox={`0 0 ${GEO.W} ${GEO.H}`} preserveAspectRatio="none" aria-hidden="true">
+                        <path className="pen-ov-grid" d={GEO.grid} />
+                        <g className="pen-ov-land">
+                            {GEO.countries.map((c) => (
+                                <path key={c.n} d={c.d} className={hl.has(c.n) ? 'hl' : ''} />
+                            ))}
                         </g>
+                        <g>
+                            {blips.map((b) => {
+                                const src = b.web ? hb : df;
+                                const mx = (src.x + b.x) / 2, my = Math.min(src.y, b.y) - 70;
+                                return <path key={b.row.asset_id} className={`pen-ov-arc ${b.web ? 'atk' : 'fnd'}`} d={`M ${src.x} ${src.y} Q ${mx} ${my} ${b.x} ${b.y}`} />;
+                            })}
+                        </g>
+                    </svg>
+                    {blips.map((b) => (
+                        <div key={b.row.asset_id} className={`pen-ov-node asset ${b.side}`} style={{ left: `${(b.x / GEO.W) * 100}%`, top: `${(b.y / GEO.H) * 100}%` }}>
+                            <div className="pen-ov-ico" style={{ borderColor: SEV_COLOR[b.top] }}>
+                                <Building2 size={14} aria-hidden="true" />
+                            </div>
+                            <div className="pen-ov-lab">
+                                <div className="pen-ov-lab__nm">{formatUI(b.row.name)}</div>
+                                <div className="pen-ov-lab__sub">{formatUI(b.country.toUpperCase())} · {b.web ? 'WEB' : 'HOST'} · {formatUI(b.row.critical)}C · {formatUI(b.row.high)}H · {formatUI(b.row.medium)}M</div>
+                            </div>
+                        </div>
                     ))}
-                </svg>
-                <div className="pen-ov-chips">
-                    {engines.map((e) => {
-                        const Icon = ENGINE_ICONS[e.key] ?? Plug;
-                        return (
-                            <span key={e.key} className="pen-ov-chip">
-                                <Icon size={12} aria-hidden="true" />
-                                <span className="pen-ov-chip__name">{formatUI(e.name)}</span>
-                                <span className="pen-ov-chip__status">{textUI('pen_ov_ready')}</span>
-                                <span className="pen-ov-dot pen-ov-dot--ok" aria-hidden="true" />
-                            </span>
-                        );
-                    })}
+                    {pill(hbEng, hb, 'var(--v2-atk, var(--atk, #ff5f78))', Crosshair, 'hackbot')}
+                    {pill(dfEng, df, 'var(--v2-success, var(--ok, #4fd1a0))', Shield, 'defense')}
                 </div>
             </div>
             <aside className="pen-ov-events" aria-label={textUI('pen_ov_event_stream')}>
