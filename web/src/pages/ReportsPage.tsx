@@ -239,7 +239,7 @@ export function ReportDetailPage() {
       </div>}
       {retry.error && <p role="alert">{formatUI(describeError(retry.error).message)}</p>}
       <div className="rep__metrics">
-        <MetricCard label={textUI('ui_highest_severity')} value={highest ? <SeverityPill severity={highest}>{displayLabel(highest)}</SeverityPill> : textUI(incomplete || skipped ? 'ui_not_assessed' : 'ui_no_findings')} caption={highest ? textUI('ui_observed_snapshot') : displayLabel(demoText(s.risk))}/>
+        <MetricCard label={textUI('ui_highest_severity')} value={highest ? <span className={`rep__risk rep__risk--${highest}`}>{displayLabel(highest)}</span> : textUI(incomplete || skipped ? 'ui_not_assessed' : 'ui_no_findings')} caption={highest ? textUI('ui_observed_snapshot') : displayLabel(demoText(s.risk))}/>
         <MetricCard label={textUI('ui_remediation_priority')} value={priority || textUI(incomplete || skipped ? 'ui_complete_assessment' : 'ui_monitor')} caption={priority ? priorityCaption[priority] : textUI(incomplete || skipped ? 'ui_coverage_action' : 'ui_monitor_caption')}/>
         <MetricCard label={textUI('pen_rpt_metric_assets')} value={`${tested} / ${assets.length}`} caption={richUI('pen_rpt_assets_caption', [formatUI(tested), formatUI(skipped), formatUI(incomplete)])}/>
       </div>

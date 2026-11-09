@@ -61,5 +61,9 @@ it('search scans includes matching results from later pages and can clear back t
  await waitFor(() => expect(screen.getByRole('link',{name:'Acme'})).toHaveAttribute('href','/simulations/s-old'));
  expect(fetch.mock.calls.some(([u]) => String(u).includes('cursor=older'))).toBe(true);
  await userEvent.clear(search);
+ await userEvent.type(search,'does-not-exist');
+ expect(await screen.findByRole('heading',{name:'No scans match your search.'})).toBeInTheDocument();
+ expect(screen.queryByText('No scans yet')).toBeNull();
+ await userEvent.click(screen.getByRole('button',{name:'Clear all'}));
  await waitFor(() => expect(screen.getByRole('link',{name:'Acme'})).toHaveAttribute('href','/simulations/s-new'));
 });

@@ -140,3 +140,6 @@
 .rep__pdf .pentest-pdf { margin-top: 24px; height: 800px; }
 .rep--detail .rep__fnd { width: 100%; table-layout: fixed; }
 @media(max-width: 800px) { .rep__metrics { grid-template-columns: 1fr; } .rep__severity-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rep__severity, .rep__pdf { padding: 16px; } }
+
+.rep__risk { text-transform: capitalize; }
+.rep__risk--critical { color: var(--v2-critical); } .rep__risk--high { color: var(--v2-high); } .rep__risk--medium { color: var(--v2-medium); } .rep__risk--low { color: var(--v2-low); } .rep__risk--info { color: var(--v2-info); }
