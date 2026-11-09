@@ -59,3 +59,7 @@
 .auth__theme-toggle { position: absolute; z-index: 5; top: 14px; left: 14px; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--line); background: var(--panel, var(--surface)); color: var(--ink-2); cursor: pointer; }
 .auth__theme-toggle:hover { border-color: var(--bronze); color: var(--ink); }
 .auth__theme-toggle:focus-visible { outline: 2px solid var(--bronze); outline-offset: 2px; }
+
+/* Keep the supporter credit with the form at every breakpoint. */
+.auth__column .auth__supporter { animation: none; }
+@media(max-width: 600px) { .auth__form-panel { padding: 64px 24px 24px; gap: 32px; } .auth__footer { flex-wrap: wrap; gap: 12px; } }
