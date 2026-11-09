@@ -8,7 +8,8 @@ import { can, type Asset } from '../api/types';
 import { useScans, type Scan, type ScanInput } from '../api/scans';
 import { useReadiness, type ReadinessItem } from '../api/readiness';
 import { describeError } from './ErrorNote';
-import { kindLabel, toolsFor, type EngineKind } from '../lib/engines';
+import { kindLabel, engineSetLabel, toolsFor, type EngineKind } from '../lib/engines';
+import { scanStatusLabel } from './sims/StatusBadge';
 import { localizeReason } from '../lib/readinessReason';
 
 // Checklist kesiapan per aset: satu tempat untuk melihat prasyarat kedua engine dan memulai run.
@@ -30,7 +31,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
     const webOK = authorized && hasURL;
     const defOK = authorized && agentState === 'online' && supported && consented;
     const history = useScans(org, '', !!org && can(me, 'assessment.read') && can(me, 'simulation.read') && can(me, 'asset.read') && can(me, 'organization.read'));
-    const mine = (history.data?.items ?? []).filter((s) => (s.jobs ?? []).some((j) => j.asset_id === asset.id));
+    const mine = (history.data?.items ?? []).filter((s) => (s.options.asset_ids ?? []).includes(asset.id) || (s.jobs ?? []).some((j) => j.asset_id === asset.id));
     const [busy, setBusy] = useState<EngineKind | ''>('');
     const launch = useMutation({
         mutationFn: (kind: EngineKind) => {
@@ -89,7 +90,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
       </ul>
       </details>
       <p className="field__hint">
-        {formatUI(mine.length === 0 ? textUI('flow_chk_no_runs') : `${textUI('flow_chk_latest')}: ${kindLabel('web')} · ${mine[0]!.status}`)}
+        {formatUI(mine.length === 0 ? textUI('flow_chk_no_runs') : `${textUI('flow_chk_latest')}: ${engineSetLabel(mine[0]!.options.tools)} · ${scanStatusLabel(mine[0]!.status)}`)}
         {formatUI(mine.length > 0 && <Link to={`/simulations/${mine[0]!.id}`}>{' '}{textUI('m_sim_open_org')}</Link>)}
         {' '}
         {formatUI(agentState === 'none' && `${textUI('flow_hint_agent')} `)}

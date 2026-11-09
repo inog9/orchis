@@ -73,6 +73,13 @@ function mount() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('AssetDetailPage', () => {
+  it('uses scan target ids for the latest-run summary when list responses omit jobs', async () => {
+    route(url => url.includes('/scans') ? json({items:[{id:'scan-one',organization_id:'o1',name:'Software check',status:'finished',created_at:'2026-11-01T00:00:00Z',ended_at:'2026-11-01T00:01:00Z',options:{asset_ids:['a1'],tools:['defensebot']}}],next_cursor:null}) : undefined, {...me, permissions:[...me.permissions,'assessment.read']});
+    mount();
+    expect(await screen.findByText('Latest results: DefenseBot · Finished')).toBeInTheDocument();
+    expect(screen.queryByText(/No run yet on this asset/)).toBeNull();
+  });
+
   it('menampilkan heading, strip metrik, dan panel detail dengan data nyata', async () => {
     route();
     mount();
