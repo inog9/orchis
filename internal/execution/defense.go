@@ -16,7 +16,7 @@ import (
 // scannerFreshness is how long a finished Nmap scan of the same asset still counts for the "seen by scanner" exposure tag.
 const scannerFreshness = 7 * 24 * time.Hour
 
-// defenseInput builds the input of a DefenseBot job from data the server already holds for the asset: the latest stored
+// defenseInput builds the input of a orchis-defense-agent job from data the server already holds for the asset: the latest stored
 // osquery datasets, and the ports a recent Nmap scan of the same asset found open. The worker never contacts the agent.
 func (r *Runtime) defenseInput(ctx context.Context, tx pgx.Tx, asset uuid.UUID, params json.RawMessage) (*defensebot.Input, error) {
 	in := &defensebot.Input{Datasets: map[string]defensebot.DatasetInput{}}

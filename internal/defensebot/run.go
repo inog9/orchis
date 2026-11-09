@@ -55,7 +55,7 @@ type exposure struct {
 	ports []string
 }
 
-// Run executes one DefenseBot matching run against already collected data.
+// Run executes one orchis-defense-agent matching run against already collected data.
 func Run(ctx context.Context, in Input, d Deps) Output {
 	now := time.Now
 	if d.Now != nil {
@@ -356,7 +356,7 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 	}
 	sort.SliceStable(sum.Notes, func(i, j int) bool { return sum.Notes[i].Code < sum.Notes[j].Code })
 	out.Summary = sum
-	out.Logs = append(out.Logs, fmt.Sprintf("DefenseBot checked %d software component(s), sent %d lookup(s), produced %d finding(s) (%d omitted).", sum.SoftwareChecked, sum.Provenance.OSVPairs, sum.Findings, sum.Omitted))
+	out.Logs = append(out.Logs, fmt.Sprintf("orchis-defense-agent checked %d software component(s), sent %d lookup(s), produced %d finding(s) (%d omitted).", sum.SoftwareChecked, sum.Provenance.OSVPairs, sum.Findings, sum.Omitted))
 	return out
 }
 

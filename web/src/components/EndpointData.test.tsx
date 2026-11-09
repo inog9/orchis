@@ -39,14 +39,14 @@ function defenseStub(over: { data?: object; scans?: object[]; detail?: object; m
   }, calls);
 }
 
-describe('DefenseBot panel', () => {
-  it('says DefenseBot has not run yet and starts a run for this asset only when the button is pressed', async () => {
+describe('orchis-defense-agent panel', () => {
+  it('says orchis-defense-agent has not run yet and starts a run for this asset only when the button is pressed', async () => {
     const calls: Calls = [];
     defenseStub({}, calls);
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    expect(await screen.findByText('DefenseBot has not run on this asset yet.')).toBeInTheDocument();
+    expect(await screen.findByText('orchis-defense-agent has not run on this asset yet.')).toBeInTheDocument();
     expect(calls.some((c) => c.method === 'POST')).toBe(false);
-    await userEvent.click(screen.getByRole('button', { name: 'Run DefenseBot' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Run orchis-defense-agent' }));
     await vi.waitFor(() => expect(calls.find((c) => c.method === 'POST')).toBeTruthy());
     expect(calls.find((c) => c.method === 'POST')?.body).toMatchObject({ organization_id: 'o1', asset_ids: ['a1'], tools: ['defensebot'] });
   });
@@ -76,30 +76,30 @@ describe('DefenseBot panel', () => {
   it('explains an asset with no agent and keeps the button off', async () => {
     defenseStub({ data: { has_agent: false } });
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    expect(await screen.findByText(/Install the agent on this asset to run DefenseBot/)).toBeInTheDocument();
+    expect(await screen.findByText(/Install the agent on this asset to run orchis-defense-agent/)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Install an agent' })).toHaveAttribute('href', '/assets/agents');
-    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run orchis-defense-agent' })).toBeDisabled();
   });
 
   it('explains an agent that cannot collect and an asset without testing authorization', async () => {
     defenseStub({ data: { supported: false } });
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    expect(await screen.findByText('DefenseBot supports Linux and macOS agents only.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
+    expect(await screen.findByText('orchis-defense-agent supports Linux and macOS agents only.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run orchis-defense-agent' })).toBeDisabled();
   });
 
   it('explains missing authorization in words', async () => {
     defenseStub();
     mount(<EndpointDataPanel assetID="a1" allowed canRun authorized={false} />);
     expect(await screen.findByText(/Testing must be authorized/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Run DefenseBot' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Run orchis-defense-agent' })).toBeDisabled();
   });
 
   it('hides the button from someone who may not run scans', async () => {
     defenseStub();
     mount(<EndpointDataPanel assetID="a1" allowed canRun={false} />);
-    await screen.findByText('DefenseBot has not run on this asset yet.');
-    expect(screen.queryByRole('button', { name: 'Run DefenseBot' })).toBeNull();
+    await screen.findByText('orchis-defense-agent has not run on this asset yet.');
+    expect(screen.queryByRole('button', { name: 'Run orchis-defense-agent' })).toBeNull();
   });
 
   it('shows why a launch was refused', async () => {
@@ -107,11 +107,11 @@ describe('DefenseBot panel', () => {
       if (url.endsWith('/auth/me')) return json(user);
       if (url.endsWith('/assets/a1/endpoint-data')) return json(endpointData());
       if (url.includes('/api/v1/scans?org=o1')) return json({ items: [], next_cursor: null });
-      if (url.endsWith('/api/v1/scans') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'DefenseBot collection is not approved for this organisation.', code: 'conflict' }, 409);
+      if (url.endsWith('/api/v1/scans') && method === 'POST') return json({ title: 'Conflict', status: 409, detail: 'orchis-defense-agent collection is not approved for this organisation.', code: 'conflict' }, 409);
       return undefined;
     });
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    await userEvent.click(await screen.findByRole('button', { name: 'Run DefenseBot' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Run orchis-defense-agent' }));
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });
 
@@ -141,7 +141,7 @@ describe('Endpoint dataset deletion',()=>{
  it('hides deletion for a read-only demo asset',async()=>{
   stub(url=>url.endsWith('/assets/a1/endpoint-data')?json({asset_id:'a1',version:1,read_only:true,has_agent:false,organization_id:null,items:[],findings:[]}):undefined);
   mount(<EndpointDataPanel assetID="a1" allowed canRun={false} canDelete />);
-  await screen.findByText(/Install the agent on this asset to run DefenseBot/);
+  await screen.findByText(/Install the agent on this asset to run orchis-defense-agent/);
   expect(screen.queryByRole('button',{name:'Delete collected data'})).toBeNull();
  });
 });

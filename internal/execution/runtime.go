@@ -212,7 +212,7 @@ WHERE e.tenant_id=$1 AND e.id=$2 AND NOT e.is_demo FOR UPDATE OF e`, r.Tenant, i
 		// Aksi agent berjalan di endpoint itu sendiri: tidak ada target jaringan yang perlu diperiksa penjaga.
 		claimDef := contract.FindVersion(ckey, contractVersion)
 		onAgent := claimDef != nil && claimDef.NeedsAgent
-		// DefenseBot memakai data yang sudah tersimpan untuk aset: tidak ada host/URL, tetapi otorisasi aset dan kontrol scan tetap berlaku.
+		// orchis-defense-agent memakai data yang sudah tersimpan untuk aset: tidak ada host/URL, tetapi otorisasi aset dan kontrol scan tetap berlaku.
 		local := onAgent || contract.NoNetworkTarget(claimDef)
 		switch {
 		case !authorized:
@@ -491,22 +491,22 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 		if ckey == contract.KeyDefenseBot {
 			if res.Defense == nil {
 				if outcome == "success" {
-					return httpx.BadRequest("DefenseBot summary is required.")
+					return httpx.BadRequest("orchis-defense-agent summary is required.")
 				}
 			} else {
 				if res.Defense.Schema != 1 || (res.Defense.Disposition != "complete" && res.Defense.Disposition != "limited") {
-					return httpx.BadRequest("Invalid DefenseBot summary.")
+					return httpx.BadRequest("Invalid orchis-defense-agent summary.")
 				}
 				payload, err := json.Marshal(res.Defense)
 				if err != nil || len(payload) > 256<<10 {
-					return httpx.BadRequest("The DefenseBot summary is too large.")
+					return httpx.BadRequest("The orchis-defense-agent summary is too large.")
 				}
 				if _, err = tx.Exec(ctx, `UPDATE executions SET defense_result=$3 WHERE tenant_id=$1 AND id=$2`, r.Tenant, id, payload); err != nil {
 					return err
 				}
 			}
 		} else if res.Defense != nil {
-			return httpx.BadRequest("A DefenseBot summary is not valid for this contract.")
+			return httpx.BadRequest("A orchis-defense-agent summary is not valid for this contract.")
 		}
 		var rawKey *string
 		if r.Store != nil && res.Output != "" {

@@ -20,9 +20,9 @@ export function EndpointCollection({ org, platform, arch, canManage }: {
     // Sebuah baris berlaku bila masih aktif di bawah dokumen persetujuan yang berlaku dan tercatat siapa penyetujunya.
     const current = items.filter(i => i.enabled && i.consent_version === cat.data?.consent.version && i.consent_sha256 === cat.data?.consent.sha256 && !!i.consented_by);
     const hasCurrent = current.length > 0;
-    // Lingkup sekali-klik: pemeriksaan yang dipakai DefenseBot plus pack resmi yang bisa dijalankan.
-    // Check kategori Endpoint/network (pengguna, jaringan, rentang) tidak dipakai DefenseBot dan dibiarkan seperti adanya.
-    const scope = queries.filter(q => (q.category === 'DefenseBot' && !q.pack) || !!q.pack);
+    // Lingkup sekali-klik: pemeriksaan yang dipakai orchis-defense-agent plus pack resmi yang bisa dijalankan.
+    // Check kategori Endpoint/network (pengguna, jaringan, rentang) tidak dipakai orchis-defense-agent dan dibiarkan seperti adanya.
+    const scope = queries.filter(q => (q.category === 'orchis-defense-agent' && !q.pack) || !!q.pack);
     // Yang belum aktif di bawah persetujuan berlaku; inilah alasan tombol muncul walau sebagian sudah aktif.
     const missing = scope.filter(q => !current.some(i => i.key === q.key));
     // Server menuntut versi untuk setiap kueri yang didukung platform ini, termasuk kueri pack; baris yang belum ada dianggap versi 0.

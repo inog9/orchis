@@ -29,7 +29,7 @@ const MAX_LIVE_GRAPHS = 3;
 const ENGINE_ICONS: Record<string, LucideIcon> = { defensebot: Shield, hackbot: Crosshair, nmap: Radar, nuclei: Zap };
 
 // Engine pemilik sebuah temuan dibaca dari field details yang memang ditulis backend,
-// bukan ditebak dari judul: DefenseBot menulis "package" (internal/defensebot/run.go),
+// bukan ditebak dari judul: orchis-defense-agent menulis "package" (internal/defensebot/run.go),
 // jalur web pentest nuclei menulis "template_id" dan dilaporkan sebagai Hackbot,
 // Nmap menulis "port" (internal/injector/parse.go). Selain itu: tidak dipetakan.
 function engineKeyOf(finding: Finding): string {
@@ -64,7 +64,7 @@ function evidenceLines(finding: Finding): string[] {
     const lines: string[] = [];
     const def = defenseOf(finding);
     if (def) {
-        // Temuan DefenseBot: paket terpasang dan versi perbaikan bila tersedia.
+        // Temuan orchis-defense-agent: paket terpasang dan versi perbaikan bila tersedia.
         const version = def.installed && def.fixed ? `${def.installed} → ${def.fixed}` : def.installed;
         const pkg = [def.pkg, version].filter(Boolean).join(' ');
         if (pkg) lines.push(textUI('pen_ov_pkg', [pkg]));

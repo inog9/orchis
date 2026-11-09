@@ -10,7 +10,7 @@ import (
 	"orchis-go/internal/defensebot"
 )
 
-// The DefenseBot part of a report is produced here, in both languages, from the frozen snapshot only. Its structure,
+// The orchis-defense-agent part of a report is produced here, in both languages, from the frozen snapshot only. Its structure,
 // ordering and numbers are deterministic: the same snapshot always renders the same document. Advisory text stays in
 // English as published; every label and sentence around it is localized.
 
@@ -238,7 +238,7 @@ func noteText(lang string, n defensebot.Note) string {
 	case "rpm_unsupported":
 		return tr(lang, c+" RPM packages were not checked: RPM-based distributions are not supported yet.", c+" paket RPM tidak diperiksa: distribusi berbasis RPM belum didukung.")
 	case "system_packages_skipped":
-		return tr(lang, c+" system packages (libraries, kernel, development) were skipped: DefenseBot checks applications and services.", c+" paket sistem (pustaka, kernel, pengembangan) dilewati: DefenseBot memeriksa aplikasi dan layanan.")
+		return tr(lang, c+" system packages (libraries, kernel, development) were skipped: orchis-defense-agent checks applications and services.", c+" paket sistem (pustaka, kernel, pengembangan) dilewati: orchis-defense-agent memeriksa aplikasi dan layanan.")
 	case "old_kernels_skipped":
 		return tr(lang, c+" installed kernel packages that are not running were skipped.", c+" paket kernel terpasang yang tidak sedang berjalan dilewati.")
 	case "ecosystem_unsupported":
@@ -266,7 +266,7 @@ func noteText(lang string, n defensebot.Note) string {
 	case "ports_unattributed":
 		return tr(lang, c+" listening ports belong to container proxies and could not be attributed to a package.", c+" port yang mendengarkan milik proxy kontainer dan tidak dapat dikaitkan ke paket.")
 	case "exposure_needs_scan":
-		return tr(lang, "No recent web scan of this asset exists, so exposure is shown as listening or unknown. Run a web pentest, then DefenseBot again.", "Belum ada scan web terbaru untuk aset ini, sehingga paparan hanya ditampilkan sebagai mendengarkan atau tidak diketahui. Jalankan pentest web, lalu DefenseBot lagi.")
+		return tr(lang, "No recent web scan of this asset exists, so exposure is shown as listening or unknown. Run a web pentest, then orchis-defense-agent again.", "Belum ada scan web terbaru untuk aset ini, sehingga paparan hanya ditampilkan sebagai mendengarkan atau tidak diketahui. Jalankan pentest web, lalu orchis-defense-agent lagi.")
 	}
 	return n.Code
 }
@@ -295,17 +295,17 @@ func fixText(lang string, g defGroup) string {
 	return esc(tr(lang, "No fix available yet", "Belum ada perbaikan"))
 }
 
-// defenseHTML renders the DefenseBot chapter of a report.
+// defenseHTML renders the orchis-defense-agent chapter of a report.
 func defenseHTML(lang string, s Snapshot) template.HTML {
 	if !hasDefense(s.Assets) {
 		return ""
 	}
 	rows := defRows(s.Assets)
 	var b strings.Builder
-	b.WriteString(`<section class="defense"><h2 class="module-title" id="defensebot">` + esc(tr(lang, "Software vulnerabilities (DefenseBot)", "Kerentanan perangkat lunak (DefenseBot)")) + `</h2>`)
+	b.WriteString(`<section class="defense"><h2 class="module-title" id="defensebot">` + esc(tr(lang, "Software vulnerabilities (orchis-defense-agent)", "Kerentanan perangkat lunak (orchis-defense-agent)")) + `</h2>`)
 	b.WriteString(`<p class="section-note">` + esc(tr(lang,
-		"DefenseBot maps the software installed on enrolled endpoints to known vulnerabilities and lists hardening gaps. It reads data collected by the agent and contacts public vulnerability services with software names and versions only. A version match is not proof that a weakness can be exploited, and distributions may fix issues without changing the version number.",
-		"DefenseBot memetakan perangkat lunak terpasang di endpoint terdaftar ke kerentanan yang sudah dikenal dan mencantumkan celah hardening. Datanya berasal dari agent dan hanya nama serta versi perangkat lunak yang dikirim ke layanan kerentanan publik. Kecocokan versi bukan bukti kelemahan dapat dieksploitasi, dan distribusi dapat memperbaiki masalah tanpa mengubah nomor versi.")) + `</p>`)
+		"orchis-defense-agent maps the software installed on enrolled endpoints to known vulnerabilities and lists hardening gaps. It reads data collected by the agent and contacts public vulnerability services with software names and versions only. A version match is not proof that a weakness can be exploited, and distributions may fix issues without changing the version number.",
+		"orchis-defense-agent memetakan perangkat lunak terpasang di endpoint terdaftar ke kerentanan yang sudah dikenal dan mencantumkan celah hardening. Datanya berasal dari agent dan hanya nama serta versi perangkat lunak yang dikirim ke layanan kerentanan publik. Kecocokan versi bukan bukti kelemahan dapat dieksploitasi, dan distribusi dapat memperbaiki masalah tanpa mengubah nomor versi.")) + `</p>`)
 
 	if len(rows) > 1 {
 		b.WriteString(`<h3>` + esc(tr(lang, "Fleet overview", "Ringkasan armada")) + `</h3><table class="def-table"><thead><tr><th>` + esc(tr(lang, "Host", "Host")) + `</th>`)
@@ -534,7 +534,7 @@ func defenseHTML(lang string, s Snapshot) template.HTML {
 		b.WriteString(`<p class="muted def-prov">` + esc(tr(lang, "Data: ", "Data: ")) + strings.Join(data, " · ") + `</p></section>`)
 	}
 
-	b.WriteString(`<section class="defense-notes"><h4>` + esc(tr(lang, "DefenseBot sources and method", "Sumber dan metode DefenseBot")) + `</h4><p>` + esc(tr(lang,
+	b.WriteString(`<section class="defense-notes"><h4>` + esc(tr(lang, "orchis-defense-agent sources and method", "Sumber dan metode orchis-defense-agent")) + `</h4><p>` + esc(tr(lang,
 		"Vulnerabilities come from OSV (osv.dev), which aggregates the Ubuntu and Debian security trackers and the GitHub Advisory Database; some of this data is published under CC-BY 4.0. Exploitation status uses the CISA Known Exploited Vulnerabilities catalogue. Exploit probability uses EPSS from FIRST (first.org/epss). Advisory text is shown in English as published.",
 		"Kerentanan berasal dari OSV (osv.dev) yang menggabungkan pelacak keamanan Ubuntu dan Debian serta GitHub Advisory Database; sebagian data ini dipublikasikan dengan lisensi CC-BY 4.0. Status eksploitasi memakai katalog CISA Known Exploited Vulnerabilities. Probabilitas eksploitasi memakai EPSS dari FIRST (first.org/epss). Teks advisori ditampilkan dalam bahasa Inggris seperti yang dipublikasikan.")) + `</p><p>` + esc(tr(lang, "Severity policy: ", "Kebijakan tingkat keparahan: ")+defensebot.SeverityPolicy) + `</p>`)
 	if lang == "id" {

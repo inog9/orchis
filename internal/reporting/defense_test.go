@@ -45,7 +45,7 @@ func TestDefenseChapterIsOrderedByRiskAndEscaped(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(out)
-	for _, want := range []string{"Software vulnerabilities (DefenseBot)", "Fleet overview", "Fix first", "Most affected software", "Hardening gaps", "ASLR is not fully enabled", "Incomplete result."} {
+	for _, want := range []string{"Software vulnerabilities (orchis-defense-agent)", "Fleet overview", "Fix first", "Most affected software", "Hardening gaps", "ASLR is not fully enabled", "Incomplete result."} {
 		if !strings.Contains(page, want) {
 			t.Errorf("report lacks %q", want)
 		}
@@ -67,10 +67,10 @@ func TestDefenseChapterIsOrderedByRiskAndEscaped(t *testing.T) {
 	if strings.Contains(page, "<b>for</b>") || !strings.Contains(page, "&lt;b&gt;for&lt;/b&gt;") {
 		t.Error("advisory text must be escaped")
 	}
-	// DefenseBot hosts are not repeated in the generic findings list.
+	// orchis-defense-agent hosts are not repeated in the generic findings list.
 	generic := page[strings.Index(page, `id="findings-target"`):]
 	if strings.Contains(generic[:strings.Index(generic, `id="remediation"`)], "CVE-2024-2 in openssl") {
-		t.Error("DefenseBot findings must not be duplicated in the generic list")
+		t.Error("orchis-defense-agent findings must not be duplicated in the generic list")
 	}
 	again, _ := HTML(snap)
 	if string(again) != page {
@@ -85,7 +85,7 @@ func TestDefenseChapterIndonesianKeepsAdvisoryTextInEnglish(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := string(out)
-	for _, want := range []string{"Kerentanan perangkat lunak (DefenseBot)", "Perbaiki lebih dulu", "Perbarui ke 3.0.14 atau lebih baru", "Terlihat oleh scanner", "Sudah dieksploitasi", "Advisori (Inggris)", "Advisory text &lt;b&gt;for&lt;/b&gt; CVE-2024-2"} {
+	for _, want := range []string{"Kerentanan perangkat lunak (orchis-defense-agent)", "Perbaiki lebih dulu", "Perbarui ke 3.0.14 atau lebih baru", "Terlihat oleh scanner", "Sudah dieksploitasi", "Advisori (Inggris)", "Advisory text &lt;b&gt;for&lt;/b&gt; CVE-2024-2"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("Indonesian report lacks %q", want)
 		}
@@ -95,12 +95,12 @@ func TestDefenseChapterIndonesianKeepsAdvisoryTextInEnglish(t *testing.T) {
 	}
 }
 
-func TestReportWithoutDefenseBotIsUnchanged(t *testing.T) {
+func TestReportWithoutOrchisDefenseAgentIsUnchanged(t *testing.T) {
 	out, err := HTML(Snapshot{Organization: "Org", Profile: "quick", Language: "en", BySeverity: map[string]int{}, Assets: []Asset{{Name: "web", Status: "finished"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(out), "DefenseBot") {
-		t.Fatal("a report without DefenseBot data must not mention it")
+	if strings.Contains(string(out), "orchis-defense-agent") {
+		t.Fatal("a report without orchis-defense-agent data must not mention it")
 	}
 }

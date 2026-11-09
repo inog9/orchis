@@ -82,13 +82,13 @@ describe('ScanDetailPage', () => {
   });
 });
 
-describe('DefenseBot scan', () => {
+describe('orchis-defense-agent scan', () => {
   const summary = { schema: 1, disposition: 'limited', software_checked: 120, software_unmapped: 3, findings: 4, omitted: 0, by_severity: { high: 2 }, known_exploited: 1, exposed: 2, reboot_required: 0, hardening: 0, notes: [{ code: 'source_down', limiting: true }, { code: 'apps_unmapped', count: 3, limiting: true }], provenance: { engine: 'defensebot/1', queried_at: '2026-11-08T02:00:00Z' } };
   it('names the tool, summarises the run in the job row and shows counts with the coverage notes', async () => {
     route((u) => u.pathname.endsWith('/scans/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee') ? scan({ options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' }, status: 'incomplete', jobs: [job({ tool: 'defensebot', status: 'incomplete', target: 'local', defense: summary })] }) : undefined);
     mount(<ScanDetailPage />, '/simulations/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', '/simulations/:id');
-    expect(await screen.findByRole('heading', { name: 'DefenseBot result' })).toBeInTheDocument();
-    expect(screen.getAllByText('DefenseBot').length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'orchis-defense-agent result' })).toBeInTheDocument();
+    expect(screen.getAllByText('orchis-defense-agent').length).toBeGreaterThan(0);
     expect(screen.getByText('4 advisories · 1 known exploited')).toBeInTheDocument();
     expect(screen.getAllByText('The vulnerability service could not be reached; no result is shown as clean.').length).toBeGreaterThan(0);
     expect(screen.queryByText('3 applications could not be mapped to vulnerability data.')).toBeNull();
@@ -96,7 +96,7 @@ describe('DefenseBot scan', () => {
 });
 
 describe('Engine names follow what actually ran', () => {
-  it('lists a DefenseBot-only scan as DefenseBot and a web scan as Hackbot, never the other way round', async () => {
+  it('lists a orchis-defense-agent-only scan as orchis-defense-agent and a web scan as Hackbot, never the other way round', async () => {
     route((u) => u.pathname === '/api/v1/scans' ? { items: [
       scan({ id: 'aaaaaaaa-0000-0000-0000-000000000001', options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
       scan({ id: 'aaaaaaaa-0000-0000-0000-000000000002', options: { tools: ['nmap', 'nuclei', 'hackbot'], preset: 'standard', asset_ids: ['a1', 'a2'], range_ids: [], organization_id: 'o1' } }),
@@ -106,11 +106,11 @@ describe('Engine names follow what actually ran', () => {
     const table = await screen.findByRole('table', { name: 'Scans' });
     const rows = await within(table).findAllByRole('row');
     const text = rows.slice(1).map((r) => r.textContent ?? '');
-    expect(text[0]).toContain('DefenseBot');
+    expect(text[0]).toContain('orchis-defense-agent');
     expect(text[0]).not.toContain('Hackbot');
     expect(text[1]).toContain('Hackbot');
-    expect(text[1]).not.toContain('DefenseBot');
-    expect(text[2]).toContain('Hackbot + DefenseBot');
+    expect(text[1]).not.toContain('orchis-defense-agent');
+    expect(text[2]).toContain('Hackbot + orchis-defense-agent');
     // Internal words never leak into the list: no preset names and no tool names.
     for (const t of text) expect(t).not.toMatch(/standard|defense\b|nmap|nuclei|preset/i);
     expect(text[1]).toContain('2 assets');

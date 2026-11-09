@@ -173,7 +173,7 @@ func (s *Service) enqueueCollection(ctx context.Context, tx pgx.Tx, tenant, agen
 	return err
 }
 
-// QueueDefenseCollection queues a fresh collection of every approved DefenseBot check for one asset, inside the caller's
+// QueueDefenseCollection queues a fresh collection of every approved orchis-defense-agent check for one asset, inside the caller's
 // transaction. It fails with a clear conflict when no agent can collect or nothing is approved, so a run never starts empty.
 func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, keys []string) (int, error) {
 	var agent, org uuid.UUID
@@ -186,7 +186,7 @@ func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant,
 		return 0, err
 	}
 	if !osquery.CollectionSupported(osName, arch) {
-		return 0, httpx.Conflict("DefenseBot supports Linux and macOS agents only.")
+		return 0, httpx.Conflict("orchis-defense-agent supports Linux and macOS agents only.")
 	}
 	c := osquery.Consent()
 	rows, err := tx.Query(ctx, `SELECT query_key,consented_by FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND enabled AND consent_version=$3 AND consent_sha256=$4 AND consented_by IS NOT NULL AND consented_at IS NOT NULL AND query_key=ANY($5) ORDER BY query_key`, tenant, org, c.Version, c.SHA256, keys)
@@ -230,7 +230,7 @@ func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant,
 		queued++
 	}
 	if queued == 0 {
-		return 0, httpx.Conflict("DefenseBot collection is not approved for this organisation. Review the collection choices and the current consent document first.")
+		return 0, httpx.Conflict("orchis-defense-agent collection is not approved for this organisation. Review the collection choices and the current consent document first.")
 	}
 	return queued, nil
 }

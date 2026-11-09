@@ -45,7 +45,7 @@ export function countBySeverity(items: Finding[]): Record<Finding['severity'], n
     return out;
 }
 
-// ---------- DefenseBot evidence (details written by the worker; never trusted as markup) ----------
+// ---------- orchis-defense-agent evidence (details written by the worker; never trusted as markup) ----------
 export type DefenseEvidence = {
     cve: string; pkg: string; installed: string; fixed: string; status: string; kev: boolean; epss: number | null; exposure: string; ports: string;
     url: string; sevSource: string; method: string; confirmedBy: string; dataAsOf: string; reboot: boolean;

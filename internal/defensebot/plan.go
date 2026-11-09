@@ -61,7 +61,7 @@ func ecosystemFor(row map[string]string) string {
 	return ""
 }
 
-// systemSections are Debian sections of libraries, kernel and development material. DefenseBot reports on applications and
+// systemSections are Debian sections of libraries, kernel and development material. orchis-defense-agent reports on applications and
 // services someone installed or runs, not on the operating system's building blocks.
 var systemSections = map[string]bool{"libs": true, "libdevel": true, "oldlibs": true, "kernel": true, "python": true, "perl": true, "ruby": true,
 	"golang": true, "rust": true, "javascript": true, "doc": true, "fonts": true, "localization": true, "metapackages": true, "debug": true,

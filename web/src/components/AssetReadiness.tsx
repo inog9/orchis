@@ -21,7 +21,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
     const readiness = useReadiness(org, !!org && can(me, 'asset.read'));
     const item: ReadinessItem | undefined = readiness.data?.items.find((i) => i.id === asset.id);
     const agentState = item?.agent_status ?? (asset.agent_state === 'online' ? 'online' : asset.agent_state === 'offline' ? 'offline' : 'none');
-    const supported = agentState === 'online' && !(item?.defense_reason ?? '').startsWith('DefenseBot supports');
+    const supported = agentState === 'online' && !(item?.defense_reason ?? '').startsWith('orchis-defense-agent supports');
     const consented = agentState === 'online' && supported && !(item?.defense_reason ?? '').startsWith('Collection');
     const hasURL = !!(item?.url ?? asset.addresses.find((d) => d.kind === 'url' && d.scan_approved !== false && /^https?:\/\//i.test(d.value))?.value);
     const windowOpen = readiness.data?.scan_window_open !== false;

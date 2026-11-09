@@ -94,16 +94,16 @@ try {
   await api('PUT', `/organizations/${orgID}/assets`, { assets: [{ id: asset.id, version: asset.version }], testing_authorized: true });
 
   // Panel Endpoint data: keadaan awal yang jujur. Pendaftaran agent dengan token organisasi
-  // otomatis menyetujui koleksi DefenseBot plus seluruh query pack runnable (zero-touch);
+  // otomatis menyetujui koleksi orchis-defense-agent plus seluruh query pack runnable (zero-touch);
   // check kategori Endpoint/network tetap menunggu keputusan admin eksplisit.
   await p.goto(BASE + `/assets/${asset.id}`);
-  await p.getByRole('heading', { name: 'DefenseBot', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'orchis-defense-agent', exact: true }).waitFor();
   let d = await endpoint(asset.id);
   const isPack = (i) => i.key.startsWith('osquery.pack.');
   const manualOnly = ['osquery.inventory', 'osquery.users', 'osquery.network', 'osquery.network_ranges'];
   ok(d.has_agent && d.items.filter((i) => !isPack(i)).length === 12 && d.items.some(isPack), 'awal: dua belas query bawaan ditambah query pack');
   ok(manualOnly.every((k) => { const i = item(d, k); return i && !i.enabled && i.status === 'never'; }), 'check Endpoint/network belum disetujui dan belum dikumpulkan');
-  ok(d.items.filter((i) => !manualOnly.includes(i.key)).every((i) => i.enabled), 'query DefenseBot dan seluruh pack runnable otomatis disetujui saat pendaftaran');
+  ok(d.items.filter((i) => !manualOnly.includes(i.key)).every((i) => i.enabled), 'query orchis-defense-agent dan seluruh pack runnable otomatis disetujui saat pendaftaran');
   const me = await api('GET', '/auth/me');
   const consentDocument = (await api('GET', '/osquery/catalog')).consent;
   const consentRef = { version: consentDocument.version, sha256: consentDocument.sha256 };
@@ -138,7 +138,7 @@ try {
   ok(item(d, 'osquery.users').reason === 'not approved for this organisation' && item(d, 'osquery.users').rows.length === 0, 'tanpa persetujuan: dilewati dengan alasan, tidak ada data sensitif terkumpul');
 
   // Persetujuan admin untuk check Endpoint/network: katalog per-query digantikan tombol
-  // sekali-klik berlingkup DefenseBot + pack, jadi keputusan ini kini lewat API yang sama
+  // sekali-klik berlingkup orchis-defense-agent + pack, jadi keputusan ini kini lewat API yang sama
   // dengan tombol (PUT per kunci, versi dibaca ulang sebelum menulis).
   await setCollection('osquery.users',true);
   await setCollection('osquery.network',true);
@@ -191,7 +191,7 @@ try {
   await axe('laporan dengan postur endpoint');
 
   // Pack resmi: sekali-klik pendaftaran otomatis menyetujui seluruh query pack runnable
-  // bersama DefenseBot; query sensitif/non-runnable tidak pernah ikut.
+  // bersama orchis-defense-agent; query sensitif/non-runnable tidak pernah ikut.
   ok(d.items.filter(isPack).every((i) => i.enabled), 'seluruh query pack runnable aktif sejak pendaftaran agent');
   const approvals=(await api('GET',`/organizations/${orgID}/osquery`)).items.filter(i=>i.key.startsWith('osquery.pack.it_compliance.'));
   ok(approvals.length === 6 && approvals.every(i=>i.enabled && i.consent_version===consentRef.version && i.consent_sha256===consentRef.sha256 && i.consented_by && i.consented_at),'API merekam versi/hash, pemberi persetujuan dan waktu setiap query pack');

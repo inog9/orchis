@@ -12,7 +12,7 @@ import './defense.css';
 
 const when = (iso: string | null | undefined) => { if (!iso) return '—'; const d = new Date(iso); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 
-// DefenseBot summary of one enrolled asset. The raw inventory is never shown: the result is what was found, not what is installed.
+// orchis-defense-agent summary of one enrolled asset. The raw inventory is never shown: the result is what was found, not what is installed.
 export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false, authorized = true }: {
     assetID: string;
     canRun: boolean;

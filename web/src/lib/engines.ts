@@ -16,15 +16,15 @@ export function isFullTools(tools: string[] | undefined): boolean {
 }
 
 export function engineLabel(tool: string): string {
-    return tool === 'defensebot' ? 'DefenseBot' : 'Hackbot';
+    return tool === 'defensebot' ? 'orchis-defense-agent' : 'Hackbot';
 }
 
 // Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
-// Nama engine yang benar menurut alat yang dipilih: hanya DefenseBot -> "DefenseBot", hanya jalur web -> "Hackbot".
+// Nama engine yang benar menurut alat yang dipilih: hanya orchis-defense-agent -> "orchis-defense-agent", hanya jalur web -> "Hackbot".
 export function engineSetLabel(tools: string[] | undefined): string {
     const list = tools ?? ['nmap', 'nuclei', 'hackbot'];
     if (isFullTools(list)) return textUI('flow_eng_full_sub');
-    if (list.includes('defensebot') && !list.includes('hackbot')) return 'DefenseBot';
+    if (list.includes('defensebot') && !list.includes('hackbot')) return 'orchis-defense-agent';
     return 'Hackbot';
 }
 
@@ -35,9 +35,9 @@ export function kindLabel(kind: EngineKind): string {
 }
 
 // Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine Hackbot
-// dengan tahap berbahasa manusia; defensebot menjadi engine DefenseBot.
+// dengan tahap berbahasa manusia; defensebot menjadi engine orchis-defense-agent.
 export type EngineRow = {
-    engine: 'Hackbot' | 'DefenseBot';
+    engine: 'Hackbot' | 'orchis-defense-agent';
     stage: string;
     status: string;
     jobs: ScanJob[];
@@ -79,16 +79,16 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
         const stage = status === 'running' ? textUI('flow_stage_matching')
             : status === 'waiting' ? textUI('flow_stage_wait_scanner')
             : status === 'finished' || status === 'incomplete' ? textUI('flow_stage_collecting') : '';
-        rows.push({ engine: 'DefenseBot', stage, status, jobs: defense, findings: defense.reduce((n, x) => n + (x.findings?.length ?? 0), 0), error: j.error });
+        rows.push({ engine: 'orchis-defense-agent', stage, status, jobs: defense, findings: defense.reduce((n, x) => n + (x.findings?.length ?? 0), 0), error: j.error });
     }
     return rows;
 }
 
 // Nama engine yang tampil untuk daftar injector luring: pipeline Hackbot (nmap/nuclei/hackbot)
-// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "DefenseBot" (AUDIT UI-004d).
+// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "orchis-defense-agent" (AUDIT UI-004d).
 export function engineNames(keys: string[]): string[] {
     const out: string[] = [];
     if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('Hackbot');
-    if (keys.some(k => k === 'defensebot')) out.push('DefenseBot');
+    if (keys.some(k => k === 'defensebot')) out.push('orchis-defense-agent');
     return out;
 }

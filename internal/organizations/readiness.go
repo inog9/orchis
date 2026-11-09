@@ -138,7 +138,7 @@ func (s *Service) Readiness(ctx context.Context, p *auth.Principal, org uuid.UUI
 				c.item.AgentStatus = "online"
 				c.item.OS, c.item.Arch = agent.OS, agent.Arch
 				if !osquery.CollectionSupported(agent.OS, agent.Arch) {
-					c.item.DefenseReason = "DefenseBot supports Linux and macOS agents only."
+					c.item.DefenseReason = "orchis-defense-agent supports Linux and macOS agents only."
 				} else {
 					c.online = true
 				}

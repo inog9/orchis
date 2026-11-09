@@ -3,7 +3,7 @@ import type { DefenseSummary } from '../api/defense';
 import { defenseNoteText, defenseWhyIncomplete, visibleNotes } from './DefenseNotes';
 import './defense.css';
 
-// Counts, an unmissable incomplete banner, and the localized coverage notes of one DefenseBot run.
+// Counts, an unmissable incomplete banner, and the localized coverage notes of one orchis-defense-agent run.
 export function DefenseResult({ summary }: { summary: DefenseSummary }) {
     useLocale();
     return (<>

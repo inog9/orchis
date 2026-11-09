@@ -17,7 +17,7 @@ const wait=async(fn,label,ms=240000)=>{const until=Date.now()+ms;while(Date.now(
 const browser=await chromium.launch();const ctx=await browser.newContext({viewport:{width:1280,height:900},acceptDownloads:true});const p=await ctx.newPage();p.on('pageerror',e=>errors.push(String(e)));
 const api=async(method,path,data,headers={})=>{const r=await ctx.request.fetch(BASE+'/api/v1'+path,{method,data,headers:{'X-Requested-With':'orchis-web',...headers}});if(!r.ok())throw new Error(`${method} ${path}: ${r.status()} ${await r.text()}`);return r.status()===204?null:r.json()};
 // Pekerja mesin palsu (protokol injector asli): run.sh hanya menjalankan kontainer nmap/nuclei,
-// sedangkan wizard kini selalu menjalankan pipeline Hackbot (dan DefenseBot pada penilaian penuh).
+// sedangkan wizard kini selalu menjalankan pipeline Hackbot (dan orchis-defense-agent pada penilaian penuh).
 // Konsumsi dispatch exec.* dari RabbitMQ, klaim lewat API injector, kirim hasil deterministik.
 async function startFakeEngines(){
  const integs=(await api('GET','/integrations')).items;
@@ -67,7 +67,7 @@ try{
  await p.goto(BASE+`/organizations/${org}?tab=agents&endpoint=${alpha.id}`);
  const collectionCard=p.locator('section[aria-label="Periodic endpoint collection"]');await collectionCard.getByRole('heading',{name:'Endpoint collection',exact:true}).waitFor();
  // Pendaftaran dengan token organisasi sudah menyalakan koleksi otomatis (zero-touch). Lewat UI:
- // matikan, lalu nyalakan lagi dengan tombol sekali-klik (satu PUT untuk seluruh lingkup DefenseBot + pack).
+ // matikan, lalu nyalakan lagi dengan tombol sekali-klik (satu PUT untuk seluruh lingkup orchis-defense-agent + pack).
  await collectionCard.getByRole('button',{name:'Turn off',exact:true}).click();
  const turnOn=collectionCard.getByRole('button',{name:'Turn on automatic collection'});await turnOn.waitFor();
  await review('02-endpoints-before-consent');
@@ -75,7 +75,7 @@ try{
  await review('03-collection-consent');
  // Sekali-klik menyalakan koleksi berkala: pekerja menyantri packages dalam hitungan detik,
  // jadi refresh manual tidak diperlukan (dan akan ditolak 409 bila antrean sudah berjalan).
- const data=await wait(async()=>{const d=await api('GET',`/assets/${alpha.asset_id}/endpoint-data`);return d.items.some(i=>i.key==='osquery.packages'&&i.status==='ok')?d:null},'automatic DefenseBot collection',420000);
+ const data=await wait(async()=>{const d=await api('GET',`/assets/${alpha.asset_id}/endpoint-data`);return d.items.some(i=>i.key==='osquery.packages'&&i.status==='ok')?d:null},'automatic orchis-defense-agent collection',420000);
  ok(data.supported&&data.platform==='linux','pinned Linux osquery actually collected endpoint data');ok(!existsSync(join(dir,'orchis-beta','osquery')),'unauthorized second endpoint still performs no collection');
  // Rentang jaringan: kategori network tidak pernah ikut sekali-klik; admin menyetujuinya eksplisit,
  // lalu proposal rentang muncul dari data osquery yang sebenarnya.
@@ -100,13 +100,13 @@ try{
  ok(betaProbe.status()===422&&/testing authorization/i.test(await betaProbe.text()),'unapproved endpoint is rejected at launch');
  await review('06-new-scan');await p.getByRole('button',{name:'Continue',exact:true}).click();
  await p.getByRole('button',{name:'Launch scan',exact:true}).click();await p.waitForURL(/\/simulations\/[a-f0-9-]{36}$/);const scanID=p.url().split('/').pop();await review('07-live-scan');
- // Job per target: aset URL mendapat nmap+nuclei+Hackbot; aset agent mendapat DefenseBot; rentang jaringan tidak lagi bisa dipindai.
+ // Job per target: aset URL mendapat nmap+nuclei+Hackbot; aset agent mendapat orchis-defense-agent; rentang jaringan tidak lagi bisa dipindai.
  const scan=await wait(async()=>{const s=await api('GET',`/scans/${scanID}`);return ['finished','incomplete'].includes(s.status)?s:null},'scan finished');
  const jobsFor=(tool,assetID)=>scan.jobs.filter(j=>j.tool===tool&&(!assetID||j.asset_id===assetID));
  ok(scan.runner==='injector'&&scan.jobs.length===7,'each selected target gets its engine jobs recorded');
  ok(jobsFor('nmap',target.id).every(j=>j.status==='finished')&&jobsFor('nuclei',target.id).every(j=>j.status==='finished')&&jobsFor('hackbot',target.id).every(j=>j.status==='finished'),'pipeline completed on the owned fixture');
  ok(jobsFor('nuclei',closed.id).every(j=>j.status==='failed')&&jobsFor('nuclei',closed.id).every(j=>/unreachable/i.test(j.error))&&jobsFor('hackbot',closed.id).every(j=>j.status==='failed'),'closed endpoint is a failed scan, never a safe/dead host');
- ok(jobsFor('defensebot',alpha.asset_id).length===1&&['finished','incomplete'].includes(jobsFor('defensebot',alpha.asset_id)[0].status),'agent asset runs DefenseBot on its real endpoint data');
+ ok(jobsFor('defensebot',alpha.asset_id).length===1&&['finished','incomplete'].includes(jobsFor('defensebot',alpha.asset_id)[0].status),'agent asset runs orchis-defense-agent on its real endpoint data');
  ok(scan.jobs.some(j=>j.findings.some(f=>f.type==='vulnerability'&&f.evidence.template_id==='e2e-exposed-env')),'real Nuclei template match appears in scan results');
  await p.reload();await review('08-scan-results');
  const report=await wait(async()=>{const items=(await api('GET',`/reports?assessment_id=${scanID}`)).items;return items.length===1&&items[0].status==='ready'?items[0]:null},'one rendered scan report');const json=await ctx.request.get(`${BASE}/api/v1/reports/${report.id}/export/json`);const frozen=await json.text();const snapshot=JSON.parse(frozen);ok(snapshot.scan_id===scanID&&snapshot.schema_version==='orchis.report.v1'&&snapshot.assets.some(a=>a.endpoint),'report includes frozen scan and actual endpoint posture');ok(!/hunter2|DB_PASSWORD/.test(frozen),'raw response and credentials are absent from exports');

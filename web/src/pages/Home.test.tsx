@@ -21,7 +21,7 @@ const home = {
     { key: 'nmap', name: 'Nmap', status: 'online' },
     { key: 'nuclei', name: 'Nuclei', status: 'online' },
     { key: 'hackbot', name: 'Hackbot', status: 'online' },
-    { key: 'defensebot', name: 'DefenseBot', status: 'online' },
+    { key: 'defensebot', name: 'orchis-defense-agent', status: 'online' },
   ],
   generated_at: '2026-11-08T18:06:00Z',
 };
@@ -109,7 +109,7 @@ describe('HomePage', () => {
     expect(within(web).queryByText('Template: sqli')).not.toBeInTheDocument();
   });
 
-  it('node temuan DefenseBot menampilkan bukti paket dan fix dari details yang ada', async () => {
+  it('node temuan orchis-defense-agent menampilkan bukti paket dan fix dari details yang ada', async () => {
     mount(home);
     const def = await screen.findByRole('button', { name: /CVE-2026-59873 in tar/ });
     await userEvent.click(def);

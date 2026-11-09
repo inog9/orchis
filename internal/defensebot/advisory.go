@@ -17,7 +17,7 @@ type AffectedInfo struct {
 	Urgency      string   `json:"urgency,omitempty"`
 }
 
-// Advisory is the small part of an OSV record that DefenseBot keeps. OSV records can be very large (hundreds of affected
+// Advisory is the small part of an OSV record that orchis-defense-agent keeps. OSV records can be very large (hundreds of affected
 // releases), so everything not needed for a finding is dropped while parsing.
 type Advisory struct {
 	ID             string                  `json:"id"`

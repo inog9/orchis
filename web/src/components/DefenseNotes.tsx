@@ -30,7 +30,7 @@ export function defenseNoteText(n: DefenseNote): string {
 // Catatan yang tidak ditampilkan sebagai daftar: apps_unmapped terlalu bising, dataset_missing dijelaskan sebagai alasan "tidak lengkap".
 const HIDDEN = new Set(['apps_unmapped', 'dataset_missing']);
 export const visibleNotes = (notes: DefenseNote[]) => notes.filter((n) => !HIDDEN.has(n.code));
-// Satu kalimat alasan mengapa hasil DefenseBot belum lengkap (dipakai di baris scan dan banner hasil).
+// Satu kalimat alasan mengapa hasil orchis-defense-agent belum lengkap (dipakai di baris scan dan banner hasil).
 export function defenseWhyIncomplete(notes: DefenseNote[]): string {
     if (notes.some((n) => n.code === 'dataset_missing')) return textUI("m_def_why_missing");
     const limiting = visibleNotes(notes).find((n) => n.limiting) ?? notes.find((n) => ['source_down', 'timeout', 'ecosystem_unsupported', 'dataset_unavailable', 'dataset_truncated'].includes(n.code));

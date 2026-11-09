@@ -34,7 +34,7 @@ func defenseDeps() defensebot.Deps {
 func (w *Worker) executeDefensebot(ctx context.Context, spec *execution.ClaimSpec) execution.Result {
 	res := execution.Result{}
 	if spec.Defense == nil {
-		res.Error = "DefenseBot input is missing."
+		res.Error = "orchis-defense-agent input is missing."
 		return res
 	}
 	timeout := time.Duration(spec.TimeoutSeconds) * time.Second

@@ -57,7 +57,7 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 		t.Fatalf("ringkasan awal salah: %+v", h)
 	}
 	if len(h.Injectors) != 4 || h.Injectors[0].Status != "offline" {
-		t.Fatalf("empat injector offline diharapkan (DefenseBot, Hackbot, Nmap, Nuclei): %+v", h.Injectors)
+		t.Fatalf("empat injector offline diharapkan (orchis-defense-agent, Hackbot, Nmap, Nuclei): %+v", h.Injectors)
 	}
 
 	// scan nmap sukses (2 port) + scan nuclei sukses (1 kerentanan critical dan 1 medium) pada aset yang sama

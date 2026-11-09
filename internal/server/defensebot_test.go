@@ -18,7 +18,7 @@ import (
 	"orchis-go/internal/server"
 )
 
-// defenseKeys are the DefenseBot checks an administrator approves for a Linux endpoint.
+// defenseKeys are the orchis-defense-agent checks an administrator approves for a Linux endpoint.
 func defenseKeys() []string {
 	var keys []string
 	for _, key := range defensebot.Queries {
@@ -68,7 +68,7 @@ func answerCollections(t *testing.T, f *agentFixture, secret string, want int) {
 	}
 }
 
-func TestDefenseBotScanLifecycle(t *testing.T) {
+func TestOrchisDefenseAgentScanLifecycle(t *testing.T) {
 	f := newAgentFixture(t)
 	ctx := context.Background()
 	env := f.a.env
@@ -120,7 +120,7 @@ func TestDefenseBotScanLifecycle(t *testing.T) {
 	var status string
 	env.Owner.QueryRow(ctx, `SELECT status FROM scan_jobs WHERE assessment_id=$1`, scan.ID).Scan(&status)
 	if status != "waiting" {
-		t.Fatalf("DefenseBot must wait for the fresh collection, job is %s", status)
+		t.Fatalf("orchis-defense-agent must wait for the fresh collection, job is %s", status)
 	}
 
 	answerCollections(t, f, secret, len(keys))
@@ -139,10 +139,10 @@ func TestDefenseBotScanLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if target != "local" {
-		t.Fatalf("DefenseBot has no network target: %q", target)
+		t.Fatalf("orchis-defense-agent has no network target: %q", target)
 	}
 
-	// Only the DefenseBot worker token can claim it.
+	// Only the orchis-defense-agent worker token can claim it.
 	hackToken, err := execution.IssueToken(ctx, env.App, env.TenantA, "hackbot")
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func TestDefenseBotScanLifecycle(t *testing.T) {
 		{Type: "open_port", Value: "tcp/1", Title: "forged type", Severity: "critical", Details: json.RawMessage(`{}`)},
 	}}
 	if bad := inj("/result", execution.Result{ExitCode: &code, Findings: result.Findings[:1]}); bad.Status != 400 {
-		t.Fatalf("a DefenseBot result without a summary must be refused: %d %s", bad.Status, bad.Body)
+		t.Fatalf("a orchis-defense-agent result without a summary must be refused: %d %s", bad.Status, bad.Body)
 	}
 	if got := inj("/result", result); got.Status != 204 {
 		t.Fatalf("result: %d %s", got.Status, got.Body)
@@ -249,13 +249,13 @@ func TestDefenseBotScanLifecycle(t *testing.T) {
 	var detail scans.Scan
 	got.JSON(&detail)
 	if got.Status != 200 || len(detail.Jobs) != 1 || detail.Jobs[0].Defense == nil || detail.Jobs[0].Defense.KnownExploited != 1 {
-		t.Fatalf("scan detail must expose the DefenseBot summary: %d %s", got.Status, got.Body)
+		t.Fatalf("scan detail must expose the orchis-defense-agent summary: %d %s", got.Status, got.Body)
 	}
 }
 
-func TestDefenseBotLaunchRefusesUnreadyEndpoints(t *testing.T) {
+func TestOrchisDefenseAgentLaunchRefusesUnreadyEndpoints(t *testing.T) {
 	f := newAgentFixture(t)
-	// Authorized agent, but no collection approved for DefenseBot.
+	// Authorized agent, but no collection approved for orchis-defense-agent.
 	secret, asset := f.approvedAgent(t, "unapproved-box")
 	ctx := context.Background()
 	var org uuid.UUID

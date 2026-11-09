@@ -43,7 +43,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; Hackbot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='hackbot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status='canceled')`, tenant); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; DefenseBot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='defensebot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap' AND p.status='canceled')`, tenant); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; orchis-defense-agent was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='defensebot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap' AND p.status='canceled')`, tenant); err != nil {
 			return err
 		}
 		var active int
@@ -329,7 +329,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 
 var cveRe = regexp.MustCompile(`CVE-\d{4}-\d{4,}`)
 
-// linkOutsideConfirmation marks a DefenseBot finding when another method (Nuclei, Hackbot) reported the same CVE on the same
+// linkOutsideConfirmation marks a orchis-defense-agent finding when another method (Nuclei, Hackbot) reported the same CVE on the same
 // asset: the weakness was seen from inside and from outside. Findings are never merged or dropped, only annotated.
 func linkOutsideConfirmation(a *reporting.Asset, covActions map[string]string) {
 	outside := map[string]map[string]bool{}

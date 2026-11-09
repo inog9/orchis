@@ -29,7 +29,7 @@ const (
 	MethodCPE    = "nvd-cpe"
 )
 
-// Queries lists every osquery check a DefenseBot run reads, in a stable order.
+// Queries lists every osquery check a orchis-defense-agent run reads, in a stable order.
 var Queries = []string{QueryOSRelease, QueryPackages, QueryNPM, QueryApps, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
 
 // requiredGroups mengembalikan data yang wajib ada agar satu run berguna, per platform.

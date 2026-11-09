@@ -1,6 +1,6 @@
 // Flow 26: alur produk ujung-ke-ujung (PROMPT-E2E-FLOW.md) — 8 skenario bernomor.
 // (1) organisasi baru + empty state; (2) aset web -> wizard -> tampilan engine tanpa nama Nmap/Nuclei;
-// (3) agent (palsu) -> checklist kesiapan menyala bertahap; (4) setujui koleksi -> DefenseBot -> temuan;
+// (3) agent (palsu) -> checklist kesiapan menyala bertahap; (4) setujui koleksi -> orchis-defense-agent -> temuan;
 // (5) Full assessment -> "seen by scanner" dan "also found by"; (6) retest + triage; (7) dashboard cakupan;
 // (8) dua bahasa dan dua tema. Flow berperan sebagai agent (polling) dan injector palsu (protokol asli:
 // konsumsi dispatch exec.* dari RabbitMQ, klaim + hasil lewat API injector dengan token integrasi).
@@ -143,10 +143,10 @@ check(await page.getByText('Agent installed and online').locator('..').locator('
 check(await page.getByText('Approved web URL').locator('..').getByText('○').isVisible(), 'S3: langkah URL masih terbuka untuk aset agent');
 await page.screenshot({ path: `${shots}/s3-checklist-agent.png`, fullPage: true });
 
-// ---------- Skenario 4: setujui koleksi -> DefenseBot -> temuan ----------
+// ---------- Skenario 4: setujui koleksi -> orchis-defense-agent -> temuan ----------
 const catalog = await api('GET', '/osquery/catalog');
 const consent = { version: catalog.consent.version, sha256: catalog.consent.sha256 };
-// Server menanam baris DefenseBot + pack runnable otomatis begitu aset terikat organisasi;
+// Server menanam baris orchis-defense-agent + pack runnable otomatis begitu aset terikat organisasi;
 // versi dibaca ulang tepat sebelum tiap PUT agar tidak balapan dengan penanam baris.
 const approve = async (key) => {
   const version = ((await api('GET', `/organizations/${org.id}/osquery`)).items.find((i) => i.key === key)?.version) ?? 0;
@@ -158,7 +158,7 @@ for (const pack of catalog.packs.filter((pk) => pk.platform === 'linux')) {
 }
 await page.goto(`${BASE}/simulations/new?org=${org.id}&asset=${agentAsset}`);
 await page.getByRole('button', { name: 'Continue' }).click();
-await page.getByRole('radio', { name: 'Installed software check (DefenseBot)' }).click();
+await page.getByRole('radio', { name: 'Installed software check (orchis-defense-agent)' }).click();
 await page.getByRole('button', { name: 'Continue' }).click();
 const defBox = page.getByRole('checkbox', { name: /flow-box/ });
 await defBox.waitFor();
@@ -171,11 +171,11 @@ const scan4 = page.url().split('/').pop();
 await answerCollections(enr.secret, defenseRows);
 const final4 = await wait(async () => { const d = await api('GET', `/scans/${scan4}`); return ['finished', 'incomplete'].includes(d.status) ? d : null; });
 await page.goto(`${BASE}/simulations/${scan4}`);
-check(await see(page.locator('.sims__jobs strong', { hasText: 'DefenseBot' })), 'S4: baris engine DefenseBot tampil');
-check(final4.status === 'incomplete' || final4.status === 'finished', 'S4: DefenseBot selesai dengan banner bila terbatas');
+check(await see(page.locator('.sims__jobs strong', { hasText: 'orchis-defense-agent' })), 'S4: baris engine orchis-defense-agent tampil');
+check(final4.status === 'incomplete' || final4.status === 'finished', 'S4: orchis-defense-agent selesai dengan banner bila terbatas');
 await page.goto(`${BASE}/findings?org=${org.id}`);
 await page.getByText('CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4').waitFor();
-check(await see(page.locator('.fnd-def--kev, .fnd-def').first()), 'S4: temuan DefenseBot membawa penanda KEV');
+check(await see(page.locator('.fnd-def--kev, .fnd-def').first()), 'S4: temuan orchis-defense-agent membawa penanda KEV');
 await page.screenshot({ path: `${shots}/s4-defensebot-findings.png`, fullPage: true });
 
 // ---------- Skenario 5: Full assessment -> urutan + "also found by" ----------
@@ -191,15 +191,15 @@ await page.getByRole('button', { name: 'Continue' }).click();
 await page.getByRole('button', { name: 'Launch scan' }).click();
 await page.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
 const scan5 = page.url().split('/').pop();
-// DefenseBot harus menunggu Nmap: tepat setelah dispatch pertama, nmap berjalan dan defensebot masih menunggu.
+// orchis-defense-agent harus menunggu Nmap: tepat setelah dispatch pertama, nmap berjalan dan defensebot masih menunggu.
 const early = await wait(async () => { const d = await api('GET', `/scans/${scan5}`); return (d.jobs ?? []).some((j) => j.tool === 'nmap' && j.status === 'running') ? d : null; });
 const defJobEarly = (early.jobs ?? []).find((j) => j.tool === 'defensebot');
-check(!!defJobEarly && defJobEarly.status === 'waiting', 'S5: DefenseBot menunggu Nmap pada awal full assessment');
+check(!!defJobEarly && defJobEarly.status === 'waiting', 'S5: orchis-defense-agent menunggu Nmap pada awal full assessment');
 await answerCollections(enr.secret, defenseRows);
 const final5 = await wait(async () => { const d = await api('GET', `/scans/${scan5}`); return ['finished', 'incomplete'].includes(d.status) ? d : null; }, 90000);
 check(final5.status === 'finished', 'S5: full assessment selesai');
 await page.goto(`${BASE}/simulations/${scan5}`);
-check(await see(page.locator('.sims__jobs strong', { hasText: 'DefenseBot' })) && await see(page.locator('.sims__jobs strong', { hasText: 'Hackbot' })), 'S5: kedua engine tampil sebagai baris terpisah');
+check(await see(page.locator('.sims__jobs strong', { hasText: 'orchis-defense-agent' })) && await see(page.locator('.sims__jobs strong', { hasText: 'Hackbot' })), 'S5: kedua engine tampil sebagai baris terpisah');
 const report5 = (await api('GET', `/reports?assessment_id=${scan5}`)).items[0];
 const snap = await api('GET', `/reports/${report5.id}/export/json`);
 const defFinding = (snap.assets ?? []).flatMap((a) => a.findings ?? []).find((f) => (f.evidence?.method ?? '').startsWith('osv'));

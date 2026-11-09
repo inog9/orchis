@@ -16,7 +16,7 @@ export const isDefenseScan = (s: Pick<Scan, 'options'>): boolean => (s.options?.
 export const defenseJob = (s: DefenseScan | undefined) => s?.jobs?.find((j) => j.tool === 'defensebot');
 export const defenseScansForAsset = (items: Scan[], assetID: string): Scan[] => items.filter((s) => isDefenseScan(s) && (s.options?.asset_ids ?? []).includes(assetID));
 
-// DefenseBot never needs a network target: a run is started for one enrolled asset and the server collects, maps and reports.
+// orchis-defense-agent never needs a network target: a run is started for one enrolled asset and the server collects, maps and reports.
 export function useLaunchDefense(organizationID: string | null | undefined, assetID: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -25,7 +25,7 @@ export function useLaunchDefense(organizationID: string | null | undefined, asse
   });
 }
 
-// Latest DefenseBot run of an asset: the scan list is only filterable per organisation, so it is filtered here.
+// Latest orchis-defense-agent run of an asset: the scan list is only filterable per organisation, so it is filtered here.
 export function useLatestDefenseScan(assetID: string, organizationID: string | null | undefined, enabled: boolean) {
   const list = useQuery({
     queryKey: ['scans', 'asset', assetID], enabled: enabled && !!organizationID, retry: false,

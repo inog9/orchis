@@ -148,7 +148,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 	}
 	full := len(in.Tools) == 4 && containsFullTools(in.Tools)
 	if len(in.Tools) > 0 && !full && !(len(in.Tools) == 3 && containsPipelineTools(in.Tools)) {
-		return nil, invalid("tools", "Web pentests run the Hackbot pipeline; a full assessment adds the DefenseBot engine.")
+		return nil, invalid("tools", "Web pentests run the Hackbot pipeline; a full assessment adds the orchis-defense-agent engine.")
 	}
 	in.Tools = []string{"nmap", "nuclei", "hackbot"}
 	if full {
@@ -209,7 +209,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			addrs        []contract.Address
 			cidr         string
 			public       bool
-			agent        bool // agent terdaftar: sisi dalam (DefenseBot) tersedia
+			agent        bool // agent terdaftar: sisi dalam (orchis-defense-agent) tersedia
 		}
 		targets := []target{}
 		for _, asset := range in.AssetIDs {
@@ -233,8 +233,8 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			if busy {
 				return httpx.Conflict("Hackbot is already testing " + t.name + "; wait for that run to finish before starting another.")
 			}
-			// Full assessment juga menjalankan DefenseBot: aset butuh agent terdaftar, bukan hanya URL web.
-			// Penilaian penuh boleh campuran: aset ber-agent menjalankan DefenseBot, aset ber-URL menjalankan Hackbot,
+			// Full assessment juga menjalankan orchis-defense-agent: aset butuh agent terdaftar, bukan hanya URL web.
+			// Penilaian penuh boleh campuran: aset ber-agent menjalankan orchis-defense-agent, aset ber-URL menjalankan Hackbot,
 			// aset dengan keduanya menjalankan keduanya. Aset tanpa satu pun ditolak di bawah.
 			if full {
 				if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND NOT is_demo AND status<>'revoked')`, p.TenantID, asset).Scan(&t.agent); err != nil {
@@ -310,7 +310,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			hasWeb := e == nil
 			if !hasWeb && !(full && t.agent) {
 				if full {
-					return invalid("asset_ids", t.name+" needs an approved web URL for Hackbot or an enrolled agent for DefenseBot.")
+					return invalid("asset_ids", t.name+" needs an approved web URL for Hackbot or an enrolled agent for orchis-defense-agent.")
 				}
 				return invalid("asset_ids", "Every web pentest requires an approved HTTP(S) URL.")
 			}
@@ -324,7 +324,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			}
 			for _, tool := range in.Tools {
 				if tool == "defensebot" || !hasWeb {
-					continue // job DefenseBot dibuat di blok full assessment; aset tanpa URL melewati sisi web.
+					continue // job orchis-defense-agent dibuat di blok full assessment; aset tanpa URL melewati sisi web.
 				}
 				ckey := map[string]string{"hackbot": contract.KeyHackbot, "nmap": contract.KeyNmapTCP, "nuclei": contract.KeyNucleiVS}[tool]
 				var cid uuid.UUID
@@ -377,11 +377,11 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				}
 			}
 			if full && t.agent {
-				// Engine DefenseBot untuk sisi dalam (aplikasi terpasang): kumpulan baru diantrikan di transaksi yang
+				// Engine orchis-defense-agent untuk sisi dalam (aplikasi terpasang): kumpulan baru diantrikan di transaksi yang
 				// sama sehingga agent offline atau persetujuan yang belum ada menggagalkan launch dengan alasan jelas.
 				// Worker menahan job ini sampai Nmap aset yang sama selesai agar tag "seen by scanner" terisi.
 				if s.Collector == nil {
-					return httpx.Conflict("DefenseBot collection is not available.")
+					return httpx.Conflict("orchis-defense-agent collection is not available.")
 				}
 				if _, err = s.Collector.QueueDefenseCollection(ctx, tx, p.TenantID, t.control, defensebot.Queries); err != nil {
 					return err
@@ -390,7 +390,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				var version int
 				err = tx.QueryRow(ctx, `SELECT c.id,c.version FROM contracts c JOIN integrations i ON i.tenant_id=c.tenant_id AND i.id=c.integration_id WHERE c.tenant_id=$1 AND c.key=$2 AND c.is_active AND i.enabled ORDER BY c.version DESC LIMIT 1`, p.TenantID, contract.KeyDefenseBot).Scan(&cid, &version)
 				if errors.Is(err, pgx.ErrNoRows) {
-					return invalid("tools", "The DefenseBot integration is disabled.")
+					return invalid("tools", "The orchis-defense-agent integration is disabled.")
 				}
 				if err != nil {
 					return err

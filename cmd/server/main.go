@@ -79,7 +79,7 @@ func main() {
 			for _, kind := range []string{"nmap", "nuclei", "hackbot", "defensebot"} {
 				token := os.Getenv("ORCHIS_PROVISION_" + map[string]string{"hackbot": "HACKBOT", "nmap": "NMAP", "nuclei": "NUCLEI", "defensebot": "DEFENSEBOT"}[kind] + "_TOKEN")
 				if kind == "defensebot" && token == "" {
-					continue // installations created before DefenseBot get the token from ops.py hackbot-init
+					continue // installations created before orchis-defense-agent get the token from ops.py hackbot-init
 				}
 				if !execution.ValidInjectorToken(token) {
 					return errors.New("provisioning token is missing")

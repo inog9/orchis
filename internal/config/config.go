@@ -88,8 +88,8 @@ func Load() (*Config, error) {
 	if err != nil || c.ScanConcurrency < 1 || c.ScanConcurrency > 32 {
 		return nil, fmt.Errorf("ORCHIS_SCAN_CONCURRENCY must be between 1 and 32")
 	}
-	// Collection runs automatically every 5 minutes by default; set ORCHIS_ENDPOINT_COLLECTION_SECONDS=0 to disable (manual DefenseBot runs only).
-	// Kebijakan pemilik produk: persetujuan koleksi DefenseBot ditanam otomatis saat agent
+	// Collection runs automatically every 5 minutes by default; set ORCHIS_ENDPOINT_COLLECTION_SECONDS=0 to disable (manual orchis-defense-agent runs only).
+	// Kebijakan pemilik produk: persetujuan koleksi orchis-defense-agent ditanam otomatis saat agent
 	// terdaftar dan disegarkan berkala; matikan dengan ORCHIS_AUTO_CONSENT=0.
 	raw := env("ORCHIS_AUTO_CONSENT", "1")
 	c.AutoConsent = raw != "0" && raw != "false" && raw != "off"

@@ -2,7 +2,7 @@
 // Data nyata: GET /assets/{id} (useAsset), GET /assets/{id}/endpoint-data (useAssetEndpoint),
 // GET /findings?asset_id= (useFindings), GET /agents hanya untuk heartbeat (useAgents).
 // Fungsionalitas lama tetap dipertahankan: ubah aset, hapus aset, checklist kesiapan
-// (AssetReadiness), riwayat scan (AssetScanHistory), dan panel DefenseBot + hapus data
+// (AssetReadiness), riwayat scan (AssetScanHistory), dan panel orchis-defense-agent + hapus data
 // endpoint (EndpointDataPanel) yang dirender apa adanya di bawah tabel ringkas.
 import { Fragment, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
@@ -234,7 +234,7 @@ function DetailPanel({ a }: { a: Asset }) {
 // ---------- section pengumpulan data endpoint ----------
 
 // Tabel ringkas per-check osquery dari endpoint-data.items[]; status ok=hijau, never=netral.
-// Panel lengkap (DefenseBot + hapus data) tetap dirender terpisah di bawah section ini.
+// Panel lengkap (orchis-defense-agent + hapus data) tetap dirender terpisah di bawah section ini.
 function EndpointSection({ assetID, allowed }: { assetID: string; allowed: boolean }) {
     useLocale();
     // Hook sama dengan EndpointDataPanel: satu request, cache dibagi lewat queryKey.
@@ -401,7 +401,7 @@ export function AssetDetailPage() {
       <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')} />
 
       <EndpointSection assetID={a.id} allowed={canEndpoint} />
-      {/* Panel DefenseBot (riwayat run + hapus data) dipertahankan apa adanya. */}
+      {/* Panel orchis-defense-agent (riwayat run + hapus data) dipertahankan apa adanya. */}
       <EndpointDataPanel assetID={a.id} allowed={canEndpoint} canRun={false} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')} />
 
       {/* Tanpa izin baca temuan, section tetap tampil dengan catatan akses (bukan hilang). */}

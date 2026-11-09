@@ -94,7 +94,7 @@ describe('AssetDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Run scan' })).toHaveAttribute('href', '/simulations/new?org=o1');
   });
 
-  it('tabel pengumpulan data endpoint menampilkan status per-check dan panel DefenseBot tetap ada', async () => {
+  it('tabel pengumpulan data endpoint menampilkan status per-check dan panel orchis-defense-agent tetap ada', async () => {
     route();
     mount();
     expect(await screen.findByText('System inventory')).toBeInTheDocument();
@@ -103,8 +103,8 @@ describe('AssetDetailPage', () => {
     expect(screen.getByText('Listening ports')).toBeInTheDocument();
     expect(screen.getByText('Never')).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument(); // belum pernah dikumpulkan
-    // panel lama tidak hilang: DefenseBot + hapus data endpoint
-    expect(screen.getByRole('heading', { name: 'DefenseBot' })).toBeInTheDocument();
+    // panel lama tidak hilang: orchis-defense-agent + hapus data endpoint
+    expect(screen.getByRole('heading', { name: 'orchis-defense-agent' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Delete collected data' })).toBeInTheDocument();
   });
 

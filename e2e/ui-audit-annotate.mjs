@@ -44,7 +44,7 @@ const JOBS = [
     [280, 520, 1120, 110, '3: kartu metrik terpisah + mono'],
   ] },
   { src: 'int-org-tab-overview.jpg', out: 'mark-UI-017-orgtab.png', boxes: [
-    [280, 735, 1120, 70, '1: "Worker scan tidak tersedia: DefenseBot, Hackbot Lite, Nmap, Nuclei" - nama internal'],
+    [280, 735, 1120, 70, '1: "Worker scan tidak tersedia: orchis-defense-agent, Hackbot Lite, Nmap, Nuclei" - nama internal'],
     [280, 645, 1120, 60, '2: copy arsitektur "container worker scan"'],
     [694, 500, 60, 55, '3: nilai kosong "—" (em dash)'],
     [1076, 585, 200, 20, '4: preset "standard" di KPI'],

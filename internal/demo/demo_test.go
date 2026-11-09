@@ -56,7 +56,7 @@ func TestSeedIsDeterministicIdempotentAndFullyMarked(t *testing.T) {
 		t.Fatalf("diharapkan 5 organisasi/50 aset/3 skenario/3 alert, dapat %+v", st.Counts)
 	}
 	if st.Counts["endpoint_datasets"] != 40 {
-		t.Fatalf("diharapkan 40 dataset osquery sintetis (8 query DefenseBot yang tampil dan didukung Linux x 5 aset Linux): %d", st.Counts["endpoint_datasets"])
+		t.Fatalf("diharapkan 40 dataset osquery sintetis (8 query orchis-defense-agent yang tampil dan didukung Linux x 5 aset Linux): %d", st.Counts["endpoint_datasets"])
 	}
 	// Data osquery demo hanya di aset Linux demo, bertanda is_demo, dan bukan hasil eksekusi nyata.
 	if n := count(t, env, `SELECT count(*) FROM endpoint_datasets WHERE tenant_id=$1 AND (NOT is_demo OR execution_id IS NOT NULL)`, env.TenantA); n != 0 {
