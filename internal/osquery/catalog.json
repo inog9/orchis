@@ -25,6 +25,22 @@
       "bytes": 16657746,
       "binary": "osqueryd",
       "max_binary_bytes": 209715200
+    },
+    "windows/amd64": {
+      "file": "osquery-5.24.0.windows_x86_64.zip",
+      "url": "https://github.com/osquery/osquery/releases/download/5.24.0/osquery-5.24.0.windows_x86_64.zip",
+      "sha256": "2a55cf9d27765f0c7ce9e3484bdf1aee560df65442f39189d7201107f21544a5",
+      "bytes": 19761744,
+      "binary": "osquery-5.24.0.windows_x86_64/Program Files/osquery/osqueryd/osqueryd.exe",
+      "max_binary_bytes": 314572800
+    },
+    "windows/arm64": {
+      "file": "osquery-5.24.0.windows_arm64.zip",
+      "url": "https://github.com/osquery/osquery/releases/download/5.24.0/osquery-5.24.0.windows_arm64.zip",
+      "sha256": "a858cf4640b2b0a95df4e76a141ad6874ced1320302363da17d0069d95782605",
+      "bytes": 14410202,
+      "binary": "osquery-5.24.0.windows_arm64/Program Files/osquery/osqueryd/osqueryd.exe",
+      "max_binary_bytes": 314572800
     }
   },
   "queries": [
@@ -781,7 +797,8 @@
       ],
       "os": [
         "linux",
-        "macos"
+        "macos",
+        "windows"
       ],
       "sensitivity": "low",
       "load": "light",
@@ -1055,6 +1072,47 @@
           "process": "nginx",
           "exe_path": "/usr/sbin/nginx",
           "owner_package": "nginx"
+        }
+      ]
+    },
+    {
+      "key": "osquery.programs",
+      "platform": "darwin",
+      "title": "Installed applications (Windows)",
+      "description": "Installed programs from the Windows registry (name, version, publisher), mapped to known vulnerabilities.",
+      "category": "DefenseBot",
+      "sql": "SELECT name, version, publisher FROM programs",
+      "tables": [
+        "programs"
+      ],
+      "columns": [
+        "name",
+        "version",
+        "publisher"
+      ],
+      "os": [
+        "windows"
+      ],
+      "sensitivity": "low",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 2000,
+      "timeout_seconds": 90,
+      "mitre": [
+        {
+          "id": "T1518",
+          "reason": "Listing installed software is Software Discovery."
+        }
+      ],
+      "attributes": {
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "name": "Brave Browser",
+          "version": "153.1.95.102",
+          "publisher": "Brave Software"
         }
       ]
     }

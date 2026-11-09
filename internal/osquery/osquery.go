@@ -204,7 +204,7 @@ var AllowedTables = map[string]bool{
 	"kernel_modules": true, "mounts": true, "etc_hosts": true, "time": true, "pci_devices": true, "usb_devices": true,
 	// orchis-defense-agent: metadata perangkat lunak dan layanan (nama, versi, pemilik paket); tanpa isi berkas, perintah, atau kredensial.
 	"deb_package_files": true, "rpm_package_files": true, "npm_packages": true, "python_packages": true, "apps": true,
-	"homebrew_packages": true, "systemd_units": true,
+	"homebrew_packages": true, "systemd_units": true, "programs": true,
 }
 
 // DeniedTables: tabel yang TIDAK PERNAH dibaca, apa pun pack/query-nya (data sensitif pengguna).

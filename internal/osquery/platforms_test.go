@@ -37,7 +37,7 @@ func TestCollectionSupportedFollowsPinnedArtifacts(t *testing.T) {
 		want     bool
 	}{
 		{"linux", "x86_64", true}, {"macos", "x86_64", true}, {"macos", "arm64", true},
-		{"linux", "arm64", false}, {"windows", "x86_64", false}, {"windows", "arm64", false},
+		{"linux", "arm64", false}, {"windows", "x86_64", true}, {"windows", "arm64", true},
 		{"ios", "arm64", false}, {"macos", "ppc", false}, {"", "", false},
 	}
 	for _, c := range cases {
@@ -45,10 +45,10 @@ func TestCollectionSupportedFollowsPinnedArtifacts(t *testing.T) {
 			t.Errorf("CollectionSupported(%q,%q)=%v, want %v", c.os, c.arch, got, c.want)
 		}
 	}
-	if got := strings.Join(SupportedPlatforms(), ","); got != "linux/x86_64,macos/x86_64,macos/arm64" {
+	if got := strings.Join(SupportedPlatforms(), ","); got != "linux/x86_64,macos/x86_64,macos/arm64,windows/x86_64,windows/arm64" {
 		t.Fatalf("SupportedPlatforms=%s", got)
 	}
-	if !PlatformHasArtifact("darwin") || !PlatformHasArtifact("macos") || !PlatformHasArtifact("linux") || PlatformHasArtifact("windows") {
+	if !PlatformHasArtifact("darwin") || !PlatformHasArtifact("macos") || !PlatformHasArtifact("linux") || !PlatformHasArtifact("windows") {
 		t.Fatal("PlatformHasArtifact tidak konsisten")
 	}
 }

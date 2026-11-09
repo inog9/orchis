@@ -100,7 +100,11 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	p := &plan{Binary2Src: map[string]string{}}
 	osRows, _, haveOS := okRows(in, QueryOSRelease)
 	if haveOS && len(osRows) > 0 {
-		p.Platform = strings.ToLower(osRows[0]["platform"])
+		plat := strings.ToLower(osRows[0]["platform"])
+		if like := strings.ToLower(osRows[0]["platform_like"]); strings.Contains(plat, "windows") || strings.Contains(like, "windows") {
+			plat = "windows"
+		}
+		p.Platform = plat
 		p.OSName = osRows[0]["name"]
 		p.OSVersion = osRows[0]["version"]
 		p.Ecosystem = ecosystemFor(osRows[0])
@@ -210,6 +214,19 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	if rows, _, ok := okRows(in, QueryApps); ok {
 		for _, r := range rows {
 			if v, pr, mapped := cpeFor(r["name"], r["bundle_identifier"]); mapped {
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				continue
+			}
+			if c, ok := aiCPE[AppKey(r["name"])]; ok {
+				p.CPE = append(p.CPE, c)
+				continue
+			}
+			unmapped++
+		}
+	}
+	if rows, _, ok := okRows(in, QueryPrograms); ok {
+		for _, r := range rows {
+			if v, pr, mapped := cpeFor(r["name"], ""); mapped {
 				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
 				continue
 			}

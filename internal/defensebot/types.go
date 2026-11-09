@@ -21,6 +21,7 @@ const (
 	QueryNPM       = "osquery.npm_global"
 	QueryPip       = "osquery.pip_packages"
 	QueryApps      = "osquery.macos_apps"
+	QueryPrograms  = "osquery.programs"
 	QueryBrew      = "osquery.homebrew"
 	QueryExposure  = "osquery.exposure"
 	QueryHardening = "osquery.hardening"
@@ -32,14 +33,17 @@ const (
 )
 
 // Queries lists every osquery check a orchis-defense-agent run reads, in a stable order.
-var Queries = []string{QueryOSRelease, QueryPackages, QueryNPM, QueryApps, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
+var Queries = []string{QueryOSRelease, QueryPackages, QueryNPM, QueryApps, QueryPrograms, QueryBrew, QueryExposure, QueryHardening, QueryFirewall}
 
 // requiredGroups mengembalikan data yang wajib ada agar satu run berguna, per platform.
 // Setiap grup adalah alternatif yang saling menggantikan: cukup satu anggota terkumpul.
 // macOS tidak pernah punya paket deb/rpm, jadi daftar software-nya adalah aplikasi atau Homebrew.
 func requiredGroups(platform string) [][]string {
-	if platform == "darwin" {
+	switch platform {
+	case "darwin":
 		return [][]string{{QueryOSRelease}, {QueryApps, QueryBrew}}
+	case "windows":
+		return [][]string{{QueryOSRelease}, {QueryPrograms}}
 	}
 	return [][]string{{QueryOSRelease}, {QueryPackages}}
 }

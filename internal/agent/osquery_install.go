@@ -2,6 +2,7 @@ package agent
 
 import (
 	"archive/tar"
+	"archive/zip"
 	"compress/gzip"
 	"context"
 	"crypto/ed25519"
@@ -162,6 +163,9 @@ func (i *OsqueryInstaller) Ensure(ctx context.Context) (string, error) {
 // extractOne mengekstrak SATU berkas bernama pasti dari tarball ke berkas sementara di dir. Entri lain (termasuk symlink,
 // direktori, nama berbahaya) diabaikan; berkas yang dicari harus berkas biasa dan tidak melebihi batas ukuran.
 func extractOne(tarball string, pin osquery.Artifact, dir string) (string, error) {
+	if strings.HasSuffix(strings.ToLower(pin.File), ".zip") {
+		return extractOneZip(tarball, pin, dir)
+	}
 	f, err := os.Open(tarball)
 	if err != nil {
 		return "", err
@@ -268,4 +272,56 @@ func (a *Agent) runOsquery(ctx context.Context, key string) ([]osquery.Dataset, 
 		return []osquery.Dataset{*ds}, errors.New(ds.Reason)
 	}
 	return []osquery.Dataset{*ds}, nil
+}
+
+// extractOneZip mengekstrak SATU berkas bernama pasti dari arsip zip (artefak Windows) ke
+// berkas sementara di dir. Aturan sama dengan extractOne: hanya berkas biasa dengan nama
+// persis dan ukuran wajar yang diterima.
+func extractOneZip(zipPath string, pin osquery.Artifact, dir string) (string, error) {
+	zr, err := zip.OpenReader(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("artifact is not a zip archive: %w", err)
+	}
+	defer zr.Close()
+	limit := pin.MaxBinaryBytes
+	if limit <= 0 {
+		limit = 256 << 20
+	}
+	for _, e := range zr.File {
+		if strings.TrimPrefix(e.Name, "./") != pin.Binary {
+			continue
+		}
+		if e.FileInfo().IsDir() {
+			return "", fmt.Errorf("%s is a directory in the artifact: refusing", pin.Binary)
+		}
+		if e.UncompressedSize64 == 0 || e.UncompressedSize64 > uint64(limit) {
+			return "", fmt.Errorf("%s has an unreasonable size (%d bytes): refusing", pin.Binary, e.UncompressedSize64)
+		}
+		rc, err := e.Open()
+		if err != nil {
+			return "", err
+		}
+		out, err := os.CreateTemp(dir, ".bin-*")
+		if err != nil {
+			rc.Close()
+			return "", err
+		}
+		n, err := io.Copy(out, io.LimitReader(rc, int64(e.UncompressedSize64)))
+		rc.Close()
+		if cerr := out.Close(); err == nil {
+			err = cerr
+		}
+		if err == nil && uint64(n) != e.UncompressedSize64 {
+			err = errors.New("artifact is truncated")
+		}
+		if err == nil {
+			err = os.Chmod(out.Name(), 0o755)
+		}
+		if err != nil {
+			os.Remove(out.Name())
+			return "", err
+		}
+		return out.Name(), nil
+	}
+	return "", fmt.Errorf("artifact does not contain %s", pin.Binary)
 }

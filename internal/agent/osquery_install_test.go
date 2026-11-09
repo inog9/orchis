@@ -247,8 +247,14 @@ func TestPinnedOsqueryArtifactIsWellFormed(t *testing.T) {
 	if !ok || len(a.SHA256) != 64 || a.Bytes < 1<<20 || a.Binary == "" || !strings.HasPrefix(a.URL, "https://github.com/osquery/osquery/releases/download/"+osquery.Version+"/") {
 		t.Fatalf("pin linux/amd64 tidak sah: %+v", a)
 	}
-	if _, ok := osquery.PinnedArtifact("windows", "amd64"); ok {
-		t.Fatal("Windows belum terbukti: tidak boleh ada pin")
+	// Windows kini didukung: pin windows/amd64 dan windows/arm64 harus ada dan sah.
+	for _, goos := range []string{"windows"} {
+		for _, goarch := range []string{"amd64", "arm64"} {
+			w, ok := osquery.PinnedArtifact(goos, goarch)
+			if !ok || len(w.SHA256) != 64 || w.Bytes < 1<<20 || w.Binary == "" || !strings.HasSuffix(w.File, ".zip") || !strings.HasPrefix(w.URL, "https://github.com/osquery/osquery/releases/download/"+osquery.Version+"/") {
+				t.Fatalf("pin %s/%s tidak sah: %+v", goos, goarch, w)
+			}
+		}
 	}
 }
 

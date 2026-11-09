@@ -84,7 +84,7 @@ describe('orchis-defense-agent panel', () => {
   it('explains an agent that cannot collect and an asset without testing authorization', async () => {
     defenseStub({ data: { supported: false } });
     mount(<EndpointDataPanel assetID="a1" allowed canRun />);
-    expect(await screen.findByText('orchis-defense-agent supports Linux and macOS agents only.')).toBeInTheDocument();
+    expect(await screen.findByText('orchis-defense-agent supports Linux, macOS, and Windows agents.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run orchis-defense-agent' })).toBeDisabled();
   });
 

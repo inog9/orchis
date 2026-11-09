@@ -7,7 +7,7 @@ const ID: Record<string, string> = {
     'No agent is installed on this asset.': 'Belum ada agent terpasang pada aset ini.',
     'No approved web URL on this asset.': 'Belum ada URL web yang disetujui pada aset ini.',
     'Collection is not approved for the current consent document.': 'Koleksi belum disetujui untuk dokumen persetujuan saat ini.',
-    'orchis-defense-agent supports Linux and macOS agents only.': 'orchis-defense-agent hanya mendukung agent Linux dan macOS.',
+    'orchis-defense-agent supports Linux, macOS, and Windows agents.': 'orchis-defense-agent hanya mendukung agent Linux, macOS, dan Windows.',
     'The agent is offline; bring it back online to collect software data.': 'Agent sedang luring; nyalakan kembali untuk mengumpulkan data perangkat lunak.',
     'the asset has no address this action can use (needs an IP, host name or URL)': 'aset tidak punya alamat yang bisa dipakai aksi ini (butuh alamat IP, nama host, atau URL)',
     'hostname targets require internet-facing authorization': 'target nama host butuh penandaan menghadap internet',

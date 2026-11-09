@@ -649,10 +649,15 @@ func sevOrderOf(s string) int { return sevRank[s] }
 // so it is normalized the same way requiredGroups treats it.
 func groupSupportsPlatform(group []string, platform string) bool {
 	norm := platform
-	if norm == "darwin" || norm == "macos" {
+	switch norm {
+	case "darwin", "macos":
 		norm = "macos"
-	} else if norm != "" {
-		norm = "linux"
+	case "windows":
+		// tetap "windows"
+	default:
+		if norm != "" {
+			norm = "linux"
+		}
 	}
 	for _, key := range group {
 		for i := range osquery.Queries {
@@ -671,22 +676,24 @@ func proposeAppCPEs(ctx context.Context, in Input, d Deps) (map[string]cpeComp, 
 	if d.Mapper == nil || d.NVD == nil {
 		return out, nil
 	}
-	rows, _, ok := okRows(in, QueryApps)
-	if !ok {
-		return out, nil
-	}
 	var apps []AppRef
 	seen := map[string]bool{}
-	for _, r := range rows {
-		name := strings.TrimSpace(r["name"])
-		if name == "" || seen[AppKey(name)] {
+	for _, key := range []string{QueryApps, QueryPrograms} {
+		rows, _, ok := okRows(in, key)
+		if !ok {
 			continue
 		}
-		if _, _, mapped := cpeFor(name, r["bundle_identifier"]); mapped {
-			continue // already covered by the reviewed dictionary
+		for _, r := range rows {
+			name := strings.TrimSpace(r["name"])
+			if name == "" || seen[AppKey(name)] {
+				continue
+			}
+			if _, _, mapped := cpeFor(name, r["bundle_identifier"]); mapped {
+				continue // already covered by the reviewed dictionary
+			}
+			seen[AppKey(name)] = true
+			apps = append(apps, AppRef{Name: name, Bundle: r["bundle_identifier"], Version: r["version"]})
 		}
-		seen[AppKey(name)] = true
-		apps = append(apps, AppRef{Name: name, Bundle: r["bundle_identifier"], Version: r["version"]})
 	}
 	if len(apps) == 0 {
 		return out, nil

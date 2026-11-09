@@ -744,3 +744,24 @@ func TestMacRunWithUnmappedAppsIsComplete(t *testing.T) {
 		t.Fatalf("apps_unmapped tidak boleh membuat hasil limited: disposition=%s notes=%+v", out.Summary.Disposition, out.Summary.Notes)
 	}
 }
+
+func TestWindowsRunMapsProgramsViaDictionary(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Microsoft Windows 11 Pro", "version": "10.0.26100", "major": "10", "minor": "0", "platform": "Microsoft Windows 11 Pro", "platform_like": "windows"}}},
+		QueryPrograms:  {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Brave Browser", "version": "153.1.95.102", "publisher": "Brave Software"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	if out.Summary.Platform != "windows" {
+		t.Fatalf("platform harus terdeteksi windows, dapat %q", out.Summary.Platform)
+	}
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" {
+			t.Fatalf("os_release dan programs ada, tidak boleh ada dataset_missing: %+v", note)
+		}
+	}
+	if out.Summary.SoftwareUnmapped != 0 {
+		t.Fatalf("Brave Browser harus terpetakan ke brave:brave, unmapped=%d notes=%+v", out.Summary.SoftwareUnmapped, out.Summary.Notes)
+	}
+}

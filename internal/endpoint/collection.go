@@ -186,7 +186,7 @@ func (s *Service) QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant,
 		return 0, err
 	}
 	if !osquery.CollectionSupported(osName, arch) {
-		return 0, httpx.Conflict("orchis-defense-agent supports Linux and macOS agents only.")
+		return 0, httpx.Conflict("orchis-defense-agent supports Linux, macOS, and Windows agents.")
 	}
 	c := osquery.Consent()
 	rows, err := tx.Query(ctx, `SELECT query_key,consented_by FROM osquery_org_settings WHERE tenant_id=$1 AND organization_id=$2 AND enabled AND consent_version=$3 AND consent_sha256=$4 AND consented_by IS NOT NULL AND consented_at IS NOT NULL AND query_key=ANY($5) ORDER BY query_key`, tenant, org, c.Version, c.SHA256, keys)
