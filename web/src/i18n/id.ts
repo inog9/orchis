@@ -1,5 +1,6 @@
 import type {en} from './en';
 export const id:Record<keyof typeof en,string> = {
+  "public_supported_by": "Didukung oleh",
   "public_navigation": "Navigasi publik",
   "public_why_link": "Mengapa Orchis",
   "public_eyebrow": "Keamanan yang lebih mudah dipahami",

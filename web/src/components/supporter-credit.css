@@ -1,0 +1,13 @@
+.supporter-credit { display: flex; align-items: center; justify-content: center; gap: 30px; flex-wrap: wrap; }
+.supporter-credit__label { margin: 0; font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--v2-text-3); }
+.supporter-credit__identity { display: inline-flex; align-items: center; gap: 14px; color: var(--v2-text); text-decoration: none; font-size: 15px; font-weight: 500; }
+.supporter-credit__identity img { display: block; width: 48px; height: 48px; object-fit: contain; flex: none; }
+.supporter-credit__identity:hover { color: var(--v2-accent); }
+.supporter-credit__identity:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 6px; }
+.public-support { padding-block: 26px; border-top: 1px solid var(--v2-border); }
+.public-login__foot .supporter-credit { justify-content: flex-start; gap: 14px; }
+.public-login__foot .supporter-credit__label { flex-basis: 100%; }
+.public-login__foot .supporter-credit__identity { font-size: 13px; }
+.public-login__foot .supporter-credit__identity img { width: 40px; height: 40px; }
+.public-login__foot > p { margin: 20px 0 0; }
+@media(max-width: 440px) { .supporter-credit { gap: 14px; } .supporter-credit__label { width: 100%; text-align: center; } }

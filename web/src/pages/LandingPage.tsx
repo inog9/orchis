@@ -2,6 +2,7 @@ import { ArrowRight, ArrowUpRight, Check, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { language, setLanguage, t, useLocale } from '../i18n/runtime';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { SupporterCredit } from '../components/SupporterCredit';
 import { SecurityJourney } from '../components/SecurityJourney';
 import './landing.css';
 
@@ -38,6 +39,7 @@ export function LandingPage() {
                 </div>
                 <div className="public-hero__visual"><SecurityJourney/></div>
             </section>
+            <div className="public-support public-wrap"><SupporterCredit/></div>
             <section id="why-orchis" className="public-value public-wrap" aria-labelledby="public-value-title">
                 <div className="public-value__heading"><p className="public-eyebrow">{t('public_why_link')}</p><h2 id="public-value-title">{t('public_value_title')}</h2><p>{t('public_value_intro')}</p></div>
                 <div className="public-benefits">{benefits.map(benefit => <article key={benefit.title}><h3>{benefit.title}</h3><p>{benefit.description}</p></article>)}</div>

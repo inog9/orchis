@@ -1,4 +1,5 @@
 export const en = {
+  "public_supported_by": "Supported by",
   "public_navigation": "Public navigation",
   "public_why_link": "Why Orchis",
   "public_eyebrow": "Security, with a clearer view",
