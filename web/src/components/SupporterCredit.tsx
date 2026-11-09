@@ -1,4 +1,4 @@
-import logo from '../assets/jogja-cybersec.png';
+import logo from '../assets/jogja-cybersec-transparent.png';
 import { t, useLocale } from '../i18n/runtime';
 import './supporter-credit.css';
 
@@ -8,9 +8,8 @@ export function SupporterCredit() {
     useLocale();
     return <div className="supporter-credit">
         <p className="supporter-credit__label">{t('public_supported_by')}</p>
-        <a href="https://jogjacybersec.com/" target="_blank" rel="noreferrer" className="supporter-credit__identity">
-            <img src={logo} alt="" width="48" height="48" decoding="async"/>
-            <span>Jogja Cyber Security</span>
+        <a href="https://jogjacybersec.com/" target="_blank" rel="noreferrer" aria-label="Jogja Cyber Security" className="supporter-credit__identity">
+            <img src={logo} alt="" width="88" height="88" decoding="async"/>
         </a>
     </div>;
 }
