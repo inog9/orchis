@@ -168,6 +168,13 @@ func (s *Service) Complete(ctx context.Context, id uuid.UUID, c Completion) erro
 		} else {
 			raw, _ = json.Marshal(out)
 		}
+		if failure == "" && status == "review" && pol.AutoApprove {
+			p.UserID = actor
+			if e := s.approveLocked(ctx, tx, p, j, out, "ai.auto_approve"); e != nil {
+				return e
+			}
+			return note(ctx, tx, p, j.OrganizationID, id, "ai.auto_approve", map[string]any{"provider": j.Provider, "actions": len(out.Actions), "usage_tokens": c.UsageTokens})
+		}
 		if _, e = tx.Exec(ctx, `UPDATE ai_jobs SET status=$3,output=$4,error=$5,usage_tokens=$6,claim_hash=NULL,lease_until=NULL,version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2`, s.Tenant, id, status, raw, failure, c.UsageTokens); e != nil {
 			return e
 		}

@@ -922,6 +922,7 @@ export const en = {
   "m_014f76f105c1": "Token budget over 24 hours",
   "m_60192e2ca954": "Call budget over 24 hours",
   "m_a013462b5ef8": "Budgets reserve a conservative byte-based token bound before queueing. Reservations remain after failure or cancellation. Rates are administrator-supplied upper bounds, not live billing quotes. Requests are serialized per organisation with a 10-second cooldown.",
+  "m_a9f01c2e7b3d": "Automatically approve AI jobs without a manual review step",
   "m_f3cba9962f84": "{0}I authorize sending the minimized technical data for the enabled purposes and accept the configured cost limits.",
   "m_953eeb5f1fd9": "Save AI policy",
   "m_b99ce098c55c": "Loading AI policy…",

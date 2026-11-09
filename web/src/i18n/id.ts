@@ -923,6 +923,7 @@ export const id:Record<keyof typeof en,string> = {
   "m_014f76f105c1": "Anggaran token selama 24 jam",
   "m_60192e2ca954": "Anggaran panggilan selama 24 jam",
   "m_a013462b5ef8": "Anggaran mencadangkan batas token konservatif berdasarkan byte sebelum pengantrean. Cadangan tetap berlaku setelah kegagalan atau pembatalan. Tarif adalah batas atas yang diberikan administrator, bukan tagihan langsung penyedia. Permintaan dijalankan bergantian per organisasi dengan jeda 10 detik.",
+  "m_a9f01c2e7b3d": "Setujui otomatis job AI tanpa langkah review manual",
   "m_f3cba9962f84": "{0}Saya mengizinkan pengiriman data teknis yang diminimalkan untuk tujuan yang diaktifkan dan menerima batas biaya yang dikonfigurasi.",
   "m_953eeb5f1fd9": "Simpan kebijakan AI",
   "m_b99ce098c55c": "Memuat kebijakan AI…",

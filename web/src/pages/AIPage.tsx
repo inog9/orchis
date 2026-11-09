@@ -13,6 +13,7 @@ export type AIPolicy = {
     enabled: boolean;
     planning: boolean;
     remediation: boolean;
+    auto_approve?: boolean;
     planning_model: string;
     remediation_model: string;
     max_input_bytes: number;
@@ -103,6 +104,7 @@ export function AIPolicyForm({ value, org }: {
  <label className="checkbox">{richUI("m_067fb71becbe", [<input type="checkbox" checked={form.enabled} onChange={e => setForm({ ...form, enabled: e.target.checked })}/>])}</label>
  <label className="checkbox">{richUI("m_5cff46dfb20f", [<input type="checkbox" checked={form.planning} onChange={e => setForm({ ...form, planning: e.target.checked })}/>])}</label>
  <label className="checkbox">{richUI("m_f19725c1bfc3", [<input type="checkbox" checked={form.remediation} onChange={e => setForm({ ...form, remediation: e.target.checked })}/>])}</label>
+    <label className="checkbox">{richUI("m_a9f01c2e7b3d", [<input type="checkbox" checked={!!form.auto_approve} onChange={e => setForm({ ...form, auto_approve: e.target.checked })}/>])}</label>
  <div className="org-grid">{formatUI((['planning_model', 'remediation_model'] as const).map(k => <label className="field" key={k}>{formatUI(k === 'planning_model' ? textUI("m_d2a9a398bcb6") : textUI("m_0b66798d2e62"))}<input value={form[k]} maxLength={100} required={form[k === 'planning_model' ? 'planning' : 'remediation']} onChange={e => setForm({ ...form, [k]: e.target.value })}/></label>))}</div>
  <div className="org-grid"><label className="field">{richUI("m_38e7bb021752", [<input type="password" autoComplete="new-password" value={deepseek} maxLength={512} onChange={e => setDeepseek(e.target.value)}/>])}</label><label className="field">{richUI("m_a026b37a0a83", [<input type="password" autoComplete="new-password" value={openai} maxLength={512} onChange={e => setOpenai(e.target.value)}/>])}</label></div>
  <p className="muted small">{textUI("m_8de07201c08e")}</p>

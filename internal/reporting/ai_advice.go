@@ -14,7 +14,7 @@ import (
 )
 
 // AIAdvice adalah suplemen advisori remediasi hasil AI untuk satu laporan: job AI
-// kind=remediation yang sudah disetujui manusia (status='approved'). Ia tidak mengubah
+// kind=remediation yang sudah selesai/disetujui (status='completed' atau 'approved'). Ia tidak mengubah
 // hasil beku; hanya dilampirkan sebagai bagian terpisah dan berlabel jelas.
 type AIAdvice struct {
 	JobID      string         `json:"job_id"`
@@ -41,7 +41,7 @@ func attachAIAdvice(ctx context.Context, tx pgx.Tx, tenant, reportID uuid.UUID, 
 	var jobID, model string
 	var approvedAt *time.Time
 	var outB, mapB []byte
-	err := tx.QueryRow(ctx, `SELECT id,model,approved_at,output,mapping FROM ai_jobs WHERE tenant_id=$1 AND report_id=$2 AND kind='remediation' AND status='approved' ORDER BY approved_at DESC LIMIT 1`, tenant, reportID).Scan(&jobID, &model, &approvedAt, &outB, &mapB)
+	err := tx.QueryRow(ctx, `SELECT id,model,approved_at,output,mapping FROM ai_jobs WHERE tenant_id=$1 AND report_id=$2 AND kind='remediation' AND status IN ('approved','completed') ORDER BY COALESCE(approved_at,updated_at) DESC LIMIT 1`, tenant, reportID).Scan(&jobID, &model, &approvedAt, &outB, &mapB)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
