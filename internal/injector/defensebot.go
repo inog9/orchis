@@ -26,7 +26,7 @@ func defenseDeps() defensebot.Deps {
 		// The NVD key is optional and free; it only raises the request limit. It lives in the worker's private file.
 		defenseNVD = &defensebot.NVD{Base: os.Getenv("ORCHIS_DEFENSEBOT_NVD_URL"), APIKey: os.Getenv("ORCHIS_NVD_API_KEY")}
 	})
-	return defensebot.Deps{OSV: defenseOSV, NVD: defenseNVD, Enrich: defenseEnrich}
+	return defensebot.Deps{OSV: defenseOSV, NVD: defenseNVD, Enrich: defenseEnrich, Mapper: newAppCPEMapper()}
 }
 
 // executeDefensebot maps the stored software data of one asset to advisories. It only contacts the public vulnerability

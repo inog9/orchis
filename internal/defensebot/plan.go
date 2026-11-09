@@ -96,7 +96,7 @@ func okRows(in Input, key string) ([]map[string]string, DatasetInput, bool) {
 }
 
 // buildPlan turns the stored datasets into the list of components to look up and the coverage notes.
-func buildPlan(in Input) *plan {
+func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	p := &plan{Binary2Src: map[string]string{}}
 	osRows, _, haveOS := okRows(in, QueryOSRelease)
 	if haveOS && len(osRows) > 0 {
@@ -104,6 +104,14 @@ func buildPlan(in Input) *plan {
 		p.OSName = osRows[0]["name"]
 		p.OSVersion = osRows[0]["version"]
 		p.Ecosystem = ecosystemFor(osRows[0])
+	} else if !haveOS {
+		// os_release missing: infer the platform from the software inventory that was collected,
+		// so platform-specific requirements (deb/rpm packages on macOS) are not flagged as gaps.
+		if _, _, ok := okRows(in, QueryApps); ok {
+			p.Platform = "darwin"
+		} else if _, _, ok := okRows(in, QueryBrew); ok {
+			p.Platform = "darwin"
+		}
 	}
 	if kr, _, ok := okRows(in, QueryKernel); ok && len(kr) > 0 {
 		if m := runningKernelRe.FindStringSubmatch(strings.TrimSpace(kr[0]["version"])); m != nil {
@@ -203,6 +211,10 @@ func buildPlan(in Input) *plan {
 		for _, r := range rows {
 			if v, pr, mapped := cpeFor(r["name"], r["bundle_identifier"]); mapped {
 				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				continue
+			}
+			if c, ok := aiCPE[AppKey(r["name"])]; ok {
+				p.CPE = append(p.CPE, c)
 				continue
 			}
 			unmapped++

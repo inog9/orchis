@@ -5,7 +5,9 @@
 package defensebot
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"time"
 )
 
@@ -121,4 +123,21 @@ type Output struct {
 	Findings []Finding
 	Summary  Summary
 	Logs     []string
+}
+
+// AppRef is one installed application as collected by the agent.
+type AppRef struct {
+	Name    string `json:"name"`
+	Bundle  string `json:"bundle_identifier,omitempty"`
+	Version string `json:"version"`
+}
+
+// AppKey is the stable lookup key for one application row.
+func AppKey(name string) string { return strings.ToLower(strings.TrimSpace(name)) }
+
+// AppMapper proposes a CPE vendor:product for installed applications that the reviewed
+// dictionary does not know. Proposals are only used after NVD confirms the CPE exists,
+// so a wrong guess can never create a finding.
+type AppMapper interface {
+	ProposeCPE(ctx context.Context, apps []AppRef) (map[string]string, error) // AppKey(name) -> "vendor:product"
 }

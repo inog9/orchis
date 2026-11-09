@@ -538,6 +538,12 @@ func TestCPEDictionaryIsSmallAndExact(t *testing.T) {
 		{"Cursor.app", "", "anysphere", "cursor", true},
 		{"Other.app", "com.todesktop.230313mzl4w4u92", "anysphere", "cursor", true},
 		{"code", "", "microsoft", "visual_studio_code", true},
+		{"Brave Browser.app", "", "brave", "brave", true},
+		{"Brave Browser Helper.app", "com.brave.Browser.helper", "brave", "brave", true},
+		{"Google Chrome.app", "com.google.Chrome", "google", "chrome", true},
+		{"Firefox.app", "org.mozilla.firefox", "mozilla", "firefox", true},
+		{"Telegram.app", "ru.keepcoder.Telegram", "telegram", "telegram_desktop", true},
+		{"Antigravity IDE.app", "com.google.antigravity-ide", "", "", false},
 		{"cursor-extension-pack", "", "", "", false},
 		{"unknown", "", "", "", false},
 	} {
@@ -660,5 +666,68 @@ func TestOnlyApplicationsAreChecked(t *testing.T) {
 		if isApplication(name, section) {
 			t.Errorf("%s (%s) is a system building block", name, section)
 		}
+	}
+}
+
+func TestMacRunWithoutOSReleaseInfersDarwinAndSkipsLinuxPackages(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryApps: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Brave Browser.app", "bundle_identifier": "com.brave.Browser", "version": "153.1.95.102"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" && strings.Contains(note.Detail, QueryPackages) {
+			t.Fatalf("paket Linux tidak relevan di macOS dan tidak boleh jadi gap: %+v", note)
+		}
+	}
+}
+
+type fakeMapper struct {
+	m   map[string]string
+	err error
+}
+
+func (f fakeMapper) ProposeCPE(context.Context, []AppRef) (map[string]string, error) { return f.m, f.err }
+
+func TestAIMapperProposalsAreValidatedAgainstNVD(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if vms := r.URL.Query().Get("virtualMatchString"); vms != "" {
+			// CPEExists: dalam NVD fake ini hanya anysphere:cursor yang "ada".
+			total := 0
+			if strings.Contains(vms, "anysphere:cursor") {
+				total = 3
+			}
+			fmt.Fprintf(w, `{"totalResults":%d}`, total)
+			return
+		}
+		fmt.Fprint(w, `{"vulnerabilities":[]}`)
+	}))
+	t.Cleanup(srv.Close)
+	nvd := &NVD{Base: srv.URL, HTTP: srv.Client(), Sleep: func(time.Duration) {}}
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{
+			{"name": "Example Editor.app", "bundle_identifier": "com.example.editor", "version": "1.0"},
+			{"name": "Bogus.app", "bundle_identifier": "com.example.bogus", "version": "2.0"},
+		}},
+	}}
+	mapper := fakeMapper{m: map[string]string{"example editor.app": "anysphere:cursor", "bogus.app": "nope:nope"}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: nvd, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil), Mapper: mapper})
+	mapped, unmapped := false, false
+	for _, note := range out.Summary.Notes {
+		if note.Code == "apps_ai_mapped" && note.Count == 1 {
+			mapped = true
+		}
+		if note.Code == "apps_unmapped" && note.Count == 1 {
+			unmapped = true
+		}
+	}
+	if !mapped || !unmapped {
+		t.Fatalf("harus ada 1 usulan AI yang valid (NVD) dan 1 yang ditolak: %+v", out.Summary.Notes)
+	}
+	if out.Summary.SoftwareUnmapped != 1 {
+		t.Fatalf("software_unmapped harusnya 1 (Bogus.app), dapat %d", out.Summary.SoftwareUnmapped)
 	}
 }
