@@ -516,7 +516,7 @@ func fakeNVD(t *testing.T, status int) (*NVD, *[]string, *int) {
 	var queries []string
 	slept := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		queries = append(queries, r.URL.Query().Get("cpeName")+"|key="+r.Header.Get("apiKey"))
+		queries = append(queries, r.URL.Query().Get("virtualMatchString")+"|key="+r.Header.Get("apiKey"))
 		if status != http.StatusOK {
 			http.Error(w, "no", status)
 			return
@@ -538,8 +538,8 @@ func TestCPEDictionaryIsSmallAndExact(t *testing.T) {
 		{"Cursor.app", "", "anysphere", "cursor", true},
 		{"Other.app", "com.todesktop.230313mzl4w4u92", "anysphere", "cursor", true},
 		{"code", "", "microsoft", "visual_studio_code", true},
-		{"Brave Browser.app", "", "brave", "brave", true},
-		{"Brave Browser Helper.app", "com.brave.Browser.helper", "brave", "brave", true},
+		{"Brave Browser.app", "", "brave", "browser", true},
+		{"Brave Browser Helper.app", "com.brave.Browser.helper", "brave", "browser", true},
 		{"Google Chrome.app", "com.google.Chrome", "google", "chrome", true},
 		{"Firefox.app", "org.mozilla.firefox", "mozilla", "firefox", true},
 		{"Telegram.app", "ru.keepcoder.Telegram", "telegram", "telegram_desktop", true},
@@ -566,7 +566,7 @@ func TestNVDQueryUsesTheExactCPEKeyAndParsesTheFix(t *testing.T) {
 	if got[0].CVE != "CVE-2025-54135" || got[0].Severity != "high" || got[0].Fixed != "1.3.9" || got[0].Score != 8.6 || !strings.HasPrefix(got[0].URL, "https://") {
 		t.Fatalf("parsed: %+v", got[0])
 	}
-	if len(*queries) != 1 || (*queries)[0] != "cpe:2.3:a:anysphere:cursor:1.3.0:*:*:*:*:*:*:*|key=k1" {
+	if len(*queries) != 1 || (*queries)[0] != "cpe:2.3:a:anysphere:cursor:*:*:*:*:*:*:*:*|key=k1" {
 		t.Fatalf("request: %v", *queries)
 	}
 	if _, err = n.Query(context.Background(), "anysphere", "cursor", "1.3.0"); err != nil || len(*queries) != 1 {
@@ -577,6 +577,10 @@ func TestNVDQueryUsesTheExactCPEKeyAndParsesTheFix(t *testing.T) {
 	}
 	if v, err := n.Query(context.Background(), "anysphere", "cursor", "not a version; rm -rf"); err != nil || v != nil || len(*queries) != 2 {
 		t.Fatal("a malformed version must never reach the API")
+	}
+	// versi >= fixed (1.3.9) tidak lagi rentan: range harus difilter, bukan semua CVE produk ikut
+	if v, err := n.Query(context.Background(), "anysphere", "cursor", "1.4.0"); err != nil || len(v) != 0 {
+		t.Fatalf("versi yang sudah diperbaiki tidak boleh match: %v %v", v, err)
 	}
 }
 

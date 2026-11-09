@@ -306,7 +306,10 @@ function MapPanel({ h, engines, findings, live }: { h: HomeSummary; engines: Eng
     }, [events.length]);
     useEffect(() => { setActiveEvent(0); }, [findings]);
 
-    const hb = GEO.hackbot, df = GEO.defense;
+    const hb = GEO.hackbot;
+    // orchis-defense-agent "bermarkas" di Amerika (biru); Hackbot tetap di North Korea (merah).
+    const us = GEO.pool.find((pt) => pt.country === 'United States') ?? { country: 'United States', city: 'Austin', x: 231.8, y: 215.4 };
+    const df = { x: us.x, y: us.y, city: us.city, country: us.country };
     const hbEng = engines.find((e) => e.key === 'hackbot') ?? { key: 'hackbot', name: 'Hackbot' };
     const dfEng = engines.find((e) => e.key === 'defensebot') ?? { key: 'defensebot', name: 'orchis-defense-agent' };
 
@@ -362,8 +365,8 @@ function MapPanel({ h, engines, findings, live }: { h: HomeSummary; engines: Eng
                             </div>
                         </div>
                     ))}
-                    {pill(hbEng, hb, 'var(--v2-atk, var(--atk, #ff5f78))', Crosshair, 'hackbot')}
-                    {pill(dfEng, df, 'var(--v2-success, var(--ok, #4fd1a0))', Shield, 'defense')}
+                    {pill(hbEng, hb, 'var(--v2-atk, #ff5f78)', Crosshair, 'hackbot')}
+                    {pill(dfEng, df, '#4d9fff', Shield, 'defense')}
                 </div>
             </div>
             <aside className="pen-ov-events" aria-label={textUI('pen_ov_event_stream')}>

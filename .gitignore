@@ -21,3 +21,4 @@ __pycache__/
 /PROGRESS.md
 /result*.txt
 /PROMPT-*.md
+tmp_scan/

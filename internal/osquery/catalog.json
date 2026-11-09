@@ -949,9 +949,9 @@
       "key": "osquery.macos_apps",
       "platform": "darwin",
       "title": "macOS applications",
-      "description": "Names, bundle identifiers and versions of installed macOS applications, used for vulnerability mapping.",
+      "description": "Aplikasi macOS terpasang (nama, bundle id, versi). Memakai bundle_version (versi rilis aplikasi) bila ada, jika tidak baru bundle_short_version.",
       "category": "DefenseBot",
-      "sql": "SELECT name, bundle_identifier, bundle_short_version AS version FROM apps",
+      "sql": "SELECT name, bundle_identifier, COALESCE(NULLIF(bundle_version, ''), bundle_short_version) AS version FROM apps",
       "tables": [
         "apps"
       ],

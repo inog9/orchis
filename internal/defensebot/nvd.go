@@ -32,7 +32,7 @@ type cpeRule struct {
 var cpeDictionary = []cpeRule{
 	{Vendor: "anysphere", Product: "cursor", Names: []string{"cursor", "cursor.app"}, Bundles: []string{"com.todesktop.230313mzl4w4u92"}},
 	{Vendor: "microsoft", Product: "visual_studio_code", Names: []string{"code", "visual studio code.app"}, Bundles: []string{"com.microsoft.vscode"}},
-	{Vendor: "brave", Product: "brave", Names: []string{"brave", "brave browser", "brave browser.app"}, Bundles: []string{"com.brave.browser"}},
+	{Vendor: "brave", Product: "browser", Names: []string{"brave", "brave browser", "brave browser.app"}, Bundles: []string{"com.brave.browser"}},
 	{Vendor: "google", Product: "chrome", Names: []string{"google chrome", "google chrome.app"}, Bundles: []string{"com.google.chrome"}},
 	{Vendor: "mozilla", Product: "firefox", Names: []string{"firefox", "firefox.app"}, Bundles: []string{"org.mozilla.firefox"}},
 	{Vendor: "telegram", Product: "telegram_desktop", Names: []string{"telegram", "telegram.app"}, Bundles: []string{"ru.keepcoder.telegram"}},
@@ -161,11 +161,7 @@ type nvdResponse struct {
 			} `json:"references"`
 			Configurations []struct {
 				Nodes []struct {
-					CPEMatch []struct {
-						Vulnerable bool   `json:"vulnerable"`
-						Criteria   string `json:"criteria"`
-						EndExcl    string `json:"versionEndExcluding"`
-					} `json:"cpeMatch"`
+					CPEMatch []cpeMatch `json:"cpeMatch"`
 				} `json:"nodes"`
 			} `json:"configurations"`
 		} `json:"cve"`
@@ -194,7 +190,10 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 			return nil, err
 		}
 		n.wait()
-		q := url.Values{"cpeName": {cpe}, "isVulnerable": {""}, "resultsPerPage": {"500"}}
+		// NVD menyimpan konfigurasi CVE sebagai RANGE versi; cpeName dengan versi eksak
+		// selalu 0 hasil. Query per produk (tanpa versi), lalu filter range di parseNVD.
+		match := fmt.Sprintf("cpe:2.3:a:%s:%s:*:*:*:*:*:*:*:*", vendor, product)
+		q := url.Values{"virtualMatchString": {match}, "isVulnerable": {""}, "resultsPerPage": {"500"}}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, n.base()+"/rest/json/cves/2.0?"+q.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -222,6 +221,10 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 			last = fmt.Errorf("nvd http %d", resp.StatusCode)
 			continue
 		}
+		if resp.StatusCode == http.StatusNotFound {
+			// virtualMatchString tanpa hasil mengembalikan 404: bukan error, hanya tidak ada CVE.
+			return nil, nil
+		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("nvd http %d", resp.StatusCode)
 		}
@@ -229,7 +232,7 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		if err = json.Unmarshal(body, &doc); err != nil {
 			return nil, fmt.Errorf("unreadable NVD response: %w", err)
 		}
-		out := parseNVD(doc, vendor, product)
+		out := parseNVD(doc, vendor, product, version)
 		n.mu.Lock()
 		if n.cache == nil {
 			n.cache = map[string][]NVDVuln{}
@@ -248,7 +251,37 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 	return nil, fmt.Errorf("%w: %v", ErrSourceDown, last)
 }
 
-func parseNVD(doc nvdResponse, vendor, product string) []NVDVuln {
+// cpeMatchInRange mengevaluasi apakah versi terpasang masuk dalam range satu cpeMatch
+// (versionStart/End Including/Excluding). cpeMatch tanpa batas versi berlaku untuk semua.
+type cpeMatch struct {
+	Vulnerable bool   `json:"vulnerable"`
+	Criteria   string `json:"criteria"`
+	StartIncl  string `json:"versionStartIncluding"`
+	StartExcl  string `json:"versionStartExcluding"`
+	EndIncl    string `json:"versionEndIncluding"`
+	EndExcl    string `json:"versionEndExcluding"`
+}
+
+func cpeMatchInRange(version string, m cpeMatch) bool {
+	if !m.Vulnerable {
+		return false
+	}
+	if m.StartIncl != "" && CompareVersions("npm", version, m.StartIncl) < 0 {
+		return false
+	}
+	if m.StartExcl != "" && CompareVersions("npm", version, m.StartExcl) <= 0 {
+		return false
+	}
+	if m.EndIncl != "" && CompareVersions("npm", version, m.EndIncl) > 0 {
+		return false
+	}
+	if m.EndExcl != "" && CompareVersions("npm", version, m.EndExcl) >= 0 {
+		return false
+	}
+	return true
+}
+
+func parseNVD(doc nvdResponse, vendor, product, version string) []NVDVuln {
 	var out []NVDVuln
 	prefix := strings.ToLower(fmt.Sprintf("cpe:2.3:a:%s:%s:", vendor, product))
 	for _, v := range doc.Vulnerabilities {
@@ -277,18 +310,28 @@ func parseNVD(doc nvdResponse, vendor, product string) []NVDVuln {
 				break
 			}
 		}
+		matched := false
 		for _, cfg := range c.Configurations {
 			for _, node := range cfg.Nodes {
 				for _, m := range node.CPEMatch {
-					if m.Vulnerable && m.EndExcl != "" && strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
-						if item.Fixed == "" || CompareVersions("npm", m.EndExcl, item.Fixed) < 0 {
-							item.Fixed = m.EndExcl
-						}
+					if !strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
+						continue
+					}
+					if !cpeMatchInRange(version, m) {
+						continue
+					}
+					matched = true
+					end := m.EndExcl
+					if end == "" {
+						end = m.EndIncl
+					}
+					if end != "" && (item.Fixed == "" || CompareVersions("npm", end, item.Fixed) < 0) {
+						item.Fixed = end
 					}
 				}
 			}
 		}
-		if item.CVE != "" {
+		if item.CVE != "" && matched {
 			out = append(out, item)
 		}
 	}
