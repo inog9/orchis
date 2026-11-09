@@ -83,13 +83,11 @@ describe('HomePage', () => {
     expect(screen.getByText('1 critical · 2 high · 1 medium · 0 low · 2 info')).toBeInTheDocument();
     expect(screen.getByText('Assets monitored')).toBeInTheDocument();
     expect(screen.getByText('2 authorized · 1 internet-facing')).toBeInTheDocument();
-    expect(screen.getByText('Atomic tests')).toBeInTheDocument();
-    expect(screen.getByText('1 active · 5 runs / 7 days')).toBeInTheDocument();
     expect(screen.getByText('Simulations')).toBeInTheDocument();
     expect(screen.getByText('0 running · 2 scenarios')).toBeInTheDocument();
     expect((await screen.findAllByText('WEB')).length).toBeGreaterThan(0);
     expect(screen.getByText('+1 more findings')).toHaveAttribute('href', '/findings');
-    expect(screen.getAllByText('Online')).toHaveLength(4);
+    expect(screen.getAllByText('Online')).toHaveLength(2);
     const srvLinks = screen.getAllByRole('link', { name: /srv-web/ });
     expect(srvLinks.some((l) => l.getAttribute('href') === '/assets/a1')).toBe(true);
     expect(srvLinks.some((l) => l.getAttribute('href') === '/simulations/legacy/s1')).toBe(true);
@@ -121,9 +119,8 @@ describe('HomePage', () => {
     mount({ ...home, chains: { scenarios: 2, simulations: 7, running: 2 } }, { simulations: runningSim });
     expect(await screen.findByText('LIVE')).toBeInTheDocument();
     expect(await screen.findByText('OP-0029')).toBeInTheDocument();
-    expect(screen.getByText('1/3 steps done')).toBeInTheDocument();
-    expect(screen.getByText('2 targets')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /SQL Injection di \/rest\/products\/search/ })).toBeInTheDocument();
+    expect(screen.getAllByText('DISCOVER').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('SCAN').length).toBeGreaterThan(0);
   });
 
   it('bagian yang tidak dikirim server (null) tidak dirender', async () => {
@@ -152,9 +149,9 @@ describe('HomePage', () => {
   });
 
   it('memperingatkan bila ada injector yang belum terhubung', async () => {
-    mount({ ...home, injectors: [{ key: 'nmap', name: 'Nmap', status: 'offline' }, { key: 'hackbot', name: 'Hackbot', status: 'online' }] });
+    mount({ ...home, injectors: [{ key: 'defensebot', name: 'orchis-defense-agent', status: 'offline' }, { key: 'hackbot', name: 'Hackbot', status: 'online' }] });
     await screen.findByText(/Data updated/);
-    expect(screen.getByRole('status')).toHaveTextContent(/Nmap injector is not connected/i);
+    expect(screen.getByRole('status')).toHaveTextContent(/orchis-defense-agent injector is not connected/i);
     expect(screen.getByText('Offline')).toBeInTheDocument();
   });
 

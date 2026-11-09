@@ -5,7 +5,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Crosshair, Globe, Plug, Radar, RefreshCw, Server, Shield, Zap } from 'lucide-react';
+import { ChevronDown, ChevronRight, Crosshair, Globe, Plus, Plug, RefreshCw, Server, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { locale, t as textUI, tr as richUI, useLocale, fv as formatUI } from '../i18n/runtime';
 import { capitalLabel, displayLabel } from '../i18n/display';
@@ -21,22 +21,23 @@ import './overview.css';
 
 // Batas jumlah node agar halaman tetap ringan; sisanya dirangkum sebagai counter (RULES).
 const MAX_ASSET_NODES = 4;
-const MAX_ENGINE_NODES = 4;
+const MAX_ENGINE_NODES = 2;
 const MAX_FINDING_NODES = 12;
 const MAX_LIVE_GRAPHS = 3;
 
 // Ikon engine berdasarkan key injector bawaan (lihat internal/execution/service.go).
-const ENGINE_ICONS: Record<string, LucideIcon> = { defensebot: Shield, hackbot: Crosshair, nmap: Radar, nuclei: Zap };
+// Hanya dua engine yang tampil di overview: orchis-defense-agent (host) dan Hackbot (web).
+const OVERVIEW_ENGINES = new Set(['defensebot', 'hackbot']);
+const ENGINE_ICONS: Record<string, LucideIcon> = { defensebot: Shield, hackbot: Crosshair };
 
-// Engine pemilik sebuah temuan dibaca dari field details yang memang ditulis backend,
-// bukan ditebak dari judul: orchis-defense-agent menulis "package" (internal/defensebot/run.go),
-// jalur web pentest nuclei menulis "template_id" dan dilaporkan sebagai Hackbot,
-// Nmap menulis "port" (internal/injector/parse.go). Selain itu: tidak dipetakan.
+// Engine pemilik temuan dibaca dari field details yang memang ditulis backend, bukan
+// ditebak dari judul: orchis-defense-agent menulis "package" (internal/defensebot/run.go);
+// temuan web (nuclei "template_id", nmap "port") adalah bagian dari pipeline Hackbot.
 function engineKeyOf(finding: Finding): string {
     const d = finding.details ?? {};
     if (typeof d.package === 'string' && d.package !== '') return 'defensebot';
     if (typeof d.template_id === 'string' && d.template_id !== '') return 'hackbot';
-    if (d.port !== undefined) return 'nmap';
+    if (d.port !== undefined) return 'hackbot';
     return '';
 }
 
@@ -274,37 +275,63 @@ function ScanGraph({ assets, pinned, engines, findings, live, head, emptyText }:
     );
 }
 
-// Graph terpisah untuk tiap simulasi yang sedang berjalan (state LIVE).
-function LiveSimGraph({ sim, engines }: { sim: Simulation; engines: EngineNodeData[] }) {
+// Satu lane per simulasi yang sedang berjalan (konsep pipeline lanes pada mockup
+// v2fixed.pen): info engine (hanya dua: orchis-defense-agent & Hackbot), target, kode
+// operasi, state, empat tahap DISCOVER->SCAN->VALIDATE->REPORT dengan track progress,
+// serta hasil temuan (jumlah + titik severity).
+const LANE_STAGES = ['DISCOVER', 'SCAN', 'VALIDATE', 'REPORT'] as const;
+
+function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[] }) {
     useLocale();
     const fq = useSimulationFindings(sim.id);
-    const findings = useMemo(
-        () => sortFindings(fq.data?.pages.flatMap((p) => p.items ?? []) ?? []),
-        [fq.data],
-    );
-    const progress = textUI('pen_ov_progress', [sim.steps_done, sim.step_count]);
-    const node: AssetNodeData = {
-        id: sim.id,
-        name: sim.name,
-        badge: sim.target_count > 0 ? textUI('pen_ov_targets_badge', [sim.target_count]) : null,
-        icon: 'web',
-        href: `/simulations/${sim.id}`,
-    };
+    const findings = useMemo(() => sortFindings(fq.data?.pages.flatMap((p) => p.items ?? []) ?? []), [fq.data]);
+    const engKey = findings.length > 0 ? (engineKeyOf(findings[0]) || engines[0]?.key || 'hackbot') : (engines[0]?.key ?? 'hackbot');
+    const eng = engines.find((e) => e.key === engKey) ?? { key: engKey, name: engKey };
+    const Icon = ENGINE_ICONS[eng.key] ?? Plug;
+    const total = Math.max(sim.step_count, 1);
+    const p = Math.min(Math.max(sim.steps_done / total, 0), 1);
+    const sev: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
+    for (const f of findings) if (f.severity in sev) sev[f.severity] += 1;
     return (
-        <ScanGraph
-            assets={[node]}
-            pinned={node}
-            engines={engines}
-            findings={findings}
-            live
-            head={<>
-                <span className="pen-ov-graph__code">{sim.code}</span>
-                <span className="pen-ov-graph__name">{sim.name}</span>
-                <StateTag tone="accent">{displayLabel(sim.status)}</StateTag>
-                <span className="pen-ov-graph__meta">{progress}</span>
-            </>}
-            emptyText={sim.step_count > 0 ? progress : textUI('pen_ov_no_findings')}
-        />
+        <div className="pen-ov-lane">
+            <div className="pen-ov-lane__info">
+                <div className="pen-ov-lane__r1">
+                    <Icon size={13} aria-hidden="true" />
+                    <span className="pen-ov-lane__eng">{formatUI(eng.name)}</span>
+                    <span className="pen-ov-lane__type">{eng.key === 'defensebot' ? 'HOST' : 'WEB'}</span>
+                </div>
+                <Link className="pen-ov-lane__target" to={`/simulations/${sim.id}`}>{formatUI(sim.name)}</Link>
+                <div className="pen-ov-lane__r3">
+                    <span className="mono">{formatUI(sim.code)}</span>
+                    <StateTag tone="accent">{displayLabel(sim.status)}</StateTag>
+                    <span className="pen-ov-lane__at">{relativeTime(sim.started_at ?? sim.created_at)}</span>
+                </div>
+            </div>
+            <div className="pen-ov-lane__stages">
+                {LANE_STAGES.map((name, i) => {
+                    const f = Math.min(Math.max(p * LANE_STAGES.length - i, 0), 1);
+                    const state = f >= 1 ? 'DONE' : f > 0 ? 'RUN' : '\u2014';
+                    return (
+                        <div className="pen-ov-stage" key={name}>
+                            <div className="pen-ov-stage__top">
+                                <span className="pen-ov-stage__name">{name}</span>
+                                <span className={`pen-ov-stage__st${f >= 1 ? ' pen-ov-stage__st--done' : f > 0 ? ' pen-ov-stage__st--run' : ''}`}>{state}</span>
+                            </div>
+                            <div className="pen-ov-stage__track"><span className={f >= 1 ? 'is-done' : f > 0 ? 'is-run' : ''} style={{ width: `${f * 100}%` }} /></div>
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="pen-ov-lane__result">
+                <span className="pen-ov-lane__count">{formatUI(findings.length)}</span>
+                <span className="pen-ov-lane__countlabel">{textUI('pen_ov_findings_count')}</span>
+                <span className="pen-ov-lane__dots">
+                    {(['critical', 'high', 'medium', 'low'] as const).filter((sv) => sev[sv] > 0).map((sv) => (
+                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv]}`}>{formatUI(sev[sv])}</span>
+                    ))}
+                </span>
+            </div>
+        </div>
     );
 }
 
@@ -313,8 +340,9 @@ function LiveSimGraph({ sim, engines }: { sim: Simulation; engines: EngineNodeDa
 // Notice ter atas: waktu pembaruan data, jumlah engine online, peringatan engine luring, tombol segarkan.
 function NoticeBar({ h, onRefresh, busy }: { h: HomeSummary; onRefresh: () => void; busy: boolean }) {
     useLocale();
-    const online = h.injectors.filter((i) => i.status === 'online');
-    const offline = h.injectors.filter((i) => i.status !== 'online');
+    const shown = h.injectors.filter((i) => OVERVIEW_ENGINES.has(i.key));
+    const online = shown.filter((i) => i.status === 'online');
+    const offline = shown.filter((i) => i.status !== 'online');
     const updated = shortDate(h.generated_at);
     return (
         <div className="pen-ov__notice" role="status">
@@ -403,15 +431,25 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
                 </span>
             </div>
             {live && running.isPending ? (
-                <div className="pen-ov-graph" aria-hidden="true">
+                <div className="pen-ov-lanes" aria-hidden="true">
                     <span className="pen-ov-skel pen-ov-skel--block" />
                 </div>
             ) : showLive ? (
-                <div className="pen-ov-graphs">
-                    {runningSims.slice(0, MAX_LIVE_GRAPHS).map((sim) => <LiveSimGraph key={sim.id} sim={sim} engines={engines} />)}
+                <div className="pen-ov-lanes">
+                    {runningSims.slice(0, MAX_LIVE_GRAPHS).map((sim) => <LiveLane key={sim.id} sim={sim} engines={engines} />)}
                 </div>
             ) : (
-                <ScanGraph assets={pool} engines={engines} findings={idleFindings} live={false} emptyText={textUI('pen_ov_no_findings')} />
+                <>
+                    <div className="pen-ov-lanes">
+                        <div className="pen-ov-lane pen-ov-lane--empty">
+                            <Plus size={14} aria-hidden="true" />
+                            <span>{textUI('pen_ov_lane_empty')}</span>
+                            <span className="pen-ov-lane__spacer" aria-hidden="true" />
+                            <Link className="btn btn--primary btn--auto" to="/simulations/new">{textUI('pen_ov_run_scan')}</Link>
+                        </div>
+                    </div>
+                    <ScanGraph assets={pool} engines={engines} findings={idleFindings} live={false} emptyText={textUI('pen_ov_no_findings')} />
+                </>
             )}
             <p className="pen-ov-live__foot">{textUI('pen_ov_diagram_hint')}</p>
         </section>
@@ -423,7 +461,6 @@ function MetricStrip({ h }: { h: HomeSummary }) {
     useLocale();
     const f = h.findings;
     const a = h.assets;
-    const at = h.atomic;
     const c = h.chains;
     const sev = f?.by_severity ?? {};
     return (
@@ -437,7 +474,6 @@ function MetricStrip({ h }: { h: HomeSummary }) {
                 />
             )}
             {a && <MetricCard label={textUI('pen_ov_metric_assets')} value={formatUI(a.total)} caption={textUI('pen_ov_cap_assets', [a.authorized, a.internet_facing])} />}
-            {at && <MetricCard label={textUI('pen_ov_metric_atomic')} value={formatUI(at.tests)} caption={textUI('pen_ov_cap_atomic', [at.active, at.runs_7d])} />}
             {c && <MetricCard label={textUI('m_078a864ea0f1')} value={formatUI(c.simulations)} caption={textUI('pen_ov_cap_sims', [c.running, c.scenarios])} />}
         </div>
     );
@@ -517,14 +553,15 @@ function SimulationsPanel({ h }: { h: HomeSummary }) {
 // Status engine: kartu per injector, dot hijau hanya bila status "online".
 function EnginesSection({ h, me }: { h: HomeSummary; me: User | null | undefined }) {
     useLocale();
-    if (h.injectors.length === 0) return null;
-    const offline = h.injectors.filter((i) => i.status !== 'online');
+    const shown = h.injectors.filter((i) => OVERVIEW_ENGINES.has(i.key));
+    if (shown.length === 0) return null;
+    const offline = shown.filter((i) => i.status !== 'online');
     const statusText = (s: string) => (s === 'online' ? textUI('pen_ov_eng_online') : s === 'disabled' ? textUI('pen_ov_eng_disabled') : textUI('pen_ov_eng_offline'));
     return (
         <section aria-labelledby="pen-ov-engines-title">
             <h2 id="pen-ov-engines-title" className="pen-ov-sec-title">{textUI('pen_ov_engines_title')}</h2>
             <div className="pen-ov-engines" aria-label={textUI('m_0db61c756736')}>
-                {h.injectors.map((inj) => {
+                {shown.map((inj) => {
                     const Icon = ENGINE_ICONS[inj.key] ?? Plug;
                     const online = inj.status === 'online';
                     return (
@@ -637,7 +674,7 @@ function HomeBody({ h, me, onRefresh, busy }: { h: HomeSummary; me: User | null 
         && (h.chains?.simulations ?? 0) === 0;
     const level = h.findings ? exposureLevel(h.findings.by_severity, h.findings.vulnerabilities) : null;
     const engines: EngineNodeData[] = h.injectors
-        .filter((i) => i.status === 'online')
+        .filter((i) => OVERVIEW_ENGINES.has(i.key) && i.status === 'online')
         .slice(0, MAX_ENGINE_NODES)
         .map((i) => ({ key: i.key, name: i.name }));
     return (

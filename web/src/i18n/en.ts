@@ -2197,6 +2197,8 @@ export const en = {
   "pen_ov_col_findings": "Findings",
   "pen_ov_node_engine": "ENGINE",
   "pen_ov_no_findings": "No findings to show yet.",
+  "pen_ov_lane_empty": "No scan is running. Each new scan opens its own lane here, with live stages and findings.",
+  "pen_ov_findings_count": "findings",
   "pen_ov_no_assets": "No assets monitored yet.",
   "pen_ov_more_findings": "+{0} more findings",
   "pen_ov_targets_badge": "{0} targets",

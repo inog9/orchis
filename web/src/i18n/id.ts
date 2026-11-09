@@ -2198,6 +2198,8 @@ export const id:Record<keyof typeof en,string> = {
   "pen_ov_col_findings": "Temuan",
   "pen_ov_node_engine": "ENGINE",
   "pen_ov_no_findings": "Belum ada temuan untuk ditampilkan.",
+  "pen_ov_lane_empty": "Belum ada scan berjalan. Setiap scan baru membuka lane-nya sendiri di sini, lengkap dengan tahap dan temuan langsung.",
+  "pen_ov_findings_count": "temuan",
   "pen_ov_no_assets": "Belum ada aset diawasi.",
   "pen_ov_more_findings": "+{0} temuan lainnya",
   "pen_ov_targets_badge": "{0} target",
