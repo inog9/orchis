@@ -113,6 +113,12 @@ func reportNumber(language string, value int) string {
 	return s
 }
 func reportLabel(language, value string) string {
+	if language == "en" {
+		if v, ok := reportLabelEN[value]; ok {
+			return v
+		}
+		return value
+	}
 	if language != "id" {
 		return value
 	}
@@ -123,6 +129,23 @@ func reportLabel(language, value string) string {
 		return v
 	}
 	return value
+}
+
+// reportLabelEN gives the raw comparison codes a professional, human-readable English
+// label in reports (the web UI already translates them; the print template previously
+// showed codes like "ambiguous_source" verbatim).
+var reportLabelEN = map[string]string{
+	// comparison change values
+	"new": "New", "persistent": "Still present", "resolved": "Resolved", "uncompared": "Not compared",
+	// comparison reason values
+	"identity_changed": "Finding identity expired under retention; create a new baseline",
+	"initial_coverage": "First completed check",
+	"coverage_changed": "Target, tool, or parameters changed",
+	"profile_changed":  "Scan profile changed",
+	"ambiguous_source": "Producing check could not be uniquely identified",
+	"scan_not_completed": "Required check did not complete",
+	"previous_not_completed": "Matching previous check did not complete",
+	"no_comparable_baseline": "No comparable previous check",
 }
 
 var reportLabelID = map[string]string{
