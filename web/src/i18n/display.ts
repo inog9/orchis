@@ -1,3 +1,4 @@
+import { agentDisplayName } from '../lib/engines';
 import {language, t} from './runtime';
 import {endpointCopy} from './endpoint';
 const keys = {
@@ -86,6 +87,6 @@ const keys = {
   "This query has not been verified.": "display_eebb88755f23"
 } as const;
 // Only curated labels and controlled enum fields may pass through this function.
-export function displayLabel(value:string):string {if(language()==='en')return value; const key=Object.hasOwn(keys,value)?keys[value as keyof typeof keys]:undefined; return key?t(key):endpointCopy(value);}
+export function displayLabel(value:string):string {if(language()==='en')return agentDisplayName(value); const key=Object.hasOwn(keys,value)?keys[value as keyof typeof keys]:undefined; return key?t(key):agentDisplayName(endpointCopy(value));}
 // Previously capitalised in the UI (severity pills, enum chips); English output must stay byte-identical.
 export function capitalLabel(value:string):string {const text=displayLabel(value); return text.charAt(0).toUpperCase()+text.slice(1);}
