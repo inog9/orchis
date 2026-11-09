@@ -57,6 +57,7 @@ func newPrintTemplate(language string) *template.Template {
 		"text":       func(v string) string { return reportText(language, v) },
 		"defense":    func(s Snapshot) template.HTML { return defenseHTML(language, s) },
 		"remediation": func(s Snapshot) template.HTML { return remediationHTML(language, s) },
+		"aiAdvice":    func(s Snapshot) template.HTML { return aiAdviceHTML(language, s) },
 		"hasDefense": hasDefense,
 		"language":   func() string { return language },
 		"label":      func(v string) string { return reportLabel(language, v) },

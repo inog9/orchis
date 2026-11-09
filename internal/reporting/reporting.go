@@ -114,6 +114,7 @@ type Snapshot struct {
 	BySeverity        map[string]int   `json:"by_severity"`
 	Assets            []Asset          `json:"assets"`
 	Remediation       string           `json:"remediation"`
+	AIAdvice          *AIAdvice        `json:"ai_advice,omitempty"`
 	Comparison        string           `json:"comparison"`
 }
 type Report struct {
@@ -328,7 +329,10 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 		if e != nil {
 			return e
 		}
-		return json.Unmarshal(data, &snapshot)
+		if e := json.Unmarshal(data, &snapshot); e != nil {
+			return e
+		}
+		return attachAIAdvice(ctx, tx, tenant, id, &snapshot)
 	})
 	if err != nil || id == uuid.Nil {
 		return err
