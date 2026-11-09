@@ -1,8 +1,8 @@
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
 import { DefenseResult } from '../components/DefenseResult';
-import { Plus } from 'lucide-react';
-import { StatusBadge } from '../components/sims/StatusBadge';
+import { Plus, Search } from 'lucide-react';
+import { StatusBadge, scanStatusLabel } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
 import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
 import { engineLabel, engineRows, engineSetLabel } from '../lib/engines';
@@ -37,13 +37,20 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
     const { data: me } = useMe();
     const [params, setParams] = useSearchParams();
     const [cursor, setCursor] = useState('');
+    const [search, setSearch] = useState('');
     const org = organizationID ?? params.get('org') ?? '';
     const enabled = can(me, 'assessment.read') && can(me, 'simulation.read') && can(me, 'asset.read') && can(me, 'organization.read');
     const q = useScans(org, cursor, enabled);
     const orgs = useAllOrganizations();
     const orgName = (id: string) => orgs.data?.find((o) => o.id === id)?.name ?? organizationName ?? id.slice(0, 8);
     const Heading = embedded ? 'h2' : 'h1';
-    const items = q.data?.items ?? [];
+    const searchable = useQuery({ queryKey: ['scan-search', org], enabled: enabled && !!search.trim(), queryFn: async () => {
+        const all: Scan[] = []; let next = ''; const seen = new Set<string>();
+        do { const page = await api.get<{items: Scan[]; next_cursor: string | null}>(`/api/v1/scans?org=${encodeURIComponent(org)}&cursor=${encodeURIComponent(next)}`); all.push(...page.items); next = page.next_cursor ?? ''; if (seen.has(next)) break; seen.add(next); } while (next);
+        return all;
+    }, refetchInterval: 10000 });
+    const needle = search.trim().toLowerCase();
+    const items = (needle ? searchable.data ?? [] : q.data?.items ?? []).filter(s => !needle || [s.name, s.id, orgName(s.organization_id), s.status, scanStatusLabel(s.status), engineSetLabel(s.options.tools)].join(' ').toLowerCase().includes(needle));
     const canRun = can(me, 'assessment.run') && can(me, 'simulation.run');
     const setOrg = (v: string) => { const next = new URLSearchParams(params); if (v) next.set('org', v); else next.delete('org'); setParams(next); setCursor(''); };
     return <section className="page sims" aria-labelledby="scans-title">
@@ -52,9 +59,10 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
         <Heading id="scans-title" className="page__title">{formatUI(embedded ? textUI("m_d128917a9540") : textUI("flow_nav_scans"))}</Heading>
         <p className="page__sub">{textUI("m_bb8add5b0686")}</p>
       </div>{formatUI(canRun && <Link className="btn btn--primary btn--auto sims__new" to={`/simulations/new${org ? `?org=${encodeURIComponent(org)}` : ''}`}><Plus size={14} aria-hidden="true"/>{textUI("m_sim_new")}</Link>)}</div>
-      <div className="toolbar"><OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={setOrg}/></div>
-      {!me || (q.isPending && q.fetchStatus !== 'idle') ? <ul className="sims__list" aria-busy="true" aria-label={textUI("m_e0b80da465d6")}>{[0, 1, 2, 3].map((i) => <li key={i} className="sims__row sims__row--skeleton"><span className="skeleton"/></li>)}</ul>
-        : q.error ? <div className="state state--error" role="alert"><h2>{textUI("m_sim_err_t")}</h2><p>{formatUI(describeError(q.error).message)}</p><button type="button" className="btn btn--secondary btn--auto" onClick={() => q.refetch()}>{textUI("m_sim_retry")}</button></div>
+      <div className="toolbar"><OrganizationFilter value={org} name={organizationName} locked={!!organizationID} onChange={setOrg}/><label className="search-input"><Search size={15} aria-hidden="true"/><input type="search" aria-label={textUI('ui_search_scans')} placeholder={textUI('ui_search_scans')} value={search} onChange={e => setSearch(e.target.value)}/></label></div>
+      {!me || (needle ? searchable.isPending : q.isPending && q.fetchStatus !== 'idle') ? <ul className="sims__list" aria-busy="true" aria-label={textUI("m_e0b80da465d6")}>{[0, 1, 2, 3].map((i) => <li key={i} className="sims__row sims__row--skeleton"><span className="skeleton"/></li>)}</ul>
+        : (needle ? searchable.error : q.error) ? <div className="state state--error" role="alert"><h2>{textUI("m_sim_err_t")}</h2><p>{formatUI(describeError(needle ? searchable.error : q.error).message)}</p><button type="button" className="btn btn--secondary btn--auto" onClick={() => needle ? searchable.refetch() : q.refetch()}>{textUI("m_sim_retry")}</button></div>
+        : needle && items.length === 0 ? <div className="state" role="status"><h2>{textUI('ui_no_search_results')}</h2><button type="button" className="btn btn--secondary btn--auto" onClick={() => setSearch('')}>{textUI('m_fnd_clear')}</button></div>
         : items.length === 0 && q.data ? <div className="state" role="status"><h2>{formatUI(org ? textUI("m_sim_none_t") : textUI("m_3c2ec23816e3"))}</h2><p>{formatUI(org ? textUI("m_sim_none_b") : textUI("m_9ec336bb3650"))}</p>{canRun && <p className="field__hint">{textUI("flow_hint_scan")}</p>}{org && !organizationID ? <button type="button" className="btn btn--secondary btn--auto" onClick={() => setOrg('')}>{textUI("m_sim_clear_filter")}</button> : canRun && <Link className="btn btn--secondary btn--auto" to="/simulations/new">{textUI("m_sim_new")}</Link>}</div>
         : !q.data ? null
         : <div className="sims__table" role="table" aria-label={textUI("m_sim_list")}>
@@ -69,7 +77,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
             <span role="cell" className="mono">{formatDuration(durationMs(s), units())}</span>
           </div>)}
         </div>}
-      <div className="row"><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_sim_newer")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_sim_older")}</button></div>
+      <div className="row" hidden={!!needle}><button className="btn btn--secondary btn--auto" disabled={!cursor} onClick={() => setCursor('')}>{textUI("m_sim_newer")}</button><button className="btn btn--secondary btn--auto" disabled={!q.data?.next_cursor} onClick={() => setCursor(q.data!.next_cursor!)}>{textUI("m_sim_older")}</button></div>
       {formatUI(!embedded && advancedEnabled(me) && <details><summary>{textUI("m_04ab162cdd89")}</summary><p>{textUI("m_4310bb792a7d")}</p><LegacySimulations /></details>)}
     </section>;
 }

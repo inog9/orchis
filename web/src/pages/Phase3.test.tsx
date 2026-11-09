@@ -177,20 +177,18 @@ describe('FindingsPage', () => {
     expect(urls.some((u) => u.includes('q=zzz'))).toBe(true);
   });
 
-  it('tanpa filter, finding dikelompokkan per organisasi; yang paling parah di atas dengan ringkasan tingkat', async () => {
+  it('findings use one list sorted by severity across organisations', async () => {
     route(analyst, (u) => (u.includes('/findings') ? json({ items: [
       finding({ id: 'f1', title: 'Low thing', severity: 'low', organization_id: 'o1', organization_name: 'Alpha Corp' }),
       finding({ id: 'f2', title: 'Critical thing', severity: 'critical', organization_id: 'o1', organization_name: 'Alpha Corp' }),
       finding({ id: 'f3', title: 'Other org thing', severity: 'high', organization_id: 'o2', organization_name: 'Zeta Corp' }),
     ], next_cursor: null, search: 'none' }) : undefined));
     mount(<FindingsPage />, '/findings');
-    const heads = await screen.findAllByRole('heading', { level: 2 });
-    expect(heads.map((h) => h.textContent)).toEqual(['Alpha Corp', 'Zeta Corp']);
-    const alpha = heads[0]!.closest('section')!;
-    expect(within(alpha).getByText('2 findings')).toBeInTheDocument();
-    const titles = within(alpha).getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent);
-    expect(titles).toEqual(['Critical thing', 'Low thing']);
-    expect(within(heads[1]!.closest('section')!).queryByText('Critical thing')).toBeNull();
+    await screen.findByText('Critical thing');
+    const list = screen.getByRole('list', {name:'Findings'});
+    const titles = within(list).getAllByRole('listitem').map(li => li.querySelector('strong')?.textContent);
+    expect(titles).toEqual(['Critical thing', 'Other org thing', 'Low thing']);
+    expect(screen.queryByRole('button', {name:'By organisation'})).toBeNull();
   });
 
   it('dibatasi ke satu organisasi: daftar datar tanpa kelompok', async () => {

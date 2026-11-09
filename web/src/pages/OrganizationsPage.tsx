@@ -33,17 +33,8 @@ import { api } from '../api/client';
 import { useAgents, useHome, useMe } from '../api/hooks';
 import { can, type Asset, type AgentRow } from '../api/types';
 import { describeError } from '../components/ErrorNote';
-import { Modal } from '../components/Modal';
+import { OrgForm, type Org } from './OrgForm';
 import { InstallDialog } from './AgentsPage';
-type Org = {
-    id: string;
-    name: string;
-    slug: string;
-    description: string;
-    industry: string;
-    contact: string;
-    version: number;
-};
 type Page<T> = {
     items: T[];
     next_cursor: string | null;
@@ -67,20 +58,6 @@ export type Assessment = {
 function ErrorMessage({ error }: {
     error: unknown;
 }) { useLocale(); return error ? <p className="alert" role="alert">{formatUI(describeError(error).message)}</p> : null; }
-function OrgForm({ current, onClose }: {
-    current?: Org;
-    onClose: () => void;
-}) {
-    useLocale();
-    const qc = useQueryClient();
-    const [slugEdited, setSlugEdited] = useState(!!current);
-    const [form, setForm] = useState({ name: current?.name ?? '', slug: current?.slug ?? '', description: current?.description ?? '', industry: current?.industry ?? '', contact: current?.contact ?? '' });
-    const save = useMutation({ mutationFn: () => current ? api.patch<Org>(`/api/v1/organizations/${current.id}`, { ...form, version: current.version }) : api.post<Org>('/api/v1/organizations', form), onSuccess: async () => { await Promise.all(['organizations', 'setup-organizations', 'home'].map(key => qc.invalidateQueries({ queryKey: [key] }))); onClose(); } });
-    return <Modal labelledBy="org-form-title" onClose={onClose}><form className="dialog__form" onSubmit={e => { e.preventDefault(); save.mutate(); }}><h2 id="org-form-title">{formatUI(current ? textUI("m_e735f16f97b6") : textUI("m_1c3b4bf6ffd9"))}</h2>
-    {formatUI((['name', 'slug', 'industry', 'contact', 'description'] as const).map(key => <div className="field" key={key}><label htmlFor={`org-${key}`}>{formatUI(key.charAt(0).toUpperCase() + key.slice(1))}</label><div className="field__input"><input id={`org-${key}`} required={key === 'name' || key === 'slug'} maxLength={key === 'description' ? 4000 : key === 'contact' ? 500 : key === 'slug' ? 100 : 200} value={form[key]} onChange={e => { if (key === 'slug')
-        setSlugEdited(true); setForm({ ...form, [key]: e.target.value, ...(key === 'name' && !slugEdited ? { slug: e.target.value.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') } : {}) }); }}/></div></div>))}
-    <p className="field__hint">{textUI("m_505233cf57b9")}</p><ErrorMessage error={save.error}/><footer className="dialog__foot"><button type="button" className="btn btn--secondary btn--auto" onClick={onClose}>{textUI("m_19766ed6ccb2")}</button><button className="btn btn--primary btn--auto" disabled={save.isPending}>{textUI("m_f55d1a1c73b8")}</button></footer></form></Modal>;
-}
 const PAGE_SIZE = 12;
 const SORTS = ['name', 'assets', 'last', 'findings'] as const;
 
@@ -177,10 +154,10 @@ function OrgAssetsSection({ orgID, readiness, canWrite }: {
 }) {
     useLocale();
     const rows = readiness.data?.items ?? [];
-    return <PanelCard title={textUI("pen_orgd_assets_title")} actions={<Link className="link-quiet" to={`/organizations/${orgID}?tab=assets`}>{textUI("pen_orgd_assets_manage")}</Link>}>
+    return <PanelCard title={textUI("pen_orgd_assets_title")} actions={canWrite ? <Link className="btn btn--secondary btn--auto" to={`/organizations/${orgID}?tab=assets&new=1`}>{textUI("m_719aca414b88")}</Link> : undefined}>
       {readiness.isError && <div className="alert" role="alert"><span>{formatUI(describeError(readiness.error).message)}</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => readiness.refetch()}>{textUI("m_d8b8392e2c54")}</button></div>}
       {readiness.isPending && <p role="status">{textUI("m_6470b2b671b5")}</p>}
-      {!readiness.isPending && !readiness.isError && rows.length === 0 && <div className="state" role="status"><h2>{textUI("pen_orgd_assets_empty_t")}</h2><p>{textUI("pen_orgd_assets_empty_b")}</p>{formatUI(canWrite && <Link className="link-quiet" to={`/organizations/${orgID}?tab=assets&new=1`}>{textUI("m_719aca414b88")}</Link>)}</div>}
+      {!readiness.isPending && !readiness.isError && rows.length === 0 && <div className="state" role="status"><h2>{textUI("pen_orgd_assets_empty_t")}</h2><p>{textUI("pen_orgd_assets_empty_b")}</p></div>}
       {rows.length > 0 && <div className="orgd__tablewrap" role="region" aria-label={textUI("pen_orgd_assets_aria")} tabIndex={0}><table className="orgd__table">
         <thead><tr><th scope="col">{textUI("pen_orgd_col_asset")}</th><th scope="col">{textUI("pen_orgd_col_platform")}</th><th scope="col">{textUI("pen_orgd_col_agent")}</th><th scope="col">{textUI("pen_orgd_col_scan")}</th><th scope="col">{textUI("pen_orgd_col_time")}</th></tr></thead>
         <tbody>{rows.map(item => <OrgAssetRow key={item.id} item={item}/>)}</tbody>
@@ -315,7 +292,7 @@ export function OrganizationDetailPage() {
     {formatUI(tab === 'overview' && can(me, 'asset.read') && can(me, 'organization.read') && <OrgAssetsSection orgID={id} readiness={readiness} canWrite={can(me, 'asset.write')}/>)}
     {formatUI(tab === 'overview' && can(me, 'agent.read') && <OrgAgentsSection agents={installedAgents} canInstall={can(me, 'agent.manage') && can(me, 'organization.write')} onInstall={() => setInstall(true)}/>)}
     {formatUI(tab === 'overview' && <OrgOverviewStats orgID={id} agents={localAgents} bySeverity={bySev} canAssets={can(me, 'asset.read')} canScans={can(me, 'assessment.read') && can(me, 'simulation.read')} canFindings={can(me, 'report.read') && can(me, 'finding.read')}/>)}
-    {formatUI(advancedEnabled(me) && can(me, 'ai.read') && <p><Link to={`/organizations/${id}/ai`}>{textUI("m_c7db80dbcbe1")}</Link></p>)}{formatUI(tab === 'overview' && can(me, 'asset.read') && <><AssessmentReadiness id={id}/><CoveragePanel orgID={id}/></>)}
+    {formatUI(advancedEnabled(me) && can(me, 'ai.read') && <p><Link to={`/organizations/${id}/ai`}>{textUI("m_c7db80dbcbe1")}</Link></p>)}{formatUI(tab === 'overview' && can(me, 'asset.read') && <><AssessmentReadiness id={id}/></>)}
     {formatUI(tab === 'overview' && latest.data?.items[0] && <section className="org-card" aria-label={textUI("m_205881c06747")}><p className="eyebrow">{textUI("m_d57cfdbf6eb3")}</p><h2>{formatUI(latest.data.items[0].snapshot.risk)}</h2><div className="severity-strip">{formatUI(['critical', 'high', 'medium', 'low', 'info'].map(severity => <p key={severity}><strong>{formatUI(latest.data!.items[0]!.snapshot.by_severity[severity] ?? 0)}</strong> {formatUI(severity)}</p>))}</div><Link to={`/reports/${latest.data.items[0].id}`}>{textUI("m_a7ff4f55b2f9")}</Link></section>)}
     {formatUI(tab === 'reports' && <ReportsPage organizationID={id} organizationName={o.name}/>)}
     {formatUI(tab === 'findings' && <FindingsPage organizationID={id} organizationName={o.name}/>)}

@@ -188,6 +188,7 @@ export function ReportDetailPage() {
     const { id = '' } = useParams();
     const { data: me } = useMe();
     // Batas tampil temuan per aset (kunci id aset) dan baris bukti yang terbuka (kunci id temuan).
+    const [preview, setPreview] = useState(false);
     const [limits, setLimits] = useState<Record<string, number>>({});
     const [openRows, setOpenRows] = useState<Record<string, boolean>>({});
     const q = useQuery({ queryKey: ['report', id], queryFn: () => api.get<Report>(`/api/v1/reports/${id}`), refetchInterval: query => query.state.data?.status === 'ready' ? false : 3000 });
@@ -199,7 +200,10 @@ export function ReportDetailPage() {
     const r = q.data;
     const s = r.snapshot;
     const assets = s.assets ?? [];
-    const sev = s.by_severity ?? {};
+    // Count the same snapshot findings rendered in the table, including port/service observations.
+    // by_severity from older reports may count vulnerabilities only.
+    const snapshotFindings = [...new Map(assets.flatMap(a => a.findings ?? []).map(f => [f.id, f])).values()];
+    const sev: Record<string, number> = snapshotFindings.reduce<Record<string, number>>((counts, f) => { counts[f.severity] = (counts[f.severity] ?? 0) + 1; return counts; }, {});
     const severities = ['critical', 'high', 'medium', 'low', 'info'] as const;
     const findingsTotal = severities.reduce((acc, k) => acc + (sev[k] ?? 0), 0);
     const skipped = assets.filter(a => a.status === 'skipped' || !!a.skip_reason).length;
@@ -212,28 +216,20 @@ export function ReportDetailPage() {
     const newFindingIds = new Set((comparison?.rows ?? []).filter(row => row.change === 'new').map(row => row.finding_id));
     const created = new Date(r.created_at);
     const createdText = Number.isNaN(created.getTime()) ? '' : created.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' });
-    const severityCaption = severities.filter(k => (sev[k] ?? 0) > 0).map(k => `${sev[k]} ${displayLabel(k)}`).join(' · ');
+    const highest = severities.find(k => (sev[k] ?? 0) > 0);
+    const needsCoverage = (incomplete > 0 || skipped > 0) && (!highest || highest === 'info' || highest === 'low');
+    const priority = needsCoverage ? '' : highest === 'critical' ? 'P0' : highest === 'high' ? 'P1' : highest === 'medium' ? 'P2' : highest ? 'P3' : '';
+    const priorityCaption = {P0: textUI('ui_priority_P0'), P1: textUI('ui_priority_P1'), P2: textUI('ui_priority_P2'), P3: textUI('ui_priority_P3')};
     return <section className="page rep rep--detail">
       <nav className="rep__crumbs" aria-label={textUI("pen_rpt_breadcrumb")}>
         {can(me, 'organization.read') ? <Link to={`/organizations/${r.organization_id}`}>{formatUI(s.organization)}</Link> : <span>{formatUI(s.organization)}</span>}
         <span aria-hidden="true">/</span>
         <span aria-current="page">{richUI("pen_rpt_crumb_current", [formatUI(r.version)])}</span>
       </nav>
-      <p className="rep__frozen">
-        {richUI("m_a8a0511b45e0", [formatUI(s.scan_id ? textUI("m_0fe8524d1d55") : textUI("m_e1cf71e6c627")), formatUI(r.version)])}
-        <StatusBadge status={r.status}/>
-      </p>
       <div className="page__head">
         <div>
           <h1 className="page__title">{richUI("pen_rpt_title", [formatUI(s.organization), formatUI(r.version)])}</h1>
           <p className="page__sub">{richUI("pen_rpt_meta", [formatUI(displayLabel(r.status)), formatUI(createdText), formatUI(displayLabel(s.profile))])}</p>
-        </div>
-        <div className="rep__actions">
-          {/* Tautan export dipertahankan persis dari implementasi lama; JSON tetap tersedia walau PDF gagal. */}
-          <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/json`} download>{textUI("pen_rpt_action_json")}</a>
-          {r.status !== 'ready' ? <button type="button" className="btn btn--secondary btn--auto" disabled title={r.error || undefined}>{textUI("pen_rpt_action_pdf")}</button>
-            : <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/pdf`} download>{textUI("pen_rpt_action_pdf")}</a>}
-          {r.status === 'ready' && <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/pdf?preview=1`} target="_blank" rel="noreferrer">{textUI("pen_rpt_action_preview")}</a>}
         </div>
       </div>
       {s.is_demo && <div className="notice" role="status">{formatUI(demoText(s.label) || 'DEMO / SYNTHETIC DATA - not a real assessment.')}</div>}
@@ -243,11 +239,16 @@ export function ReportDetailPage() {
       </div>}
       {retry.error && <p role="alert">{formatUI(describeError(retry.error).message)}</p>}
       <div className="rep__metrics">
-        <MetricCard label={textUI("pen_rpt_metric_risk")} value={formatUI(displayLabel(demoText(s.risk)))} caption={richUI("pen_rpt_scope", [formatUI(assets.length)])}/>
-        <MetricCard label={textUI("pen_rpt_metric_assets")} value={formatUI(assets.length)} caption={richUI("pen_rpt_assets_caption", [formatUI(tested), formatUI(skipped), formatUI(incomplete)])}/>
-        <MetricCard label={textUI("pen_rpt_metric_findings")} value={formatUI(findingsTotal)} bar={{ bySeverity: sev }} caption={severityCaption || textUI("pen_rpt_findings_none")}/>
-        <MetricCard label={textUI("pen_rpt_metric_compare")} value={comparison ? formatUI(comparedTotal) : '-'} caption={totals ? richUI("pen_rpt_compare_totals", [formatUI(totals.new), formatUI(totals.persistent), formatUI(totals.resolved), formatUI(totals.uncompared)]) : textUI("pen_rpt_compare_none")}/>
+        <MetricCard label={textUI('ui_highest_severity')} value={highest ? <span className={`rep__risk rep__risk--${highest}`}>{displayLabel(highest)}</span> : textUI(incomplete || skipped ? 'ui_not_assessed' : 'ui_no_findings')} caption={highest ? textUI('ui_observed_snapshot') : displayLabel(demoText(s.risk))}/>
+        <MetricCard label={textUI('ui_remediation_priority')} value={priority || textUI(incomplete || skipped ? 'ui_complete_assessment' : 'ui_monitor')} caption={priority ? priorityCaption[priority] : textUI(incomplete || skipped ? 'ui_coverage_action' : 'ui_monitor_caption')}/>
+        <MetricCard label={textUI('pen_rpt_metric_assets')} value={`${tested} / ${assets.length}`} caption={richUI('pen_rpt_assets_caption', [formatUI(tested), formatUI(skipped), formatUI(incomplete)])}/>
       </div>
+      <section className="rep__severity" aria-label={textUI('ui_snapshot_severity')}>
+        <div className="rep__section-heading"><h2>{textUI('ui_snapshot_severity')}</h2><span>{findingsTotal} {textUI('ui_findings_recorded')}</span></div>
+        <div className="rep__severity-grid">{severities.map(k => <div key={k} className={`rep__severity-cell rep__severity-cell--${k}`}><span>{displayLabel(k)}</span><strong>{sev[k] ?? 0}</strong></div>)}</div>
+        {!!findingsTotal && (incomplete > 0 || skipped > 0) && <p className="muted small">{textUI('ui_partial_observations')}</p>}
+        {!findingsTotal && <p className="muted small">{textUI(incomplete || skipped ? 'ui_empty_incomplete' : 'ui_empty_complete')}</p>}
+      </section>
       {s.endpoint_summary && <PanelCard title={textUI("m_28c9aeab86c9")}>
         <p>{richUI("m_b692f52058c0", [formatUI(s.endpoint_summary.assets_with_data), formatUI(s.endpoint_summary.assets_total)])}</p>
         <SeverityBar bySeverity={s.endpoint_summary.by_severity ?? {}}/>
@@ -265,10 +266,8 @@ export function ReportDetailPage() {
         <p className="muted small">{textUI("m_c0897afc8d4f")}</p>
         <p className="muted small">{textUI("m_303b527be639")}</p>
       </PanelCard>}
-      {(locale() === 'en-US' || !s.comparison_details) && <p>{formatUI(displayLabel(s.comparison))}</p>}
-      <ScanComparison comparison={s.comparison_details}/>
+      {comparison && <details className="rep__comparison"><summary>{textUI('ui_compare_previous')}</summary><ScanComparison comparison={comparison}/></details>}
       {s.summary && <PanelCard title={textUI("hackbot_summary")}><p>{s.summary}</p></PanelCard>}
-      {s.summary && r.status === 'ready' && <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${id}/export/pdf?preview=1`}/>}
       <PanelCard title={textUI("pen_rpt_findings_title")}>
         <p className="muted small">{textUI("pen_rpt_findings_desc")}</p>
         {/* Satu tabel, dikelompokkan per aset lewat tbody + th scope="rowgroup" agar pembaca layar tetap paham konteks. */}
@@ -282,7 +281,8 @@ export function ReportDetailPage() {
             <th scope="col"><span className="sr-only">{textUI("pen_rpt_fnd_evidence")}</span></th>
           </tr></thead>
           {assets.map(a => {
-            const findings = a.findings ?? [];
+            const rank: Record<string, number> = {critical: 0, high: 1, medium: 2, low: 3, info: 4};
+            const findings = [...(a.findings ?? [])].sort((x,y) => (rank[x.severity] ?? 5) - (rank[y.severity] ?? 5));
             const shown = Math.min(limits[a.id] ?? FINDINGS_PAGE, findings.length);
             const failedMethods = a.methods.filter(m => m.outcome !== 'success');
             const criticalCount = findings.filter(f => f.severity === 'critical').length;
@@ -314,7 +314,7 @@ export function ReportDetailPage() {
                 const rest = Object.entries(f.evidence ?? {}).filter(([key]) => !EVIDENCE_INLINE.has(key));
                 return <Fragment key={f.id}>
                   <tr className="rep__frow">
-                    <td><SeverityPill severity={f.severity}>{formatUI(displayLabel(f.severity))}</SeverityPill></td>
+                    <td><SeverityPill severity={f.severity}>{formatUI(displayLabel(f.severity))}</SeverityPill><span className="rep__priority">{f.severity === 'critical' ? 'P0' : f.severity === 'high' ? 'P1' : f.severity === 'medium' ? 'P2' : 'P3'}</span></td>
                     <td>
                       <p className="rep__ftitle">{formatUI(f.title)}{formatUI(newFindingIds.has(f.id) && <StateTag tone="accent">{textUI("pen_rpt_fnd_new")}</StateTag>)}</p>
                       {pkg && <p className="mono rep__fvalue">{formatUI(f.value)}</p>}
@@ -346,6 +346,14 @@ export function ReportDetailPage() {
         <p>{formatUI(displayLabel(demoText(s.remediation)))}</p>
         {advancedEnabled(me) && can(me, 'ai.read') && <Link to={`/organizations/${r.organization_id}/ai`}>{textUI("m_9f7b9389a0d3")}</Link>}
       </PanelCard>
+      <section className="rep__pdf" aria-labelledby="pdf-title">
+        <div className="rep__section-heading"><div><h2 id="pdf-title">{textUI('ui_report_document')}</h2><p className="muted small">{textUI('ui_report_document_caption')}</p></div><StatusBadge status={r.status}/></div>
+        <div className="rep__actions">
+          <a className="btn btn--secondary btn--auto" href={`/api/v1/reports/${id}/export/json`} download>{textUI('pen_rpt_action_json')}</a>
+          {r.status === 'ready' ? <><a className="btn btn--primary btn--auto" href={`/api/v1/reports/${id}/export/pdf`} download>{textUI('pen_rpt_action_pdf')}</a><button type="button" className="btn btn--secondary btn--auto" aria-expanded={preview} onClick={() => setPreview(!preview)}>{textUI(preview ? 'ui_hide_preview' : 'pen_rpt_action_preview')}</button></> : <button className="btn btn--secondary btn--auto" disabled>{textUI('pen_rpt_action_pdf')}</button>}
+        </div>
+        {preview && r.status === 'ready' && <iframe className="pentest-pdf" title={textUI('hackbot_report')} src={`/api/v1/reports/${id}/export/pdf?preview=1`}/>}
+      </section>
       <div className="report-relations">
         {can(me, 'organization.read') && <Link to={`/organizations/${r.organization_id}`}>{textUI("m_81acc0a4d1ff")}</Link>}
         {can(me, s.scan_id ? 'simulation.read' : 'assessment.read') && <Link to={s.scan_id ? `/simulations/${s.scan_id}` : `/assessments/${r.assessment_id}`}>{formatUI(s.scan_id ? textUI("m_b5e09d8b7d1e") : textUI("m_7cb1f270ab5b"))}</Link>}
