@@ -13,8 +13,11 @@ it('describes benefits without public operational data or data requests', () => 
     expect(screen.getByRole('heading',{level:1})).toHaveTextContent('Know what to fix.');
     expect(screen.getByRole('heading',{name:'Protect what your work depends on.'})).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
+    expect(screen.getByText('Supported by')).toBeInTheDocument();
+    expect(screen.getByRole('link',{name:'Jogja Cyber Security'})).toHaveAttribute('href','https://jogjacybersec.com/');
+    expect(container.querySelector('.supporter-credit img')).toHaveAttribute('src');
     expect(container.textContent).not.toMatch(/\d|Nmap|Nuclei|MITRE|osquery|Juice Shop|uptime|latency|Start free|simulations executed/i);
-    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).toMatch(/^(\/login|\/|#main|#why-orchis)$/);
+    for (const link of screen.getAllByRole('link')) expect(link.getAttribute('href')).toMatch(/^(\/login|\/|#main|#why-orchis|https:\/\/jogjacybersec\.com\/)$/);
 });
 it('makes the same product story available in Indonesian without exposing metrics', async () => {
     const {container} = mount();
