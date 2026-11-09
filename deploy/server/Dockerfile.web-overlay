@@ -1,5 +1,17 @@
-# Use an immutable tag of the running image to preserve the deployed backend.
-# Build web/dist with `cd web && npm ci && npm run build` first.
+# Preserve the running backend artifacts, but replace the entire public web tree.
+# Old hashed JavaScript must not remain available after public content is removed.
+# Build web/dist first and pass an immutable tag of the running image as BASE_IMAGE.
 ARG BASE_IMAGE
-FROM ${BASE_IMAGE}
+FROM ${BASE_IMAGE} AS backend
+FROM scratch
+COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=backend /usr/local/bin/ /usr/local/bin/
+COPY --from=backend /opt/orchis/mitre/ /opt/orchis/mitre/
+COPY --from=backend /licenses/ /licenses/
 COPY --chown=10001:10001 web/dist/ /web/
+USER 10001:10001
+ENV ORCHIS_HTTP_ADDR=0.0.0.0:8090 ORCHIS_WEB_DIR=/web
+EXPOSE 8090
+HEALTHCHECK --interval=15s --timeout=5s CMD ["/usr/local/bin/server", "healthcheck"]
+ENTRYPOINT ["/usr/local/bin/server"]
+CMD ["serve"]
