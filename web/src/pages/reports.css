@@ -111,3 +111,21 @@
 @media (max-width: 1023px) { .rep__metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 679px) { .rep__metrics { grid-template-columns: 1fr; } .rep__fnd { display: block; overflow-x: auto; } .rep__fnd thead { display: none; } .rep__fnd tbody, .rep__fnd tr, .rep__fnd td, .rep__fnd th { display: block; } .rep__fnd tr { border-bottom: 1px solid var(--v2-border); } .rep__fexp { width: auto; } .rep__fload > td { display: block; } }
 
+
+/* ===== Detail laporan v5: full-width + section perbandingan scan sebagai kotak rapi ===== */
+.rep--detail { max-width: none; }
+/* Kartu "Scan change / All changes" (ScanComparison) jangan di-strip seperti section datar v3: */
+.rep--detail > .org-card.scan-comparison {
+  background: var(--v2-surface);
+  border: 1px solid var(--v2-border);
+  border-radius: var(--radius-panel);
+  box-shadow: none;
+  padding: 16px 18px;
+  margin: 14px 0;
+}
+.rep--detail > .org-card.scan-comparison > h2 { margin: 0 0 6px; }
+/* Setiap baris perubahan (mis. "Not compared · critical · <aset>") dibungkus kotak sendiri. */
+.rep--detail .scan-comparison .stack-list { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rep--detail .scan-comparison .stack-list li { border: 1px solid var(--v2-border); border-radius: var(--radius-ctl); background: var(--v2-surface-2); padding: 10px 12px; }
+.rep--detail .scan-comparison .severity-strip { border-radius: var(--radius-ctl); }
+.rep--detail .scan-comparison .ed-scroll { border: 1px solid var(--v2-border); border-radius: var(--radius-ctl); }
