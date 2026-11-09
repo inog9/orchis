@@ -285,13 +285,14 @@ function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[]
     useLocale();
     const fq = useSimulationFindings(sim.id);
     const findings = useMemo(() => sortFindings(fq.data?.pages.flatMap((p) => p.items ?? []) ?? []), [fq.data]);
-    const engKey = findings.length > 0 ? (engineKeyOf(findings[0]) || engines[0]?.key || 'hackbot') : (engines[0]?.key ?? 'hackbot');
+    const first = findings[0];
+    const engKey = first ? (engineKeyOf(first) || engines[0]?.key || 'hackbot') : (engines[0]?.key ?? 'hackbot');
     const eng = engines.find((e) => e.key === engKey) ?? { key: engKey, name: engKey };
     const Icon = ENGINE_ICONS[eng.key] ?? Plug;
     const total = Math.max(sim.step_count, 1);
     const p = Math.min(Math.max(sim.steps_done / total, 0), 1);
     const sev: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-    for (const f of findings) if (f.severity in sev) sev[f.severity] += 1;
+    for (const f of findings) if (f.severity in sev) sev[f.severity] = (sev[f.severity] ?? 0) + 1;
     return (
         <div className="pen-ov-lane">
             <div className="pen-ov-lane__info">
@@ -326,8 +327,8 @@ function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[]
                 <span className="pen-ov-lane__count">{formatUI(findings.length)}</span>
                 <span className="pen-ov-lane__countlabel">{textUI('pen_ov_findings_count')}</span>
                 <span className="pen-ov-lane__dots">
-                    {(['critical', 'high', 'medium', 'low'] as const).filter((sv) => sev[sv] > 0).map((sv) => (
-                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv]}`}>{formatUI(sev[sv])}</span>
+                    {(['critical', 'high', 'medium', 'low'] as const).filter((sv) => (sev[sv] ?? 0) > 0).map((sv) => (
+                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv] ?? 0}`} >{formatUI(sev[sv])}</span>
                     ))}
                 </span>
             </div>
