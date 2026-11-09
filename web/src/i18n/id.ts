@@ -2212,6 +2212,7 @@ export const id:Record<keyof typeof en,string> = {
   "pen_ov_event_stream": "EVENT STREAM",
   "pen_ov_ready": "SIAP",
   "pen_ov_radar_aria": "Radar live scan: ring severity dengan blip aset dan temuan",
+  "pen_ov_map_aria": "Peta dunia live scan dengan lokasi aset dan traffic serangan",
   "pen_ov_no_assets": "Belum ada aset diawasi.",
   "pen_ov_more_findings": "+{0} temuan lainnya",
   "pen_ov_targets_badge": "{0} target",

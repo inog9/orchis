@@ -2211,6 +2211,7 @@ export const en = {
   "pen_ov_event_stream": "EVENT STREAM",
   "pen_ov_ready": "READY",
   "pen_ov_radar_aria": "Live scan radar: severity rings with asset blips and findings",
+  "pen_ov_map_aria": "Live scan world map with asset locations and attack traffic",
   "pen_ov_no_assets": "No assets monitored yet.",
   "pen_ov_more_findings": "+{0} more findings",
   "pen_ov_targets_badge": "{0} targets",

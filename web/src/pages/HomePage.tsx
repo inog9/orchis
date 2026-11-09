@@ -2,10 +2,10 @@
 // Sumber data nyata: GET /home (useHome), GET /simulations?status=running (useSimulations),
 // GET /findings (useFindings + useSimulationFindings) dan GET /assets (useAllAssets) untuk
 // tipe badge aset. Primitif visual wajib dari components/pen/primitives.
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Crosshair, Globe, Plus, Plug, RefreshCw, Server, Shield } from 'lucide-react';
+import { Building2, ChevronDown, ChevronRight, Crosshair, Globe, Plug, RefreshCw, Server, Shield } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { locale, t as textUI, tr as richUI, useLocale, fv as formatUI } from '../i18n/runtime';
 import { capitalLabel, displayLabel } from '../i18n/display';
@@ -275,12 +275,11 @@ function ScanGraph({ assets, pinned, engines, findings, live, head, emptyText }:
     );
 }
 
-// ---------- Live scan: radar (mockup v2fixed.pen "Konsep A Radar") ----------
-// Ring konsentris = zona severity (CRITICAL terluar), titik kecil = temuan per severity,
-// blip besar = aset (halo + warna severity tertingginya + label nama/tipe/jumlah),
-// sapuan (sweep) berputar saat ada scan berjalan. Chip engine di bawah: hanya dua
-// engine yang ditampilkan (orchis-defense-agent & Hackbot). Event stream di kanan.
-const SEV_RING: Record<string, number> = { critical: 235, high: 190, medium: 130, low: 70, info: 45 };
+// ---------- Live scan: world map (mockup v2fixed.pen, Konsep A versi peta) ----------
+// Peta dunia equirectangular sederhana; tiap aset jadi ikon gedung di negara acak
+// (hash dari asset id — mis. bisa jatuh di Korea Utara atau Israel). Aset web (Hackbot)
+// mendapat garis traffic attack masuk; aset host (orchis-defense-agent) berdenyut.
+// Event stream di kanan bergerak mengikuti alur temuan.
 const SEV_COLOR: Record<string, string> = {
     critical: 'var(--v2-critical, var(--sev-critical))',
     high: 'var(--v2-high, var(--sev-high))',
@@ -288,68 +287,92 @@ const SEV_COLOR: Record<string, string> = {
     low: 'var(--v2-low, var(--sev-low))',
     info: 'var(--v2-info, #8a8f98)',
 };
-const ZONES: [number, string][] = [[235, 'CRITICAL'], [190, 'HIGH'], [130, 'MEDIUM'], [70, 'LOW']];
+const COUNTRIES: [string, number, number][] = [
+    ['United States', 39.8, -98.6], ['Canada', 56.1, -106.3], ['Brazil', -10.8, -52.9], ['Mexico', 23.6, -102.5],
+    ['United Kingdom', 54.0, -2.5], ['Germany', 51.1, 10.4], ['France', 46.6, 2.3], ['Israel', 31.0, 34.8],
+    ['Egypt', 26.8, 30.8], ['South Africa', -29.0, 24.9], ['India', 21.0, 78.0], ['China', 35.0, 103.8],
+    ['Japan', 36.2, 138.3], ['South Korea', 36.5, 127.9], ['North Korea', 40.3, 127.5], ['Indonesia', -2.5, 118.0],
+    ['Australia', -25.3, 133.8], ['Russia', 60.0, 90.0], ['Turkey', 39.0, 35.2], ['Saudi Arabia', 24.0, 45.0],
+    ['Nigeria', 9.1, 8.7], ['Argentina', -34.6, -64.4], ['Spain', 40.4, -3.7], ['Italy', 42.8, 12.8],
+];
+const MAP_W = 960, MAP_H = 480;
 
-function hashAngle(id: string): number {
+// Poligon kontinen kasar (lon, lat) — cukup untuk peta bergaya di UI.
+const CONTINENTS: [number, number][][] = [
+    [[-168, 66], [-140, 70], [-125, 72], [-110, 73], [-95, 72], [-85, 70], [-80, 73], [-70, 62], [-65, 60], [-60, 52], [-65, 45], [-70, 42], [-75, 38], [-80, 32], [-81, 26], [-90, 20], [-97, 26], [-105, 22], [-110, 24], [-115, 30], [-120, 35], [-125, 40], [-125, 48], [-130, 55], [-140, 60], [-155, 58]],
+    [[-80, 10], [-70, 12], [-60, 8], [-50, 0], [-42, -3], [-35, -8], [-40, -20], [-48, -28], [-58, -35], [-65, -42], [-70, -52], [-72, -54], [-70, -45], [-75, -35], [-78, -20], [-80, -5]],
+    [[-10, 36], [0, 38], [10, 38], [20, 35], [30, 36], [40, 42], [50, 45], [60, 50], [40, 55], [30, 60], [25, 65], [18, 70], [10, 64], [0, 60], [-10, 58], [-10, 50], [-10, 44]],
+    [[-17, 15], [-10, 5], [0, 5], [10, 4], [20, 0], [30, -2], [35, -10], [40, -15], [42, -25], [35, -30], [30, -32], [25, -34], [18, -34], [15, -28], [12, -18], [8, -10], [0, 4], [-8, 4]],
+    [[30, 36], [40, 42], [50, 45], [60, 45], [70, 40], [80, 30], [90, 22], [100, 15], [105, 10], [110, 5], [120, 0], [125, -8], [140, -5], [150, 0], [160, 10], [170, 20], [180, 30], [180, 45], [170, 55], [160, 60], [150, 65], [140, 70], [130, 72], [120, 73], [110, 74], [100, 76], [90, 75], [80, 72], [70, 70], [60, 68], [50, 66], [40, 64], [30, 60], [30, 50], [30, 42]],
+    [[115, -22], [130, -22], [140, -18], [147, -20], [153, -27], [150, -35], [140, -38], [130, -32], [118, -35], [113, -28]],
+];
+
+function hashNum(id: string): number {
     let hsh = 0;
     for (let i = 0; i < id.length; i++) hsh = (hsh * 31 + id.charCodeAt(i)) >>> 0;
-    return hsh % 360;
+    return hsh;
 }
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-    const rad = ((deg - 90) * Math.PI) / 180;
-    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+function project(lon: number, lat: number): [number, number] {
+    return [((lon + 180) / 360) * MAP_W, ((90 - lat) / 180) * MAP_H];
+}
+function pickCountry(seed: string): [string, number, number] {
+    return COUNTRIES[hashNum(seed) % COUNTRIES.length] ?? ['International Waters', 0, 0];
+}
+function countryOf(assetId: string): [string, number, number] {
+    return pickCountry(assetId);
+}
+function continentPath(poly: [number, number][]): string {
+    return poly.map(([lon, lat], i) => {
+        const [x, y] = project(lon, lat);
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ') + ' Z';
 }
 
-function RadarPanel({ h, engines, findings, live }: { h: HomeSummary; engines: EngineNodeData[]; findings: Finding[]; live: boolean }) {
+function MapPanel({ h, engines, findings, live }: { h: HomeSummary; engines: EngineNodeData[]; findings: Finding[]; live: boolean }) {
     useLocale();
-    const cx = 240, cy = 240;
-    const sweepEnd = polar(cx, cy, 235, 40);
-    const sweepStart = polar(cx, cy, 235, 0);
-    const wedge = `M ${cx} ${cy} L ${sweepStart[0]} ${sweepStart[1]} A 235 235 0 0 1 ${sweepEnd[0]} ${sweepEnd[1]} Z`;
+    const [activeEvent, setActiveEvent] = useState(0);
+    const events = findings.slice(0, 8);
+    useEffect(() => {
+        if (events.length === 0) return;
+        const t = setInterval(() => setActiveEvent((i) => (i + 1) % events.length), 1800);
+        return () => clearInterval(t);
+    }, [events.length]);
+    useEffect(() => { setActiveEvent(0); }, [findings]);
     const blips = h.most_exposed.slice(0, MAX_ASSET_NODES).map((row, i) => {
-        const deg = hashAngle(row.asset_id);
-        const r = Math.max(235 - 34 * i - (hashAngle(row.name) % 40), 60);
-        const [x, y] = polar(cx, cy, r, deg);
+        const [country, lat, lon] = countryOf(row.asset_id);
+        const [x, y] = project(lon, lat);
         const top = row.critical > 0 ? 'critical' : row.high > 0 ? 'high' : row.medium > 0 ? 'medium' : 'low';
         const web = /https?:\/\//i.test(row.name);
-        return { row, x, y, top, web };
+        // sumber "penyerang" untuk traffic attack ke aset web
+        const attackers = [0, 1, 2].map((k) => {
+            const c = pickCountry(row.asset_id + k);
+            return project(c[2], c[1]);
+        });
+        return { row, country, x, y: y + (i % 2) * 14 - 7, top, web, attackers };
     });
-    const dots = findings.slice(0, 60).map((f) => {
-        const ring = SEV_RING[f.severity] ?? 45;
-        const [x, y] = polar(cx, cy, ring, hashAngle(f.id));
-        return { f, x, y };
-    });
-    const events = findings.slice(0, 8);
     const last = h.latest_simulations[0];
     return (
-        <div className="pen-ov-radar-row">
-            <div className="pen-ov-radar">
-                <svg viewBox="0 0 480 480" role="img" aria-label={textUI('pen_ov_radar_aria')}>
-                    {ringsAxes(cx, cy)}
-                    {ZONES.map(([r, label]) => {
-                        const [x, y] = polar(cx, cy, r, 0);
-                        return <text key={label} x={x + 4} y={y - 4} className="pen-ov-zone">{label}</text>;
-                    })}
-                    {dots.map(({ f, x, y }) => (
-                        <circle key={f.id} cx={x} cy={y} r={2.5} fill={SEV_COLOR[f.severity] ?? SEV_COLOR.info} opacity={0.85} />
-                    ))}
-                    <g className={`pen-ov-sweep${live ? ' is-live' : ''}`}>
-                        <path d={wedge} fill="var(--v2-accent)" opacity={0.10} />
-                        <line x1={cx} y1={cy} x2={sweepEnd[0]} y2={sweepEnd[1]} stroke="var(--v2-accent)" strokeWidth={1.5} opacity={0.8} />
-                        <circle cx={sweepEnd[0]} cy={sweepEnd[1]} r={3} fill="var(--v2-accent)" />
-                    </g>
-                    {blips.map(({ row, x, y, top, web }) => (
-                        <g key={row.asset_id}>
-                            <circle cx={x} cy={y} r={13} fill="none" stroke={SEV_COLOR[top]} strokeOpacity={0.35} strokeWidth={1} />
-                            <circle cx={x} cy={y} r={7} fill={SEV_COLOR[top]} />
-                            <text x={x + 16} y={y - 2} className="pen-ov-blip-name">{formatUI(row.name)}</text>
-                            <text x={x + 16} y={y + 12} className="pen-ov-blip-meta">{web ? 'WEB' : 'HOST'} · {formatUI(row.critical)}C · {formatUI(row.high)}H · {formatUI(row.medium)}M</text>
+        <div className="pen-ov-map-row">
+            <div className={`pen-ov-map${live ? ' is-live' : ''}`}>
+                <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} role="img" aria-label={textUI('pen_ov_map_aria')}>
+                    <defs>
+                        <marker id="pen-ov-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                            <path d="M 0 1 L 9 5 L 0 9" fill="none" stroke="var(--v2-accent)" strokeWidth="1.6" />
+                        </marker>
+                    </defs>
+                    {CONTINENTS.map((poly, i) => <path key={i} d={continentPath(poly)} className="pen-ov-land" />)}
+                    {blips.flatMap((b) => b.web ? b.attackers.map((a, k) => (
+                        <line key={`${b.row.asset_id}-${k}`} x1={a[0]} y1={a[1]} x2={b.x} y2={b.y} className="pen-ov-attack" markerEnd="url(#pen-ov-arrow)" />
+                    )) : [])}
+                    {blips.map((b) => (
+                        <g key={b.row.asset_id}>
+                            {b.web ? null : <circle cx={b.x} cy={b.y} r={16} className="pen-ov-pulse" stroke={SEV_COLOR[b.top]} />}
+                            <circle cx={b.x} cy={b.y} r={13} fill="var(--v2-surface)" stroke={SEV_COLOR[b.top]} strokeWidth={1.5} />
+                            <Building2 size={13} x={b.x - 6.5} y={b.y - 6.5} className="pen-ov-blip-icon" />
+                            <text x={b.x + 16} y={b.y - 2} className="pen-ov-blip-name">{formatUI(b.row.name)}</text>
+                            <text x={b.x + 16} y={b.y + 12} className="pen-ov-blip-meta">{b.country} · {b.web ? 'WEB' : 'HOST'} · {formatUI(b.row.critical)}C · {formatUI(b.row.high)}H · {formatUI(b.row.medium)}M</text>
                         </g>
                     ))}
-                    <circle cx={cx} cy={cy} r={22} fill="none" stroke="var(--v2-border)" />
-                    <circle cx={cx} cy={cy} r={13} fill="none" stroke="var(--v2-border)" />
-                    <circle cx={cx} cy={cy} r={5} fill="var(--v2-accent)" />
-                    <text x={cx} y={cy + 38} textAnchor="middle" className="pen-ov-core">{formatUI((h.organizations?.[0]?.name ?? '').toUpperCase())}</text>
                 </svg>
                 <div className="pen-ov-chips">
                     {engines.map((e) => {
@@ -375,8 +398,8 @@ function RadarPanel({ h, engines, findings, live }: { h: HomeSummary; engines: E
                     <p className="pen-ov-empty">{textUI('pen_ov_no_findings')}</p>
                 ) : (
                     <ul className="pen-ov-events__list">
-                        {events.map((f) => (
-                            <li key={f.id} className="pen-ov-event">
+                        {events.map((f, i) => (
+                            <li key={f.id} className={`pen-ov-event${i === activeEvent ? ' is-active' : ''}`}>
                                 <div className="pen-ov-event__top">
                                     <span className="mono">{shortDate(f.last_seen_at ?? f.first_seen_at)}</span>
                                     <span className="pen-ov-event__eng">{(engineKeyOf(f) || 'hackbot').toUpperCase()}</span>
@@ -390,17 +413,6 @@ function RadarPanel({ h, engines, findings, live }: { h: HomeSummary; engines: E
                 )}
             </aside>
         </div>
-    );
-}
-
-function ringsAxes(cx: number, cy: number) {
-    const rings = [70, 130, 190, 235];
-    return (
-        <>
-            <line x1={cx - 245} y1={cy} x2={cx + 245} y2={cy} className="pen-ov-axis" />
-            <line x1={cx} y1={cy - 245} x2={cx} y2={cy + 245} className="pen-ov-axis" />
-            {rings.map((r) => <circle key={r} cx={cx} cy={cy} r={r} fill="none" className="pen-ov-ring" />)}
-        </>
     );
 }
 
@@ -492,11 +504,11 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
                 </span>
             </div>
             {live && running.isPending ? (
-                <div className="pen-ov-radar-row" aria-hidden="true">
+                <div className="pen-ov-map-row" aria-hidden="true">
                     <span className="pen-ov-skel pen-ov-skel--block" />
                 </div>
             ) : (
-                <RadarPanel h={h} engines={engines} findings={idleFindings} live={showLive} />
+                <MapPanel h={h} engines={engines} findings={idleFindings} live={showLive} />
             )}
             <p className="pen-ov-live__foot">{textUI('pen_ov_diagram_hint')}</p>
         </section>
