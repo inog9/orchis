@@ -78,6 +78,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
         </li>))}
       </ul>
       {formatUI(launch.error && <p className="alert" role="alert">{formatUI(describeError(launch.error).message)}</p>)}
+      <details className="ready__checks"><summary>{textUI('ui_prerequisites')}</summary>
       <ul className={`chk-list chk-list--grid${allDone ? ' is-done' : ''}`}>
         {steps.map((s) => (<li key={s.label} className="chk-item">
           <span className={`status${s.done ? ' status--ok' : ''}`}>{s.done ? '✓' : '○'}</span>
@@ -86,6 +87,7 @@ export function AssetReadiness({ asset }: { asset: Asset }) {
           {formatUI(!s.done && s.fix && <Link className="link-quiet chk-item__fix" to={s.fix}>{textUI('flow_wiz_fix')}</Link>)}
         </li>))}
       </ul>
+      </details>
       <p className="field__hint">
         {formatUI(mine.length === 0 ? textUI('flow_chk_no_runs') : `${textUI('flow_chk_latest')}: ${kindLabel('web')} · ${mine[0]!.status}`)}
         {formatUI(mine.length > 0 && <Link to={`/simulations/${mine[0]!.id}`}>{' '}{textUI('m_sim_open_org')}</Link>)}

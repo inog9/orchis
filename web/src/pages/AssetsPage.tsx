@@ -9,6 +9,7 @@ import { AssetTabs } from '../components/AssetTabs';
 import { describeError } from '../components/ErrorNote';
 import { TagChips } from '../components/TagPicker';
 import { ImportDialog } from './ImportDialog';
+import { OrgForm } from './OrgForm';
 import { AddAssetDialog } from './AddAssetDialog';
 import { OrganizationGroup } from '../components/OrganizationGroup';
 import { groupByOrganization } from '../lib/groupByOrganization';
@@ -76,6 +77,8 @@ export function AssetsPage({ organizationID, organizationName }: {
     const Heading = organizationID ? 'h2' : 'h1';
     const list = useAssets(dq, category, organization);
     const [adding, setAdding] = useState(params.get('new') === '1');
+    const [addingOrg, setAddingOrg] = useState(false);
+    const [addingFor, setAddingFor] = useState<string | undefined>();
     const [importing, setImporting] = useState(false);
     const canWrite = can(me, 'asset.write') && (!organization || organization === 'unassigned' || can(me, 'organization.write'));
     const items = list.data?.pages.flatMap((p) => p.items) ?? [];
@@ -103,7 +106,7 @@ export function AssetsPage({ organizationID, organizationName }: {
         </div>
         {formatUI(canWrite && (<div className="page__actions">
             {formatUI(!organizationID && <button type="button" className="btn btn--secondary btn--auto" onClick={() => setImporting(true)}>{richUI("m_24996c82cca2", [<FileUp size={16} aria-hidden="true"/>])}</button>)}
-            <button type="button" className="btn btn--primary btn--auto" onClick={() => setAdding(true)}>{richUI("m_8a7bbf830b09", [<Plus size={16} aria-hidden="true"/>])}</button>
+            {!organizationID && can(me, 'organization.write') && <button type="button" className="btn btn--primary btn--auto" onClick={() => setAddingOrg(true)}><Plus size={16} aria-hidden="true"/>{textUI("m_1c3b4bf6ffd9")}</button>}<button type="button" className="btn btn--secondary btn--auto" onClick={() => { setAddingFor(undefined); setAdding(true); }}>{richUI("m_8a7bbf830b09", [<Plus size={16} aria-hidden="true"/>])}</button>
           </div>))}
       </div>
       {formatUI(!organizationID && <AssetTabs />)}
@@ -158,16 +161,19 @@ export function AssetsPage({ organizationID, organizationName }: {
                 <ul className="list__body">
                   {formatUI(g.items.map((a) => (<Row key={a.id} a={a}/>)))}
                 </ul>
+              {canWrite && <div className="asset-add-row"><button type="button" className="btn btn--secondary btn--auto" onClick={() => { setAddingFor(g.id ?? undefined); setAdding(true); }}><Plus size={15} aria-hidden="true"/>{textUI("m_719aca414b88")}</button></div>}
               </OrganizationGroup>)))}
           </div>))}
       </div>
 
+      {organization && canWrite && <div className="asset-add-row"><button type="button" className="btn btn--secondary btn--auto" onClick={() => { setAddingFor(undefined); setAdding(true); }}><Plus size={15} aria-hidden="true"/>{textUI("m_719aca414b88")}</button></div>}
+      {addingOrg && <OrgForm onClose={() => setAddingOrg(false)}/>}
       {formatUI(list.hasNextPage && (<div className="more">
           <button type="button" className="btn btn--secondary btn--auto" onClick={() => list.fetchNextPage()} disabled={list.isFetchingNextPage}>
             {formatUI(list.isFetchingNextPage ? textUI("m_ba3bbbe10d8b") : textUI("m_ac8991ef0101"))}
           </button>
         </div>))}
-      {formatUI(adding && canWrite && <AddAssetDialog onClose={closeDialog} organizationID={organization && organization !== 'unassigned' ? organization : undefined}/>)}
+      {formatUI(adding && canWrite && <AddAssetDialog onClose={closeDialog} organizationID={addingFor ?? (organization && organization !== 'unassigned' ? organization : undefined)}/>)}
       {formatUI(importing && <ImportDialog onClose={() => setImporting(false)}/>)}
     </section>);
 }

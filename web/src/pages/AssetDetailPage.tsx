@@ -10,10 +10,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { locale, t as textUI, tr as richUI, useLocale, fv as formatUI } from '../i18n/runtime';
 import { capitalLabel } from '../i18n/display';
-import { endpointCopy } from '../i18n/endpoint';
 import { ApiError } from '../api/client';
-import { useAgents, useAsset, useAssetEndpoint, useDeleteAsset, useFindings, useMe } from '../api/hooks';
-import { can, type Asset, type EndpointDataset, type Finding, type User } from '../api/types';
+import { useAsset, useDeleteAsset, useFindings, useMe } from '../api/hooks';
+import { can, type Asset, type Finding, type User } from '../api/types';
 import { describeError } from '../components/ErrorNote';
 import { TagChips } from '../components/TagPicker';
 import { MetricCard, PanelCard, SeverityPill, StateTag } from '../components/pen/primitives';
@@ -112,9 +111,6 @@ function PageHead({ a, me, onEdit }: { a: Asset; me: User | null | undefined; on
 // Empat kartu: kritikalitas, status agent (dengan heartbeat), internet-facing, platform+arch.
 function MetricStrip({ a, me }: { a: Asset; me: User | null | undefined }) {
     useLocale();
-    // Heartbeat hanya tersedia dari daftar agent (butuh agent.read) dan hanya berarti saat online.
-    const agents = useAgents(a.agent_state === 'online' && can(me, 'agent.read'));
-    const agentRow = agents.data?.find((ag) => ag.asset_id === a.id);
     const os = attrStr(a, 'os_version') || attrStr(a, 'agent_os_version');
     const platformValue = [a.platform ? (PLATFORM_LABEL[a.platform] ?? a.platform) : '', a.arch ?? ''].filter(Boolean).join(' ');
     return (
@@ -124,11 +120,7 @@ function MetricStrip({ a, me }: { a: Asset; me: User | null | undefined }) {
                 value={<span className={`pen-ad-sev pen-ad-sev--${a.criticality}`}>{capitalLabel(a.criticality)}</span>}
                 caption={textUI('pen_ad_cap_crit')}
             />
-            <MetricCard
-                label={textUI('pen_ad_field_agent')}
-                value={<span className={`pen-ad-agent pen-ad-agent--${a.agent_state ?? 'none'}`}>{agentStateLabel(a.agent_state)}</span>}
-                caption={a.agent_state === 'online' && agentRow?.last_heartbeat_at ? textUI('pen_ad_cap_agent', [relativeTime(agentRow.last_heartbeat_at)]) : undefined}
-            />
+
             <MetricCard
                 label={textUI('m_8cc5257478f0')}
                 value={formatUI(a.is_internet_facing ? textUI('m_85a39ab345d6') : textUI('m_1ea442a134b2'))}
@@ -228,73 +220,6 @@ function DetailPanel({ a }: { a: Asset }) {
                 </div>
             )}
         </PanelCard>
-    );
-}
-
-// ---------- section pengumpulan data endpoint ----------
-
-// Tabel ringkas per-check osquery dari endpoint-data.items[]; status ok=hijau, never=netral.
-// Panel lengkap (DefenseBot + hapus data) tetap dirender terpisah di bawah section ini.
-function EndpointSection({ assetID, allowed }: { assetID: string; allowed: boolean }) {
-    useLocale();
-    // Hook sama dengan EndpointDataPanel: satu request, cache dibagi lewat queryKey.
-    const q = useAssetEndpoint(assetID, allowed);
-    const items = q.data?.items ?? [];
-    const statusOf = (s: EndpointDataset['status']): { tone: 'success' | 'neutral' | 'warn'; label: string } =>
-        s === 'ok' ? { tone: 'success', label: textUI('pen_ad_st_ok') }
-            : s === 'failed' ? { tone: 'warn', label: textUI('pen_ad_st_failed') }
-                : s === 'never' ? { tone: 'neutral', label: textUI('pen_ad_st_never') }
-                    : { tone: 'neutral', label: textUI('pen_ad_st_skipped') };
-    return (
-        <section className="pen-ad-sec" aria-labelledby="pen-ad-ep-title">
-            <h2 id="pen-ad-ep-title" className="pen-ad-sec__title">{textUI('pen_ad_sec_endpoint')}</h2>
-            <p className="pen-ad-sec__hint">{textUI('pen_ad_ep_hint')}</p>
-            <div className="pen-ad-tablewrap">
-                {!allowed ? (
-                    <p className="pen-ad-sec__note" role="status">{textUI('m_d0cecb60890e')}</p>
-                ) : q.isPending ? (
-                    <div className="pen-ad-skel pen-ad-skel--table" aria-hidden="true" />
-                ) : q.isError ? (
-                    <div className="pen-ad-sec__alert" role="alert">
-                        <p>{formatUI(describeError(q.error).message)}</p>
-                        <button type="button" className="btn btn--secondary btn--auto" onClick={() => void q.refetch()}>{textUI('m_d8b8392e2c54')}</button>
-                    </div>
-                ) : items.length === 0 ? (
-                    <div className="pen-ad-empty">
-                        <p className="pen-ad-empty__title">{textUI('pen_ad_ep_none_title')}</p>
-                        <p className="pen-ad-empty__body">{textUI('pen_ad_ep_none_body')}</p>
-                    </div>
-                ) : (
-                    <table className="pen-ad-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">{textUI('pen_ad_col_item')}</th>
-                                <th scope="col">{textUI('pen_ad_col_status')}</th>
-                                <th scope="col" className="pen-ad-table__num">{textUI('pen_ad_col_collected')}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {items.map((it) => {
-                                const st = statusOf(it.status);
-                                return (
-                                    <tr key={it.key}>
-                                        <td>
-                                            <span className="pen-ad-table__title">{formatUI(endpointCopy(it.title))}</span>
-                                            <span className="mono pen-ad-table__key">{formatUI(it.key)}</span>
-                                            {it.status !== 'ok' && it.status !== 'never' && it.reason !== '' && (
-                                                <span className="pen-ad-table__why">{formatUI(it.reason)}</span>
-                                            )}
-                                        </td>
-                                        <td><StateTag tone={st.tone}>{st.label}</StateTag></td>
-                                        <td className="mono pen-ad-table__num">{it.collected_at ? formatUI(fmt(it.collected_at)) : '—'}</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                )}
-            </div>
-        </section>
     );
 }
 
@@ -400,7 +325,7 @@ export function AssetDetailPage() {
       <AssetReadiness asset={a} />
       <AssetScanHistory assetID={a.id} organizationID={a.organization_id} allowed={can(me, 'simulation.read') && can(me, 'assessment.read')} />
 
-      <EndpointSection assetID={a.id} allowed={canEndpoint} />
+
       {/* Panel DefenseBot (riwayat run + hapus data) dipertahankan apa adanya. */}
       <EndpointDataPanel assetID={a.id} allowed={canEndpoint} canRun={false} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')} />
 

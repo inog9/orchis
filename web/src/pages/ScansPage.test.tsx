@@ -3,7 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
-import { NewScanPage, ScanDetailPage } from './ScansPage';
+import { NewScanPage, ScanDetailPage, ScanList } from './ScansPage';
 const A='11111111-1111-4111-8111-111111111111',B='22222222-2222-4222-8222-222222222222';
 const json=(value:unknown,status=200)=>new Response(JSON.stringify(value),{status});
 const permissions=['organization.read','organization.write','asset.read','asset.write','asset.authorize','agent.read','finding.read','assessment.read','assessment.run','simulation.read','simulation.run','settings.manage','report.read'];
@@ -43,4 +43,23 @@ it('detail: dua engine tampil sebagai dua baris per aset, tanpa nama Nmap atau N
  expect(within(table).getAllByText('DefenseBot').length).toBeGreaterThan(0);
  expect(within(table).queryByText(/nuclei/i)).toBeNull();
  expect(within(table).queryByText(/nmap/i)).toBeNull();
+});
+
+it('search scans includes matching results from later pages and can clear back to pagination', async () => {
+ const make = (id:string,name:string) => ({id,name,organization_id:A,status:'finished',runner:'injector',created_at:'2026-11-01T00:00:00Z',ended_at:'2026-11-01T00:01:00Z',options:{tools:['hackbot'],asset_ids:['a']}});
+ const fetch = vi.spyOn(globalThis,'fetch').mockImplementation(async input => {
+  const u = new URL(String(input),'http://x');
+  if(u.pathname.endsWith('/auth/me')) return json({permissions});
+  if(u.pathname === '/api/v1/organizations') return json({items:[{id:A,name:'Acme'}],next_cursor:null});
+  if(u.pathname === '/api/v1/scans') return json(u.searchParams.get('cursor') === 'older' ? {items:[make('s-old','Rare matching scan')],next_cursor:null} : {items:[make('s-new','Ordinary scan')],next_cursor:'older'});
+  return json({items:[],next_cursor:null});
+ });
+ mount(<ScanList/>, '/simulations');
+ await screen.findByRole('table');
+ const search = screen.getByRole('searchbox',{name:'Search scans, organisation or status'});
+ await userEvent.type(search,'Rare matching');
+ await waitFor(() => expect(screen.getByRole('link',{name:'Acme'})).toHaveAttribute('href','/simulations/s-old'));
+ expect(fetch.mock.calls.some(([u]) => String(u).includes('cursor=older'))).toBe(true);
+ await userEvent.clear(search);
+ await waitFor(() => expect(screen.getByRole('link',{name:'Acme'})).toHaveAttribute('href','/simulations/s-new'));
 });

@@ -29,3 +29,5 @@
 .ast-scans a { color: var(--v2-accent); text-decoration: none; } .ast-scans a:hover { text-decoration: underline; }
 @media (max-width: 1023px) { .assets .list { overflow-x: visible; } .assets .list__head { display: none; } .assets .asset-row { grid-template-columns: minmax(0, 1fr) auto; min-width: 0; padding: 14px 16px; gap: 8px; } .assets .asset-row__cell--platform, .assets .asset-row__cell--address { display: none; } }
 @media (max-width: 679px) { .assets .asset-row__cell--testing { display: none; } }
+
+.asset-add-row { padding: 14px 18px; border-top: 1px dashed var(--v2-border); background: var(--v2-surface); }

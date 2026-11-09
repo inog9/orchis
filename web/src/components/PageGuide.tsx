@@ -126,7 +126,7 @@ export function PageGuide() {
     const { data: me } = useMe();
     const g = guideFor(pathname);
     const [dismissed, setDismissed] = useState<string[]>(dismissedPaths);
-    if (!g || !guideAllowed(me, g) || dismissed.includes(g.path))
+    if (/^\/(simulations|organizations|findings|reports)(\/|$)/.test(pathname) || !g || !guideAllowed(me, g) || dismissed.includes(g.path))
         return null;
     const dismiss = () => {
         const next = [...dismissed, g.path];

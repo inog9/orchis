@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AssetDetailPage } from './AssetDetailPage';
@@ -94,18 +94,13 @@ describe('AssetDetailPage', () => {
     expect(screen.getByRole('link', { name: 'Run scan' })).toHaveAttribute('href', '/simulations/new?org=o1');
   });
 
-  it('tabel pengumpulan data endpoint menampilkan status per-check dan panel DefenseBot tetap ada', async () => {
-    route();
-    mount();
-    expect(await screen.findByText('System inventory')).toBeInTheDocument();
-    expect(screen.getByText('osquery.system_info')).toBeInTheDocument();
-    expect(screen.getByText('Collected')).toBeInTheDocument();
-    expect(screen.getByText('Listening ports')).toBeInTheDocument();
-    expect(screen.getByText('Never')).toBeInTheDocument();
-    expect(screen.getByText('—')).toBeInTheDocument(); // belum pernah dikumpulkan
-    // panel lama tidak hilang: DefenseBot + hapus data endpoint
-    expect(screen.getByRole('heading', { name: 'DefenseBot' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Delete collected data' })).toBeInTheDocument();
+  it('removes endpoint collection and agent status metric while retaining DefenseBot data controls', async () => {
+    route(); mount();
+    expect(await screen.findByRole('heading', { name: 'DefenseBot' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Endpoint data collection' })).toBeNull();
+    expect(screen.queryByText('System inventory')).toBeNull();
+    expect(within(document.querySelector('.pen-ad-metrics') as HTMLElement).queryByText('Agent status')).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Delete collected data' })).toBeInTheDocument();
   });
 
   it('tabel temuan: severity, nilai, query, dan counter untuk subset', async () => {
@@ -117,13 +112,6 @@ describe('AssetDetailPage', () => {
     expect(screen.getAllByText('osquery.hardening')).toHaveLength(10);
     expect(screen.getByText('+2 more findings')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /View all findings for this asset/ })).toHaveAttribute('href', '/findings?asset_id=a1');
-  });
-
-  it('endpoint data kosong menampilkan keadaan kosong dengan penjelasan', async () => {
-    route((url) => (url.includes('/endpoint-data') ? json({ ...endpointData, items: [] }) : undefined));
-    mount();
-    expect(await screen.findByText('No endpoint data collected yet')).toBeInTheDocument();
-    expect(screen.getByText(/Checks appear here once an agent is enrolled/)).toBeInTheDocument();
   });
 
   it('aset tidak ditemukan menampilkan pesan 404', async () => {

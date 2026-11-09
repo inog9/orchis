@@ -22,7 +22,8 @@ function route(opts: { items?: unknown[]; fail?: boolean; urls?: string[] } = {}
     opts.urls?.push(u.pathname + u.search);
     if (u.pathname.endsWith('/auth/me')) return json(me);
     if (u.pathname === '/api/v1/home') return json(home);
-    if (u.pathname === '/api/v1/findings') return opts.fail ? json({ title: 't', status: 500, error_id: 'e' }, 500) : json({ items: opts.items ?? data, next_cursor: null, search: 'none' });
+    if (u.pathname === '/api/v1/assets') return json({items: [{id:'a1',name:'host-a'}, {id:'a2',name:'host-b'}], next_cursor:null});
+    if (u.pathname === '/api/v1/findings') return opts.fail ? json({ title: 't', status: 500, error_id: 'e' }, 500) : json({ items: (opts.items ?? data).filter((f: any) => !u.searchParams.get('asset_id') || f.asset_id === u.searchParams.get('asset_id')), next_cursor: null, search: 'none' });
     return json({ items: [] });
   });
 }
@@ -34,7 +35,7 @@ beforeEach(() => localStorage.clear());
 afterEach(() => vi.restoreAllMocks());
 
 describe('FindingsPage', () => {
-  it('kartu statistik memakai angka dari /home dan kartu Kritis+Tinggi menerapkan filter', async () => {
+  it('summary follows loaded results and Critical + High applies a filter', async () => {
     route(); mount();
     const group = await screen.findByRole('group', { name: /critical \+ high/i });
     await waitFor(() => expect(within(group).getByText('2')).toBeInTheDocument());
@@ -46,7 +47,7 @@ describe('FindingsPage', () => {
   it('satu severity dikirim ke server; dua severity disaring di klien; Hapus semua mereset', async () => {
     const urls: string[] = []; route({ urls }); mount();
     await screen.findByText('Judul kritis');
-    const chips = screen.getByRole('group', { name: /filter by severity/i });
+    const chips = screen.getByRole('group', { name: /severity breakdown/i });
     await userEvent.click(within(chips).getByRole('button', { name: /critical/i }));
     await waitFor(() => expect(urls.some((u) => u.includes('severity=critical'))).toBe(true));
     await userEvent.click(within(chips).getByRole('button', { name: /high/i }));
@@ -56,23 +57,21 @@ describe('FindingsPage', () => {
     expect(await screen.findByText('Judul rendah')).toBeInTheDocument();
   });
 
-  it('pengalih tampilan: per organisasi (bawaan), per aset, daftar datar', async () => {
-    route(); mount();
+  it('uses a single list and filters by asset name through the API', async () => {
+    const urls: string[] = [];
+    route({urls}); mount();
     await screen.findByText('Judul kritis');
-    expect(screen.getByRole('heading', { name: 'Org Uno' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'By asset' }));
-    expect(screen.getByRole('heading', { name: 'host-b' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Flat list' }));
-    expect(screen.queryByRole('heading', { name: 'host-b' })).not.toBeInTheDocument();
-    expect(localStorage.getItem('orchis.findings.view')).toBe('"flat"');
-  });
-
-  it('kelompok bisa dilipat dan status lipat diingat', async () => {
-    route(); mount();
-    await screen.findByText('Judul kritis');
-    await userEvent.click(screen.getByRole('button', { name: 'Org Uno' }));
-    expect(screen.queryByText('Judul kritis')).not.toBeInTheDocument();
-    expect(localStorage.getItem('orchis.findings.collapsed')).toContain('o-');
+    expect(screen.queryByRole('button', { name: 'By asset' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'By organisation' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Flat list' })).toBeNull();
+    const filter = screen.getByRole('combobox', {name: 'Asset name'});
+    expect(filter).toHaveValue('');
+    await userEvent.selectOptions(filter, 'a2');
+    await waitFor(() => expect(screen.queryByText('Judul kritis')).toBeNull());
+    expect(screen.getByText('Judul rendah')).toBeInTheDocument();
+    expect(within(screen.getByRole('group', {name:'Matching findings loaded'})).getByLabelText('1')).toBeInTheDocument();
+    expect(urls.some(u => u.includes('asset_id=a2'))).toBe(true);
+    expect(urls.some(u => u.startsWith('/api/v1/assets?'))).toBe(true);
   });
 
   it('penanda Baru hanya untuk temuan 7 hari terakhir', async () => {

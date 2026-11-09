@@ -50,6 +50,25 @@ describe('ReportsPage', () => {
 });
 
 describe('ReportDetailPage status', () => {
+  it('counts observations shown in the snapshot even when legacy counters omit ports', async () => {
+    const r = report({id:'rc'});
+    r.snapshot.assets = [{id:'a',name:'Host',status:'incomplete',skip_reason:'',methods:[],findings:[{id:'f',type:'open_port',title:'Open 443',value:'tcp/443',severity:'info'}]}] as never;
+    route(u => u.pathname === '/api/v1/reports/rc' ? r : undefined);
+    mount(<ReportDetailPage />, '/reports/rc', '/reports/:id');
+    expect(await screen.findByText('1 findings recorded')).toBeInTheDocument();
+    expect(screen.getByText('Complete assessment')).toBeInTheDocument();
+    expect(screen.getByText('Open 443')).toBeInTheDocument();
+  });
+  it('incomplete snapshot prioritises completing checks instead of claiming a clean result', async () => {
+    const r = report({id:'r0'});
+    r.snapshot.assets = [{id:'a',name:'Host',status:'failed',skip_reason:'',methods:[],findings:[]}] as never;
+    route(u => u.pathname === '/api/v1/reports/r0' ? r : undefined);
+    mount(<ReportDetailPage />, '/reports/r0', '/reports/:id');
+    expect(await screen.findByText('Not assessed')).toBeInTheDocument();
+    expect(screen.getByText('Complete assessment')).toBeInTheDocument();
+    expect(screen.getByText(/does not establish that the assets are safe/)).toBeInTheDocument();
+  });
+
   it('failed: alert, tombol retry memanggil endpoint, PDF dinonaktifkan, tanpa pratinjau', async () => {
     const fetch = route((u) => u.pathname === '/api/v1/reports/r1' ? report({ id: 'r1', status: 'failed', error: 'renderer down' }) : u.pathname.endsWith('/retry') ? {} : undefined);
     mount(<ReportDetailPage />, '/reports/r1', '/reports/:id');
@@ -60,7 +79,7 @@ describe('ReportDetailPage status', () => {
     await userEvent.click(screen.getByRole('button', { name: /retry/i }));
     await waitFor(() => expect(fetch.mock.calls.some(([u, i]) => String(u).endsWith('/reports/r1/retry') && i?.method === 'POST')).toBe(true));
   });
-  it('generating: status tanpa tombol retry; ready: pratinjau ada di header', async () => {
+  it('generating status and ready PDF preview opens below the report', async () => {
     route((u) => u.pathname === '/api/v1/reports/r1' ? report({ id: 'r1', status: 'generating' }) : undefined);
     const { unmount } = mount(<ReportDetailPage />, '/reports/r1', '/reports/:id');
     expect((await screen.findAllByText('Generating')).length).toBeGreaterThan(0);
@@ -69,6 +88,12 @@ describe('ReportDetailPage status', () => {
     vi.restoreAllMocks();
     route((u) => u.pathname === '/api/v1/reports/r2' ? report({ id: 'r2' }) : undefined);
     mount(<ReportDetailPage />, '/reports/r2', '/reports/:id');
-    expect(await screen.findByRole('link', { name: 'Open PDF preview' })).toHaveAttribute('href', '/api/v1/reports/r2/export/pdf?preview=1');
+    const preview = await screen.findByRole('button', { name: 'Open PDF preview' });
+    expect(screen.queryByTitle('Pentest report')).toBeNull();
+    await userEvent.click(preview);
+    expect(preview).toHaveAttribute('aria-expanded', 'true');
+    expect(document.querySelector('iframe')).toHaveAttribute('src', '/api/v1/reports/r2/export/pdf?preview=1');
+    await userEvent.click(screen.getByRole('button', {name: 'Hide PDF preview'}));
+    expect(document.querySelector('iframe')).toBeNull();
   });
 });

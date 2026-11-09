@@ -112,3 +112,19 @@
 .fnd-kv__row { display: grid; grid-template-columns: minmax(90px, 35%) 1fr; gap: 10px; }
 .fnd-kv__row dt { color: var(--v2-text-3); font-size: 12px; overflow-wrap: anywhere; }
 .fnd-kv__row dd { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+
+/* Clear filter hierarchy and readable finding titles across viewport sizes. */
+.fnd-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.fnd-toolbar { padding: 16px; border: 1px solid var(--v2-border); border-radius: 0; background: var(--v2-surface); align-items: flex-end; }
+.fnd-toolbar .filter { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-width: 160px; max-width: 100%; font-size: 12px; color: var(--v2-text-2); }
+.fnd-toolbar select { width: 100%; min-height: 38px; }
+.fnd-toolbar .fnd-search { max-width: none; min-height: 38px; }
+.fnd-row { min-height: 76px; padding: 10px 18px; }
+.fnd-row__text { gap: 7px; }
+.fnd-row__text strong { white-space: normal; line-height: 1.5; overflow-wrap: anywhere; }
+.fnd-row__main { align-items: flex-start; }
+.fnd-row__main > .sev { margin-top: 3px; flex-shrink: 0; }
+.fnd-row__text code { display: block; max-width: 100%; }
+.fnd .stat { border: 1px solid var(--v2-border); border-radius: 0; height: 100%; box-sizing: border-box; }
+.fnd .stat:first-child { border-left: 1px solid var(--v2-border); }
+@media(max-width: 679px) { .fnd-stats { grid-template-columns: 1fr; } .fnd-toolbar > * { flex: 1 1 100%; width: 100%; } }
