@@ -91,7 +91,7 @@ The pinned OpenCode worker reads the `opencode-go` credential from the private
 This legacy path is retained for compatibility; OpenCode runs the engagement,
 not Pi. Provision the credential securely once; Orchis does not supply model
 credentials. The pinned worker uses `opencode-go/deepseek-v4.1-flash` and bounds
-its model run to 25 minutes. Source and configuration details are in the pinned
+its model run to four hours after stack setup. Source and configuration details are in the pinned
 OpenCode repository.
 
 Missing authorized test accounts produce coverage limitations. Hackbot receives
@@ -106,7 +106,7 @@ download is required.
   parallel testing. Existing scanner concurrency remains bounded.
 - Execution leases, scan controls and live authorization apply throughout the
   pipeline. Orchis scanner/simulation duration limits do not terminate Hackbot;
-  the pinned OpenCode worker applies its own 25-minute model limit.
+  the pinned OpenCode worker applies its own four-hour model limit after stack setup.
 - Claimed Hackbot jobs are not automatically retried. Reconcile ambiguous target
   state before operator-led continuation.
 - Reports retain individual Nmap, Nuclei and Hackbot method provenance. Partial
