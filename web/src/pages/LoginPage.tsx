@@ -5,6 +5,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { useForgot, useLogin } from '../api/hooks';
 import { LoginHeroPanel } from '../components/login/LoginHeroPanel';
+import { SupporterCredit } from '../components/SupporterCredit';
 import { ThemeToggle } from '../components/ThemeToggle';
 import './auth.css';
 import { Field } from '../components/Field';
@@ -38,7 +39,7 @@ export function AuthLayout({ children }: {
           <span className="muted">{textUI("m_0176cea22163")}</span>
           <strong>{textUI("m_a972cd2156be")}</strong>
         </div>
-        <div className="auth__column">{formatUI(children)}</div>
+        <div className="auth__column">{formatUI(children)}<div className="auth__supporter"><SupporterCredit/></div></div>
         <footer className="auth__footer">
           <span>{textUI("m_c7163c58baae")}</span>
           <span className="auth__footer-links">

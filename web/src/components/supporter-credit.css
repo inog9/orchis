@@ -4,6 +4,6 @@
 .supporter-credit__identity img { display: block; width: 88px; height: 88px; object-fit: contain; }
 .supporter-credit__identity:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 8px; }
 .public-support { padding-block: 34px; border-top: 1px solid var(--v2-border); }
-.public-login__foot .supporter-credit { gap: 12px; }
-.public-login__foot .supporter-credit__identity img { width: 64px; height: 64px; }
-.public-login__foot > p { margin: 22px 0 0; text-align: center; }
+.auth__supporter { padding-top: 22px; border-top: 1px solid var(--v2-border); }
+.auth__supporter .supporter-credit { gap: 12px; }
+.auth__supporter .supporter-credit__identity img { width: 80px; height: 80px; }
