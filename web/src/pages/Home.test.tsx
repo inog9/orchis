@@ -85,11 +85,11 @@ describe('HomePage', () => {
     expect(screen.getByText('2 authorized · 1 internet-facing')).toBeInTheDocument();
     expect(screen.getByText('Simulations')).toBeInTheDocument();
     expect(screen.getByText('0 running · 2 scenarios')).toBeInTheDocument();
-    expect((await screen.findAllByText('WEB')).length).toBeGreaterThan(0);
     expect(screen.getAllByText('Online')).toHaveLength(2);
-    // Idle: lane hasil scan terakhir (OP-0028) + empty lane, dan panel temuan terbaru
-    expect(screen.getByText('OP-0028')).toBeInTheDocument();
-    expect(screen.getByText('Latest findings')).toBeInTheDocument();
+    // Idle: radar + event stream; dua chip engine saja
+    expect(screen.getByText('EVENT STREAM')).toBeInTheDocument();
+    expect(screen.getByText('orchis-defense-agent')).toBeInTheDocument();
+    expect(screen.getByText('Hackbot')).toBeInTheDocument();
     expect(screen.getByText(/SQL Injection di \/rest\/products\/search/)).toBeInTheDocument();
   });
 
@@ -118,9 +118,8 @@ describe('HomePage', () => {
   it('state LIVE merender satu graph terpisah per simulasi yang berjalan', async () => {
     mount({ ...home, chains: { scenarios: 2, simulations: 7, running: 2 } }, { simulations: runningSim });
     expect(await screen.findByText('LIVE')).toBeInTheDocument();
-    expect(await screen.findByText('OP-0029')).toBeInTheDocument();
-    expect(screen.getAllByText('DISCOVER').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('SCAN').length).toBeGreaterThan(0);
+    expect(screen.getByText('EVENT STREAM')).toBeInTheDocument();
+    expect(screen.getAllByText('READY').length).toBe(2);
   });
 
   it('bagian yang tidak dikirim server (null) tidak dirender', async () => {

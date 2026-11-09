@@ -183,3 +183,39 @@ button.pen-ov-node .pen-ov-node__top svg { width: 12px; height: 12px; color: var
 .pen-ov-frow .pen-ov-sevdot { flex: 0 0 auto; }
 .pen-ov-frow__title { color: var(--v2-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pen-ov-frow__meta { margin-left: auto; font-size: 11px; color: var(--v2-text-3); white-space: nowrap; }
+
+/* ===== Live scan: radar (Konsep A, v2fixed.pen) ===== */
+.pen-ov-radar-row { display: flex; gap: 16px; align-items: stretch; }
+.pen-ov-radar { flex: 1 1 auto; min-width: 0; border: 1px solid var(--v2-border-2, var(--v2-border)); border-radius: 6px; background: var(--v2-surface); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.pen-ov-radar svg { width: 100%; max-width: 520px; margin: 0 auto; display: block; }
+.pen-ov-ring { stroke: var(--v2-border); fill: none; }
+.pen-ov-axis { stroke: var(--v2-border); stroke-width: 1; opacity: .6; }
+.pen-ov-zone { font-family: var(--font-mono, monospace); font-size: 8px; letter-spacing: .08em; fill: var(--v2-text-3); }
+.pen-ov-blip-name { font-size: 11px; font-weight: 600; fill: var(--v2-text); }
+.pen-ov-blip-meta { font-family: var(--font-mono, monospace); font-size: 8.5px; fill: var(--v2-text-3); letter-spacing: .04em; }
+.pen-ov-core { font-family: var(--font-mono, monospace); font-size: 8px; letter-spacing: .12em; fill: var(--v2-text-2); }
+.pen-ov-sweep { transform-origin: 240px 240px; animation: penOvSweep 7s linear infinite; animation-play-state: paused; }
+.pen-ov-sweep.is-live { animation-play-state: running; }
+@keyframes penOvSweep { to { transform: rotate(360deg); } }
+.pen-ov-chips { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.pen-ov-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--v2-border); border-radius: 999px; padding: 4px 10px; font-size: 11px; color: var(--v2-text-2); background: var(--v2-surface-2); }
+.pen-ov-chip__name { font-weight: 600; color: var(--v2-text); }
+.pen-ov-chip__status { font-family: var(--font-mono, monospace); font-size: 8.5px; letter-spacing: .06em; color: var(--v2-text-3); }
+.pen-ov-events { flex: 0 0 300px; border: 1px solid var(--v2-border-2, var(--v2-border)); border-radius: 6px; background: var(--v2-surface); padding: 14px; display: flex; flex-direction: column; gap: 5px; max-height: 420px; overflow: auto; }
+.pen-ov-events__head { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; }
+.pen-ov-events__title { font-family: var(--font-mono, monospace); font-size: 10px; font-weight: 600; letter-spacing: .08em; color: var(--v2-text-3); }
+.pen-ov-events__spacer { flex: 1; }
+.pen-ov-events__badge { border: 1px solid var(--v2-border); border-radius: 3px; padding: 2px 7px; font-family: var(--font-mono, monospace); font-size: 9px; color: var(--v2-text-3); }
+.pen-ov-events__list { list-style: none; margin: 0; padding: 0; }
+.pen-ov-event { padding: 6px 0; border-bottom: 1px solid var(--v2-border); }
+.pen-ov-event:last-child { border-bottom: 0; }
+.pen-ov-event__top { display: flex; align-items: center; gap: 8px; width: 100%; font-size: 10px; color: var(--v2-text-3); }
+.pen-ov-event__eng { font-family: var(--font-mono, monospace); font-size: 8.5px; letter-spacing: .06em; color: var(--v2-text-2); }
+.pen-ov-event__spacer { flex: 1; }
+.pen-ov-event__sev { font-family: var(--font-mono, monospace); font-size: 8px; font-weight: 600; letter-spacing: .05em; border-radius: 3px; padding: 1px 5px; }
+.pen-ov-event__sev--critical { color: var(--v2-critical, var(--sev-critical)); background: color-mix(in srgb, var(--v2-critical, var(--sev-critical)) 12%, transparent); }
+.pen-ov-event__sev--high { color: var(--v2-high, var(--sev-high)); background: color-mix(in srgb, var(--v2-high, var(--sev-high)) 12%, transparent); }
+.pen-ov-event__sev--medium { color: var(--v2-medium, var(--sev-medium)); background: color-mix(in srgb, var(--v2-medium, var(--sev-medium)) 12%, transparent); }
+.pen-ov-event__sev--low, .pen-ov-event__sev--info { color: var(--v2-text-2); background: var(--v2-surface-2); }
+.pen-ov-event__msg { margin: 3px 0 0; font-size: 11.5px; color: var(--v2-text-2); overflow-wrap: anywhere; }
+@media (max-width: 1023px) { .pen-ov-radar-row { flex-direction: column; } .pen-ov-events { flex: 1 1 auto; max-height: 260px; } }

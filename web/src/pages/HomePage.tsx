@@ -275,78 +275,132 @@ function ScanGraph({ assets, pinned, engines, findings, live, head, emptyText }:
     );
 }
 
-// Satu lane per simulasi (mockup v2fixed.pen "Konsep C Pipeline Lanes"): info engine
-// (hanya dua: orchis-defense-agent & Hackbot), target, kode operasi, state, empat tahap
-// DISCOVER->SCAN->VALIDATE->REPORT dengan track + catatan, serta hasil temuan.
-const LANE_STAGES = ['DISCOVER', 'SCAN', 'VALIDATE', 'REPORT'] as const;
-type LaneSim = {
-    id: string; code: string; name: string; status: Simulation['status'];
-    started_at: string | null; created_at: string;
-    step_count?: number; steps_done?: number; finding_count?: number;
+// ---------- Live scan: radar (mockup v2fixed.pen "Konsep A Radar") ----------
+// Ring konsentris = zona severity (CRITICAL terluar), titik kecil = temuan per severity,
+// blip besar = aset (halo + warna severity tertingginya + label nama/tipe/jumlah),
+// sapuan (sweep) berputar saat ada scan berjalan. Chip engine di bawah: hanya dua
+// engine yang ditampilkan (orchis-defense-agent & Hackbot). Event stream di kanan.
+const SEV_RING: Record<string, number> = { critical: 235, high: 190, medium: 130, low: 70, info: 45 };
+const SEV_COLOR: Record<string, string> = {
+    critical: 'var(--v2-critical, var(--sev-critical))',
+    high: 'var(--v2-high, var(--sev-high))',
+    medium: 'var(--v2-medium, var(--sev-medium))',
+    low: 'var(--v2-low, var(--sev-low))',
+    info: 'var(--v2-info, #8a8f98)',
 };
-// Catatan tiap tahap per engine, mengikuti mockup.
-const STAGE_NOTES = {
-    defensebot: ['pen_ov_note_inv', 'pen_ov_note_match', 'pen_ov_note_fix', 'pen_ov_note_report'],
-    hackbot: ['pen_ov_note_crawl', 'pen_ov_note_inject', 'pen_ov_note_repro', 'pen_ov_note_write'],
-} as const;
+const ZONES: [number, string][] = [[235, 'CRITICAL'], [190, 'HIGH'], [130, 'MEDIUM'], [70, 'LOW']];
 
-function LiveLane({ sim, engines }: { sim: LaneSim; engines: EngineNodeData[] }) {
+function hashAngle(id: string): number {
+    let hsh = 0;
+    for (let i = 0; i < id.length; i++) hsh = (hsh * 31 + id.charCodeAt(i)) >>> 0;
+    return hsh % 360;
+}
+function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+}
+
+function RadarPanel({ h, engines, findings, live }: { h: HomeSummary; engines: EngineNodeData[]; findings: Finding[]; live: boolean }) {
     useLocale();
-    const fq = useSimulationFindings(sim.id);
-    const findings = useMemo(() => sortFindings(fq.data?.pages.flatMap((p) => p.items ?? []) ?? []), [fq.data]);
-    const first = findings[0];
-    const engKey = first ? (engineKeyOf(first) || engines[0]?.key || 'hackbot') : (engines[0]?.key ?? 'hackbot');
-    const eng = engines.find((e) => e.key === engKey) ?? { key: engKey, name: engKey };
-    const Icon = ENGINE_ICONS[eng.key] ?? Plug;
-    const finished = sim.status === 'finished';
-    const total = Math.max(sim.step_count ?? 1, 1);
-    const done = sim.steps_done ?? (finished ? total : 0);
-    const p = finished ? 1 : Math.min(Math.max(done / total, 0), 1);
-    const sev: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
-    for (const f of findings) if (f.severity in sev) sev[f.severity] = (sev[f.severity] ?? 0) + 1;
-    const count = findings.length > 0 ? findings.length : (sim.finding_count ?? 0);
-    const notes = STAGE_NOTES[eng.key as keyof typeof STAGE_NOTES] ?? STAGE_NOTES.hackbot;
+    const cx = 240, cy = 240;
+    const sweepEnd = polar(cx, cy, 235, 40);
+    const sweepStart = polar(cx, cy, 235, 0);
+    const wedge = `M ${cx} ${cy} L ${sweepStart[0]} ${sweepStart[1]} A 235 235 0 0 1 ${sweepEnd[0]} ${sweepEnd[1]} Z`;
+    const blips = h.most_exposed.slice(0, MAX_ASSET_NODES).map((row, i) => {
+        const deg = hashAngle(row.asset_id);
+        const r = Math.max(235 - 34 * i - (hashAngle(row.name) % 40), 60);
+        const [x, y] = polar(cx, cy, r, deg);
+        const top = row.critical > 0 ? 'critical' : row.high > 0 ? 'high' : row.medium > 0 ? 'medium' : 'low';
+        const web = /https?:\/\//i.test(row.name);
+        return { row, x, y, top, web };
+    });
+    const dots = findings.slice(0, 60).map((f) => {
+        const ring = SEV_RING[f.severity] ?? 45;
+        const [x, y] = polar(cx, cy, ring, hashAngle(f.id));
+        return { f, x, y };
+    });
+    const events = findings.slice(0, 8);
+    const last = h.latest_simulations[0];
     return (
-        <div className={`pen-ov-lane${finished ? ' pen-ov-lane--done' : ''}`}>
-            <div className="pen-ov-lane__info">
-                <div className="pen-ov-lane__r1">
-                    <Icon size={13} aria-hidden="true" />
-                    <span className="pen-ov-lane__eng">{formatUI(eng.name)}</span>
-                    <span className="pen-ov-lane__type">{eng.key === 'defensebot' ? 'HOST' : 'WEB'}</span>
-                </div>
-                <Link className="pen-ov-lane__target" to={`/simulations/${sim.id}`}>{formatUI(sim.name)}</Link>
-                <div className="pen-ov-lane__r3">
-                    <span className="mono">{formatUI(sim.code)}</span>
-                    <StateTag tone={finished ? 'success' : 'accent'}>{displayLabel(sim.status)}</StateTag>
-                    <span className="pen-ov-lane__at">{relativeTime(sim.started_at ?? sim.created_at)}</span>
-                </div>
-            </div>
-            <div className="pen-ov-lane__stages">
-                {LANE_STAGES.map((name, i) => {
-                    const f = Math.min(Math.max(p * LANE_STAGES.length - i, 0), 1);
-                    const state = f >= 1 ? 'DONE' : f > 0 ? 'RUN' : '\u2014';
-                    return (
-                        <div className="pen-ov-stage" key={name}>
-                            <div className="pen-ov-stage__top">
-                                <span className="pen-ov-stage__name">{name}</span>
-                                <span className={`pen-ov-stage__st${f >= 1 ? ' pen-ov-stage__st--done' : f > 0 ? ' pen-ov-stage__st--run' : ''}`}>{state}</span>
-                            </div>
-                            <div className="pen-ov-stage__track"><span className={f >= 1 ? 'is-done' : f > 0 ? 'is-run' : ''} style={{ width: `${f * 100}%` }} /></div>
-                            <span className="pen-ov-stage__note">{textUI(notes[i] ?? 'pen_ov_note_write')}</span>
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="pen-ov-lane__result">
-                <span className="pen-ov-lane__count">{formatUI(count)}</span>
-                <span className="pen-ov-lane__countlabel">{textUI('pen_ov_findings_count')}</span>
-                <span className="pen-ov-lane__dots">
-                    {(['critical', 'high', 'medium', 'low'] as const).filter((sv) => (sev[sv] ?? 0) > 0).map((sv) => (
-                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv] ?? 0}`}>{formatUI(sev[sv] ?? 0)}</span>
+        <div className="pen-ov-radar-row">
+            <div className="pen-ov-radar">
+                <svg viewBox="0 0 480 480" role="img" aria-label={textUI('pen_ov_radar_aria')}>
+                    {ringsAxes(cx, cy)}
+                    {ZONES.map(([r, label]) => {
+                        const [x, y] = polar(cx, cy, r, 0);
+                        return <text key={label} x={x + 4} y={y - 4} className="pen-ov-zone">{label}</text>;
+                    })}
+                    {dots.map(({ f, x, y }) => (
+                        <circle key={f.id} cx={x} cy={y} r={2.5} fill={SEV_COLOR[f.severity] ?? SEV_COLOR.info} opacity={0.85} />
                     ))}
-                </span>
+                    <g className={`pen-ov-sweep${live ? ' is-live' : ''}`}>
+                        <path d={wedge} fill="var(--v2-accent)" opacity={0.10} />
+                        <line x1={cx} y1={cy} x2={sweepEnd[0]} y2={sweepEnd[1]} stroke="var(--v2-accent)" strokeWidth={1.5} opacity={0.8} />
+                        <circle cx={sweepEnd[0]} cy={sweepEnd[1]} r={3} fill="var(--v2-accent)" />
+                    </g>
+                    {blips.map(({ row, x, y, top, web }) => (
+                        <g key={row.asset_id}>
+                            <circle cx={x} cy={y} r={13} fill="none" stroke={SEV_COLOR[top]} strokeOpacity={0.35} strokeWidth={1} />
+                            <circle cx={x} cy={y} r={7} fill={SEV_COLOR[top]} />
+                            <text x={x + 16} y={y - 2} className="pen-ov-blip-name">{formatUI(row.name)}</text>
+                            <text x={x + 16} y={y + 12} className="pen-ov-blip-meta">{web ? 'WEB' : 'HOST'} · {formatUI(row.critical)}C · {formatUI(row.high)}H · {formatUI(row.medium)}M</text>
+                        </g>
+                    ))}
+                    <circle cx={cx} cy={cy} r={22} fill="none" stroke="var(--v2-border)" />
+                    <circle cx={cx} cy={cy} r={13} fill="none" stroke="var(--v2-border)" />
+                    <circle cx={cx} cy={cy} r={5} fill="var(--v2-accent)" />
+                    <text x={cx} y={cy + 38} textAnchor="middle" className="pen-ov-core">{formatUI((h.organizations?.[0]?.name ?? '').toUpperCase())}</text>
+                </svg>
+                <div className="pen-ov-chips">
+                    {engines.map((e) => {
+                        const Icon = ENGINE_ICONS[e.key] ?? Plug;
+                        return (
+                            <span key={e.key} className="pen-ov-chip">
+                                <Icon size={12} aria-hidden="true" />
+                                <span className="pen-ov-chip__name">{formatUI(e.name)}</span>
+                                <span className="pen-ov-chip__status">{textUI('pen_ov_ready')}</span>
+                                <span className="pen-ov-dot pen-ov-dot--ok" aria-hidden="true" />
+                            </span>
+                        );
+                    })}
+                </div>
             </div>
+            <aside className="pen-ov-events" aria-label={textUI('pen_ov_event_stream')}>
+                <div className="pen-ov-events__head">
+                    <span className="pen-ov-events__title">{textUI('pen_ov_event_stream')}</span>
+                    <span className="pen-ov-events__spacer" aria-hidden="true" />
+                    {last && <span className="pen-ov-events__badge">{formatUI(last.code)}</span>}
+                </div>
+                {events.length === 0 ? (
+                    <p className="pen-ov-empty">{textUI('pen_ov_no_findings')}</p>
+                ) : (
+                    <ul className="pen-ov-events__list">
+                        {events.map((f) => (
+                            <li key={f.id} className="pen-ov-event">
+                                <div className="pen-ov-event__top">
+                                    <span className="mono">{shortDate(f.last_seen_at ?? f.first_seen_at)}</span>
+                                    <span className="pen-ov-event__eng">{(engineKeyOf(f) || 'hackbot').toUpperCase()}</span>
+                                    <span className="pen-ov-event__spacer" aria-hidden="true" />
+                                    <span className={`pen-ov-event__sev pen-ov-event__sev--${f.severity}`}>{formatUI(displayLabel(f.severity).toUpperCase())}</span>
+                                </div>
+                                <p className="pen-ov-event__msg">{formatUI(f.title || f.value)}</p>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </aside>
         </div>
+    );
+}
+
+function ringsAxes(cx: number, cy: number) {
+    const rings = [70, 130, 190, 235];
+    return (
+        <>
+            <line x1={cx - 245} y1={cy} x2={cx + 245} y2={cy} className="pen-ov-axis" />
+            <line x1={cx} y1={cy - 245} x2={cx} y2={cy + 245} className="pen-ov-axis" />
+            {rings.map((r) => <circle key={r} cx={cx} cy={cy} r={r} fill="none" className="pen-ov-ring" />)}
+        </>
     );
 }
 
@@ -438,42 +492,11 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
                 </span>
             </div>
             {live && running.isPending ? (
-                <div className="pen-ov-lanes" aria-hidden="true">
+                <div className="pen-ov-radar-row" aria-hidden="true">
                     <span className="pen-ov-skel pen-ov-skel--block" />
                 </div>
-            ) : showLive ? (
-                <div className="pen-ov-lanes">
-                    {runningSims.slice(0, MAX_LIVE_GRAPHS).map((sim) => <LiveLane key={sim.id} sim={sim} engines={engines} />)}
-                </div>
             ) : (
-                <>
-                    <div className="pen-ov-lanes">
-                        {h.latest_simulations.slice(0, MAX_LIVE_GRAPHS).map((ls) => <LiveLane key={ls.id} sim={ls} engines={engines} />)}
-                        <div className="pen-ov-lane pen-ov-lane--empty">
-                            <Plus size={14} aria-hidden="true" />
-                            <span>{textUI('pen_ov_lane_empty')}</span>
-                            <span className="pen-ov-lane__spacer" aria-hidden="true" />
-                            <Link className="btn btn--primary btn--auto" to="/simulations/new">{textUI('pen_ov_run_scan')}</Link>
-                        </div>
-                    </div>
-                    <div className="pen-ov-findings">
-                        <h3 className="pen-ov-findings__title">{textUI('pen_ov_findings_title')}</h3>
-                        {idleFindings.length === 0 ? (
-                            <p className="pen-ov-empty">{textUI('pen_ov_no_findings')}</p>
-                        ) : (
-                            <ul className="pen-ov-findings__list">
-                                {idleFindings.slice(0, MAX_FINDING_NODES).map((f) => (
-                                    <li key={f.id} className="pen-ov-frow">
-                                        <span className={`pen-ov-sevdot pen-ov-sevdot--${f.severity}`} aria-hidden="true" />
-                                        <span className="pen-ov-frow__title">{formatUI(f.title || f.value)}</span>
-                                        <span className="pen-ov-frow__meta">{formatUI(f.asset_name ?? '')} · {relativeTime(f.last_seen_at ?? f.first_seen_at)}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-                        {idleFindings.length > MAX_FINDING_NODES && <Link className="pen-ov-more" to="/findings">{textUI('pen_ov_more_findings', [idleFindings.length - MAX_FINDING_NODES])}</Link>}
-                    </div>
-                </>
+                <RadarPanel h={h} engines={engines} findings={idleFindings} live={showLive} />
             )}
             <p className="pen-ov-live__foot">{textUI('pen_ov_diagram_hint')}</p>
         </section>
