@@ -731,3 +731,16 @@ func TestAIMapperProposalsAreValidatedAgainstNVD(t *testing.T) {
 		t.Fatalf("software_unmapped harusnya 1 (Bogus.app), dapat %d", out.Summary.SoftwareUnmapped)
 	}
 }
+
+func TestMacRunWithUnmappedAppsIsComplete(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps:      {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Some Unknown.app", "bundle_identifier": "com.example.unknown", "version": "1.0"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	if out.Summary.Disposition != "complete" {
+		t.Fatalf("apps_unmapped tidak boleh membuat hasil limited: disposition=%s notes=%+v", out.Summary.Disposition, out.Summary.Notes)
+	}
+}

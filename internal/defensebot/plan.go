@@ -225,7 +225,9 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	}
 	if unmapped > 0 {
 		p.Unmapped += unmapped
-		p.Notes = append(p.Notes, Note{Code: "apps_unmapped", Count: unmapped, Limiting: true})
+		// Non-limiting: aplikasi tanpa mapping CPE memang tidak bisa diperiksa NVD, tetapi itu
+		// bukan kegagalan scan — hasil tetap "complete" selama sumber data utama jalan.
+		p.Notes = append(p.Notes, Note{Code: "apps_unmapped", Count: unmapped})
 	}
 	for _, c := range p.Components {
 		sort.Strings(c.Binaries)
