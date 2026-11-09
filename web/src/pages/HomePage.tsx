@@ -275,13 +275,22 @@ function ScanGraph({ assets, pinned, engines, findings, live, head, emptyText }:
     );
 }
 
-// Satu lane per simulasi yang sedang berjalan (konsep pipeline lanes pada mockup
-// v2fixed.pen): info engine (hanya dua: orchis-defense-agent & Hackbot), target, kode
-// operasi, state, empat tahap DISCOVER->SCAN->VALIDATE->REPORT dengan track progress,
-// serta hasil temuan (jumlah + titik severity).
+// Satu lane per simulasi (mockup v2fixed.pen "Konsep C Pipeline Lanes"): info engine
+// (hanya dua: orchis-defense-agent & Hackbot), target, kode operasi, state, empat tahap
+// DISCOVER->SCAN->VALIDATE->REPORT dengan track + catatan, serta hasil temuan.
 const LANE_STAGES = ['DISCOVER', 'SCAN', 'VALIDATE', 'REPORT'] as const;
+type LaneSim = {
+    id: string; code: string; name: string; status: Simulation['status'];
+    started_at: string | null; created_at: string;
+    step_count?: number; steps_done?: number; finding_count?: number;
+};
+// Catatan tiap tahap per engine, mengikuti mockup.
+const STAGE_NOTES = {
+    defensebot: ['pen_ov_note_inv', 'pen_ov_note_match', 'pen_ov_note_fix', 'pen_ov_note_report'],
+    hackbot: ['pen_ov_note_crawl', 'pen_ov_note_inject', 'pen_ov_note_repro', 'pen_ov_note_write'],
+} as const;
 
-function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[] }) {
+function LiveLane({ sim, engines }: { sim: LaneSim; engines: EngineNodeData[] }) {
     useLocale();
     const fq = useSimulationFindings(sim.id);
     const findings = useMemo(() => sortFindings(fq.data?.pages.flatMap((p) => p.items ?? []) ?? []), [fq.data]);
@@ -289,12 +298,16 @@ function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[]
     const engKey = first ? (engineKeyOf(first) || engines[0]?.key || 'hackbot') : (engines[0]?.key ?? 'hackbot');
     const eng = engines.find((e) => e.key === engKey) ?? { key: engKey, name: engKey };
     const Icon = ENGINE_ICONS[eng.key] ?? Plug;
-    const total = Math.max(sim.step_count, 1);
-    const p = Math.min(Math.max(sim.steps_done / total, 0), 1);
+    const finished = sim.status === 'finished';
+    const total = Math.max(sim.step_count ?? 1, 1);
+    const done = sim.steps_done ?? (finished ? total : 0);
+    const p = finished ? 1 : Math.min(Math.max(done / total, 0), 1);
     const sev: Record<string, number> = { critical: 0, high: 0, medium: 0, low: 0 };
     for (const f of findings) if (f.severity in sev) sev[f.severity] = (sev[f.severity] ?? 0) + 1;
+    const count = findings.length > 0 ? findings.length : (sim.finding_count ?? 0);
+    const notes = STAGE_NOTES[eng.key as keyof typeof STAGE_NOTES] ?? STAGE_NOTES.hackbot;
     return (
-        <div className="pen-ov-lane">
+        <div className={`pen-ov-lane${finished ? ' pen-ov-lane--done' : ''}`}>
             <div className="pen-ov-lane__info">
                 <div className="pen-ov-lane__r1">
                     <Icon size={13} aria-hidden="true" />
@@ -304,7 +317,7 @@ function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[]
                 <Link className="pen-ov-lane__target" to={`/simulations/${sim.id}`}>{formatUI(sim.name)}</Link>
                 <div className="pen-ov-lane__r3">
                     <span className="mono">{formatUI(sim.code)}</span>
-                    <StateTag tone="accent">{displayLabel(sim.status)}</StateTag>
+                    <StateTag tone={finished ? 'success' : 'accent'}>{displayLabel(sim.status)}</StateTag>
                     <span className="pen-ov-lane__at">{relativeTime(sim.started_at ?? sim.created_at)}</span>
                 </div>
             </div>
@@ -319,16 +332,17 @@ function LiveLane({ sim, engines }: { sim: Simulation; engines: EngineNodeData[]
                                 <span className={`pen-ov-stage__st${f >= 1 ? ' pen-ov-stage__st--done' : f > 0 ? ' pen-ov-stage__st--run' : ''}`}>{state}</span>
                             </div>
                             <div className="pen-ov-stage__track"><span className={f >= 1 ? 'is-done' : f > 0 ? 'is-run' : ''} style={{ width: `${f * 100}%` }} /></div>
+                            <span className="pen-ov-stage__note">{textUI(notes[i] ?? 'pen_ov_note_write')}</span>
                         </div>
                     );
                 })}
             </div>
             <div className="pen-ov-lane__result">
-                <span className="pen-ov-lane__count">{formatUI(findings.length)}</span>
+                <span className="pen-ov-lane__count">{formatUI(count)}</span>
                 <span className="pen-ov-lane__countlabel">{textUI('pen_ov_findings_count')}</span>
                 <span className="pen-ov-lane__dots">
                     {(['critical', 'high', 'medium', 'low'] as const).filter((sv) => (sev[sv] ?? 0) > 0).map((sv) => (
-                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv] ?? 0}`} >{formatUI(sev[sv])}</span>
+                        <span key={sv} className={`pen-ov-sevdot pen-ov-sevdot--${sv}`} title={`${sv}: ${sev[sv] ?? 0}`}>{formatUI(sev[sv] ?? 0)}</span>
                     ))}
                 </span>
             </div>
@@ -396,14 +410,6 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
     const live = (h.chains?.running ?? 0) > 0;
     const running = useSimulations('running', live);
     const latest = useFindings('', '', '', '', '', '');
-    const allAssets = useAllAssets();
-    const assetsById = useMemo(() => new Map((allAssets.data ?? []).map((a) => [a.id, a])), [allAssets.data]);
-
-    // Pool aset dari most_exposed; badge tipe diambil dari data aset asli (bukan tebakan).
-    const pool = useMemo(() => h.most_exposed.slice(0, MAX_ASSET_NODES).map((row) => {
-        const kind = assetKind(assetsById.get(row.asset_id));
-        return { id: row.asset_id, name: row.name, badge: kind.badge, icon: kind.icon, href: `/assets/${row.asset_id}` };
-    }), [h.most_exposed, assetsById]);
 
     const idleFindings = useMemo(() => sortFindings(latest.data?.pages.flatMap((p) => p.items ?? []) ?? []), [latest.data]);
 
@@ -442,6 +448,7 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
             ) : (
                 <>
                     <div className="pen-ov-lanes">
+                        {h.latest_simulations.slice(0, MAX_LIVE_GRAPHS).map((ls) => <LiveLane key={ls.id} sim={ls} engines={engines} />)}
                         <div className="pen-ov-lane pen-ov-lane--empty">
                             <Plus size={14} aria-hidden="true" />
                             <span>{textUI('pen_ov_lane_empty')}</span>
@@ -449,7 +456,23 @@ function LiveScanBox({ h, engines }: { h: HomeSummary; engines: EngineNodeData[]
                             <Link className="btn btn--primary btn--auto" to="/simulations/new">{textUI('pen_ov_run_scan')}</Link>
                         </div>
                     </div>
-                    <ScanGraph assets={pool} engines={engines} findings={idleFindings} live={false} emptyText={textUI('pen_ov_no_findings')} />
+                    <div className="pen-ov-findings">
+                        <h3 className="pen-ov-findings__title">{textUI('pen_ov_findings_title')}</h3>
+                        {idleFindings.length === 0 ? (
+                            <p className="pen-ov-empty">{textUI('pen_ov_no_findings')}</p>
+                        ) : (
+                            <ul className="pen-ov-findings__list">
+                                {idleFindings.slice(0, MAX_FINDING_NODES).map((f) => (
+                                    <li key={f.id} className="pen-ov-frow">
+                                        <span className={`pen-ov-sevdot pen-ov-sevdot--${f.severity}`} aria-hidden="true" />
+                                        <span className="pen-ov-frow__title">{formatUI(f.title || f.value)}</span>
+                                        <span className="pen-ov-frow__meta">{formatUI(f.asset_name ?? '')} · {relativeTime(f.last_seen_at ?? f.first_seen_at)}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        {idleFindings.length > MAX_FINDING_NODES && <Link className="pen-ov-more" to="/findings">{textUI('pen_ov_more_findings', [idleFindings.length - MAX_FINDING_NODES])}</Link>}
+                    </div>
                 </>
             )}
             <p className="pen-ov-live__foot">{textUI('pen_ov_diagram_hint')}</p>

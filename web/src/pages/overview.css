@@ -172,3 +172,14 @@ button.pen-ov-node .pen-ov-node__top svg { width: 12px; height: 12px; color: var
   .pen-ov-lane__stages { flex-wrap: wrap; }
   .pen-ov-stage { width: 46%; }
 }
+
+.pen-ov-lane--done { opacity: .68; }
+.pen-ov-stage__note { font-size: 9.5px; color: var(--v2-text-3); }
+.pen-ov-findings { border: 1px solid var(--v2-border-2, var(--v2-border)); border-radius: 6px; background: var(--v2-surface); padding: 14px 16px; margin-top: 10px; }
+.pen-ov-findings__title { margin: 0 0 8px; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--v2-text-3); }
+.pen-ov-findings__list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.pen-ov-frow { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--v2-border); font-size: 12.5px; min-width: 0; }
+.pen-ov-frow:last-child { border-bottom: 0; }
+.pen-ov-frow .pen-ov-sevdot { flex: 0 0 auto; }
+.pen-ov-frow__title { color: var(--v2-text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pen-ov-frow__meta { margin-left: auto; font-size: 11px; color: var(--v2-text-3); white-space: nowrap; }

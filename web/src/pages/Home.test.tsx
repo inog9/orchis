@@ -86,11 +86,11 @@ describe('HomePage', () => {
     expect(screen.getByText('Simulations')).toBeInTheDocument();
     expect(screen.getByText('0 running · 2 scenarios')).toBeInTheDocument();
     expect((await screen.findAllByText('WEB')).length).toBeGreaterThan(0);
-    expect(screen.getByText('+1 more findings')).toHaveAttribute('href', '/findings');
     expect(screen.getAllByText('Online')).toHaveLength(2);
-    const srvLinks = screen.getAllByRole('link', { name: /srv-web/ });
-    expect(srvLinks.some((l) => l.getAttribute('href') === '/assets/a1')).toBe(true);
-    expect(srvLinks.some((l) => l.getAttribute('href') === '/simulations/legacy/s1')).toBe(true);
+    // Idle: lane hasil scan terakhir (OP-0028) + empty lane, dan panel temuan terbaru
+    expect(screen.getByText('OP-0028')).toBeInTheDocument();
+    expect(screen.getByText('Latest findings')).toBeInTheDocument();
+    expect(screen.getByText(/SQL Injection di \/rest\/products\/search/)).toBeInTheDocument();
   });
 
   it('node temuan bisa diexpand untuk melihat bukti lalu diciutkan kembali', async () => {
