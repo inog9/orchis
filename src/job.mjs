@@ -5,6 +5,7 @@ import net from 'node:net';
 import {spawn, spawnSync} from 'node:child_process';
 import {copyScannerInputs} from './scanners.mjs';
 import {prepareResult} from './result.mjs';
+import {OPENCODE_TIMEOUT_MS} from './deadline.mjs';
 
 process.umask(0o077);
 const args = process.argv.slice(2);
@@ -58,7 +59,7 @@ try {
   const log = fs.openSync(path.join(root,'opencode.jsonl'), 'a', 0o600);
   child = spawn('opencode', ['run','--standalone','--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',instructions], {cwd:root,env:{...process.env,OPENCODE_API_KEY:key},stdio:['ignore',log,log],detached:true});
   let timedOut = false;
-  const timeout = setTimeout(() => { timedOut = true; stopChild(); }, 25 * 60 * 1000);
+  const timeout = setTimeout(() => { timedOut = true; stopChild(); }, OPENCODE_TIMEOUT_MS);
   const code = await wait(child); clearTimeout(timeout); fs.closeSync(log);
   if (interrupted) throw Error('cancelled');
   if (timedOut) throw Error('OpenCode time limit reached');
