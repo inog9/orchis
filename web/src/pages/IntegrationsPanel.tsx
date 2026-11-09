@@ -1,3 +1,4 @@
+import { agentDisplayName } from '../lib/engines';
 import { t as textUI, tr as richUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { KeyRound, X } from 'lucide-react';
 import { useState } from 'react';
@@ -57,7 +58,7 @@ export function IntegrationsPanel() {
         <div className="set-int__row set-int__head" role="row"><span role="columnheader">{textUI("m_set_col_integration")}</span><span role="columnheader">{textUI("m_set_col_kind")}</span><span role="columnheader">{textUI("m_set_col_status")}</span><span role="columnheader">{textUI("m_set_col_heartbeat")}</span><span role="columnheader">{textUI("m_set_col_actions")}</span></div>
         {formatUI(q.data!.map((i) => (<div key={i.id} className="set-int__item" role="rowgroup">
             <div className="set-int__row" role="row">
-              <span role="cell" className="set-int__name"><strong>{formatUI(i.name)}</strong>{formatUI(i.description && <small className="muted">{formatUI(i.description)}</small>)}</span>
+              <span role="cell" className="set-int__name"><strong>{formatUI(agentDisplayName(i.name))}</strong>{formatUI(i.description && <small className="muted">{formatUI(agentDisplayName(i.description))}</small>)}</span>
               <span role="cell">{formatUI(KIND[i.kind])}{formatUI(i.software_version ? ` · v${i.software_version}` : '')}</span>
               <span role="cell"><span className={`status ${i.status === 'online' ? 'status--ok' : i.status === 'disabled' ? 'status--bad' : ''}`}>{formatUI(i.is_demo ? textUI("m_4bb44254b234") : '')}{formatUI(i.status === 'online' ? textUI("m_f4ccae29e1bb") : i.status === 'disabled' ? textUI("m_75081b593d15") : textUI("m_a1794783aab7"))}</span></span>
               <span role="cell" className="muted small">{formatUI(i.is_demo ? textUI("m_dc18eb08e77e") : i.last_heartbeat_at ? textUI("m_5786f589c75f", [when(i.last_heartbeat_at)]) : textUI("m_aed2a2a0b59f"))}</span>
@@ -69,11 +70,11 @@ export function IntegrationsPanel() {
                 </>))}
               </span>
             </div>
-            <ul className="loglist" aria-label={textUI("m_28b0874e62ba", [i.name])}>{formatUI(i.logs.length === 0 ? <li className="muted small">{textUI("m_691cfdb915e2")}</li> : i.logs.map((l, k) => <li key={k} className={`log--${l.level}`}><time>{formatUI(when(l.at))}</time> {formatUI(l.message)}</li>))}</ul>
+            <ul className="loglist" aria-label={textUI("m_28b0874e62ba", [agentDisplayName(i.name)])}>{formatUI(i.logs.length === 0 ? <li className="muted small">{textUI("m_691cfdb915e2")}</li> : i.logs.map((l, k) => <li key={k} className={`log--${l.level}`}><time>{formatUI(when(l.at))}</time> {formatUI(agentDisplayName(l.message))}</li>))}</ul>
           </div>)))}
       </div>
-      {formatUI(confirm?.kind === 'rotate' && (<ConfirmDialog title={textUI("m_1ed751e8da1f", [confirm.i.has_token ? textUI("m_c3613b1704f5") : textUI("m_4759498ac2a7"), confirm.i.name])} confirmLabel={confirm.i.has_token ? 'Rotate token' : 'Create token'} busy={rotate.isPending} body={confirm.i.has_token ? 'The running injector stops working until you give it the new token.' : 'You get a token to give to the injector.'} onConfirm={() => rotate.mutate(confirm.i.id, { onSuccess: (r) => { setConfirm(null); setSecret({ name: confirm.i.name, token: r.token }); } })} onClose={() => setConfirm(null)}/>))}
-      {formatUI(confirm?.kind === 'disable' && (<ConfirmDialog title={textUI("m_79d2bdcc9f73", [confirm.i.name])} confirmLabel="Disable" busy={toggle.isPending} body="Scans that need it can’t start until you enable it again. Work already queued waits." onConfirm={() => toggle.mutate({ id: confirm.i.id, enabled: false }, { onSuccess: () => setConfirm(null) })} onClose={() => setConfirm(null)}/>))}
+      {formatUI(confirm?.kind === 'rotate' && (<ConfirmDialog title={textUI("m_1ed751e8da1f", [confirm.i.has_token ? textUI("m_c3613b1704f5") : textUI("m_4759498ac2a7"), agentDisplayName(confirm.i.name)])} confirmLabel={confirm.i.has_token ? 'Rotate token' : 'Create token'} busy={rotate.isPending} body={confirm.i.has_token ? 'The running injector stops working until you give it the new token.' : 'You get a token to give to the injector.'} onConfirm={() => rotate.mutate(confirm.i.id, { onSuccess: (r) => { setConfirm(null); setSecret({ name: agentDisplayName(confirm.i.name), token: r.token }); } })} onClose={() => setConfirm(null)}/>))}
+      {formatUI(confirm?.kind === 'disable' && (<ConfirmDialog title={textUI("m_79d2bdcc9f73", [agentDisplayName(confirm.i.name)])} confirmLabel="Disable" busy={toggle.isPending} body="Scans that need it can’t start until you enable it again. Work already queued waits." onConfirm={() => toggle.mutate({ id: confirm.i.id, enabled: false }, { onSuccess: () => setConfirm(null) })} onClose={() => setConfirm(null)}/>))}
       {formatUI(secret && <TokenDialog name={secret.name} secret={secret.token} onClose={() => setSecret(null)}/>)}
     </div>);
 }

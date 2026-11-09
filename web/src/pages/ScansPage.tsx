@@ -5,7 +5,7 @@ import { Plus, Search } from 'lucide-react';
 import { StatusBadge, scanStatusLabel } from '../components/sims/StatusBadge';
 import { useAllOrganizations } from '../components/orgs/useOrgData';
 import { durationMs, flattenFindings, formatDuration, jobCounts } from '../lib/scanView';
-import { engineLabel, engineRows, engineSetLabel } from '../lib/engines';
+import { agentDisplayName, engineLabel, engineRows, engineSetLabel } from '../lib/engines';
 import { defenseWhyIncomplete } from '../components/DefenseNotes';
 import { SeverityBadge } from '../components/RunBadges';
 import './sims.css';
@@ -70,7 +70,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
             <span role="cell"><StatusBadge status={s.status}/></span>
-            <span role="cell">{formatUI(engineSetLabel(s.options.tools))}</span>
+            <span role="cell" className="sims__engine" title={engineSetLabel(s.options.tools)}>{formatUI(engineSetLabel(s.options.tools))}</span>
             <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
             
             <span role="cell" className="mono">{startedAt(s.created_at)}</span>
@@ -140,7 +140,7 @@ export function ScanDetailPage() {
             </div>)}
           </div></div>)}
       </section>
-      {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{s.summary}</p></section>}
+      {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{agentDisplayName(s.summary)}</p></section>}
       {s.report_id && can(me,'report.read') && <section className="sims__panel"><h2 className="sims__h">{textUI("hackbot_report")}</h2>{s.report_status==='ready' ? <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${s.report_id}/export/pdf?preview=1`}/> : <p role="status">{s.report_status==='failed' ? textUI("hackbot_pdf_failed") : textUI("hackbot_pdf_pending")}</p>}<Link to={`/reports/${s.report_id}`}>{textUI("hackbot_open_report")}</Link></section>}
       {jobs.some((j) => j.defense) && <section className="sims__panel" aria-labelledby="def-h"><h2 id="def-h" className="sims__h">{textUI("m_def_scan_h")}</h2>{jobs.filter((j) => j.defense).map((j) => <div key={j.id}><h3 className="ed-h4">{formatUI(j.name)}</h3><DefenseResult summary={j.defense!}/></div>)}</section>}
       <ScanComparison comparison={s.comparison_details} pending={running}/>

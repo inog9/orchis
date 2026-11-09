@@ -2,7 +2,12 @@ import type { ScanJob } from '../api/scans';
 import { t as textUI } from '../i18n/runtime';
 
 // Kosakata engine v3: pengguna hanya melihat dua engine. Nmap dan Nuclei adalah langkah
-// persiapan internal Hackbot dan tidak pernah tampil sebagai nama di UI.
+// persiapan internal orchis-redteam-agent dan tidak pernah tampil sebagai nama di UI.
+export const REDTEAM_AGENT_NAME = 'orchis-redteam-agent';
+
+// Rename legacy display text without changing stored tool identifiers.
+export function agentDisplayName(value: string): string { return value.replace(/\bHackbot\b/g, REDTEAM_AGENT_NAME); }
+
 export type EngineKind = 'web' | 'defense' | 'full';
 
 export function toolsFor(kind: EngineKind): string[] {
@@ -16,16 +21,16 @@ export function isFullTools(tools: string[] | undefined): boolean {
 }
 
 export function engineLabel(tool: string): string {
-    return tool === 'defensebot' ? 'DefenseBot' : 'Hackbot';
+    return tool === 'defensebot' ? 'DefenseBot' : REDTEAM_AGENT_NAME;
 }
 
-// Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
-// Nama engine yang benar menurut alat yang dipilih: hanya DefenseBot -> "DefenseBot", hanya jalur web -> "Hackbot".
+// Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "orchis-redteam-agent".
+// Nama engine yang benar menurut alat yang dipilih: hanya DefenseBot -> "DefenseBot", hanya jalur web -> "orchis-redteam-agent".
 export function engineSetLabel(tools: string[] | undefined): string {
     const list = tools ?? ['nmap', 'nuclei', 'hackbot'];
     if (isFullTools(list)) return textUI('flow_eng_full_sub');
     if (list.includes('defensebot') && !list.includes('hackbot')) return 'DefenseBot';
-    return 'Hackbot';
+    return REDTEAM_AGENT_NAME;
 }
 
 export function kindLabel(kind: EngineKind): string {
@@ -34,10 +39,10 @@ export function kindLabel(kind: EngineKind): string {
     return textUI('flow_eng_full');
 }
 
-// Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine Hackbot
+// Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine orchis-redteam-agent
 // dengan tahap berbahasa manusia; defensebot menjadi engine DefenseBot.
 export type EngineRow = {
-    engine: 'Hackbot' | 'DefenseBot';
+    engine: typeof REDTEAM_AGENT_NAME | 'DefenseBot';
     stage: string;
     status: string;
     jobs: ScanJob[];
@@ -64,12 +69,12 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
             : web.some((j) => j.status === 'waiting') ? 'waiting'
             : web.every((j) => j.status === 'finished') ? 'finished' : 'incomplete';
         rows.push({
-            engine: 'Hackbot',
+            engine: REDTEAM_AGENT_NAME,
             stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web),
             status,
             jobs: web,
             findings: web.reduce((n, j) => n + (j.findings?.length ?? 0), 0),
-            error: web.map((j) => j.error).filter(Boolean).join(' · '),
+            error: agentDisplayName(web.map((j) => j.error).filter(Boolean).join(' · ')),
         });
     }
     const defense = jobs.filter((j) => j.tool === 'defensebot');
@@ -84,11 +89,11 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
     return rows;
 }
 
-// Nama engine yang tampil untuk daftar injector luring: pipeline Hackbot (nmap/nuclei/hackbot)
-// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "DefenseBot" (AUDIT UI-004d).
+// Nama engine yang tampil untuk daftar injector luring: pipeline orchis-redteam-agent (nmap/nuclei/hackbot)
+// dilaporkan sebagai satu "orchis-redteam-agent", koleksi endpoint sebagai "DefenseBot" (AUDIT UI-004d).
 export function engineNames(keys: string[]): string[] {
     const out: string[] = [];
-    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('Hackbot');
+    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push(REDTEAM_AGENT_NAME);
     if (keys.some(k => k === 'defensebot')) out.push('DefenseBot');
     return out;
 }

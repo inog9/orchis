@@ -2,6 +2,7 @@
 // Sumber data nyata: GET /home (useHome), GET /simulations?status=running (useSimulations),
 // GET /findings (useFindings + useSimulationFindings) dan GET /assets (useAllAssets) untuk
 // tipe badge aset. Primitif visual wajib dari components/pen/primitives.
+import { agentDisplayName } from '../lib/engines';
 import { Fragment, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
@@ -326,7 +327,7 @@ function NoticeBar({ h, onRefresh, busy }: { h: HomeSummary; onRefresh: () => vo
             {offline.length > 0 && (
                 <span className="pen-ov__notice-warn">
                     {richUI('m_4845a5715da9', [
-                        offline.map((i) => i.name).join(', '),
+                        offline.map((i) => agentDisplayName(i.name)).join(', '),
                         offline.length === 1 ? textUI('m_8a27f2fcccaa') : textUI('m_ba5bff2b4cdf'),
                     ])}
                 </span>
@@ -531,7 +532,7 @@ function EnginesSection({ h, me }: { h: HomeSummary; me: User | null | undefined
                         <div className="pen-ov-engine" key={inj.key}>
                             <span className="pen-ov-engine__icon" aria-hidden="true"><Icon /></span>
                             <div className="pen-ov-engine__text">
-                                <p className="pen-ov-engine__name">{inj.name}</p>
+                                <p className="pen-ov-engine__name">{agentDisplayName(inj.name)}</p>
                                 <span className={`pen-ov-engine__status${online ? ' pen-ov-engine__status--online' : ''}`}>
                                     <span className={`pen-ov-dot${online ? ' pen-ov-dot--ok' : ''}`} aria-hidden="true" />
                                     {statusText(inj.status)}
@@ -569,7 +570,7 @@ function StartingState({ h, me }: { h: HomeSummary; me: User | null | undefined 
                 {offline.length > 0 && (
                     <p>
                         {richUI('m_8a1c28fa6db9', [
-                            offline.map((i) => i.name).join(' and '),
+                            offline.map((i) => agentDisplayName(i.name)).join(' and '),
                             offline.length === 1 ? textUI('m_8a27f2fcccaa') : textUI('m_ba5bff2b4cdf'),
                         ])}
                     </p>
@@ -639,7 +640,7 @@ function HomeBody({ h, me, onRefresh, busy }: { h: HomeSummary; me: User | null 
     const engines: EngineNodeData[] = h.injectors
         .filter((i) => i.status === 'online')
         .slice(0, MAX_ENGINE_NODES)
-        .map((i) => ({ key: i.key, name: i.name }));
+        .map((i) => ({ key: i.key, name: agentDisplayName(i.name) }));
     return (
         <>
             <NoticeBar h={h} onRefresh={onRefresh} busy={busy} />

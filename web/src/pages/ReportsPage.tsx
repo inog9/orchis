@@ -1,3 +1,4 @@
+import { agentDisplayName } from '../lib/engines';
 import {displayLabel} from '../i18n/display';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI, language } from "../i18n/runtime";
 import { ScanComparison, type Comparison } from '../components/ScanComparison';
@@ -267,7 +268,7 @@ export function ReportDetailPage() {
         <p className="muted small">{textUI("m_303b527be639")}</p>
       </PanelCard>}
       {comparison && <details className="rep__comparison"><summary>{textUI('ui_compare_previous')}</summary><ScanComparison comparison={comparison}/></details>}
-      {s.summary && <PanelCard title={textUI("hackbot_summary")}><p>{s.summary}</p></PanelCard>}
+      {s.summary && <PanelCard title={textUI("hackbot_summary")}><p>{agentDisplayName(s.summary)}</p></PanelCard>}
       <PanelCard title={textUI("pen_rpt_findings_title")}>
         <p className="muted small">{textUI("pen_rpt_findings_desc")}</p>
         {/* Satu tabel, dikelompokkan per aset lewat tbody + th scope="rowgroup" agar pembaca layar tetap paham konteks. */}

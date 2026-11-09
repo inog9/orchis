@@ -69,3 +69,5 @@
 .sims .sims__note { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-2); }
 .sims .pentest-pdf { width: 100%; min-height: 640px; border: 1px solid var(--v2-border); border-radius: 0; background: var(--v2-surface); }
 @media (max-width: 1023px) { .sims .sims__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sims .sims__stats .stat:nth-child(odd) { border-left: 0; } .sims .sims__stats .stat:nth-child(n+3) { border-top: 1px solid var(--v2-border); } .sims .sims__jrow { grid-template-columns: minmax(0, 1fr) 150px; } .sims .sims__jrow > :nth-child(2), .sims .sims__jrow > :nth-child(4), .sims .sims__jrow > :nth-child(5) { grid-column: 1 / -1; } .sims .sims__jrow.sims__head { display: none; } }
+
+.sims__engine, .sims__jrow > :first-child { overflow-wrap: anywhere; white-space: normal; }
