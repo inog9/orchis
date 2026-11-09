@@ -70,10 +70,10 @@ services:
       discovery.type: single-node
       xpack.security.enabled: "false"
       xpack.ml.enabled: "false"
-      ES_JAVA_OPTS: -Xms256m -Xmx256m
+      ES_JAVA_OPTS: -Xms768m -Xmx768m
     volumes: [esdata:/usr/share/elasticsearch/data]
     networks: [backend]
-    mem_limit: 768m
+    mem_limit: 1536m
     cpus: 1.0
     pids_limit: 256
     healthcheck:
