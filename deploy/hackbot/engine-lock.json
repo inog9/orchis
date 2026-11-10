@@ -10,11 +10,12 @@
   },
   "opencode": {
     "repository": "https://github.com/r1pu5u/orchis-opencode-hackbot.git",
-    "revision": "b9443b3a776d4864bfd55743ec86a6eb4f670c38",
+    "revision": "1a5401a034423e0274a20248610d55fa86f98617",
     "files": {
       "Dockerfile": "fe3a79067e7298535c2aba938cb5fdcac4e9eee9194895a69c288db5f987bca8",
-      "src/job.mjs": "b61a270d2135951a561aa5dce00b3817e7aa9e54f5d826a66e9b7fe7ece29bd1",
+      "src/job.mjs": "22cff67caea350fad36c2362662b53ce8ff6348e319ec77f0f3fe517bbd0a37c",
       "src/deadline.mjs": "1e74884efa2cbbf9b44509d6a6749bdfd949a2daf04e189ba4c01a4dc8dcf563",
+      "src/instructions.mjs": "d7d9f8c85772cff58b504ab3150b134652563152e78c42e7635cbae1147f2180",
       "src/result.mjs": "5eb6bf23f7a6cc205f6bb2c8de10b42f1d403f7a5c82f01a9acca12ae2955b16",
       "src/scanners.mjs": "934e6b0a18aaa582523d9662ecb1356424ab3501aa3f7511f561530171c8f0c4"
     }
