@@ -146,3 +146,9 @@
 }
 @media (max-width: 479px) { .topbar__actions .btn-new { padding: 0 12px; } .runpill { display: none; } .topbar .language-preference select { max-width: 96px; } }
 @media (prefers-reduced-motion: reduce) { .runpill.is-live .runpill__dot { animation: none; } .gsearch, .runpill, .btn-new, .topbar .language-preference, .topbar .ws__button { transition: none; } }
+/* Keep every account control reachable on narrow phones in both languages. */
+@media(max-width:359px){
+ .topbar__actions{width:100%;max-width:100%;justify-content:space-between;flex-wrap:wrap;gap:4px}
+ .topbar__actions .btn-new{padding:0 8px;font-size:13px;gap:6px}
+ .topbar__actions .btn-new svg:last-child{display:none}
+}

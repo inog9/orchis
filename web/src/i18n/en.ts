@@ -1,4 +1,7 @@
 export const en = {
+"sched_selected_one":"1 selected asset",
+"sched_runtime_short":"Runtime limit",
+
  "sched_controls_warning": "One or more upcoming audits are currently blocked by an emergency hold or the organisation scan window. Review scan controls on the organisation page, or choose another time.",
   "sched_eyebrow": "CONTINUOUS SECURITY",
   "sched_title": "Audit schedules",

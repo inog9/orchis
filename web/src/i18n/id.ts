@@ -1,5 +1,8 @@
 import type {en} from './en';
 export const id:Record<keyof typeof en,string> = {
+"sched_selected_one":"1 aset pilihan",
+"sched_runtime_short":"Batas waktu",
+
  "sched_controls_warning": "Satu atau lebih audit mendatang sedang diblokir oleh penghentian darurat atau jendela scan organisasi. Tinjau kontrol scan di halaman organisasi, atau pilih waktu lain.",
   "sched_eyebrow": "KEAMANAN BERKELANJUTAN",
   "sched_title": "Jadwal audit",
