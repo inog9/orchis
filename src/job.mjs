@@ -7,6 +7,8 @@ import {spawn, spawnSync} from 'node:child_process';
 import {copyScannerInputs} from './scanners.mjs';
 import {prepareResult} from './result.mjs';
 import {OPENCODE_TIMEOUT_MS} from './deadline.mjs';
+import {StallMonitor, pollStalls} from './watchdog.mjs';
+import {restrictSkills} from './skills.mjs';
 
 process.umask(0o077);
 const args = process.argv.slice(2);
@@ -40,6 +42,7 @@ try {
   // The harness's Pi-specific agent instructions are not part of the OpenCode prompt.
   fs.rmSync(path.join(root, 'AGENTS.md'), {force:true});
   fs.copyFileSync('/opt/orchis-opencode/skills/pentest-report/SKILL.md', path.join(root, '.agent/skills/pentest-report/SKILL.md'));
+  restrictSkills(path.join(root, '.agent/skills'));
   fs.mkdirSync(path.join(root, '.opencode'), {recursive: true});
   fs.appendFileSync(path.join(root, '.agent/skills/pentest/SKILL.md'), '\nRun at most one subagent at a time; wait for it to finish before starting another.\n');
   fs.cpSync(path.join(root, '.agent/skills'), path.join(root, '.opencode/skills'), {recursive:true});
@@ -73,26 +76,72 @@ try {
   const address = `http://127.0.0.1:${port}`;
   const password = randomBytes(24).toString('hex');
   const env = {...process.env,PWD:root,OPENCODE_API_KEY:key,OPENCODE_SERVER_PASSWORD:password,INTERCEPTOR_TEMP:path.join(stackDir,'interceptor'),GORI_HOME:path.join(stackDir,'gori')};
-  server = spawn('opencode',['serve','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore',log,log]});
-  let skillsReady = false;
-  for (let i=0; i<120 && !interrupted && server.exitCode === null; i++) {
-    try {
-      const response = await fetch(address+'/api/skill',{headers:{Authorization:'Basic '+Buffer.from('opencode:'+password).toString('base64')},signal:AbortSignal.timeout(1000)});
-      const data = await response.json();
-      if (response.ok && ['pentest','pentest-report'].every(id => data.data?.some(s => s.id===id))) { skillsReady = true; break; }
-    } catch {}
-    await delay(500);
-  }
-  if (!skillsReady) { fs.closeSync(log); throw Error('OpenCode could not discover pentest skills'); }
-  child = spawn('opencode', ['run','--server',address,'--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',prompt], {cwd:root,env,stdio:['ignore',log,log],detached:true});
+  const startServer = async () => {
+    server = spawn('opencode',['serve','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore',log,log]});
+    let spawnFailed = false;
+    server.once('error', () => { spawnFailed = true; });
+    for (let i=0; i<120 && !interrupted && !spawnFailed && server.exitCode === null && server.signalCode === null; i++) {
+      try {
+        const response = await fetch(address+'/api/skill',{headers:{Authorization:'Basic '+Buffer.from('opencode:'+password).toString('base64')},signal:AbortSignal.timeout(1000)});
+        const data = await response.json();
+        if (response.ok && ['pentest','pentest-report'].every(id => data.data?.some(s => s.id===id))) return true;
+      } catch {}
+      await delay(500);
+    }
+    if (server.exitCode === null && server.signalCode === null) server.kill('SIGTERM');
+    return false;
+  };
+  if (!await startServer()) { fs.closeSync(log); throw Error('OpenCode could not discover pentest skills'); }
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; stopChild(); }, OPENCODE_TIMEOUT_MS);
-  const code = await wait(child); clearTimeout(timeout); fs.closeSync(log);
+  let rootSession = '', code = null, monitorBusy = false, rapidFailures = 0;
+  const monitor = new StallMonitor();
+  const watchdog = setInterval(async () => {
+    if (monitorBusy || interrupted || timedOut || !rootSession) return;
+    monitorBusy = true;
+    try {
+      const stopped = await pollStalls({address,password,rootId:rootSession,monitor});
+      if (stopped.length) console.error(`Interrupted ${stopped.length} stalled OpenCode session(s); preserving workspace.`);
+    } catch { /* Retry monitoring on the next interval without disrupting an active scan. */ }
+    finally { monitorBusy = false; }
+  }, 15000);
+  try {
+    while (!interrupted && !timedOut) {
+      if (server.exitCode !== null || server.signalCode !== null) {
+        console.error('OpenCode server stopped; restarting the workspace server.');
+        if (!await startServer()) { await delay(10000); continue; }
+      }
+      const cliArgs = ['run','--server',address,'--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json'];
+      if (rootSession) cliArgs.push('--session',rootSession);
+      cliArgs.push(prompt);
+      const startedAt = Date.now();
+      child = spawn('opencode', cliArgs, {cwd:root,env,stdio:['ignore','pipe','pipe'],detached:true});
+      let pending = '';
+      child.stdout.on('data', chunk => {
+        fs.writeSync(log, chunk);
+        pending += chunk.toString('utf8');
+        let newline;
+        while ((newline = pending.indexOf('\n')) >= 0) {
+          const line = pending.slice(0,newline); pending = pending.slice(newline+1);
+          try { const event = JSON.parse(line); if (!rootSession && /^ses_[a-zA-Z0-9]+$/.test(event.sessionID || '')) rootSession = event.sessionID; } catch {}
+        }
+        if (pending.length > 4*1024*1024) pending = '';
+      });
+      child.stderr.on('data', chunk => fs.writeSync(log, chunk));
+      code = await wait(child);
+      if (interrupted || timedOut || (code === 0 && fs.existsSync(path.join(root,'result-draft.json')))) break;
+      if (!rootSession) break; // No known session can be resumed safely.
+      console.error('OpenCode stopped without a result; resuming the same session.');
+      rapidFailures = Date.now() - startedAt > 120000 ? 0 : rapidFailures+1;
+      await delay(Math.min(60000, 10000 * Math.max(1, rapidFailures)));
+    }
+  } finally { clearInterval(watchdog); clearTimeout(timeout); fs.closeSync(log); }
   if (interrupted) throw Error('cancelled');
-  if (timedOut) throw Error('OpenCode time limit reached');
-  if (code !== 0) throw Error('OpenCode did not complete');
+  if (timedOut && !fs.existsSync(path.join(root,'result-draft.json'))) throw Error('OpenCode time limit reached');
+  if (code !== 0 && !timedOut) throw Error('OpenCode did not complete');
   emit('state',{phase:'report'});
   const draft = JSON.parse(fs.readFileSync(path.join(root,'result-draft.json'),'utf8'));
+  if (timedOut) draft.blockers = [...(Array.isArray(draft.blockers) ? draft.blockers : []),'OpenCode reached its four-hour time limit before completing the assessment.'];
   const result = prepareResult(draft, root, session);
   const disposition = result.disposition;
   const file = path.join(root,'result.json'); fs.writeFileSync(file,JSON.stringify(result));
