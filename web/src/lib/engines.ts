@@ -11,6 +11,12 @@ export function toolsFor(kind: EngineKind): string[] {
     return ['nmap', 'nuclei', 'hackbot', 'defensebot'];
 }
 
+// Nama tampilan untuk teks lama dari branch lain; tidak mengubah identifier tool
+// yang tersimpan. DefenseBot -> orchis-defense-agent, Hackbot tetap Hackbot.
+export function agentDisplayName(value: string): string {
+    return value.replace(/\bDefenseBot\b/g, 'orchis-defense-agent').replace(/\bdefensebot\b/gi, 'orchis-defense-agent');
+}
+
 export function isFullTools(tools: string[] | undefined): boolean {
     return !!tools && tools.includes('hackbot') && tools.includes('defensebot');
 }
