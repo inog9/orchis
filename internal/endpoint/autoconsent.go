@@ -1,9 +1,9 @@
 package endpoint
 
 // Penanaman persetujuan otomatis. Kebijakan pemilik produk: memasang agent berarti menyetujui
-// koleksi DefenseBot untuk organisasinya, sehingga koleksi tidak pernah menjadi penghambat scan.
+// koleksi orchis-defense-agent untuk organisasinya, sehingga koleksi tidak pernah menjadi penghambat scan.
 // Aturan main:
-//   - Lingkup: query kategori DefenseBot plus semua query pack runnable. Check kategori
+//   - Lingkup: query kategori orchis-defense-agent plus semua query pack runnable. Check kategori
 //     Endpoint/network (osquery.inventory, osquery.users, osquery.network, osquery.network_ranges)
 //     tidak pernah ditanam; migration 00037 memang mematikannya secara sengaja.
 //   - Baris yang sudah ada TIDAK pernah ditimpa (ON CONFLICT DO NOTHING); keputusan admin, termasuk
@@ -23,7 +23,7 @@ import (
 )
 
 // autoConsentKeys mengembalikan kunci lingkup persetujuan otomatis untuk satu OS agent
-// (linux|macos|windows): query DefenseBot tanpa pack ditambah semua query pack runnable.
+// (linux|macos|windows): query orchis-defense-agent tanpa pack ditambah semua query pack runnable.
 // Windows tidak punya query yang mendukung sehingga hasilnya kosong.
 func autoConsentKeys(os string) []string {
 	var keys []string

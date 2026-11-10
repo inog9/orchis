@@ -61,7 +61,7 @@ func ecosystemFor(row map[string]string) string {
 	return ""
 }
 
-// systemSections are Debian sections of libraries, kernel and development material. DefenseBot reports on applications and
+// systemSections are Debian sections of libraries, kernel and development material. orchis-defense-agent reports on applications and
 // services someone installed or runs, not on the operating system's building blocks.
 var systemSections = map[string]bool{"libs": true, "libdevel": true, "oldlibs": true, "kernel": true, "python": true, "perl": true, "ruby": true,
 	"golang": true, "rust": true, "javascript": true, "doc": true, "fonts": true, "localization": true, "metapackages": true, "debug": true,
@@ -96,14 +96,26 @@ func okRows(in Input, key string) ([]map[string]string, DatasetInput, bool) {
 }
 
 // buildPlan turns the stored datasets into the list of components to look up and the coverage notes.
-func buildPlan(in Input) *plan {
+func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	p := &plan{Binary2Src: map[string]string{}}
 	osRows, _, haveOS := okRows(in, QueryOSRelease)
 	if haveOS && len(osRows) > 0 {
-		p.Platform = strings.ToLower(osRows[0]["platform"])
+		plat := strings.ToLower(osRows[0]["platform"])
+		if like := strings.ToLower(osRows[0]["platform_like"]); strings.Contains(plat, "windows") || strings.Contains(like, "windows") {
+			plat = "windows"
+		}
+		p.Platform = plat
 		p.OSName = osRows[0]["name"]
 		p.OSVersion = osRows[0]["version"]
 		p.Ecosystem = ecosystemFor(osRows[0])
+	} else if !haveOS {
+		// os_release missing: infer the platform from the software inventory that was collected,
+		// so platform-specific requirements (deb/rpm packages on macOS) are not flagged as gaps.
+		if _, _, ok := okRows(in, QueryApps); ok {
+			p.Platform = "darwin"
+		} else if _, _, ok := okRows(in, QueryBrew); ok {
+			p.Platform = "darwin"
+		}
 	}
 	if kr, _, ok := okRows(in, QueryKernel); ok && len(kr) > 0 {
 		if m := runningKernelRe.FindStringSubmatch(strings.TrimSpace(kr[0]["version"])); m != nil {
@@ -205,6 +217,23 @@ func buildPlan(in Input) *plan {
 				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
 				continue
 			}
+			if c, ok := aiCPE[AppKey(r["name"])]; ok {
+				p.CPE = append(p.CPE, c)
+				continue
+			}
+			unmapped++
+		}
+	}
+	if rows, _, ok := okRows(in, QueryPrograms); ok {
+		for _, r := range rows {
+			if v, pr, mapped := cpeFor(r["name"], ""); mapped {
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				continue
+			}
+			if c, ok := aiCPE[AppKey(r["name"])]; ok {
+				p.CPE = append(p.CPE, c)
+				continue
+			}
 			unmapped++
 		}
 	}
@@ -213,7 +242,9 @@ func buildPlan(in Input) *plan {
 	}
 	if unmapped > 0 {
 		p.Unmapped += unmapped
-		p.Notes = append(p.Notes, Note{Code: "apps_unmapped", Count: unmapped, Limiting: true})
+		// Non-limiting: aplikasi tanpa mapping CPE memang tidak bisa diperiksa NVD, tetapi itu
+		// bukan kegagalan scan — hasil tetap "complete" selama sumber data utama jalan.
+		p.Notes = append(p.Notes, Note{Code: "apps_unmapped", Count: unmapped})
 	}
 	for _, c := range p.Components {
 		sort.Strings(c.Binaries)

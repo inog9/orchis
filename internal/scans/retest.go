@@ -13,7 +13,7 @@ import (
 	"orchis-go/internal/httpx"
 )
 
-// insideMethods adalah metode bukti yang berarti temuan datang dari sisi dalam (DefenseBot);
+// insideMethods adalah metode bukti yang berarti temuan datang dari sisi dalam (orchis-defense-agent);
 // metode lain berarti sisi luar (pipeline Hackbot). Retest menjalankan ulang HANYA metode yang menemukan
 // finding, pada aset yang sama. Hasil "resolved / still present" dibaca dari perbandingan laporan bawaan
 // (aturan konsistensi pelaporan: cakupan parsial tidak pernah mengklaim resolved).

@@ -20,12 +20,12 @@ import (
 	"orchis-go/internal/scancontrol"
 )
 
-// DefenseCollector queues a fresh collection of the approved DefenseBot checks for one asset inside the caller's transaction.
+// DefenseCollector queues a fresh collection of the approved orchis-defense-agent checks for one asset inside the caller's transaction.
 type DefenseCollector interface {
 	QueueDefenseCollection(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, keys []string) (int, error)
 }
 
-// launchDefense starts a DefenseBot run for enrolled endpoints. Unlike a web pentest it has no network target: it asks the
+// launchDefense starts a orchis-defense-agent run for enrolled endpoints. Unlike a web pentest it has no network target: it asks the
 // agent for a fresh collection of the approved checks and then maps the stored data to known vulnerabilities.
 func (s *Service) launchDefense(ctx context.Context, p *auth.Principal, in Input, language, key, ip, req string) (*Scan, error) {
 	if in.OrganizationID == uuid.Nil {
@@ -35,7 +35,7 @@ func (s *Service) launchDefense(ctx context.Context, p *auth.Principal, in Input
 		return nil, invalid("idempotency_key", "Provide an Idempotency-Key of 1 to 200 characters.")
 	}
 	if len(in.RangeIDs) > 0 {
-		return nil, invalid("range_ids", "DefenseBot runs on enrolled endpoints, not on network ranges.")
+		return nil, invalid("range_ids", "orchis-defense-agent runs on enrolled endpoints, not on network ranges.")
 	}
 	in.Tools = []string{"defensebot"}
 	in.Preset = "defense"
@@ -50,7 +50,7 @@ func (s *Service) launchDefense(ctx context.Context, p *auth.Principal, in Input
 		}
 	}
 	if s.Collector == nil {
-		return nil, httpx.Conflict("DefenseBot collection is not available.")
+		return nil, httpx.Conflict("orchis-defense-agent collection is not available.")
 	}
 	body, _ := json.Marshal(in)
 	sum := sha256.Sum256(body)
@@ -110,7 +110,7 @@ func (s *Service) launchDefense(ctx context.Context, p *auth.Principal, in Input
 		var version int
 		err = tx.QueryRow(ctx, `SELECT c.id,c.version FROM contracts c JOIN integrations i ON i.tenant_id=c.tenant_id AND i.id=c.integration_id WHERE c.tenant_id=$1 AND c.key=$2 AND c.is_active AND i.enabled ORDER BY c.version DESC LIMIT 1`, p.TenantID, contract.KeyDefenseBot).Scan(&cid, &version)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return invalid("tools", "The DefenseBot integration is disabled.")
+			return invalid("tools", "The orchis-defense-agent integration is disabled.")
 		}
 		if err != nil {
 			return err

@@ -1,6 +1,6 @@
 package server_test
 
-// Kebijakan pemilik produk: memasang agent berarti menyetujui koleksi DefenseBot. Test di sini
+// Kebijakan pemilik produk: memasang agent berarti menyetujui koleksi orchis-defense-agent. Test di sini
 // menjaga dua jalurnya (token organisasi saat enroll, dan sweeper untuk organisasi yang sudah
 // ada) beserta garis merahnya: check Endpoint/network tidak pernah ditanam, dan baris yang
 // dimatikan admin tidak pernah dinyalakan lagi.
@@ -13,7 +13,7 @@ import (
 	"orchis-go/internal/endpoint"
 )
 
-func TestEnrollWithOrgTokenSeedsDefenseBotConsent(t *testing.T) {
+func TestEnrollWithOrgTokenSeedsOrchisDefenseAgentConsent(t *testing.T) {
 	f := newAgentFixture(t)
 	org := createOrg(t, f.a, f.admin, "autoconsent")
 	r := f.a.do("POST", "/api/v1/agents/enrollment-tokens", map[string]any{"os": "linux", "arch": "x86_64", "mode": "service", "organization_id": org.ID.String()}, f.admin)
@@ -46,7 +46,7 @@ func TestEnrollWithOrgTokenSeedsDefenseBotConsent(t *testing.T) {
 	}
 	for k, ok := range want {
 		if !ok {
-			t.Fatalf("check DefenseBot %s tidak ditanam saat enroll; aktif: %v", k, enabled)
+			t.Fatalf("check orchis-defense-agent %s tidak ditanam saat enroll; aktif: %v", k, enabled)
 		}
 	}
 	for _, k := range []string{"osquery.inventory", "osquery.users", "osquery.network", "osquery.network_ranges"} {
@@ -91,7 +91,7 @@ func TestAutoConsentSweepSeedsMissingAndRespectsAdminDisabled(t *testing.T) {
 		t.Fatal(err)
 	}
 	if n != 1 {
-		t.Fatal("sweeper harus menanam scope DefenseBot untuk organisasi yang punya agent")
+		t.Fatal("sweeper harus menanam scope orchis-defense-agent untuk organisasi yang punya agent")
 	}
 	// Admin mematikan satu check: keputusan ini tidak boleh dibalikkan seeder.
 	if _, err := f.a.env.Owner.Exec(ctx, `UPDATE osquery_org_settings SET enabled=false WHERE organization_id=$1 AND query_key='osquery.packages'`, org); err != nil {

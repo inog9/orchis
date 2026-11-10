@@ -53,7 +53,7 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 		t.Fatalf("full assessment must create one job per engine: %+v", tools)
 	}
 
-	// Full assessment campuran per aset: aset URL-only tanpa agent hanya mendapat Hackbot (tanpa job DefenseBot).
+	// Full assessment campuran per aset: aset URL-only tanpa agent hanya mendapat Hackbot (tanpa job orchis-defense-agent).
 	urlOnly := mkAsset(t, f.a, f.admin, map[string]any{"category": "web_application", "name": "web-only", "organization_id": org, "testing_authorized": true, "addresses": []map[string]any{{"kind": "url", "value": "http://127.0.0.2:8080/"}}})
 	mixed := full
 	mixed.AssetIDs = []uuid.UUID{uuid.MustParse(urlOnly)}
@@ -65,11 +65,11 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 	}
 	for _, j := range mixedScan.Jobs {
 		if j.Tool == "defensebot" {
-			t.Fatalf("URL-only asset must not get a DefenseBot job: %+v", mixedScan.Jobs)
+			t.Fatalf("URL-only asset must not get a orchis-defense-agent job: %+v", mixedScan.Jobs)
 		}
 	}
 
-	// Urutan: Nmap dan Nuclei berjalan; Hackbot menunggu keduanya; DefenseBot menunggu Nmap.
+	// Urutan: Nmap dan Nuclei berjalan; Hackbot menunggu keduanya; orchis-defense-agent menunggu Nmap.
 	svc := server.ScanService(server.Options{DB: env.App, Guard: contract.Guard{AllowLoopback: true}})
 	if err := svc.Tick(ctx, env.TenantA); err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 		t.Fatalf("second Hackbot run must be refused: %d %s", r.Status, r.Body)
 	}
 
-	// Cancel berantai: assessment kedua hanya untuk DefenseBot yang menunggu Nmap aset sama dibatalkan
+	// Cancel berantai: assessment kedua hanya untuk orchis-defense-agent yang menunggu Nmap aset sama dibatalkan
 	// ketika Nmap dari assessment pertama dibatalkan. Gunakan aset kedua agar tidak menyentuh run hidup.
 	host2 := mkAsset(t, f.a, f.admin, map[string]any{"category": "host", "name": "cancel-box", "organization_id": org, "testing_authorized": true, "addresses": []map[string]any{{"kind": "url", "value": "http://127.0.0.3:8080/"}}})
 	var dummy int
@@ -149,7 +149,7 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 
 func TestReadinessCoversBothEngines(t *testing.T) {
 	f := newAgentFixture(t)
-	// Agent tanpa persetujuan koleksi: DefenseBot harus menjelaskan kenapa belum siap.
+	// Agent tanpa persetujuan koleksi: orchis-defense-agent harus menjelaskan kenapa belum siap.
 	secret, asset := f.authorizedAgent(t, "ready-box")
 	org := f.joinOrg(t, asset)
 	orgID := uuid.MustParse(org)
@@ -254,7 +254,7 @@ func TestFindingRetestLaunchesSameEngine(t *testing.T) {
 	}
 	r.JSON(&scan)
 	if len(scan.Jobs) != 1 || scan.Jobs[0].Tool != "defensebot" {
-		t.Fatalf("inside retest must run DefenseBot only: %+v", scan.Jobs)
+		t.Fatalf("inside retest must run orchis-defense-agent only: %+v", scan.Jobs)
 	}
 
 }

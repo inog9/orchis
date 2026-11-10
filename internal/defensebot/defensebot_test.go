@@ -516,7 +516,7 @@ func fakeNVD(t *testing.T, status int) (*NVD, *[]string, *int) {
 	var queries []string
 	slept := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		queries = append(queries, r.URL.Query().Get("cpeName")+"|key="+r.Header.Get("apiKey"))
+		queries = append(queries, r.URL.Query().Get("virtualMatchString")+"|key="+r.Header.Get("apiKey"))
 		if status != http.StatusOK {
 			http.Error(w, "no", status)
 			return
@@ -538,6 +538,12 @@ func TestCPEDictionaryIsSmallAndExact(t *testing.T) {
 		{"Cursor.app", "", "anysphere", "cursor", true},
 		{"Other.app", "com.todesktop.230313mzl4w4u92", "anysphere", "cursor", true},
 		{"code", "", "microsoft", "visual_studio_code", true},
+		{"Brave Browser.app", "", "brave", "browser", true},
+		{"Brave Browser Helper.app", "com.brave.Browser.helper", "brave", "browser", true},
+		{"Google Chrome.app", "com.google.Chrome", "google", "chrome", true},
+		{"Firefox.app", "org.mozilla.firefox", "mozilla", "firefox", true},
+		{"Telegram.app", "ru.keepcoder.Telegram", "telegram", "telegram_desktop", true},
+		{"Antigravity IDE.app", "com.google.antigravity-ide", "", "", false},
 		{"cursor-extension-pack", "", "", "", false},
 		{"unknown", "", "", "", false},
 	} {
@@ -560,7 +566,7 @@ func TestNVDQueryUsesTheExactCPEKeyAndParsesTheFix(t *testing.T) {
 	if got[0].CVE != "CVE-2025-54135" || got[0].Severity != "high" || got[0].Fixed != "1.3.9" || got[0].Score != 8.6 || !strings.HasPrefix(got[0].URL, "https://") {
 		t.Fatalf("parsed: %+v", got[0])
 	}
-	if len(*queries) != 1 || (*queries)[0] != "cpe:2.3:a:anysphere:cursor:1.3.0:*:*:*:*:*:*:*|key=k1" {
+	if len(*queries) != 1 || (*queries)[0] != "cpe:2.3:a:anysphere:cursor:*:*:*:*:*:*:*:*|key=k1" {
 		t.Fatalf("request: %v", *queries)
 	}
 	if _, err = n.Query(context.Background(), "anysphere", "cursor", "1.3.0"); err != nil || len(*queries) != 1 {
@@ -571,6 +577,10 @@ func TestNVDQueryUsesTheExactCPEKeyAndParsesTheFix(t *testing.T) {
 	}
 	if v, err := n.Query(context.Background(), "anysphere", "cursor", "not a version; rm -rf"); err != nil || v != nil || len(*queries) != 2 {
 		t.Fatal("a malformed version must never reach the API")
+	}
+	// versi >= fixed (1.3.9) tidak lagi rentan: range harus difilter, bukan semua CVE produk ikut
+	if v, err := n.Query(context.Background(), "anysphere", "cursor", "1.4.0"); err != nil || len(v) != 0 {
+		t.Fatalf("versi yang sudah diperbaiki tidak boleh match: %v %v", v, err)
 	}
 }
 
@@ -660,5 +670,102 @@ func TestOnlyApplicationsAreChecked(t *testing.T) {
 		if isApplication(name, section) {
 			t.Errorf("%s (%s) is a system building block", name, section)
 		}
+	}
+}
+
+func TestMacRunWithoutOSReleaseInfersDarwinAndSkipsLinuxPackages(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryApps: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Brave Browser.app", "bundle_identifier": "com.brave.Browser", "version": "153.1.95.102"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" && strings.Contains(note.Detail, QueryPackages) {
+			t.Fatalf("paket Linux tidak relevan di macOS dan tidak boleh jadi gap: %+v", note)
+		}
+	}
+}
+
+type fakeMapper struct {
+	m   map[string]string
+	err error
+}
+
+func (f fakeMapper) ProposeCPE(context.Context, []AppRef) (map[string]string, error) { return f.m, f.err }
+
+func TestAIMapperProposalsAreValidatedAgainstNVD(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if vms := r.URL.Query().Get("virtualMatchString"); vms != "" {
+			// CPEExists: dalam NVD fake ini hanya anysphere:cursor yang "ada".
+			total := 0
+			if strings.Contains(vms, "anysphere:cursor") {
+				total = 3
+			}
+			fmt.Fprintf(w, `{"totalResults":%d}`, total)
+			return
+		}
+		fmt.Fprint(w, `{"vulnerabilities":[]}`)
+	}))
+	t.Cleanup(srv.Close)
+	nvd := &NVD{Base: srv.URL, HTTP: srv.Client(), Sleep: func(time.Duration) {}}
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{
+			{"name": "Example Editor.app", "bundle_identifier": "com.example.editor", "version": "1.0"},
+			{"name": "Bogus.app", "bundle_identifier": "com.example.bogus", "version": "2.0"},
+		}},
+	}}
+	mapper := fakeMapper{m: map[string]string{"example editor.app": "anysphere:cursor", "bogus.app": "nope:nope"}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: nvd, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil), Mapper: mapper})
+	mapped, unmapped := false, false
+	for _, note := range out.Summary.Notes {
+		if note.Code == "apps_ai_mapped" && note.Count == 1 {
+			mapped = true
+		}
+		if note.Code == "apps_unmapped" && note.Count == 1 {
+			unmapped = true
+		}
+	}
+	if !mapped || !unmapped {
+		t.Fatalf("harus ada 1 usulan AI yang valid (NVD) dan 1 yang ditolak: %+v", out.Summary.Notes)
+	}
+	if out.Summary.SoftwareUnmapped != 1 {
+		t.Fatalf("software_unmapped harusnya 1 (Bogus.app), dapat %d", out.Summary.SoftwareUnmapped)
+	}
+}
+
+func TestMacRunWithUnmappedAppsIsComplete(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "macOS", "version": "14.5", "major": "14", "minor": "5", "platform": "darwin"}}},
+		QueryApps:      {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Some Unknown.app", "bundle_identifier": "com.example.unknown", "version": "1.0"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	if out.Summary.Disposition != "complete" {
+		t.Fatalf("apps_unmapped tidak boleh membuat hasil limited: disposition=%s notes=%+v", out.Summary.Disposition, out.Summary.Notes)
+	}
+}
+
+func TestWindowsRunMapsProgramsViaDictionary(t *testing.T) {
+	n, _, _ := fakeNVD(t, http.StatusOK)
+	at := time.Now()
+	in := Input{Datasets: map[string]DatasetInput{
+		QueryOSRelease: {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Microsoft Windows 11 Pro", "version": "10.0.26100", "major": "10", "minor": "0", "platform": "Microsoft Windows 11 Pro", "platform_like": "windows"}}},
+		QueryPrograms:  {Status: "ok", CollectedAt: &at, Rows: []map[string]string{{"name": "Brave Browser", "version": "153.1.95.102", "publisher": "Brave Software"}}},
+	}}
+	out := Run(context.Background(), in, Deps{OSV: newFakeOSV(t).client(), NVD: n, Enrich: fakeEnrich(t, []string{"CVE-2025-54135"}, nil)})
+	if out.Summary.Platform != "windows" {
+		t.Fatalf("platform harus terdeteksi windows, dapat %q", out.Summary.Platform)
+	}
+	for _, note := range out.Summary.Notes {
+		if note.Code == "dataset_missing" {
+			t.Fatalf("os_release dan programs ada, tidak boleh ada dataset_missing: %+v", note)
+		}
+	}
+	if out.Summary.SoftwareUnmapped != 0 {
+		t.Fatalf("Brave Browser harus terpetakan ke brave:brave, unmapped=%d notes=%+v", out.Summary.SoftwareUnmapped, out.Summary.Notes)
 	}
 }

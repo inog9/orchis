@@ -33,6 +33,9 @@ type Deps struct {
 	OSV    *OSV
 	NVD    *NVD
 	Enrich *Enricher
+	// Mapper is optional: when set (injector with AI configured), it proposes CPEs for apps
+	// outside the reviewed dictionary; every proposal is validated against NVD first.
+	Mapper AppMapper
 	Now    func() time.Time
 }
 
@@ -55,14 +58,15 @@ type exposure struct {
 	ports []string
 }
 
-// Run executes one DefenseBot matching run against already collected data.
+// Run executes one orchis-defense-agent matching run against already collected data.
 func Run(ctx context.Context, in Input, d Deps) Output {
 	now := time.Now
 	if d.Now != nil {
 		now = d.Now
 	}
 	started := now().UTC()
-	p := buildPlan(in)
+	aiCPE, aiNote := proposeAppCPEs(ctx, in, d)
+	p := buildPlan(in, aiCPE)
 	sum := Summary{Schema: 1, Disposition: "complete", Platform: p.Platform, OSName: p.OSName, OSVersion: p.OSVersion,
 		BySeverity: map[string]int{"critical": 0, "high": 0, "medium": 0, "low": 0, "info": 0}, Notes: []Note{}}
 	sum.Provenance = Provenance{Engine: EngineVersion, Ecosystem: p.Ecosystem, QueriedAt: started, SeverityPolicy: SeverityPolicy,
@@ -72,8 +76,18 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 	for _, n := range p.Notes {
 		addNote(n)
 	}
+	if aiNote != nil {
+		addNote(*aiNote)
+	}
+	if len(aiCPE) > 0 {
+		sum.Provenance.Sources = append(sum.Provenance.Sources, "AI CPE proposals (NVD-validated)")
+	}
 	// Collection coverage.
-	for _, group := range requiredGroups(p.Platform) {
+	platform := p.Platform
+	if platform == "macos" {
+		platform = "darwin"
+	}
+	for _, group := range requiredGroups(platform) {
 		present := false
 		for _, key := range group {
 			if _, _, ok := okRows(in, key); ok {
@@ -81,10 +95,16 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 				break
 			}
 		}
-		if !present {
-			d := in.Datasets[group[0]]
-			addNote(Note{Code: "dataset_missing", Detail: strings.Join(group, " / ") + dsReason(d), Limiting: true})
+		if present {
+			continue
 		}
+		// A required check that does not apply to this platform (deb/rpm packages on macOS)
+		// is not a coverage gap and must not mark the result incomplete.
+		if platform != "" && !groupSupportsPlatform(group, platform) {
+			continue
+		}
+		d := in.Datasets[group[0]]
+		addNote(Note{Code: "dataset_missing", Detail: strings.Join(group, " / ") + dsReason(d), Limiting: true})
 	}
 	var oldest *time.Time
 	for _, key := range Queries {
@@ -356,7 +376,7 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 	}
 	sort.SliceStable(sum.Notes, func(i, j int) bool { return sum.Notes[i].Code < sum.Notes[j].Code })
 	out.Summary = sum
-	out.Logs = append(out.Logs, fmt.Sprintf("DefenseBot checked %d software component(s), sent %d lookup(s), produced %d finding(s) (%d omitted).", sum.SoftwareChecked, sum.Provenance.OSVPairs, sum.Findings, sum.Omitted))
+	out.Logs = append(out.Logs, fmt.Sprintf("orchis-defense-agent checked %d software component(s), sent %d lookup(s), produced %d finding(s) (%d omitted).", sum.SoftwareChecked, sum.Provenance.OSVPairs, sum.Findings, sum.Omitted))
 	return out
 }
 
@@ -623,3 +643,84 @@ func collapseReboot(in []*candidate) []*candidate {
 }
 
 func sevOrderOf(s string) int { return sevRank[s] }
+
+// groupSupportsPlatform reports whether any check in the group can run on this platform.
+// The platform here is the raw os_release value (a distro name on Linux, darwin on macOS),
+// so it is normalized the same way requiredGroups treats it.
+func groupSupportsPlatform(group []string, platform string) bool {
+	norm := platform
+	switch norm {
+	case "darwin", "macos":
+		norm = "macos"
+	case "windows":
+		// tetap "windows"
+	default:
+		if norm != "" {
+			norm = "linux"
+		}
+	}
+	for _, key := range group {
+		for i := range osquery.Queries {
+			if osquery.Queries[i].Key == key && osquery.Queries[i].SupportsOS(norm) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// proposeAppCPEs asks the optional AI mapper for CPEs of apps the reviewed dictionary does
+// not know, and keeps only proposals that NVD confirms exist. Wrong guesses are dropped.
+func proposeAppCPEs(ctx context.Context, in Input, d Deps) (map[string]cpeComp, *Note) {
+	out := map[string]cpeComp{}
+	if d.Mapper == nil || d.NVD == nil {
+		return out, nil
+	}
+	var apps []AppRef
+	seen := map[string]bool{}
+	for _, key := range []string{QueryApps, QueryPrograms} {
+		rows, _, ok := okRows(in, key)
+		if !ok {
+			continue
+		}
+		for _, r := range rows {
+			name := strings.TrimSpace(r["name"])
+			if name == "" || seen[AppKey(name)] {
+				continue
+			}
+			if _, _, mapped := cpeFor(name, r["bundle_identifier"]); mapped {
+				continue // already covered by the reviewed dictionary
+			}
+			seen[AppKey(name)] = true
+			apps = append(apps, AppRef{Name: name, Bundle: r["bundle_identifier"], Version: r["version"]})
+		}
+	}
+	if len(apps) == 0 {
+		return out, nil
+	}
+	prop, err := d.Mapper.ProposeCPE(ctx, apps)
+	if err != nil {
+		return out, &Note{Code: "ai_mapper_failed", Detail: err.Error()}
+	}
+	n := 0
+	for _, a := range apps {
+		vp, ok := prop[AppKey(a.Name)]
+		if !ok {
+			continue
+		}
+		parts := strings.SplitN(vp, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		exists, e := d.NVD.CPEExists(ctx, parts[0], parts[1])
+		if e != nil || !exists {
+			continue
+		}
+		out[AppKey(a.Name)] = cpeComp{Vendor: parts[0], Product: parts[1], Name: a.Name, Version: strings.TrimSpace(a.Version)}
+		n++
+	}
+	if n > 0 {
+		return out, &Note{Code: "apps_ai_mapped", Count: n}
+	}
+	return out, nil
+}

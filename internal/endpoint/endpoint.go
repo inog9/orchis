@@ -26,7 +26,7 @@ type Service struct {
 	DB                 *db.DB
 	Exec               *execution.Service
 	CollectionInterval time.Duration
-	// AutoConsent: kebijakan pemilik produk "pasang agent = setuju koleksi DefenseBot".
+	// AutoConsent: kebijakan pemilik produk "pasang agent = setuju koleksi orchis-defense-agent".
 	// Matikan dengan ORCHIS_AUTO_CONSENT=0 bila ingin persetujuan manual murni.
 	AutoConsent bool
 }

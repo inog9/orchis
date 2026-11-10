@@ -26,12 +26,25 @@ type cpeRule struct {
 	Bundles         []string // macOS bundle identifiers
 }
 
+// cpeDictionary is the reviewed fast path: vendor:product pairs verified to exist in the
+// NVD CPE dictionary. Anything not listed here can still be mapped through the optional
+// AI AppMapper, but only after NVD confirms the proposed CPE (see CPEExists).
 var cpeDictionary = []cpeRule{
 	{Vendor: "anysphere", Product: "cursor", Names: []string{"cursor", "cursor.app"}, Bundles: []string{"com.todesktop.230313mzl4w4u92"}},
 	{Vendor: "microsoft", Product: "visual_studio_code", Names: []string{"code", "visual studio code.app"}, Bundles: []string{"com.microsoft.vscode"}},
+	{Vendor: "brave", Product: "browser", Names: []string{"brave", "brave browser", "brave browser.app"}, Bundles: []string{"com.brave.browser"}},
+	{Vendor: "google", Product: "chrome", Names: []string{"google chrome", "google chrome.app"}, Bundles: []string{"com.google.chrome"}},
+	{Vendor: "mozilla", Product: "firefox", Names: []string{"firefox", "firefox.app"}, Bundles: []string{"org.mozilla.firefox"}},
+	{Vendor: "telegram", Product: "telegram_desktop", Names: []string{"telegram", "telegram.app"}, Bundles: []string{"ru.keepcoder.telegram"}},
+	{Vendor: "docker", Product: "docker", Names: []string{"docker", "docker.app", "docker desktop", "docker desktop.app"}, Bundles: []string{"com.docker.docker"}},
+	{Vendor: "zoom", Product: "zoom", Names: []string{"zoom", "zoom.us.app"}, Bundles: []string{"us.zoom.xos"}},
+	{Vendor: "discord", Product: "discord", Names: []string{"discord", "discord.app"}, Bundles: []string{"com.hnc.discord"}},
+	{Vendor: "spotify", Product: "spotify", Names: []string{"spotify", "spotify.app"}, Bundles: []string{"com.spotify.client"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
+
+var cpeNamePartRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,63}$`)
 
 // cpeFor maps an installed item to a CPE vendor and product, or reports that there is no reviewed mapping.
 func cpeFor(name, bundle string) (vendor, product string, ok bool) {
@@ -43,7 +56,8 @@ func cpeFor(name, bundle string) (vendor, product string, ok bool) {
 			}
 		}
 		for _, x := range r.Bundles {
-			if b != "" && b == x {
+			// Helper processes share the main bundle id as a prefix (com.brave.Browser.helper).
+			if b != "" && (b == x || strings.HasPrefix(b, x+".")) {
 				return r.Vendor, r.Product, true
 			}
 		}
@@ -84,6 +98,7 @@ type NVD struct {
 	mu       sync.Mutex
 	last     time.Time
 	cache    map[string][]NVDVuln
+	cpeOK    map[string]bool
 	failures int
 }
 
@@ -146,11 +161,7 @@ type nvdResponse struct {
 			} `json:"references"`
 			Configurations []struct {
 				Nodes []struct {
-					CPEMatch []struct {
-						Vulnerable bool   `json:"vulnerable"`
-						Criteria   string `json:"criteria"`
-						EndExcl    string `json:"versionEndExcluding"`
-					} `json:"cpeMatch"`
+					CPEMatch []cpeMatch `json:"cpeMatch"`
 				} `json:"nodes"`
 			} `json:"configurations"`
 		} `json:"cve"`
@@ -179,7 +190,10 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 			return nil, err
 		}
 		n.wait()
-		q := url.Values{"cpeName": {cpe}, "isVulnerable": {""}, "resultsPerPage": {"500"}}
+		// NVD menyimpan konfigurasi CVE sebagai RANGE versi; cpeName dengan versi eksak
+		// selalu 0 hasil. Query per produk (tanpa versi), lalu filter range di parseNVD.
+		match := fmt.Sprintf("cpe:2.3:a:%s:%s:*:*:*:*:*:*:*:*", vendor, product)
+		q := url.Values{"virtualMatchString": {match}, "isVulnerable": {""}, "resultsPerPage": {"500"}}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, n.base()+"/rest/json/cves/2.0?"+q.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -207,6 +221,10 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 			last = fmt.Errorf("nvd http %d", resp.StatusCode)
 			continue
 		}
+		if resp.StatusCode == http.StatusNotFound {
+			// virtualMatchString tanpa hasil mengembalikan 404: bukan error, hanya tidak ada CVE.
+			return nil, nil
+		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("nvd http %d", resp.StatusCode)
 		}
@@ -214,7 +232,7 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		if err = json.Unmarshal(body, &doc); err != nil {
 			return nil, fmt.Errorf("unreadable NVD response: %w", err)
 		}
-		out := parseNVD(doc, vendor, product)
+		out := parseNVD(doc, vendor, product, version)
 		n.mu.Lock()
 		if n.cache == nil {
 			n.cache = map[string][]NVDVuln{}
@@ -233,7 +251,37 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 	return nil, fmt.Errorf("%w: %v", ErrSourceDown, last)
 }
 
-func parseNVD(doc nvdResponse, vendor, product string) []NVDVuln {
+// cpeMatchInRange mengevaluasi apakah versi terpasang masuk dalam range satu cpeMatch
+// (versionStart/End Including/Excluding). cpeMatch tanpa batas versi berlaku untuk semua.
+type cpeMatch struct {
+	Vulnerable bool   `json:"vulnerable"`
+	Criteria   string `json:"criteria"`
+	StartIncl  string `json:"versionStartIncluding"`
+	StartExcl  string `json:"versionStartExcluding"`
+	EndIncl    string `json:"versionEndIncluding"`
+	EndExcl    string `json:"versionEndExcluding"`
+}
+
+func cpeMatchInRange(version string, m cpeMatch) bool {
+	if !m.Vulnerable {
+		return false
+	}
+	if m.StartIncl != "" && CompareVersions("npm", version, m.StartIncl) < 0 {
+		return false
+	}
+	if m.StartExcl != "" && CompareVersions("npm", version, m.StartExcl) <= 0 {
+		return false
+	}
+	if m.EndIncl != "" && CompareVersions("npm", version, m.EndIncl) > 0 {
+		return false
+	}
+	if m.EndExcl != "" && CompareVersions("npm", version, m.EndExcl) >= 0 {
+		return false
+	}
+	return true
+}
+
+func parseNVD(doc nvdResponse, vendor, product, version string) []NVDVuln {
 	var out []NVDVuln
 	prefix := strings.ToLower(fmt.Sprintf("cpe:2.3:a:%s:%s:", vendor, product))
 	for _, v := range doc.Vulnerabilities {
@@ -262,20 +310,93 @@ func parseNVD(doc nvdResponse, vendor, product string) []NVDVuln {
 				break
 			}
 		}
+		matched := false
 		for _, cfg := range c.Configurations {
 			for _, node := range cfg.Nodes {
 				for _, m := range node.CPEMatch {
-					if m.Vulnerable && m.EndExcl != "" && strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
-						if item.Fixed == "" || CompareVersions("npm", m.EndExcl, item.Fixed) < 0 {
-							item.Fixed = m.EndExcl
-						}
+					if !strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
+						continue
+					}
+					if !cpeMatchInRange(version, m) {
+						continue
+					}
+					matched = true
+					end := m.EndExcl
+					if end == "" {
+						end = m.EndIncl
+					}
+					if end != "" && (item.Fixed == "" || CompareVersions("npm", end, item.Fixed) < 0) {
+						item.Fixed = end
 					}
 				}
 			}
 		}
-		if item.CVE != "" {
+		if item.CVE != "" && matched {
 			out = append(out, item)
 		}
 	}
 	return out
+}
+
+// CPEExists reports whether NVD lists any CVE for this vendor:product at all. It is the
+// validation gate for AI-proposed mappings: a product NVD does not know can never match,
+// so a hallucinated CPE is dropped instead of producing a finding.
+func (n *NVD) CPEExists(ctx context.Context, vendor, product string) (bool, error) {
+	vendor, product = strings.ToLower(strings.TrimSpace(vendor)), strings.ToLower(strings.TrimSpace(product))
+	if !cpeNamePartRe.MatchString(vendor) || !cpeNamePartRe.MatchString(product) {
+		return false, nil
+	}
+	cpe := fmt.Sprintf("cpe:2.3:a:%s:%s:*:*:*:*:*:*:*:*", vendor, product)
+	n.mu.Lock()
+	if v, ok := n.cpeOK[cpe]; ok {
+		n.mu.Unlock()
+		return v, nil
+	}
+	if n.failures >= breakerFailures {
+		n.mu.Unlock()
+		return false, ErrSourceDown
+	}
+	n.mu.Unlock()
+	n.wait()
+	q := url.Values{"virtualMatchString": {cpe}, "resultsPerPage": {"1"}}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, n.base()+"/rest/json/cves/2.0?"+q.Encode(), nil)
+	if err != nil {
+		return false, err
+	}
+	req.Header.Set("User-Agent", "orchis-defensebot/1")
+	if n.APIKey != "" {
+		req.Header.Set("apiKey", n.APIKey)
+	}
+	hc := n.HTTP
+	if hc == nil {
+		hc = http.DefaultClient
+	}
+	resp, err := hc.Do(req)
+	if err != nil {
+		n.mu.Lock()
+		n.failures++
+		n.mu.Unlock()
+		return false, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		n.mu.Lock()
+		n.failures++
+		n.mu.Unlock()
+		return false, fmt.Errorf("nvd cpe check: %s", resp.Status)
+	}
+	var out struct {
+		TotalResults int `json:"totalResults"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
+		return false, err
+	}
+	ok := out.TotalResults > 0
+	n.mu.Lock()
+	if n.cpeOK == nil {
+		n.cpeOK = map[string]bool{}
+	}
+	n.cpeOK[cpe] = ok
+	n.mu.Unlock()
+	return ok, nil
 }

@@ -36,6 +36,7 @@ type Policy struct {
 	Enabled          bool   `json:"enabled"`
 	Planning         bool   `json:"planning"`
 	Remediation      bool   `json:"remediation"`
+	AutoApprove      bool   `json:"auto_approve"`
 	PlanningModel    string `json:"planning_model"`
 	RemediationModel string `json:"remediation_model"`
 	MaxInputBytes    int    `json:"max_input_bytes"`
@@ -63,7 +64,7 @@ func defaults() Policy {
 	return Policy{MaxInputBytes: 32000, MaxOutputTokens: 2000, DailyTokens: 20000, DailyCalls: 10}
 }
 
-const policyCols = `is_demo,version,enabled,planning,remediation,planning_model,remediation_model,max_input_bytes,max_output_tokens,daily_tokens,daily_calls,daily_cost_micros,input_rate_micros,output_rate_micros,secrets_enc IS NOT NULL`
+const policyCols = `is_demo,version,enabled,planning,remediation,planning_model,remediation_model,max_input_bytes,max_output_tokens,daily_tokens,daily_calls,daily_cost_micros,input_rate_micros,output_rate_micros,secrets_enc IS NOT NULL,auto_approve`
 
 func readPolicy(ctx context.Context, tx pgx.Tx, tenant, org uuid.UUID, lock bool) (Policy, error) {
 	p := defaults()
@@ -71,7 +72,7 @@ func readPolicy(ctx context.Context, tx pgx.Tx, tenant, org uuid.UUID, lock bool
 	if lock {
 		sql += ` FOR UPDATE`
 	}
-	e := tx.QueryRow(ctx, sql, tenant, org).Scan(&p.IsDemo, &p.Version, &p.Enabled, &p.Planning, &p.Remediation, &p.PlanningModel, &p.RemediationModel, &p.MaxInputBytes, &p.MaxOutputTokens, &p.DailyTokens, &p.DailyCalls, &p.DailyCostMicros, &p.InputRateMicros, &p.OutputRateMicros, &p.HasKeys)
+	e := tx.QueryRow(ctx, sql, tenant, org).Scan(&p.IsDemo, &p.Version, &p.Enabled, &p.Planning, &p.Remediation, &p.PlanningModel, &p.RemediationModel, &p.MaxInputBytes, &p.MaxOutputTokens, &p.DailyTokens, &p.DailyCalls, &p.DailyCostMicros, &p.InputRateMicros, &p.OutputRateMicros, &p.HasKeys, &p.AutoApprove)
 	if errors.Is(e, pgx.ErrNoRows) {
 		return defaults(), nil
 	}
@@ -185,7 +186,7 @@ func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UU
 				return e
 			}
 		}
-		_, e = tx.Exec(ctx, `UPDATE ai_policies SET version=version+1,enabled=$3,planning=$4,remediation=$5,planning_model=$6,remediation_model=$7,max_input_bytes=$8,max_output_tokens=$9,daily_tokens=$10,daily_calls=$11,daily_cost_micros=$12,input_rate_micros=$13,output_rate_micros=$14,secrets_enc=$15,consent_by=$16,consent_at=CASE WHEN $3 THEN now() ELSE NULL END,updated_at=now() WHERE tenant_id=$1 AND organization_id=$2`, p.TenantID, org, in.Enabled, in.Planning, in.Remediation, in.PlanningModel, in.RemediationModel, in.MaxInputBytes, in.MaxOutputTokens, in.DailyTokens, in.DailyCalls, in.DailyCostMicros, in.InputRateMicros, in.OutputRateMicros, enc, p.UserID)
+		_, e = tx.Exec(ctx, `UPDATE ai_policies SET version=version+1,enabled=$3,planning=$4,remediation=$5,planning_model=$6,remediation_model=$7,max_input_bytes=$8,max_output_tokens=$9,daily_tokens=$10,daily_calls=$11,daily_cost_micros=$12,input_rate_micros=$13,output_rate_micros=$14,secrets_enc=$15,consent_by=$16,auto_approve=$17,consent_at=CASE WHEN $3 THEN now() ELSE NULL END,updated_at=now() WHERE tenant_id=$1 AND organization_id=$2`, p.TenantID, org, in.Enabled, in.Planning, in.Remediation, in.PlanningModel, in.RemediationModel, in.MaxInputBytes, in.MaxOutputTokens, in.DailyTokens, in.DailyCalls, in.DailyCostMicros, in.InputRateMicros, in.OutputRateMicros, enc, p.UserID, in.AutoApprove)
 		if e != nil {
 			return e
 		}
@@ -193,7 +194,7 @@ func (s *Service) SavePolicy(ctx context.Context, p *auth.Principal, org uuid.UU
 		if _, e = tx.Exec(ctx, `UPDATE ai_jobs SET status='canceled',claim_hash=NULL,version=version+1,error='Organisation AI policy changed.',updated_at=now() WHERE tenant_id=$1 AND organization_id=$2 AND status IN('queued','running','review')`, p.TenantID, org); e != nil {
 			return e
 		}
-		return note(ctx, tx, p, org, org, "ai.policy", map[string]any{"enabled": in.Enabled, "planning": in.Planning, "remediation": in.Remediation, "version": in.Version + 1})
+		return note(ctx, tx, p, org, org, "ai.policy", map[string]any{"enabled": in.Enabled, "planning": in.Planning, "remediation": in.Remediation, "version": in.Version + 1, "auto_approve": in.AutoApprove})
 	})
 	if e != nil {
 		return Policy{}, e
@@ -465,9 +466,21 @@ func (s *Service) Approve(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 		if e != nil {
 			return httpx.Conflict("Stored plan no longer validates.")
 		}
+		return s.approveLocked(ctx, tx, p, j, out, "ai.approve")
+	})
+	if e != nil {
+		return j, e
+	}
+	return s.Get(ctx, p, id)
+}
+
+// approveLocked menjalankan logika persetujuan + dispatch aksi yang sama untuk approve
+// manual maupun auto-approve; dipanggil dengan baris ai_jobs sudah terkunci.
+func (s *Service) approveLocked(ctx context.Context, tx pgx.Tx, p *auth.Principal, j Job, out Output, noteAction string) error {
+		var e error
 		var refs []byte
 		var m Mapping
-		if e = tx.QueryRow(ctx, `SELECT mapping FROM ai_jobs WHERE tenant_id=$1 AND id=$2`, p.TenantID, id).Scan(&refs); e != nil {
+		if e = tx.QueryRow(ctx, `SELECT mapping FROM ai_jobs WHERE tenant_id=$1 AND id=$2`, p.TenantID, j.ID).Scan(&refs); e != nil {
 			return e
 		}
 		if e = json.Unmarshal(refs, &m); e != nil {
@@ -486,24 +499,19 @@ func (s *Service) Approve(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 				return httpx.Conflict("A proposed asset moved or was deleted; no actions were queued.")
 			}
 			testID, execID := ids.New(), ids.New()
-			_, e = tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,params,target_asset_id,created_by) VALUES($1,$2,$3,(SELECT id FROM contracts WHERE tenant_id=$2 AND key=$4 AND version=$5),$5,$6,$7,$8)`, testID, p.TenantID, fmt.Sprintf("AI reviewed %s action %d", id.String()[:8], i+1), a.ContractKey, a.Version, a.Params, asset, p.UserID)
+			_, e = tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,params,target_asset_id,created_by) VALUES($1,$2,$3,(SELECT id FROM contracts WHERE tenant_id=$2 AND key=$4 AND version=$5),$5,$6,$7,$8)`, testID, p.TenantID, fmt.Sprintf("AI reviewed %s action %d", j.ID.String()[:8], i+1), a.ContractKey, a.Version, a.Params, asset, p.UserID)
 			if e != nil {
 				return e
 			}
 			if e = (&execution.Service{DB: s.DB, Guard: s.Guard, Now: s.Now}).QueueTest(ctx, tx, p, testID, execID, "", ""); e != nil {
 				return e
 			}
-			if _, e = tx.Exec(ctx, `INSERT INTO ai_job_actions(tenant_id,job_id,ordinal,asset_id,atomic_test_id,execution_id) VALUES($1,$2,$3,$4,$5,$6)`, p.TenantID, id, i, asset, testID, execID); e != nil {
+			if _, e = tx.Exec(ctx, `INSERT INTO ai_job_actions(tenant_id,job_id,ordinal,asset_id,atomic_test_id,execution_id) VALUES($1,$2,$3,$4,$5,$6)`, p.TenantID, j.ID, i, asset, testID, execID); e != nil {
 				return e
 			}
 		}
-		if _, e = tx.Exec(ctx, `UPDATE ai_jobs SET status='approved',approved_by=$3,approved_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2`, p.TenantID, id, p.UserID); e != nil {
+		if _, e = tx.Exec(ctx, `UPDATE ai_jobs SET status='approved',approved_by=$3,approved_at=now(),version=version+1,updated_at=now() WHERE tenant_id=$1 AND id=$2`, p.TenantID, j.ID, p.UserID); e != nil {
 			return e
 		}
-		return note(ctx, tx, p, j.OrganizationID, id, "ai.approve", map[string]any{"actions": len(out.Actions)})
-	})
-	if e != nil {
-		return j, e
-	}
-	return s.Get(ctx, p, id)
+		return note(ctx, tx, p, j.OrganizationID, j.ID, noteAction, map[string]any{"actions": len(out.Actions)})
 }
