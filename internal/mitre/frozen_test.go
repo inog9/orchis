@@ -239,7 +239,7 @@ func TestDefaultLinksAreValidReasonedAndConservative(t *testing.T) {
 			t.Errorf("%s dipetakan ke T1190: deteksi kerentanan bukan eksploitasi (cakupan berlebihan)", l.Contract)
 		}
 	}
-	want := 4
+	want := 6
 	for _, q := range osquery.Queries {
 		want += len(q.Mitre)
 	}

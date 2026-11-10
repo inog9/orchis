@@ -52,6 +52,8 @@ var DefaultLinks = []Link{
 	{"nuclei.scan", "T1595.002", "direct", "Nuclei sends template-based probes to a target to find known vulnerabilities, which is Active Scanning: Vulnerability Scanning."},
 	{"agent.system_info", "T1082", "direct", "The agent reads hostname, OS, architecture, kernel and memory from the endpoint, which is System Information Discovery."},
 	{"agent.listening_ports", "T1049", "direct", "The agent lists listening sockets from /proc/net/tcp*, which is System Network Connections Discovery."},
+	{"defensebot.match", "T1518", "direct", "orchis-defense-agent reads the installed software on the endpoint and maps it to known vulnerabilities, which is Software Discovery."},
+	{"hackbot.pentest", "T1595.002", "direct", "Hackbot runs template-based and evidence-validated web probes against reachable targets, which is Active Scanning: Vulnerability Scanning."},
 }
 
 func init() {
