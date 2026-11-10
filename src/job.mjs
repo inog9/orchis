@@ -35,6 +35,8 @@ try {
   }
   const init = spawnSync('pentest-harnes', ['init', '--dir', root, '--agent', 'agent'], {stdio: 'ignore'});
   if (init.status !== 0) throw Error('skill installation failed');
+  const git = spawnSync('git', ['init', '-q', root], {stdio:'ignore'});
+  if (git.status !== 0) throw Error('cannot establish OpenCode workspace');
   // The harness's Pi-specific agent instructions are not part of the OpenCode prompt.
   fs.rmSync(path.join(root, 'AGENTS.md'), {force:true});
   fs.copyFileSync('/opt/orchis-opencode/skills/pentest-report/SKILL.md', path.join(root, '.agent/skills/pentest-report/SKILL.md'));
@@ -70,7 +72,7 @@ try {
   await new Promise(resolve => probe.close(resolve));
   const address = `http://127.0.0.1:${port}`;
   const password = randomBytes(24).toString('hex');
-  const env = {...process.env,OPENCODE_API_KEY:key,OPENCODE_SERVER_PASSWORD:password,INTERCEPTOR_TEMP:path.join(stackDir,'interceptor'),GORI_HOME:path.join(stackDir,'gori')};
+  const env = {...process.env,PWD:root,OPENCODE_API_KEY:key,OPENCODE_SERVER_PASSWORD:password,INTERCEPTOR_TEMP:path.join(stackDir,'interceptor'),GORI_HOME:path.join(stackDir,'gori')};
   server = spawn('opencode',['serve','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore',log,log]});
   let skillsReady = false;
   for (let i=0; i<120 && !interrupted && server.exitCode === null; i++) {
