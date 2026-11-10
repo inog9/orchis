@@ -270,6 +270,7 @@ export function OrganizationDetailPage() {
       </div>
       <div className="orgd__actions">
         {formatUI(can(me, 'report.read') && <Link className="btn btn--secondary btn--auto" to={`/reports?organization_id=${id}`}>{textUI("pen_orgd_action_reports")}</Link>)}
+        {can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--secondary btn--auto" to={`/simulations/schedules?org=${id}&new=1`}>{textUI("sched_create")}</Link>}
         {formatUI(can(me, 'assessment.run') && can(me, 'simulation.run') && <Link className="btn btn--primary btn--auto" to={`/simulations/new?org=${id}`}>{textUI("pen_orgd_action_scan")}</Link>)}
         {formatUI(can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setEdit(true)}>{textUI("m_e735f16f97b6")}</button>)}
         {formatUI(can(me, 'agent.manage') && can(me, 'organization.write') && <button className="btn btn--secondary btn--auto" onClick={() => setInstall(true)}>{textUI("m_2816f2ffe728")}</button>)}

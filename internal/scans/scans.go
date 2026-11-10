@@ -31,14 +31,15 @@ import (
 )
 
 type Service struct {
-	Now         func() time.Time
-	DB          *db.DB
-	Guard       contract.Guard
-	Engine      *simulation.Engine
-	Reports     *reporting.Service
-	MaxHosts    int
-	Concurrency int
-	Collector   DefenseCollector
+	BeforeLaunch func(context.Context, pgx.Tx, *auth.Principal, Input, string) error
+	Now          func() time.Time
+	DB           *db.DB
+	Guard        contract.Guard
+	Engine       *simulation.Engine
+	Reports      *reporting.Service
+	MaxHosts     int
+	Concurrency  int
+	Collector    DefenseCollector
 }
 
 func (s *Service) hostLimit() int {
@@ -195,6 +196,14 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			return nil
 		}
 		if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		if s.BeforeLaunch != nil {
+			if err := s.BeforeLaunch(ctx, tx, p, in, key); err != nil {
+				return err
+			}
+		}
+		if err := preventOverlap(ctx, tx, p.TenantID, in.AssetIDs); err != nil {
 			return err
 		}
 		if err := scancontrol.Check(ctx, tx, p.TenantID, &in.OrganizationID, scancontrol.Now(s.Now)); err != nil {
@@ -652,4 +661,16 @@ func webDiscovery(target string) (string, json.RawMessage, error) {
 	}
 	normalized, err := contract.NormalizeVersion(contract.KeyNmapTCP, 1, raw)
 	return u.Hostname(), normalized, err
+}
+
+// Called after idempotency recovery while holding the tenant scan-control lock.
+func preventOverlap(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, assets []uuid.UUID) error {
+	var busy bool
+	if e := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM scan_jobs j JOIN assessments a ON a.tenant_id=j.tenant_id AND a.id=j.assessment_id WHERE j.tenant_id=$1 AND j.asset_id=ANY($2::uuid[]) AND a.status='running' AND j.status IN ('waiting','running'))`, tenant, assets).Scan(&busy); e != nil {
+		return e
+	}
+	if busy {
+		return httpx.Conflict("An audit is already testing a selected asset. Wait for it to finish before starting another.")
+	}
+	return nil
 }

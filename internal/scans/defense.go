@@ -83,6 +83,14 @@ func (s *Service) launchDefense(ctx context.Context, p *auth.Principal, in Input
 		if !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
+		if s.BeforeLaunch != nil {
+			if err := s.BeforeLaunch(ctx, tx, p, in, key); err != nil {
+				return err
+			}
+		}
+		if err := preventOverlap(ctx, tx, p.TenantID, in.AssetIDs); err != nil {
+			return err
+		}
 		if err := scancontrol.Check(ctx, tx, p.TenantID, &in.OrganizationID, scancontrol.Now(s.Now)); err != nil {
 			return err
 		}
