@@ -1,7 +1,7 @@
 import { t as textUI } from "../i18n/runtime";
-import { Building2, FileText, Flag, LayoutDashboard, Server, Settings, ShieldAlert } from 'lucide-react';
+import { CalendarClock, Building2, FileText, Flag, LayoutDashboard, Server, Settings, ShieldAlert } from 'lucide-react';
 import { can, type User } from '../api/types';
-// Menu utama tetap enam area; fitur lanjutan hanya tersedia melalui palet saat diaktifkan server.
+// Workspace navigation; advanced features remain available through the palette.
 export const navigation = [
     { id: 'overview', get label() {
             return textUI("pen_overview_nav");
@@ -31,6 +31,7 @@ export const navigation = [
         }, to: '/simulations', get group() {
             return textUI("m_87bb59ba2f92");
         }, icon: Flag, keys: 'm', perm: 'simulation.read' },
+    { id: 'schedules', get label(){return textUI('sched_title');}, get hint(){return textUI('sched_subtitle');}, to:'/simulations/schedules', get group(){return textUI("m_87bb59ba2f92");}, icon:CalendarClock, perm:'assessment.read' },
     { id: 'findings', get label() {
             return textUI("m_e171c2ff25b5");
         }, get hint() {
@@ -54,4 +55,4 @@ export const navigation = [
         }, icon: Settings, perm: 'settings.manage' },
 ];
 export function advancedEnabled(me: User | null | undefined) { return me?.features?.advanced === true; }
-export function navigationFor(me: User | null | undefined) { return navigation.filter(n => !n.perm || can(me, n.perm)); }
+export function navigationFor(me: User | null | undefined) { return navigation.filter(n => (!n.perm || can(me, n.perm)) && (n.id !== 'schedules' || ['organization.read','asset.read','simulation.read','finding.read','report.read'].every(p=>can(me,p)))); }

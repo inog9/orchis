@@ -1,0 +1,9 @@
+**
+!web/
+!web/dist/
+!web/dist/**
+!build/
+!build/server
+!deploy/
+!deploy/server/
+!deploy/server/Dockerfile.audit-scheduler

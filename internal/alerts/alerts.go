@@ -48,6 +48,7 @@ func Raise(ctx context.Context, tx pgx.Tx, tenant uuid.UUID, a New) error {
 	var org *uuid.UUID
 	if a.ResourceID != nil {
 		if err := tx.QueryRow(ctx, `SELECT CASE $2
+ WHEN 'audit_schedule' THEN (SELECT organization_id FROM audit_schedules WHERE tenant_id=$1 AND id=$3)
  WHEN 'organization' THEN (SELECT id FROM organizations WHERE tenant_id=$1 AND id=$3)
  WHEN 'agent' THEN (SELECT organization_id FROM agents WHERE tenant_id=$1 AND id=$3)
  WHEN 'asset' THEN (SELECT organization_id FROM assets WHERE tenant_id=$1 AND id=$3 AND deleted_at IS NULL)
@@ -97,6 +98,7 @@ type Service struct{ DB *db.DB }
 const objectVisible = `a.tenant_id=$1 AND a.audience_permission = ANY($2) AND
  (a.organization_id IS NULL OR EXISTS(SELECT 1 FROM organizations o WHERE o.tenant_id=a.tenant_id AND o.id=a.organization_id)) AND
  CASE a.resource_type
+ WHEN 'audit_schedule' THEN 'assessment.read'=ANY($2) AND 'simulation.read'=ANY($2) AND 'organization.read'=ANY($2) AND 'asset.read'=ANY($2) AND 'finding.read'=ANY($2) AND 'report.read'=ANY($2) AND EXISTS(SELECT 1 FROM audit_schedules x WHERE x.tenant_id=a.tenant_id AND x.id=a.resource_id AND x.deleted_at IS NULL AND x.organization_id=a.organization_id)
  WHEN 'report' THEN 'report.read'=ANY($2) AND 'finding.read'=ANY($2) AND EXISTS(SELECT 1 FROM reports r WHERE r.tenant_id=a.tenant_id AND r.id=a.resource_id AND r.organization_id IS NOT DISTINCT FROM a.organization_id)
  WHEN 'scan' THEN 'assessment.read'=ANY($2) AND 'organization.read'=ANY($2) AND 'asset.read'=ANY($2) AND EXISTS(SELECT 1 FROM assessments x WHERE x.tenant_id=a.tenant_id AND x.id=a.resource_id AND x.is_scan AND x.organization_id IS NOT DISTINCT FROM a.organization_id)
  WHEN 'agent' THEN 'agent.read'=ANY($2) AND 'asset.read'=ANY($2) AND (a.organization_id IS NULL OR 'organization.read'=ANY($2)) AND EXISTS(SELECT 1 FROM agents g JOIN assets x ON x.tenant_id=g.tenant_id AND x.id=g.asset_id AND x.deleted_at IS NULL AND x.organization_id IS NOT DISTINCT FROM g.organization_id WHERE g.tenant_id=a.tenant_id AND g.id=a.resource_id AND g.organization_id IS NOT DISTINCT FROM a.organization_id)
@@ -110,6 +112,7 @@ const objectVisible = `a.tenant_id=$1 AND a.audience_permission = ANY($2) AND
 
 // Presentation labels are selected from the same authorized object, never from a supplied URL.
 const resourceLabel = `left(CASE a.resource_type
+ WHEN 'audit_schedule' THEN (SELECT x.name FROM audit_schedules x WHERE x.tenant_id=a.tenant_id AND x.id=a.resource_id AND x.deleted_at IS NULL)
  WHEN 'report' THEN (SELECT r.snapshot->>'organization' FROM reports r WHERE r.tenant_id=a.tenant_id AND r.id=a.resource_id)
  WHEN 'scan' THEN (SELECT x.name FROM assessments x WHERE x.tenant_id=a.tenant_id AND x.id=a.resource_id)
  WHEN 'agent' THEN (SELECT COALESCE(NULLIF(g.instance_name,''),g.hostname) FROM agents g WHERE g.tenant_id=a.tenant_id AND g.id=a.resource_id)

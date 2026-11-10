@@ -38,7 +38,7 @@ export function NavDock({ collapsed = false, onToggle, open = false, onClose }: 
     const { pathname } = useLocation();
     const home = useHome(can(me, 'organization.read'));
     const { n: running } = useLiveRuns();
-    const active = (n: typeof items[number]) => n.to === '/' ? pathname === '/' : pathname === n.to || pathname.startsWith(n.to + '/') || (n.id === 'organizations' && pathname.startsWith('/ai/jobs/'));
+    const active = (n: typeof items[number]) => n.id === 'simulations' && pathname.startsWith('/simulations/schedules') ? false : n.to === '/' ? pathname === '/' : pathname === n.to || pathname.startsWith(n.to + '/') || (n.id === 'organizations' && pathname.startsWith('/ai/jobs/'));
     const navRef = useRef<HTMLElement>(null);
     const links = useRef<Record<string, HTMLAnchorElement | null>>({});
     const [bar, setBar] = useState<{ y: number; h: number } | null>(null);

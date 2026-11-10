@@ -9,6 +9,8 @@ import { useMe } from './api/hooks';
 import { can } from './api/types';
 import { describeError } from './components/ErrorNote';
 import { Shell } from './components/Shell';
+const SchedulesPage = lazy(() => import('./pages/SchedulesPage').then(m => ({default:m.SchedulesPage})));
+const ScheduleDetailPage = lazy(() => import('./pages/SchedulesPage').then(m => ({default:m.ScheduleDetailPage})));
 const NewScanPage = lazy(() => import('./pages/ScansPage').then(m => ({ default: m.NewScanPage })));
 const ScanDetailPage = lazy(() => import('./pages/ScansPage').then(m => ({ default: m.ScanDetailPage })));
 const AuditPanel = lazy(() => import('./pages/AuditPanel').then(module => ({ default: module.AuditPanel })));
@@ -109,6 +111,8 @@ export function App() {
         <Route path="chains/:id" element={<Advanced><ChainWorkspacePage /></Advanced>}/>
         <Route path="chains/:id/setup" element={<Advanced><ScenarioDetailPage /></Advanced>}/>
         <Route path="simulations" element={<SimulationsPage />}/>
+        <Route path="simulations/schedules" element={<SchedulesPage />}/>
+        <Route path="simulations/schedules/:id" element={<ScheduleDetailPage />}/>
         <Route path="simulations/new" element={<NewScanPage />}/>
         <Route path="simulations/:id" element={<ScanDetailPage />}/>
         <Route path="simulations/legacy/:id" element={<SimulationDetailPage />}/>

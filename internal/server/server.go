@@ -36,6 +36,7 @@ import (
 	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scans"
 	"orchis-go/internal/scenario"
+	"orchis-go/internal/schedules"
 	"orchis-go/internal/settings"
 	"orchis-go/internal/simulation"
 	"orchis-go/internal/tags"
@@ -86,6 +87,7 @@ func New(o Options) http.Handler {
 	})
 	ah.Register(mux)
 	(&scans.Handlers{Svc: ScanService(o)}).Register(mux)
+	(&schedules.Handlers{Svc: ScheduleService(o)}).Register(mux)
 	(&scancontrol.Handlers{Svc: ScanControlService(o)}).Register(mux)
 	(&retention.Handlers{Svc: RetentionService(o)}).Register(mux)
 	(&auditview.Handler{DB: o.DB}).Register(mux)
@@ -251,5 +253,11 @@ func RetentionService(o Options) *retention.Service {
 	if es, ok := o.Search.(retention.SearchCleaner); ok {
 		s.Search = es
 	}
+	return s
+}
+
+func ScheduleService(o Options) *schedules.Service {
+	s := &schedules.Service{DB: o.DB, Scans: ScanService(o), Now: o.Now}
+	s.Scans.BeforeLaunch = s.CheckLaunch
 	return s
 }

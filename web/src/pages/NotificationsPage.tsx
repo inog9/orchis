@@ -14,6 +14,7 @@ export function alertTarget(a: AlertRow): string | null {
     if (!a.resource_id)
         return null;
     switch (a.resource_type) {
+        case 'audit_schedule': return `/simulations/schedules/${a.resource_id}`;
         case 'scan': return `/simulations/${a.resource_id}`;
         case 'report': return `/reports/${a.resource_id}`;
         case 'agent': return `/assets/agents?agent=${a.resource_id}`;
