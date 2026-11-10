@@ -268,6 +268,14 @@ func (s *Service) gap(ctx context.Context, tx pgx.Tx, tenant, org, schedule, run
 	return alerts.Raise(ctx, tx, tenant, alerts.New{Kind: "scheduled_audit_gap", Severity: "warning", Title: "Scheduled audit needs attention", Body: reporting.Redact(name+": "+displayReason(reason), 700), ResourceType: "audit_schedule", ResourceID: &schedule, Audience: authz.AssessmentRead, DedupeKey: "schedule-gap:" + schedule.String()})
 }
 func (s *Service) reconcile(ctx context.Context, tenant uuid.UUID) error {
+	// Retention may remove a terminal scan before the scheduler links its result.
+	// A detached run is a visible coverage failure, never a reason to stall all runs.
+	if e := s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
+		_, e := tx.Exec(ctx, `UPDATE audit_schedule_runs SET status='failed',reason='The scan record was removed before its result could be summarised.',ended_at=$2 WHERE tenant_id=$1 AND status='running' AND scan_id IS NULL`, tenant, s.now())
+		return e
+	}); e != nil {
+		return e
+	}
 	type active struct {
 		id, scan, schedule, actor uuid.UUID
 		started                   time.Time
@@ -316,17 +324,27 @@ func (s *Service) reconcile(ctx context.Context, tenant uuid.UUID) error {
 		e = s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
 			var snap reporting.Snapshot
 			e := tx.QueryRow(ctx, `SELECT snapshot FROM reports WHERE tenant_id=$1 AND assessment_id=$2`, tenant, v.scan).Scan(&snap)
+			expired := false
 			if errors.Is(e, pgx.ErrNoRows) {
-				return nil
-			}
-			if e != nil {
+				if e = tx.QueryRow(ctx, `SELECT results_expired_at IS NOT NULL OR report_expired_at IS NOT NULL FROM assessments WHERE tenant_id=$1 AND id=$2`, tenant, v.scan).Scan(&expired); e != nil {
+					return e
+				}
+				if !expired {
+					return nil
+				}
+			} else if e != nil {
 				return e
-			} // wait for frozen comparison
+			} // wait for a frozen comparison unless retention expired it
+
 			summary := summarize(snap)
 			if e = markReappeared(ctx, tx, tenant, &snap, &summary); e != nil {
 				return e
 			}
 			reason := ""
+			if expired {
+				status = "incomplete"
+				reason = "Results expired under the retention policy before a comparison was available."
+			}
 			if timedOut {
 				reason = "The audit reached its configured runtime limit and was stopped."
 			}

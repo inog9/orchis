@@ -24,7 +24,7 @@ All tables enforce tenant RLS and tenant-qualified foreign keys. Reading require
 
 ## Results and notifications
 
-The scheduler consumes frozen report comparisons; it does not invent a parallel finding identity or infer resolution from failure. Summaries include new, reappeared, persistent, verified-resolved and uncompared findings, plus completed versus total checks. A comparable new finding with a matching historical asset/finding identity in the same findings epoch is classified as reappeared. First observations remain new.
+If retention removes a scan or expires its results before reconciliation, the run records a visible failure/incomplete result instead of remaining running. The scheduler consumes frozen report comparisons; it does not invent a parallel finding identity or infer resolution from failure. Summaries include new, reappeared, persistent, verified-resolved and uncompared findings, plus completed versus total checks. A comparable new finding with a matching historical asset/finding identity in the same findings epoch is classified as reappeared. First observations remain new.
 
 - Critical/high change alerts link to the scan. Persistent findings do not generate another change alert. First-run critical/high observations are included.
 - Coverage-gap alerts link to the schedule and deduplicate one unresolved episode. A complete successful run releases the episode key, preserving the old notification and allowing later failures to notify again.

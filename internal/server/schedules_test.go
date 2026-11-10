@@ -371,3 +371,35 @@ func TestAuditSchedulePreviewChecksWindowsAndTenantScope(t *testing.T) {
 		t.Fatalf("unknown org preview %d %s", r.Status, r.Body)
 	}
 }
+
+func TestAuditScheduleRetentionDoesNotStallReconciliation(t *testing.T) {
+	for _, mode := range []string{"detached", "expired"} {
+		t.Run(mode, func(t *testing.T) {
+			c := controlled(t)
+			s := createSchedule(t, c)
+			ctx := context.Background()
+			svc := server.ScheduleService(c.options)
+			dueSchedule(t, c, s.ID, time.Minute)
+			if e := svc.Tick(ctx, c.f.a.env.TenantA); e != nil {
+				t.Fatal(e)
+			}
+			run := scheduledRuns(t, c, s.ID)[0]
+			if mode == "detached" {
+				if _, e := c.f.a.env.Owner.Exec(ctx, `UPDATE audit_schedule_runs SET scan_id=NULL WHERE id=$1`, run.ID); e != nil {
+					t.Fatal(e)
+				}
+			} else {
+				if _, e := c.f.a.env.Owner.Exec(ctx, `UPDATE assessments SET status='finished',results_expired_at=now() WHERE id=$1`, *run.ScanID); e != nil {
+					t.Fatal(e)
+				}
+			}
+			if e := svc.Tick(ctx, c.f.a.env.TenantA); e != nil {
+				t.Fatal(e)
+			}
+			got := scheduledRuns(t, c, s.ID)[0]
+			if got.Status == "running" || got.Reason == "" || got.Summary.Resolved > 0 || got.EndedAt == nil {
+				t.Fatalf("retention stalled or invented a resolution %+v", got)
+			}
+		})
+	}
+}
