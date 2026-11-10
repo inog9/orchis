@@ -1,0 +1,6 @@
+export function buildInstructions(prompt) {
+  return `${prompt}
+Use the pentest skill at .agent/skills/pentest/SKILL.md as reference and use available Gori MCP tools, Interceptor and jxscout. Work directly without subagents or Pi workflow gates.
+Review the preliminary scanner observations and investigate relevant leads. Explore the authorized application, inspect collected JavaScript, map its endpoints and inputs, and systematically test applicable security hypotheses within the authorized scope. Continue investigating and validating independent leads until the available in-scope work is covered or a specific blocker prevents further testing. Record what was tested, what could not be tested, and why. Do not claim untested coverage.
+Never generate PDF or Markdown reports. Write result-draft.json in the workspace containing JSON {summary, report, validation, blockers: [strings], findings: [{id,title,severity,value,evidence_file,details:{verdict:"VALIDATED",reproduction,impact,remediation,evidence}}]}. Store actual private proof for each finding under private/evidence/ and set evidence_file to its workspace-relative path. Only include findings supported by actual reproducible evidence; evidence must describe observed requests and responses. Severity is info, low, medium, high or critical. report and validation are plain text. Clearly state limitations.`;
+}
