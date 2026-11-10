@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import net from 'node:net';
+import {randomBytes} from 'node:crypto';
 import {spawn, spawnSync} from 'node:child_process';
 import {copyScannerInputs} from './scanners.mjs';
 import {prepareResult} from './result.mjs';
@@ -13,9 +14,9 @@ const arg = name => { const i = args.indexOf(name); return i < 0 ? '' : args[i +
 const root = path.resolve(arg('--dir') || '.');
 const session = path.basename(root);
 const emit = (event, extra = {}) => console.log(JSON.stringify({schema: 1, event, sessionId: session, ...extra}));
-let stack, child, interrupted = false;
+let stack, child, server, interrupted = false;
 const stopChild = () => { if (child && child.exitCode === null) { const pid = child.pid; try { process.kill(-pid, 'SIGTERM'); } catch {} const watchdog = setTimeout(() => { try { process.kill(-pid, 'SIGKILL'); } catch {} }, 5000); watchdog.unref(); } };
-const stop = () => { interrupted = true; stopChild(); if (stack && stack.exitCode === null) stack.kill('SIGTERM'); };
+const stop = () => { interrupted = true; stopChild(); if (server && server.exitCode === null) server.kill('SIGTERM'); if (stack && stack.exitCode === null) stack.kill('SIGTERM'); };
 process.on('SIGTERM', stop); process.on('SIGINT', stop);
 const wait = p => new Promise(resolve => { p.once('error', () => resolve(null)); p.once('close', code => resolve(code)); });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -38,12 +39,13 @@ try {
   fs.rmSync(path.join(root, 'AGENTS.md'), {force:true});
   fs.copyFileSync('/opt/orchis-opencode/skills/pentest-report/SKILL.md', path.join(root, '.agent/skills/pentest-report/SKILL.md'));
   fs.mkdirSync(path.join(root, '.opencode'), {recursive: true});
-  fs.symlinkSync('../.agent/skills', path.join(root, '.opencode/skills'), 'dir');
-  fs.writeFileSync(path.join(root, 'state.json'), JSON.stringify({mode:'running', scope:{origins:[url.origin], methods:['GET']}}));
+  fs.appendFileSync(path.join(root, '.agent/skills/pentest/SKILL.md'), '\nRun at most one subagent at a time; wait for it to finish before starting another.\n');
+  fs.cpSync(path.join(root, '.agent/skills'), path.join(root, '.opencode/skills'), {recursive:true});
+  fs.writeFileSync(path.join(root, 'state.json'), JSON.stringify({mode:'running', scope:{origins:[url.origin], methods:['GET','HEAD','OPTIONS','POST','PUT','PATCH','DELETE']}}));
   const stackDir = path.join(root, 'private/stack');
   fs.mkdirSync(stackDir, {recursive:true});
   fs.writeFileSync(path.join(root, 'opencode.json'), JSON.stringify({
-    permissions:[{action:'subagent',resource:'*',effect:'deny'}],
+    experimental:{subagent_depth:1},
     mcp:{servers:{gori:{type:'local',command:['gori','mcp','--db',path.join(stackDir,'gori.db')],environment:{GORI_HOME:path.join(stackDir,'gori')}}}}
   }));
   const stackLog = fs.openSync(path.join(stackDir,'supervisor.log'), 'a', 0o600);
@@ -62,7 +64,25 @@ try {
   if (!key) throw Error('OpenCode Go credential unavailable');
   if (interrupted) throw Error('cancelled');
   const log = fs.openSync(path.join(root,'opencode.jsonl'), 'a', 0o600);
-  child = spawn('opencode', ['run','--standalone','--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',prompt], {cwd:root,env:{...process.env,OPENCODE_API_KEY:key},stdio:['ignore',log,log],detached:true});
+  const probe = net.createServer();
+  await new Promise((resolve,reject) => { probe.once('error',reject); probe.listen(0,'127.0.0.1',resolve); });
+  const port = probe.address().port;
+  await new Promise(resolve => probe.close(resolve));
+  const address = `http://127.0.0.1:${port}`;
+  const password = randomBytes(24).toString('hex');
+  const env = {...process.env,OPENCODE_API_KEY:key,OPENCODE_SERVER_PASSWORD:password,INTERCEPTOR_TEMP:path.join(stackDir,'interceptor'),GORI_HOME:path.join(stackDir,'gori')};
+  server = spawn('opencode',['serve','--hostname','127.0.0.1','--port',String(port)],{cwd:root,env,stdio:['ignore',log,log]});
+  let skillsReady = false;
+  for (let i=0; i<120 && !interrupted && server.exitCode === null; i++) {
+    try {
+      const response = await fetch(address+'/api/skill',{headers:{Authorization:'Basic '+Buffer.from('opencode:'+password).toString('base64')},signal:AbortSignal.timeout(1000)});
+      const data = await response.json();
+      if (response.ok && ['pentest','pentest-report'].every(id => data.data?.some(s => s.id===id))) { skillsReady = true; break; }
+    } catch {}
+    await delay(500);
+  }
+  if (!skillsReady) { fs.closeSync(log); throw Error('OpenCode could not discover pentest skills'); }
+  child = spawn('opencode', ['run','--server',address,'--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',prompt], {cwd:root,env,stdio:['ignore',log,log],detached:true});
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; stopChild(); }, OPENCODE_TIMEOUT_MS);
   const code = await wait(child); clearTimeout(timeout); fs.closeSync(log);
@@ -83,5 +103,6 @@ try {
   fs.writeFileSync(file,JSON.stringify({schema:1,session_id:session,disposition,phase:'setup',summary:'The OpenCode pentest did not complete.',phases:[],verified_tasks:0,blockers:[error.message],findings:[],report:'The pentest did not complete.',validation:'No findings were validated.'}));
   emit(disposition,{phase:'setup',resultFile:file}); process.exitCode = interrupted ? 130 : 1;
 } finally {
+  if (server && server.exitCode === null) { server.kill('SIGTERM'); }
   if (stack && stack.exitCode === null) { stack.kill('SIGTERM'); let timer; await Promise.race([wait(stack),new Promise(resolve => { timer = setTimeout(resolve, 50000); })]); clearTimeout(timer); if (stack.exitCode === null) stack.kill('SIGKILL'); }
 }
