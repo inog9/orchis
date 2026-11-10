@@ -6,7 +6,6 @@ import {spawn, spawnSync} from 'node:child_process';
 import {copyScannerInputs} from './scanners.mjs';
 import {prepareResult} from './result.mjs';
 import {OPENCODE_TIMEOUT_MS} from './deadline.mjs';
-import {buildInstructions} from './instructions.mjs';
 
 process.umask(0o077);
 const args = process.argv.slice(2);
@@ -24,14 +23,20 @@ const listening = port => new Promise(resolve => { const s = net.connect(port, '
 try {
   if (!/^[a-zA-Z0-9-]{1,80}$/.test(session)) throw Error('invalid session');
   const prompt = fs.readFileSync(0, 'utf8');
-  const target = prompt.match(/exact web target: (\S+)/)?.[1];
+  const target = prompt.match(/^Run pentest this website (\S+), use skill pentest\.$/)?.[1];
   const url = new URL(target);
-  if (!['http:', 'https:'].includes(url.protocol)) throw Error('invalid target');
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw Error('invalid target');
   emit('starting');
   copyScannerInputs(arg('--inputs-dir'), root);
+  if (arg('--language')) {
+    fs.mkdirSync(path.join(root, 'inputs'), {recursive:true});
+    fs.writeFileSync(path.join(root, 'inputs/report-options.json'), JSON.stringify({language:arg('--language')}));
+  }
   const init = spawnSync('pentest-harnes', ['init', '--dir', root, '--agent', 'agent'], {stdio: 'ignore'});
   if (init.status !== 0) throw Error('skill installation failed');
-  fs.writeFileSync(path.join(root, 'AGENTS.md'), 'Use the pentest skills in .agent/skills as reference. Work directly as one agent; do not delegate. Follow the user prompt and its scope.\n');
+  // The harness's Pi-specific agent instructions are not part of the OpenCode prompt.
+  fs.rmSync(path.join(root, 'AGENTS.md'), {force:true});
+  fs.copyFileSync('/opt/orchis-opencode/skills/pentest-report/SKILL.md', path.join(root, '.agent/skills/pentest-report/SKILL.md'));
   fs.mkdirSync(path.join(root, '.opencode'), {recursive: true});
   fs.symlinkSync('../.agent/skills', path.join(root, '.opencode/skills'), 'dir');
   fs.writeFileSync(path.join(root, 'state.json'), JSON.stringify({mode:'running', scope:{origins:[url.origin], methods:['GET']}}));
@@ -55,10 +60,9 @@ try {
   const auth = JSON.parse(fs.readFileSync(path.join(process.env.HOME,'.pi/agent/auth.json'), 'utf8'));
   const key = auth['opencode-go']?.key;
   if (!key) throw Error('OpenCode Go credential unavailable');
-  const instructions = buildInstructions(prompt);
   if (interrupted) throw Error('cancelled');
   const log = fs.openSync(path.join(root,'opencode.jsonl'), 'a', 0o600);
-  child = spawn('opencode', ['run','--standalone','--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',instructions], {cwd:root,env:{...process.env,OPENCODE_API_KEY:key},stdio:['ignore',log,log],detached:true});
+  child = spawn('opencode', ['run','--standalone','--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json',prompt], {cwd:root,env:{...process.env,OPENCODE_API_KEY:key},stdio:['ignore',log,log],detached:true});
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; stopChild(); }, OPENCODE_TIMEOUT_MS);
   const code = await wait(child); clearTimeout(timeout); fs.closeSync(log);
