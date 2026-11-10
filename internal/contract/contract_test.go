@@ -74,6 +74,12 @@ func TestNucleiParamsCanonicalAndStrict(t *testing.T) {
 	if args[0] != "-u" || args[1] != "http://10.0.0.5" {
 		t.Errorf("target harus menjadi nilai -u: %v", args)
 	}
+	joined := " " + strings.Join(args, " ") + " "
+	for _, flag := range []string{" -pt http ", " -ni "} {
+		if !strings.Contains(joined, flag) {
+			t.Errorf("HTTP-only Nuclei flag %q missing: %v", flag, args)
+		}
+	}
 }
 
 func TestGuardBlocksDangerousTargets(t *testing.T) {

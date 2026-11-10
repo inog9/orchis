@@ -279,7 +279,7 @@ func NucleiArgs(raw json.RawMessage, target, templatesDir string) ([]string, err
 	if err := p.validate(); err != nil {
 		return nil, err
 	}
-	args := []string{"-u", target, "-jsonl", "-silent", "-nc", "-duc", "-severity", strings.Join(p.Severity, ","),
+	args := []string{"-u", target, "-jsonl", "-silent", "-nc", "-duc", "-pt", "http", "-ni", "-severity", strings.Join(p.Severity, ","),
 		"-rl", "30", "-c", "10", "-timeout", "5", "-retries", "1", "-max-host-error", "30"}
 	if len(p.Tags) > 0 {
 		args = append(args, "-tags", strings.Join(p.Tags, ","))

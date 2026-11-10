@@ -5,6 +5,7 @@
   "templates_zip_sha256": "00184ad496302cd1dd3cf4b0b1c3aa45d6b35057f7bdf17e932318185ba0ac50",
   "source": "https://github.com/projectdiscovery/nuclei-templates/tree/v10.5.1",
   "directories": ["http/exposures", "http/cves", "http/misconfiguration"],
+  "protocol_policy": "http-only; mixed and unknown protocol templates excluded; interactsh disabled",
   "profiles": {"default": ["http/exposures", "http/cves", "http/misconfiguration"], "exposure": ["http/exposures"], "cves": ["http/cves"], "misconfig": ["http/misconfiguration"]},
   "file_manifest": "SHA256SUMS",
   "license_file": "LICENSE.md"
