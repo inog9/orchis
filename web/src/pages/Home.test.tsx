@@ -1,178 +1,58 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { exposureLevel, HomePage } from './HomePage';
-
-const me = { id: 'u', email: 'a@b.c', display_name: 'Ada', role: 'analyst', permissions: ['organization.read', 'organization.write', 'finding.read', 'integration.read', 'assessment.run'] };
-const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status });
-
-const home = {
-  organizations: [{ id: 'org1', name: 'Acme', assets: 3, authorized: 2, risk: 'medium', comparison: '', latest_assessment: null, latest_status: 'assessed' }],
-  assets: { total: 3, authorized: 2, internet_facing: 1 },
-  findings: { total: 6, vulnerabilities: 2, open_ports: 3, vulnerable_assets: 1, new_7d: 1, by_severity: { critical: 1, high: 2, medium: 1, low: 0, info: 2 } },
-  atomic: { tests: 4, active: 1, runs_7d: 5, failed_7d: 1 },
-  chains: { scenarios: 2, simulations: 7, running: 0 },
-  latest_simulations: [{ id: 's1', code: 'OP-0028', name: 'srv-web', status: 'finished', started_at: '2026-11-08T17:30:00Z', created_at: '2026-11-08T17:30:00Z' }],
-  latest_runs: [],
-  most_exposed: [{ asset_id: 'a1', name: 'srv-web', critical: 1, high: 0, medium: 1, low: 0, open_ports: 3 }],
-  injectors: [
-    { key: 'nmap', name: 'Nmap', status: 'online' },
-    { key: 'nuclei', name: 'Nuclei', status: 'online' },
-    { key: 'hackbot', name: 'Hackbot', status: 'online' },
-    { key: 'defensebot', name: 'orchis-defense-agent', status: 'online' },
-  ],
-  generated_at: '2026-11-08T18:06:00Z',
-};
-
-const assetsPage = {
-  items: [{ id: 'a1', category: 'web_application', name: 'srv-web', addresses: [{ kind: 'url', value: 'https://srv-web.example', is_primary: true }] }],
-  next_cursor: null,
-};
-
-const findingsPage = {
-  items: [
-    { id: 'f1', asset_id: 'a1', asset_name: 'srv-web', type: 'vulnerability', value: 'tpl@srv', title: 'SQL Injection di /rest/products/search', severity: 'critical', details: { template_id: 'sqli', matched_at: '/rest/products/search' }, first_seen_at: '2026-11-08T10:00:00Z', last_seen_at: '2026-11-08T11:00:00Z', occurrence_count: 1 },
-    { id: 'f2', asset_id: 'a1', asset_name: 'srv-web', type: 'vulnerability', value: 'cve@tar', title: 'CVE-2026-59873 in tar', severity: 'high', details: { package: 'tar', installed_version: '7.5.15', fixed_version: '7.5.19', fix_status: 'fixed', method: 'osv-distro' }, first_seen_at: '2026-11-08T09:00:00Z', last_seen_at: '2026-11-08T12:00:00Z', occurrence_count: 1 },
-    { id: 'f3', asset_id: null, asset_name: null, type: 'vulnerability', value: 'unknown', title: 'Unmapped source finding', severity: 'medium', details: {}, first_seen_at: '2026-11-08T08:00:00Z', last_seen_at: '2026-11-08T08:30:00Z', occurrence_count: 1 },
-  ],
-  next_cursor: null,
-};
-
-const runningSim = {
-  items: [{
-    id: 'sim1', number: 28, code: 'OP-0029', name: 'srv-web', status: 'running', scenario_id: 'sc1', scenario_name: 'Web chain',
-    safe_mode: true, timeout_seconds: 600, cancel_reason: null, started_at: '2026-11-09T08:00:00Z', ended_at: null,
-    created_at: '2026-11-09T08:00:00Z', target_count: 2, step_count: 3, steps_done: 1, finding_count: 0,
-  }],
-};
-
-function mount(summary: unknown, overrides: { simulations?: unknown; assets?: unknown; findings?: unknown; organizations?: unknown } = {}) {
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-    const url = String(input);
-    if (url.includes('/auth/me')) return json(me);
-    if (url.includes('/simulations')) return json(overrides.simulations ?? { items: [] });
-    if (url.includes('/findings')) return json(overrides.findings ?? findingsPage);
-    if (url.includes('/assets')) return json(overrides.assets ?? assetsPage);
-    if (url.includes('/organizations')) return json(overrides.organizations ?? { items: [], next_cursor: null });
-    return json(summary);
-  });
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(<QueryClientProvider client={qc}><MemoryRouter><HomePage /></MemoryRouter></QueryClientProvider>);
+import { afterEach, expect, it, vi } from 'vitest';
+import { HomePage } from './HomePage';
+const permissions=['organization.read','asset.read','finding.read','integration.read','assessment.read','simulation.read','report.read','assessment.run','simulation.run'];
+const me={id:'u',display_name:'Ada',permissions};
+const summary={organizations:[{id:'o1',name:'Acme'}],assets:{total:4,authorized:3,internet_facing:2},findings:{total:183,vulnerabilities:180,open_ports:3,vulnerable_assets:3,new_7d:100,by_severity:{critical:8,high:70,medium:75,low:15,info:12}},atomic:null,chains:{simulations:42,running:0,scenarios:0},latest_simulations:[],latest_runs:[],most_exposed:[],injectors:[{key:'hackbot',name:'Hackbot',status:'online'}],generated_at:'2026-11-10T02:00:00Z'};
+const finding=(id:string,severity='critical')=>({id,asset_id:'a1',asset_name:'Public app',type:'vulnerability',value:'https://fixture.invalid',title:`Finding ${id}`,severity,details:{template_id:'fixture'},first_seen_at:'2026-11-01T00:00:00Z',last_seen_at:'2026-11-09T00:00:00Z',occurrence_count:1,triage_status:'open'});
+const schedule=(id:string,at:string,paused=false)=>({id,name:`Schedule ${id}`,organization:'Acme',paused,next_run_at:at,config:{rule:{timezone:'Asia/Jakarta'}}});
+const json=(v:unknown,status=200)=>new Response(JSON.stringify(v),{status});
+function stub({home=summary,user=me,critical=[finding('critical')],high=[finding('high','high')],scans=[{id:'scan1',name:'Acme audit',status:'incomplete',created_at:'2026-11-09T00:00:00Z'}],schedules=[] as unknown[]}={}){
+ return vi.spyOn(globalThis,'fetch').mockImplementation(async(input)=>{const url=new URL(String(input),'http://x');if(url.pathname.endsWith('/auth/me'))return json(user);if(url.pathname==='/api/v1/home')return json(home);if(url.pathname==='/api/v1/findings')return json({items:url.searchParams.get('severity')==='critical'?critical:high,next_cursor:null});if(url.pathname==='/api/v1/scans')return json({items:scans,next_cursor:null});if(url.pathname==='/api/v1/audit-schedules')return json({items:schedules,next_cursor:null});return json({items:[]});});
 }
-
-afterEach(() => vi.restoreAllMocks());
-
-describe('exposureLevel', () => {
-  it('menurunkan tingkat dari severity tertinggi', () => {
-    expect(exposureLevel({}, 0).label).toBe('No data yet');
-    expect(exposureLevel({ critical: 1, high: 3 }, 4).label).toBe('High exposure');
-    expect(exposureLevel({ high: 1 }, 1).label).toBe('Elevated exposure');
-    expect(exposureLevel({ medium: 2 }, 2).label).toBe('Moderate exposure');
-    expect(exposureLevel({ low: 2 }, 2).label).toBe('Low exposure');
-  });
+function mount(){render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><MemoryRouter><HomePage/></MemoryRouter></QueryClientProvider>);}
+afterEach(()=>vi.restoreAllMocks());
+it('shows each finding once, a single severity summary, real audits and no duplicate legacy panels',async()=>{
+ const fetch=stub();mount();expect(await screen.findByRole('heading',{name:'Overview'})).toBeVisible();expect(await screen.findByRole('button',{name:/Finding critical/})).toBeVisible();expect(screen.getAllByText('Finding critical')).toHaveLength(1);expect(screen.getAllByText('Finding high')).toHaveLength(1);
+ expect(screen.getByRole('heading',{name:'Vulnerability landscape'})).toBeVisible();expect(screen.getByRole('heading',{name:'Review first'})).toBeVisible();expect(await screen.findByRole('link',{name:/Acme audit/})).toHaveAttribute('href','/simulations/scan1');expect(screen.getByText('Incomplete coverage')).toBeVisible();
+ expect(screen.queryByText('Live scan')).toBeNull();expect(screen.queryByText('EVENT STREAM')).toBeNull();expect(screen.queryByText('Most exposed assets')).toBeNull();expect(screen.queryByText('Engine status')).toBeNull();expect(screen.queryByText('Atomic tests')).toBeNull();expect(screen.queryByText('Total findings')).toBeNull();
+ expect(fetch.mock.calls.some(([u])=>String(u).includes('/api/v1/simulations')||String(u).includes('/api/v1/assets'))).toBe(false);
 });
-
-describe('HomePage', () => {
-  it('menampilkan notice, heading, badge IDLE, metrik, panel, dan status engine', async () => {
-    mount(home);
-    expect(await screen.findByText(/Data updated/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Overview' })).toBeInTheDocument();
-    expect(screen.getByText('IDLE · no scan running')).toBeInTheDocument();
-    expect(screen.getByText('1 critical · 2 high · 1 medium · 0 low · 2 info')).toBeInTheDocument();
-    expect(screen.getByText('Assets monitored')).toBeInTheDocument();
-    expect(screen.getByText('2 authorized · 1 internet-facing')).toBeInTheDocument();
-    expect(screen.getByText('Simulations')).toBeInTheDocument();
-    expect(screen.getByText('0 running · 2 scenarios')).toBeInTheDocument();
-    expect(screen.getAllByText('Online')).toHaveLength(2);
-    // Idle: radar + event stream; dua chip engine saja
-    expect(screen.getByText('EVENT STREAM')).toBeInTheDocument();
-    expect(screen.getByText('orchis-defense-agent')).toBeInTheDocument();
-    expect(screen.getByText('Hackbot')).toBeInTheDocument();
-    expect(screen.getByText(/SQL Injection di \/rest\/products\/search/)).toBeInTheDocument();
-  });
-
-  it('node temuan bisa diexpand untuk melihat bukti lalu diciutkan kembali', async () => {
-    mount(home);
-    const web = await screen.findByRole('button', { name: /SQL Injection di \/rest\/products\/search/ });
-    expect(web).toHaveAttribute('aria-expanded', 'false');
-    await userEvent.click(web);
-    expect(web).toHaveAttribute('aria-expanded', 'true');
-    expect(within(web).getByText('Template: sqli')).toBeInTheDocument();
-    expect(within(web).getByText('Matched: /rest/products/search')).toBeInTheDocument();
-    expect(within(web).getByText(/Last seen/)).toBeInTheDocument();
-    await userEvent.click(web);
-    expect(web).toHaveAttribute('aria-expanded', 'false');
-    expect(within(web).queryByText('Template: sqli')).not.toBeInTheDocument();
-  });
-
-  it('node temuan orchis-defense-agent menampilkan bukti paket dan fix dari details yang ada', async () => {
-    mount(home);
-    const def = await screen.findByRole('button', { name: /CVE-2026-59873 in tar/ });
-    await userEvent.click(def);
-    expect(within(def).getByText('Package: tar 7.5.15 → 7.5.19')).toBeInTheDocument();
-    expect(within(def).getByText('Fix: fixed')).toBeInTheDocument();
-  });
-
-  it('state LIVE merender satu graph terpisah per simulasi yang berjalan', async () => {
-    mount({ ...home, chains: { scenarios: 2, simulations: 7, running: 2 } }, { simulations: runningSim });
-    expect(await screen.findByText('LIVE')).toBeInTheDocument();
-    expect(screen.getByText('EVENT STREAM')).toBeInTheDocument();
-    expect(screen.getAllByText('READY').length).toBe(2);
-  });
-
-  it('bagian yang tidak dikirim server (null) tidak dirender', async () => {
-    mount({ ...home, findings: null, atomic: null });
-    expect(await screen.findByText(/Data updated/)).toBeInTheDocument();
-    expect(screen.queryByText('Total findings')).not.toBeInTheDocument();
-    expect(screen.queryByText('Atomic tests')).not.toBeInTheDocument();
-    expect(screen.getByText('Assets monitored')).toBeInTheDocument();
-  });
-
-  it('workspace kosong memusatkan langkah awal, bukan deretan nol', async () => {
-    mount({
-      ...home,
-      organizations: [],
-      assets: { total: 0, authorized: 0, internet_facing: 0 },
-      findings: { total: 0, vulnerabilities: 0, open_ports: 0, vulnerable_assets: 0, new_7d: 0, by_severity: {} },
-      atomic: { tests: 0, active: 0, runs_7d: 0, failed_7d: 0 },
-      chains: { scenarios: 0, simulations: 0, running: 0 },
-      latest_simulations: [],
-      most_exposed: [],
-    });
-    expect(await screen.findByRole('heading', { name: 'No assessment results yet' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Bring your assets together' })).toBeInTheDocument();
-    expect(screen.queryByText('Live scan')).not.toBeInTheDocument();
-    expect(screen.queryByText('Total findings')).not.toBeInTheDocument();
-  });
-
-  it('memperingatkan bila ada injector yang belum terhubung', async () => {
-    mount({ ...home, injectors: [{ key: 'defensebot', name: 'orchis-defense-agent', status: 'offline' }, { key: 'hackbot', name: 'Hackbot', status: 'online' }] });
-    await screen.findByText(/Data updated/);
-    expect(screen.getByRole('status')).toHaveTextContent(/orchis-defense-agent injector is not connected/i);
-    expect(screen.getByText('Offline')).toBeInTheDocument();
-  });
-
-  it('tombol Segarkan memuat ulang data', async () => {
-    mount(home);
-    expect(await screen.findByText(/Data updated/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Refresh' }));
-    expect(await screen.findByText(/Data updated/)).toBeInTheDocument();
-  });
-
-  it('gagal memuat menampilkan error dan bisa dicoba lagi', async () => {
-    let n = 0;
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.includes('/auth/me')) return json(me);
-      if (url.includes('/findings')) return json(findingsPage);
-      if (url.includes('/assets')) return json(assetsPage);
-      return ++n === 1 ? json({ title: 'x', status: 500, error_id: 'err_9' }, 500) : json(home);
-    });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(<QueryClientProvider client={qc}><MemoryRouter><HomePage /></MemoryRouter></QueryClientProvider>);
-    await userEvent.click(await screen.findByRole('button', { name: /try again/i }));
-    expect(await screen.findByText(/Data updated/)).toBeInTheDocument();
-  });
+it('requests actionable critical and high findings separately, retaining older critical findings first',async()=>{
+ const fetch=stub({critical:[finding('old-critical')],high:[{...finding('new-high','high'),last_seen_at:'2026-11-10T02:00:00Z'}]});mount();await screen.findByRole('button',{name:/Finding old-critical/});const rows=screen.getAllByRole('button',{name:/Finding /});expect(rows[0]).toHaveTextContent('Finding old-critical');
+ const calls=fetch.mock.calls.filter(([u])=>String(u).includes('/api/v1/findings'));expect(calls).toHaveLength(2);for(const [u]of calls){const url=new URL(String(u),'http://x');expect(url.searchParams.get('triage')).toBe('open');expect(url.searchParams.get('type')).toBe('vulnerability');}
+});
+it('opens evidence in the shared finding drawer and restores the queue on close',async()=>{
+ stub();mount();await userEvent.click(await screen.findByRole('button',{name:/Finding critical/}));const drawer=screen.getByRole('dialog');expect(within(drawer).getByRole('heading',{name:'Finding critical'})).toBeVisible();expect(drawer).toHaveTextContent('fixture');await userEvent.click(within(drawer).getByRole('button',{name:'Close details'}));expect(screen.queryByRole('dialog')).toBeNull();
+});
+it('finds the earliest active audit across schedule pages and ignores paused schedules',async()=>{
+ const fetch=stub();const base=fetch.getMockImplementation()!;fetch.mockImplementation(async(input,init)=>{const u=new URL(String(input),'http://x');if(u.pathname==='/api/v1/audit-schedules')return json(u.searchParams.get('cursor')?{items:[schedule('soon','2026-11-12T00:00:00Z')],next_cursor:null}:{items:[schedule('later','2026-12-12T00:00:00Z'),schedule('paused','2026-11-11T00:00:00Z',true)],next_cursor:'older'});return base(input,init);});mount();expect(await screen.findByRole('link',{name:'Schedule soon'})).toHaveAttribute('href','/simulations/schedules/soon');expect(screen.queryByRole('link',{name:'Schedule later'})).toBeNull();expect(screen.queryByRole('link',{name:'Schedule paused'})).toBeNull();expect(screen.getByText('Asia/Jakarta')).toBeVisible();
+});
+it('empty results do not claim safety and authorisation is distinct from audit coverage',async()=>{
+ stub({critical:[],high:[],scans:[]});mount();expect(await screen.findByText('No critical or high findings awaiting triage.')).toBeVisible();expect(screen.getByText(/Incomplete checks can leave gaps/)).toBeVisible();expect(await screen.findByRole('link',{name:'Set up a schedule'})).toHaveAttribute('href','/simulations/schedules?new=1');expect(screen.getByRole('progressbar',{name:'Testing authorisation'})).toHaveAttribute('aria-valuenow','3');expect(screen.getByText(/It does not confirm recent audit coverage/)).toBeVisible();
+});
+it('permission-limited accounts do not fetch scans, schedules or assets',async()=>{
+ const fetch=stub({user:{...me,permissions:['finding.read']},home:{...summary,assets:null,findings:null} as unknown as typeof summary});mount();await screen.findByRole('heading',{name:'Overview'});await screen.findByRole('button',{name:/Finding critical/});expect(screen.queryByRole('link',{name:'Run an audit'})).toBeNull();expect(screen.queryByRole('heading',{name:'Recent audits'})).toBeNull();expect(fetch.mock.calls.some(([u])=>String(u).includes('/api/v1/scans')||String(u).includes('/audit-schedules')||String(u).includes('/api/v1/assets'))).toBe(false);
+});
+it('shows engine connection problems once without an engine status card',async()=>{
+ stub({home:{...summary,injectors:[{key:'hackbot',name:'Hackbot',status:'offline'}]}});mount();await screen.findByRole('heading',{name:'Overview'});expect(screen.getAllByText('Checks unavailable: Hackbot')).toHaveLength(1);expect(screen.getByRole('link',{name:'Review connections'})).toHaveAttribute('href','/settings/integrations');expect(screen.queryByText('Engine status')).toBeNull();
+});
+it('refresh updates both the workspace summary and the queue',async()=>{
+ const fetch=stub();mount();await screen.findByRole('button',{name:/Finding critical/});const before=fetch.mock.calls.length;await userEvent.click(screen.getByRole('button',{name:'Refresh'}));await waitFor(()=>expect(fetch.mock.calls.length).toBeGreaterThan(before+2));
+});
+it('a queue failure stays visible rather than appearing as an empty queue',async()=>{
+ const fetch=stub();const base=fetch.getMockImplementation()!;fetch.mockImplementation(async(input,init)=>String(input).includes('/api/v1/findings')?json({error_id:'err_queue'},500):base(input,init));mount();expect(await screen.findByText(/err_queue/)).toBeVisible();expect(screen.queryByText('No critical or high findings awaiting triage.')).toBeNull();
+});
+it('overview errors offer a retry',async()=>{
+ const fetch=stub();const base=fetch.getMockImplementation()!;let failed=true;fetch.mockImplementation(async(input,init)=>String(input).includes('/api/v1/home')&&failed?json({error_id:'err_home'},500):base(input,init));mount();expect(await screen.findByRole('heading',{name:'Overview could not be loaded'})).toBeVisible();failed=false;await userEvent.click(screen.getByRole('button',{name:'Try again'}));expect(await screen.findByRole('heading',{name:'Overview'})).toBeVisible();
+});
+it('new workspaces avoid rows of zero statistics',async()=>{
+ stub({critical:[],high:[],scans:[],home:{...summary,organizations:[],assets:{total:0,authorized:0,internet_facing:0},findings:{...summary.findings,total:0,vulnerabilities:0,by_severity:{critical:0,high:0,medium:0,low:0,info:0}}}});mount();
+ expect(await screen.findByText('No vulnerabilities recorded yet. Run an audit to establish coverage.')).toBeVisible();expect(screen.queryByRole('progressbar')).toBeNull();expect(screen.queryByRole('link',{name:'Run an audit'})).toBeNull();expect(screen.getByRole('link',{name:'Add your first asset'})).toHaveAttribute('href','/assets?new=1');
+});
+it('a finding returned by both requests is shown once',async()=>{
+ const f=finding('same');stub({critical:[f],high:[f]});mount();expect(await screen.findByRole('button',{name:/Finding same/})).toBeVisible();expect(screen.getAllByText('Finding same')).toHaveLength(1);
 });
