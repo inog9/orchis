@@ -31,6 +31,27 @@ func TestWebEndpointDistinguishesUnavailableFromNoFindings(t *testing.T) {
 		t.Fatal("scope guard must still block loopback")
 	}
 }
+
+func TestWebEndpointRetriesTransientFailure(t *testing.T) {
+	var attempts atomic.Int32
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempts.Add(1) == 1 {
+			conn, _, err := w.(http.Hijacker).Hijack()
+			if err == nil {
+				conn.Close()
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer s.Close()
+	if err := checkWebEndpoint(context.Background(), s.URL, contract.Guard{AllowLoopback: true}); err != nil {
+		t.Fatalf("transient failure did not recover: %v", err)
+	}
+	if attempts.Load() < 2 {
+		t.Fatal("did not retry")
+	}
+}
 func TestWebEndpointDoesNotFollowRedirectOrProxy(t *testing.T) {
 	var hits atomic.Int32
 	forbidden := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits.Add(1) }))

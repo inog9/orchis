@@ -16,7 +16,7 @@ import (
 // checkWebEndpoint membedakan tidak ada temuan dari endpoint yang tidak menjawab.
 // Tidak mengikuti redirect, proxy lingkungan, atau membaca/menyimpan isi respons.
 func checkWebEndpoint(ctx context.Context, target string, guard contract.Guard) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	transport := &http.Transport{
 		// Pemeriksaan keamanan tetap boleh mengamati layanan dengan sertifikat tidak valid.
@@ -59,20 +59,29 @@ func checkWebEndpoint(ctx context.Context, target string, guard contract.Guard) 
 		}
 		candidates = []string{"https://" + host, "http://" + host}
 	}
-	for _, candidate := range candidates {
-		u, err := url.Parse(candidate)
-		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || guard.CheckHost(u.Hostname()) != nil {
-			continue
+	for attempt := 0; attempt < 3; attempt++ {
+		for _, candidate := range candidates {
+			u, err := url.Parse(candidate)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || guard.CheckHost(u.Hostname()) != nil {
+				continue
+			}
+			req, err := http.NewRequestWithContext(ctx, http.MethodHead, u.String(), nil)
+			if err != nil {
+				continue
+			}
+			resp, err := client.Do(req)
+			if err == nil {
+				resp.Body.Close()
+				return nil
+			} // 3xx/4xx/5xx tetap membuktikan layanan HTTP menjawab.
 		}
-		req, err := http.NewRequestWithContext(ctx, http.MethodHead, u.String(), nil)
-		if err != nil {
-			continue
+		if attempt < 2 {
+			select {
+			case <-ctx.Done():
+				return errors.New("Web endpoint unreachable. Check the approved target address and the scan worker network; no clean result can be inferred.")
+			case <-time.After(500 * time.Millisecond):
+			}
 		}
-		resp, err := client.Do(req)
-		if err == nil {
-			resp.Body.Close()
-			return nil
-		} // 3xx/4xx/5xx tetap membuktikan layanan HTTP menjawab.
 	}
 	return errors.New("Web endpoint unreachable. Check the approved target address and the scan worker network; no clean result can be inferred.")
 }

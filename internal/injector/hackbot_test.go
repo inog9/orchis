@@ -30,12 +30,11 @@ args=sys.argv
 root=args[args.index('--dir')+1]
 assert 'ORCHIS_INJECTOR_TOKEN' not in os.environ
 prompt=sys.stdin.read()
-assert 'Only the supplied origin is authorized' in prompt
+assert prompt == 'Run pentest this website http://127.0.0.1, use skill pentest.'
 if '--inputs-dir' in args:
  folder=args[args.index('--inputs-dir')+1]
  assert json.load(open(os.path.join(folder,'nmap.json')))['tool']=='nmap'
  assert json.load(open(os.path.join(folder,'nuclei.json')))['tool']=='nuclei'
- assert 'inputs/scanners/manifest.json' in prompt
 file=os.path.join(root,'result.json')
 open(file,'w').write(%q)
 event=%q
