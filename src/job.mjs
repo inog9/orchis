@@ -94,7 +94,7 @@ try {
   if (!await startServer()) { fs.closeSync(log); throw Error('OpenCode could not discover pentest skills'); }
   let timedOut = false;
   const timeout = setTimeout(() => { timedOut = true; stopChild(); }, OPENCODE_TIMEOUT_MS);
-  let rootSession = '', code = null, monitorBusy = false, rapidFailures = 0;
+  let rootSession = '', code = null, monitorBusy = false, rapidFailures = 0, reporting = false;
   const monitor = new StallMonitor();
   const watchdog = setInterval(async () => {
     if (monitorBusy || interrupted || timedOut || !rootSession) return;
@@ -113,7 +113,7 @@ try {
       }
       const cliArgs = ['run','--server',address,'--auto','--model','opencode-go/deepseek-v4.1-flash','--format','json'];
       if (rootSession) cliArgs.push('--session',rootSession);
-      cliArgs.push(prompt);
+      cliArgs.push(reporting ? 'Use skill pentest-report to review the saved pentest report and evidence and write result-draft.json for Orchis.' : prompt);
       const startedAt = Date.now();
       child = spawn('opencode', cliArgs, {cwd:root,env,stdio:['ignore','pipe','pipe'],detached:true});
       let pending = '';
@@ -129,7 +129,15 @@ try {
       });
       child.stderr.on('data', chunk => fs.writeSync(log, chunk));
       code = await wait(child);
-      if (interrupted || timedOut || code === 0) break;
+      if (interrupted || timedOut) break;
+      if (code === 0) {
+        if (reporting) break;
+        // An independent OpenCode session must review the evidence and produce
+        // the machine-readable result, even when the pentester wrote a draft.
+        reporting = true; rootSession = ''; rapidFailures = 0;
+        emit('state',{phase:'report'});
+        continue;
+      }
       if (!rootSession) break; // No known session can be resumed safely.
       console.error('OpenCode stopped without a result; resuming the same session.');
       rapidFailures = Date.now() - startedAt > 120000 ? 0 : rapidFailures+1;
@@ -137,12 +145,11 @@ try {
     }
   } finally { clearInterval(watchdog); clearTimeout(timeout); fs.closeSync(log); }
   if (interrupted) throw Error('cancelled');
-  if (timedOut && !fs.existsSync(path.join(root,'result-draft.json'))) throw Error('OpenCode time limit reached');
-  if (code !== 0 && !timedOut) throw Error('OpenCode did not complete');
+  if (timedOut) throw Error('OpenCode time limit reached before the independent report review completed; workspace retained for recovery.');
+  if (!reporting || code !== 0) throw Error('OpenCode did not complete the independent report review; workspace retained for recovery.');
   if (!fs.existsSync(path.join(root,'result-draft.json'))) throw Error('OpenCode completed without the required JSON result; workspace retained for recovery.');
   emit('state',{phase:'report'});
   const draft = JSON.parse(fs.readFileSync(path.join(root,'result-draft.json'),'utf8'));
-  if (timedOut) draft.blockers = [...(Array.isArray(draft.blockers) ? draft.blockers : []),'OpenCode reached its four-hour time limit before completing the assessment.'];
   const result = prepareResult(draft, root, session);
   const disposition = result.disposition;
   const file = path.join(root,'result.json'); fs.writeFileSync(file,JSON.stringify(result));
