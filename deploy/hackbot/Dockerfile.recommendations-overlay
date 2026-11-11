@@ -1,0 +1,7 @@
+# Upgrade only the Orchis worker; preserve the installed OpenCode runtime and pins.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+USER root
+COPY --chmod=0555 build/injector /usr/local/bin/injector
+USER pentest
+CMD ["injector", "--kind", "hackbot", "--recommendations-only"]

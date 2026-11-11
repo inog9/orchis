@@ -149,6 +149,15 @@ func TestHackbotScanLifecycle(t *testing.T) {
 			if r := a.do("GET", ledgerURL, nil, admin); r.Status != 200 {
 				t.Fatalf("admin ledger: %d %s", r.Status, r.Body)
 			}
+
+			review := a.do("GET", "/api/v1/scans/"+scan.ID.String()+"/recommendations", nil, analyst)
+			if review.Status != 200 || !strings.Contains(string(review.Body), `"status":"queued"`) {
+				t.Fatalf("completed scan did not queue its OpenCode review: %d %s", review.Status, review.Body)
+			}
+			var reviewCount int
+			if err := env.Owner.QueryRow(ctx, `SELECT count(*) FROM scan_recommendations WHERE scan_id=$1`, scan.ID).Scan(&reviewCount); err != nil || reviewCount != 1 {
+				t.Fatalf("review was not queued exactly once: %d %v", reviewCount, err)
+			}
 			var reportID uuid.UUID
 			var snapshot reporting.Snapshot
 			var data []byte

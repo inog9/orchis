@@ -15,6 +15,7 @@ import (
 	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/recommendations"
 	"orchis-go/internal/reporting"
 	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
@@ -321,6 +322,9 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 			}
 		}
 		if err = s.Reports.FreezeScanSnapshot(ctx, tx, tenant, a.OrganizationID, a.ID, snap); err != nil {
+			return err
+		}
+		if err = recommendations.Enqueue(ctx, tx, tenant, a.ID); err != nil {
 			return err
 		}
 	}

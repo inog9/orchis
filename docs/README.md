@@ -23,6 +23,7 @@ orchis-redteam-agent untuk sisi web, dan DefenseBot untuk endpoint.
 - [Jendela pindai dan stop darurat](SCAN-CONTROLS.md),
   [perbandingan hasil](SCAN-COMPARISON.md), [retensi](RETENTION.md),
   [notifikasi](NOTIFICATIONS.md).
+- [Rekomendasi otomatis setelah scan](SCAN-RECOMMENDATIONS.md).
 - [Format snapshot laporan](REPORT-SCHEMA.md) dan [layout laporan](REPORT-LAYOUT.md).
 
 ## Referensi dan riwayat

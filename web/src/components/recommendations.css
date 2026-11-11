@@ -1,0 +1,12 @@
+.scan-review__head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.scan-review__head .eyebrow { margin:0 0 6px; }
+.scan-review__summary { max-width:90ch; line-height:1.7; white-space:pre-wrap; }
+.scan-review__items { list-style:none; padding:0; margin:24px 0; }
+.scan-review__items > li { padding:20px 0; border-top:1px solid var(--v2-border); overflow-wrap:anywhere; }
+.scan-review__finding { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+.scan-review__finding h3 { font-size:15px; margin:0; font-weight:600; }
+.scan-review__priority { font-size:11px; padding:4px 8px; background:var(--v2-surface-2); color:var(--v2-text); border:1px solid var(--v2-border); }
+.scan-review__priority--now { border-color:var(--v2-accent); color:var(--v2-accent); }
+.scan-review__items p { max-width:100ch; line-height:1.7; white-space:pre-wrap; }
+.scan-review__items summary { cursor:pointer; color:var(--v2-text-2); font-size:12px; }
+.scan-review__foot { border-top:1px solid var(--v2-border); padding-top:16px; font-size:12px; line-height:1.7; color:var(--v2-text-3); }

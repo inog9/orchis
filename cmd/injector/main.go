@@ -25,12 +25,16 @@ func main() {
 	}
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 	kind := flag.String("kind", "", "hackbot | defensebot | nmap | nuclei")
+	reviewOnly := flag.Bool("recommendations-only", false, "Review completed scans with OpenCode without consuming pentest jobs")
 	flag.Parse()
+	if *reviewOnly && *kind != "hackbot" {
+		fatal("recommendation reviews require --kind hackbot")
+	}
 	if *kind != "nmap" && *kind != "nuclei" && *kind != "hackbot" && *kind != "defensebot" {
 		fatal("gunakan --kind nmap, nuclei, hackbot atau defensebot")
 	}
 	server, token, amqpURL := os.Getenv("ORCHIS_SERVER_URL"), os.Getenv("ORCHIS_INJECTOR_TOKEN"), os.Getenv("ORCHIS_AMQP_URL")
-	if server == "" || token == "" || amqpURL == "" {
+	if server == "" || token == "" || (!*reviewOnly && amqpURL == "") {
 		fatal("ORCHIS_SERVER_URL, ORCHIS_INJECTOR_TOKEN, dan ORCHIS_AMQP_URL wajib diisi")
 	}
 	concurrency := 4
@@ -54,11 +58,16 @@ func main() {
 	if err != nil {
 		fatal(err.Error())
 	}
-	(&injector.Worker{
+	worker := &injector.Worker{
 		Binary:      os.Getenv("ORCHIS_HACKBOT_BINARY"),
 		Concurrency: concurrency, Metrics: metrics, Kind: *kind, Client: injector.NewClient(server, token), AMQPURL: amqpURL, Version: version,
 		Guard: contract.Guard{AllowLoopback: loop}, TemplatesDir: os.Getenv("NUCLEI_TEMPLATES_DIR"),
-	}).Run(ctx)
+	}
+	if *reviewOnly {
+		worker.RunRecommendations(ctx)
+	} else {
+		worker.Run(ctx)
+	}
 }
 
 func fatal(msg string) {
