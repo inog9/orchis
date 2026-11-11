@@ -40,6 +40,7 @@ Login pertama ada di `initial-admin.json` dalam direktori state privat.
 
 Panduan [deployment](docs/DEPLOY.md) menjelaskan HTTPS, agent, dan konfigurasi
 instalasi. Untuk bekerja pada source, lihat [pengembangan dan tes](docs/DEVELOPMENT.md).
+Jalankan `make help` untuk melihat perintah yang tersedia.
 
 ## Struktur repo
 
@@ -64,6 +65,7 @@ produksi juga disimpan di luar checkout.
 
 - [Indeks dokumentasi](docs/README.md) — rute panduan menurut kebutuhan.
 - [Alur produk dan kesiapan aset](docs/FLOW.md), [peran pengguna](docs/ROLES.md).
+- [Audit terjadwal](docs/AUDIT-SCHEDULES.md).
 - [API dan Swagger/OpenAPI](docs/API.md), [skema laporan](docs/REPORT-SCHEMA.md).
 - [Operasi, upgrade, backup dan restore](docs/OPERASI.md).
 - [Arsitektur](docs/ARSITEKTUR.md), [kompatibilitas fitur historis](docs/FEATURE-COMPATIBILITY.md).
@@ -71,8 +73,10 @@ produksi juga disimpan di luar checkout.
 
 ## Batasan
 
-DefenseBot mendukung koleksi endpoint Linux/macOS dengan cakupan pemetaan yang
-dijelaskan di panduannya; Windows dan distribusi RPM belum didukung.
+DefenseBot mendukung koleksi endpoint Linux x86_64, macOS x86_64/arm64, dan
+Windows x86_64/arm64. Artefak yang didukung dipatok di
+[`catalog.json`](internal/osquery/catalog.json). Cakupan pemetaan berbeda per OS;
+distribusi RPM belum didukung. Lihat [cakupan endpoint](docs/DEFENSEBOT.md).
 Hackbot memerlukan konfigurasi autentikasi model pada home worker persisten.
 Nmap/Nuclei berjalan dari jaringan server, sehingga hasil keterjangkauan mengikuti
 posisi scanner. Aset atau origin baru memerlukan persetujuan tersendiri.

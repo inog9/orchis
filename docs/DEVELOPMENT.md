@@ -1,13 +1,20 @@
 # Pengembangan Orchis
 
-Jalankan perintah dari root repo. Pasang Go sesuai `go.mod`, Node.js 24, npm,
+Jalankan perintah dari root repo. Pasang Go sesuai `go.mod`, Node.js sesuai
+[`.nvmrc`](../.nvmrc), npm,
 Docker Engine + Compose v2 + Buildx (BuildKit), serta Python 3.12+. Dependensi Node dipisahkan per komponen:
 
 ```bash
+nvm use                          # bila memakai nvm
 npm --prefix web ci
 npm --prefix e2e ci
 npm --prefix deploy/report ci
+make help
 ```
+
+CI memakai versi Node dari `.nvmrc` yang sama. Jalankan `make web-test` untuk
+pemeriksaan tipe, kontras, dan tes frontend; `make test` untuk Go. Persyaratan
+layanan dan pemeriksaan lengkap dijelaskan di bagian Tes di bawah.
 
 ## Menjalankan
 

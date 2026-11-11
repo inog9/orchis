@@ -1,7 +1,15 @@
 RELEASE_KEY ?= dist/release.key
 RELEASE_DIR ?= dist/agent
+.DEFAULT_GOAL := help
 
-.PHONY: osquery-packs mitre-fetch prod-mitre-config osquery-fetch mitre-update mitre-verify demo-seed demo-purge demo-status agent-release dev-up dev-up-full dev-down build test web-test e2e check injector-image
+.PHONY: help dev-up dev-up-full injector-image agent-release dev-down build test web-test e2e \
+    demo-seed demo-purge demo-status mitre-update osquery-fetch mitre-fetch osquery-packs \
+    mitre-verify check ai-image prod-init prod-build prod-mitre-config prod-up prod-down prod-status \
+    prod-probe ci prod-backup-key prod-backup prod-restore prod-smoke volume-study hackbot-check \
+    hackbot-engines hackbot-image build-test
+
+help: ## Tampilkan perintah pengembangan, tes, dan operasi
+	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_-]+:.*## / { printf "  %-22s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 dev-up:      ## Jalankan PostgreSQL pengembangan
 	docker compose -f deploy/compose.yml up -d pg
@@ -18,7 +26,7 @@ injector-image: ## Bangun image injector (nmap + nuclei)
 agent-release: ## Bangun dan tandatangani agent semua platform (VERSION=1.0.0)
 	go run ./cmd/agentrelease -version $(or $(VERSION),0.1.0) -key "$(RELEASE_KEY)" -init -out "$(RELEASE_DIR)"
 
-dev-down:
+dev-down: ## Hentikan layanan pengembangan tanpa menghapus volume
 	docker compose -f deploy/compose.yml down
 
 build:       ## Bangun frontend lalu biner server
@@ -30,7 +38,7 @@ test:        ## Tes backend (butuh `make dev-up-full` dan nmap)
 	go vet ./...
 	go test -count=1 ./...
 
-web-test:
+web-test: ## Periksa tipe, kontras, dan tes frontend
 	npm --prefix web run typecheck
 	npm --prefix web test
 
@@ -39,7 +47,6 @@ e2e: build   ## Tes end-to-end di browser (database baru per putaran)
 	./e2e/run.sh
 	node e2e/ai-egress.mjs
 	node deploy/report/render.test.mjs
-
 
 demo-seed:   ## Isi data dummy bertanda is_demo (DEMO_SEED=n, bawaan 1); butuh server dev berjalan
 	go run ./cmd/server demo-seed
@@ -66,7 +73,7 @@ osquery-packs: ## Bekukan ulang pack resmi osquery dari artefak yang dipatok (bu
 mitre-verify: ## Periksa bundel beku di deploy/mitre terhadap manifest (hash, versi, hitungan)
 	go run ./cmd/mitre-update -verify
 
-check: test web-test e2e
+check: test web-test e2e ## Jalankan pemeriksaan Go, frontend, dan E2E
 
 ai-image: ## Bangun worker/proxy AI non-root; tidak membutuhkan API key untuk build.
 	CGO_ENABLED=0 go build -ldflags "-s -w" -o bin/ai-worker ./cmd/ai-worker
@@ -75,7 +82,6 @@ ai-image: ## Bangun worker/proxy AI non-root; tidak membutuhkan API key untuk bu
 	cp bin/ai-worker bin/ai-proxy work/ai-image/bin/
 	docker build -f deploy/ai/Dockerfile -t orchis-ai:dev work/ai-image
 
-.PHONY: prod-init prod-build prod-up prod-down prod-status
 prod-init: ## Buat secret di luar checkout (root; ORCHIS_STATE opsional)
 	python3 deploy/prod/ops.py init
 prod-build: ## Validasi engine lalu bangun server/web, renderer, scanner dan Hackbot
@@ -86,33 +92,28 @@ prod-up: ## Mulai hanya project terpilih; data yang sudah ada dipertahankan
 	python3 deploy/prod/ops.py up
 prod-down: ## Hentikan project terpilih tanpa menghapus volume
 	python3 deploy/prod/ops.py down
-prod-status:
+prod-status: ## Tampilkan status project produksi terpilih
 	python3 deploy/prod/ops.py status
 
 prod-probe: ## Verifikasi HTTPS/login dan renderer; belum smoke assessment/restore lengkap
 	python3 deploy/prod/ops.py probe
 
-.PHONY: ci
 ci: ## CI lokal lengkap pada vhost disposable (jalankan dev-up-full lebih dulu)
 	bash deploy/ci/run.sh
 
-.PHONY: prod-backup-key prod-backup prod-restore
-prod-backup-key:
+prod-backup-key: ## Siapkan kunci backup produksi
 	python3 deploy/prod/ops.py backup-key
-prod-backup:
+prod-backup: ## Buat backup produksi terenkripsi
 	python3 deploy/prod/ops.py backup
 prod-restore: ## ORCHIS_STATE baru + ORCHIS_BACKUP_FILE + ORCHIS_BACKUP_KEY_FILE
 	python3 deploy/prod/ops.py restore
 
-.PHONY: prod-smoke
 prod-smoke: ## Stack baru lokal, scan nyata, PDF, backup terenkripsi, restore terisolasi
 	python3 deploy/prod/ops.py smoke
 
-.PHONY: volume-study
 volume-study: ## Ukur sintetis 50 organisasi/5000 aset/200000 temuan pada DB/ES disposable
 	python3 deploy/ci/volume.py
 
-.PHONY: hackbot-check hackbot-engines hackbot-image build-test
 hackbot-check: ## Periksa checkout engine dan hash integrasi tanpa Docker
 	python3 deploy/hackbot/build.py --check
 

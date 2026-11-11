@@ -1,12 +1,12 @@
 # DefenseBot
 
 DefenseBot maps the software installed on an enrolled endpoint to known vulnerabilities and lists a short set of
-hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, then the OpenCode/Hackbot worker). A person decides when it
-runs: press **Run DefenseBot** on an asset that has an agent.
+hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, then the OpenCode/Hackbot worker).
+Start it from an asset with an agent, or include it in an [audit schedule](AUDIT-SCHEDULES.md).
 
 ## Flow
 
-1. The agent (Linux or macOS) runs fixed, read-only osquery checks that an administrator approved in the current
+1. The agent runs fixed, read-only osquery checks that an administrator approved in the current
    consent document. Nothing is sent from the server to the agent except the names of approved checks.
 2. **Run** queues a fresh collection and creates a scan with the `defensebot` tool. The job waits for the collection, then
    the DefenseBot worker maps the stored data. No host name, address, account or file content leaves Orchis.
@@ -15,6 +15,12 @@ runs: press **Run DefenseBot** on an asset that has an agent.
    coverage notes and the data timestamps.
 
 ## Data and sources
+
+Pinned collection platforms are Linux x86_64, macOS x86_64/arm64, and Windows x86_64/arm64.
+The artifact definitions are in [`catalog.json`](../internal/osquery/catalog.json).
+Collection support does not mean every installed application has a vulnerability mapping.
+Windows programs and macOS applications use the reviewed application dictionary;
+unmapped applications remain coverage limitations.
 
 | Data | Source | Method value |
 |---|---|---|
@@ -63,4 +69,5 @@ could not be mapped. A missing finding never means the software is safe. Advisor
 
 ## Not included yet
 
-Windows, RPM-based distributions, container images on a host, an AI summary, and a scheduled re-match of stored data.
+RPM-based distributions, container images on a host, an AI summary, and a scheduled re-match of stored data.
+Audit schedules run fresh checks rather than re-match stored data.

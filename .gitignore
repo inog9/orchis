@@ -1,26 +1,27 @@
+# Build outputs and local dependencies
 /bin/
-node_modules/
-/web/dist/
-/e2e/shots/
-*.test
-.env
-.env.*
-!.env.example
 /dist/
-*.key
+/web/dist/
+node_modules/
+*.test
 
+# Local work and verification artefacts
 /work/
-
-__pycache__/
-
-# Bundel ATT&CK beku (55 MB): hash dipatok di deploy/mitre/manifest.json; ambil dengan make mitre-update.
-/deploy/mitre/enterprise-attack-*.json
-
-# Artefak osquery (54 MB): hash dipatok di internal/osquery/catalog.json; ambil dengan make osquery-fetch.
-/deploy/osquery/
+/outputs/
+/e2e/shots/
 /PROGRESS.md
 /result*.txt
 /PROMPT-*.md
 tmp_scan/
 .claude/
-tmp_scan/
+__pycache__/
+
+# Secrets; keep example configuration tracked
+.env
+.env.*
+!.env.example
+*.key
+
+# Pinned downloads; fetch with make mitre-fetch or make osquery-fetch
+/deploy/mitre/enterprise-attack-*.json
+/deploy/osquery/
