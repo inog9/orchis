@@ -47,7 +47,10 @@ type Completion struct {
 // Enqueue runs in the report-freezing transaction. A restart cannot enqueue twice.
 func Enqueue(ctx context.Context, tx pgx.Tx, tenant, scan uuid.UUID) error {
 	var raw []byte
-	if err := tx.QueryRow(ctx, `SELECT snapshot FROM reports WHERE tenant_id=$1 AND assessment_id=$2`, tenant, scan).Scan(&raw); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT r.snapshot FROM reports r JOIN assessments a ON a.tenant_id=r.tenant_id AND a.id=r.assessment_id WHERE r.tenant_id=$1 AND r.assessment_id=$2 AND NOT a.is_demo AND NOT r.is_demo`, tenant, scan).Scan(&raw); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
 		return err
 	}
 	var snap reporting.Snapshot
@@ -105,7 +108,7 @@ func (s *Service) Claim(ctx context.Context) (*Claim, error) {
 		}
 		var id uuid.UUID
 		var input []byte
-		err := tx.QueryRow(ctx, `SELECT q.id,q.input FROM scan_recommendations q JOIN assessments a ON a.tenant_id=q.tenant_id AND a.id=q.scan_id JOIN reports r ON r.tenant_id=q.tenant_id AND r.id=q.report_id WHERE q.tenant_id=$1 AND q.status='queued' AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL AND NOT EXISTS(SELECT 1 FROM scan_recommendations active WHERE active.tenant_id=$1 AND active.status='running') ORDER BY q.created_at,q.id LIMIT 1 FOR UPDATE OF q SKIP LOCKED`, s.Tenant).Scan(&id, &input)
+		err := tx.QueryRow(ctx, `SELECT q.id,q.input FROM scan_recommendations q JOIN assessments a ON a.tenant_id=q.tenant_id AND a.id=q.scan_id JOIN reports r ON r.tenant_id=q.tenant_id AND r.id=q.report_id WHERE q.tenant_id=$1 AND q.status='queued' AND NOT a.is_demo AND NOT r.is_demo AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL AND NOT EXISTS(SELECT 1 FROM scan_recommendations active WHERE active.tenant_id=$1 AND active.status='running') ORDER BY q.created_at,q.id LIMIT 1 FOR UPDATE OF q SKIP LOCKED`, s.Tenant).Scan(&id, &input)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -132,7 +135,7 @@ func (s *Service) Claim(ctx context.Context) (*Claim, error) {
 func (s *Service) Complete(ctx context.Context, id uuid.UUID, c Completion) error {
 	return s.DB.InTenant(ctx, s.Tenant, func(tx pgx.Tx) error {
 		var input []byte
-		err := tx.QueryRow(ctx, `SELECT q.input FROM scan_recommendations q JOIN assessments a ON a.tenant_id=q.tenant_id AND a.id=q.scan_id WHERE q.tenant_id=$1 AND q.id=$2 AND q.status='running' AND q.claim_hash=$3 AND q.lease_until>now() AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL FOR UPDATE OF q`, s.Tenant, id, hash(c.Token)).Scan(&input)
+		err := tx.QueryRow(ctx, `SELECT q.input FROM scan_recommendations q JOIN assessments a ON a.tenant_id=q.tenant_id AND a.id=q.scan_id WHERE q.tenant_id=$1 AND q.id=$2 AND q.status='running' AND q.claim_hash=$3 AND q.lease_until>now() AND NOT a.is_demo AND a.results_expired_at IS NULL AND a.report_expired_at IS NULL FOR UPDATE OF q`, s.Tenant, id, hash(c.Token)).Scan(&input)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return httpx.Conflict("This recommendation job is no longer active.")
 		}

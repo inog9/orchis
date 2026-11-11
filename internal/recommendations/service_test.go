@@ -101,8 +101,15 @@ func TestNoFindingsAndExpiredEvidenceDoNotTriggerModelCalls(t *testing.T) {
 	if _, err = env.Owner.Exec(ctx, `UPDATE assessments SET results_expired_at=now() WHERE id=$1`, expired); err != nil {
 		t.Fatal(err)
 	}
+	demo := fixture(t, env, "finished", []reporting.Finding{{ID: "demo-finding", Type: "vulnerability", Severity: "high"}})
+	if _, err = env.Owner.Exec(ctx, `UPDATE assessments SET is_demo=true WHERE id=$1`, demo); err != nil {
+		t.Fatal(err)
+	}
+	if err = env.App.InTenant(ctx, env.TenantA, func(tx pgx.Tx) error { return Enqueue(ctx, tx, env.TenantA, demo) }); err != nil {
+		t.Fatal(err)
+	}
 	if c, err := svc.Claim(ctx); err != nil || c != nil {
-		t.Fatal("expired scan was claimed", c, err)
+		t.Fatal("expired or demo scan was claimed", c, err)
 	}
 	if j, err := svc.Get(ctx, env.TenantA, expired); err != nil || j != nil {
 		t.Fatal("expired advice exposed", j, err)

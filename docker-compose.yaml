@@ -257,6 +257,7 @@ services:
     pids_limit: 1024
   recommendations:
     init: true
+    entrypoint: []
     image: orchis-hackbot-worker:${ORCHIS_VERSION:-local}
     command: [injector, --kind, hackbot, --recommendations-only]
     restart: unless-stopped

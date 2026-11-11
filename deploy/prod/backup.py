@@ -61,7 +61,7 @@ def fingerprints(args,compose):
 def assert_idle(args,compose):
     # RabbitMQ is rebuilt on restore. Only terminal scan/render/provider work may
     # be snapshotted, so no published dispatch message can be lost with the broker.
-    query="SELECT (SELECT count(*) FROM executions WHERE state IN ('ready','running'))+(SELECT count(*) FROM simulations WHERE status IN ('running','paused'))+(SELECT count(*) FROM assessments WHERE status='running')+(SELECT count(*) FROM reports WHERE status IN ('queued','rendering'))+(SELECT count(*) FROM ai_jobs WHERE status IN ('queued','running'))"
+    query="SELECT (SELECT count(*) FROM executions WHERE state IN ('ready','running'))+(SELECT count(*) FROM simulations WHERE status IN ('running','paused'))+(SELECT count(*) FROM assessments WHERE status='running')+(SELECT count(*) FROM reports WHERE status IN ('queued','rendering'))+(SELECT count(*) FROM ai_jobs WHERE status IN ('queued','running'))+(SELECT count(*) FROM scan_recommendations WHERE status IN ('queued','running'))"
     if int(pg(args,compose,query)):
         raise RuntimeError('Wait for active scans, paused runs, report rendering and queued/running AI work to finish or cancel before backup')
 
@@ -112,7 +112,7 @@ def _backup(args,compose):
     if not key.is_file():raise RuntimeError('Missing separate backup key; run backup-key and store an out-of-band copy')
     info=key.stat()
     if info.st_mode&0o077 or info.st_size>128:raise RuntimeError('Backup key must be a private 0600 file')
-    services=['server','nmap','nuclei','hackbot','defensebot','ai-worker','renderer','minio','caddy']
+    services=['server','nmap','nuclei','hackbot','recommendations','defensebot','ai-worker','renderer','minio','caddy']
     running=[]
     for service in services:
         if container(args,compose,service)['State']['Running']:running.append(service)

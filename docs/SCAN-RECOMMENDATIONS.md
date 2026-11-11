@@ -10,13 +10,13 @@ verification steps. Recommendations remain separate from scan evidence and
 severity. They are generated for human review and never apply changes or start
 additional checks. Failed or stopped scans and scans without vulnerability
 findings do not make model calls. Incomplete scans retain a coverage warning.
-Existing historical scans are not backfilled.
+Demo scans do not make model calls. Existing historical scans are not backfilled.
 
 ## Input and execution
 
 The review includes up to 30 findings, ordered by known exploitation and severity.
 Its input contains redacted titles, finding IDs, severity, language, coverage and
-a small set of structured remediation context. Asset names, target addresses,
+a small set of structured remediation context. Asset-name and target-address fields,
 raw requests/responses, full reports and arbitrary evidence fields are excluded.
 The UI discloses omitted findings, which remain available in the scan results.
 
