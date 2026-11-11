@@ -10,12 +10,13 @@
   },
   "opencode": {
     "repository": "https://github.com/r1pu5u/orchis-opencode-hackbot.git",
-    "revision": "6cfae5302f473a4267fd1bbebcebe2ea04caabdd",
+    "revision": "6da09c5bfeb676224662aa613b009a0ddecc180b",
     "files": {
       "Dockerfile": "54fecb2354a9cc06a6c21e95dcc8e2f8d0ced599c939ca90f6f776ec3ac63e88",
-      "src/job.mjs": "cad07ea7ebe1e06621a2e54d35c7177d20ad0f7def6e6f3be6c263b5e852c758",
+      "src/job.mjs": "b40eee82c640866b535ee5e0726e5e971d344d478734253dfe41310152cbe117",
       "src/skills.mjs": "6c7565183ee9976e30f6e9894fa1bdbaee2a1fdda2fb40ef2618ab97aa2c731a",
-      "src/watchdog.mjs": "1030edcf69831cf5001049cf153efcd54b12585f44265008c287a68b0ef4835e",
+      "src/watchdog.mjs": "a07afd6edf2e17799c1aa2c850fd5738a757a959955fc1c0df31ca420e59014d",
+      "src/process-check.mjs": "ffa7ab12b66bf184178cc0ecd7d0fa23ac258045d5e8361b854577986b592ced",
       "src/deadline.mjs": "1e74884efa2cbbf9b44509d6a6749bdfd949a2daf04e189ba4c01a4dc8dcf563",
       "skills/pentest-report/SKILL.md": "6b55c2e76bf9077dd0d4b5b690e4e93a8e0b74870d9e2927c97f8587cf25130a",
       "src/result.mjs": "5eb6bf23f7a6cc205f6bb2c8de10b42f1d403f7a5c82f01a9acca12ae2955b16",
