@@ -32,3 +32,16 @@ test('poll uses session tree and interrupts only stalled child', async () => {
   assert.ok(requests.some(([url,method])=>url.endsWith('/child/interrupt') && method==='POST'));
   assert.ok(!requests.some(([url,method])=>url.endsWith('/root/interrupt') && method==='POST'));
 });
+
+test('recovers only a verified orphaned running shell', () => {
+  let evidence = null;
+  const m=new StallMonitor({timeoutMs:100,orphanCheck:()=>evidence});
+  const sessions=[{id:'root'},{id:'child',parentID:'root'}];
+  const msgs=new Map([['root',msg([{type:'tool',name:'subagent',state:{status:'running'}}])],['child',msg([{type:'tool',name:'shell',state:{status:'running',input:{command:'echo a; echo b'}}}])]]);
+  assert.deepEqual(m.evaluate(sessions,msgs,'root',0),[]);
+  assert.deepEqual(m.evaluate(sessions,msgs,'root',101),[]); // Unknown never interrupts.
+  evidence=false;
+  assert.deepEqual(m.evaluate(sessions,msgs,'root',150),[]); // Live shell.
+  evidence=true;
+  assert.deepEqual(m.evaluate(sessions,msgs,'root',200),['child']);
+});

@@ -129,7 +129,7 @@ try {
       });
       child.stderr.on('data', chunk => fs.writeSync(log, chunk));
       code = await wait(child);
-      if (interrupted || timedOut || (code === 0 && fs.existsSync(path.join(root,'result-draft.json')))) break;
+      if (interrupted || timedOut || code === 0) break;
       if (!rootSession) break; // No known session can be resumed safely.
       console.error('OpenCode stopped without a result; resuming the same session.');
       rapidFailures = Date.now() - startedAt > 120000 ? 0 : rapidFailures+1;
@@ -139,6 +139,7 @@ try {
   if (interrupted) throw Error('cancelled');
   if (timedOut && !fs.existsSync(path.join(root,'result-draft.json'))) throw Error('OpenCode time limit reached');
   if (code !== 0 && !timedOut) throw Error('OpenCode did not complete');
+  if (!fs.existsSync(path.join(root,'result-draft.json'))) throw Error('OpenCode completed without the required JSON result; workspace retained for recovery.');
   emit('state',{phase:'report'});
   const draft = JSON.parse(fs.readFileSync(path.join(root,'result-draft.json'),'utf8'));
   if (timedOut) draft.blockers = [...(Array.isArray(draft.blockers) ? draft.blockers : []),'OpenCode reached its four-hour time limit before completing the assessment.'];

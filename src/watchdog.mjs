@@ -1,9 +1,10 @@
 import {createHash} from 'node:crypto';
+import {orphanedShell} from './process-check.mjs';
 
 // Track only sessions descended from this job. A parent waiting for an active
 // child must not be interrupted merely because the parent's own output is quiet.
 export class StallMonitor {
-  constructor({timeoutMs = 10 * 60 * 1000} = {}) { this.timeoutMs = timeoutMs; this.observed = new Map(); }
+  constructor({timeoutMs = 10 * 60 * 1000, orphanCheck = orphanedShell} = {}) { this.timeoutMs = timeoutMs; this.orphanCheck = orphanCheck; this.observed = new Map(); }
   evaluate(sessions, messages, rootId, now = Date.now()) {
     const relevant = new Set([rootId]);
     let changed = true;
@@ -24,10 +25,14 @@ export class StallMonitor {
     for (const id of [...this.observed.keys()]) if (!relevant.has(id)) this.observed.delete(id);
     const stalled = [];
     for (const [id, m] of active) {
-      // Do not treat an executing tool or a parent waiting for a child as a silent model stream.
+      // Never interrupt a parent waiting for an active child.
       if ([...active.keys()].some(child => sessions.some(s => s.id === child && s.parentID === id))) continue;
-      if ((m.content || []).some(p => p.type === 'tool' && (p.state?.status === 'running' || p.state === 'running'))) continue;
-      if (now - this.observed.get(id).since >= this.timeoutMs) { stalled.push(id); this.observed.delete(id); }
+      if (now - this.observed.get(id).since < this.timeoutMs) continue;
+      const running = (m.content || []).filter(p => p.type === 'tool' && (p.state?.status === 'running' || p.state === 'running'));
+      // A running tool is recoverable only if every tool is a compound shell
+      // command and its exact process is known to be absent. Unknown is safe.
+      if (running.length && !running.every(p => p.name === 'shell' && this.orphanCheck(p.state?.input?.command) === true)) continue;
+      stalled.push(id); this.observed.delete(id);
     }
     return stalled;
   }
