@@ -1,7 +1,7 @@
 # DefenseBot
 
 DefenseBot maps the software installed on an enrolled endpoint to known vulnerabilities and lists a short set of
-hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, then the OpenCode/Hackbot worker).
+hardening gaps. It is the host-side counterpart of the web pentest (Nmap, Nuclei, then the OpenCode/orchis-redteam-agent worker).
 Start it from an asset with an agent, or include it in an [audit schedule](AUDIT-SCHEDULES.md).
 
 ## Flow

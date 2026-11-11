@@ -7,14 +7,14 @@ React (UI v3), dan laporan PDF/JSON. Alur utama:
 
 | Pilihan pindai | Yang dijalankan |
 |---|---|
-| Web pentest (Hackbot) | Nmap dan Nuclei sebagai persiapan, lalu pengujian web melalui worker OpenCode |
+| Web pentest (orchis-redteam-agent) | Nmap dan Nuclei sebagai persiapan, lalu pengujian web melalui worker OpenCode |
 | Installed software check (DefenseBot) | Koleksi osquery yang disetujui dari endpoint, lalu pencocokan kerentanan dan hardening |
-| Full assessment | Memilih engine per aset: URL yang disetujui menjalankan Hackbot, agent menjalankan DefenseBot, aset dengan keduanya menjalankan keduanya |
+| Full assessment | Memilih engine per aset: URL yang disetujui menjalankan orchis-redteam-agent, agent menjalankan DefenseBot, aset dengan keduanya menjalankan keduanya |
 
 Aset dalam satu Full assessment boleh campuran. Pengujian memerlukan otorisasi,
 prasyarat engine, dan jendela pindai yang berlaku. Kegagalan atau cakupan parsial
 tercatat sebagai keterbatasan; hasil kosong tidak membuktikan aset aman.
-Lihat [alur produk](docs/FLOW.md), [Hackbot](deploy/hackbot/README.md), dan
+Lihat [alur produk](docs/FLOW.md), [orchis-redteam-agent](deploy/hackbot/README.md), dan
 [DefenseBot](docs/DEFENSEBOT.md).
 
 ## Mulai
@@ -22,13 +22,13 @@ Lihat [alur produk](docs/FLOW.md), [Hackbot](deploy/hackbot/README.md), dan
 Untuk deployment, siapkan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, Python 3.12+,
 dan akses ke dua repo engine privat yang dipatok di
 [`engine-lock.json`](deploy/hackbot/engine-lock.json).
-**Siapkan checkout engine terlebih dahulu** mengikuti [panduan build Hackbot](deploy/hackbot/README.md#build-and-configure).
+**Siapkan checkout engine terlebih dahulu** mengikuti [panduan build orchis-redteam-agent](deploy/hackbot/README.md#build-and-configure).
 
 ```bash
 make hackbot-check                 # validasi source dan pin, tanpa Docker
 sudo make prod-init                # sekali untuk state baru; secret di /var/lib/orchis
 sudo python3 deploy/prod/ops.py env > .env
-sudo make prod-build               # server/web, renderer, scanner, engine, worker Hackbot
+sudo make prod-build               # server/web, renderer, scanner, engine, worker orchis-redteam-agent
 sudo make prod-up
 sudo make prod-probe
 ```
@@ -77,7 +77,7 @@ DefenseBot mendukung koleksi endpoint Linux x86_64, macOS x86_64/arm64, dan
 Windows x86_64/arm64. Artefak yang didukung dipatok di
 [`catalog.json`](internal/osquery/catalog.json). Cakupan pemetaan berbeda per OS;
 distribusi RPM belum didukung. Lihat [cakupan endpoint](docs/DEFENSEBOT.md).
-Hackbot memerlukan konfigurasi autentikasi model pada home worker persisten.
+orchis-redteam-agent memerlukan konfigurasi autentikasi model pada home worker persisten.
 Nmap/Nuclei berjalan dari jaringan server, sehingga hasil keterjangkauan mengikuti
 posisi scanner. Aset atau origin baru memerlukan persetujuan tersendiri.
 

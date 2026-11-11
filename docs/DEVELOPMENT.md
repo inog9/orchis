@@ -118,7 +118,7 @@ python3 e2e/mutation-core.py
 `make injector-image` membuat scanner pengembangan; image produksi dibangun oleh
 `make prod-build`. Dockerfile produksi membangun binary dari source checkout ini.
 
-Untuk menjalankan Hackbot, siapkan kedua checkout privat sesuai
+Untuk menjalankan orchis-redteam-agent, siapkan kedua checkout privat sesuai
 [panduan engine](../deploy/hackbot/README.md), lalu jalankan `make hackbot-check`.
 `make hackbot-image` membangun engine dan worker, sedangkan `make build-test`
 memeriksa validasi source serta urutan build tanpa menjalankan Docker.

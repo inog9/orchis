@@ -1,14 +1,14 @@
 # Dokumentasi Orchis
 
 Gunakan panduan berikut sebagai pintu masuk. Alur produk saat ini memakai UI v3,
-Hackbot untuk sisi web, dan DefenseBot untuk endpoint.
+orchis-redteam-agent untuk sisi web, dan DefenseBot untuk endpoint.
 
 | Kebutuhan | Panduan |
 |---|---|
 | Memahami perjalanan produk dan prasyarat engine | [FLOW](FLOW.md) |
 | Menyiapkan server dan agent | [DEPLOY](DEPLOY.md) |
 | Mengembangkan, membangun, dan menjalankan tes | [DEVELOPMENT](DEVELOPMENT.md) |
-| Menyiapkan checkout dan worker Hackbot/OpenCode | [Build Hackbot](../deploy/hackbot/README.md) |
+| Menyiapkan checkout dan worker orchis-redteam-agent/OpenCode | [Build orchis-redteam-agent](../deploy/hackbot/README.md) |
 | Memahami sumber data dan cakupan endpoint | [DEFENSEBOT](DEFENSEBOT.md) |
 | Mengatur audit berkala, zona waktu, dan riwayat jadwal | [AUDIT-SCHEDULES](AUDIT-SCHEDULES.md) |
 | Mengoperasikan, upgrade, backup, dan restore | [OPERASI](OPERASI.md) |

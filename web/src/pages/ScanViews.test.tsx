@@ -31,7 +31,7 @@ describe('ScanList', () => {
     await waitFor(() => expect(within(table).getAllByText('Org Uno')).toHaveLength(2));
     expect(within(table).getByText('Finished')).toBeInTheDocument();
     expect(within(table).getByText('Running')).toBeInTheDocument();
-    expect(within(table).getAllByText('Hackbot')).toHaveLength(2);
+    expect(within(table).getAllByText('orchis-redteam-agent')).toHaveLength(2);
     expect(within(table).getByText('3m 12s')).toBeInTheDocument();
     expect(within(table).getAllByText('—').length).toBeGreaterThan(0);
   });
@@ -96,7 +96,7 @@ describe('orchis-defense-agent scan', () => {
 });
 
 describe('Engine names follow what actually ran', () => {
-  it('lists a orchis-defense-agent-only scan as orchis-defense-agent and a web scan as Hackbot, never the other way round', async () => {
+  it('lists a orchis-defense-agent-only scan as orchis-defense-agent and a web scan as orchis-redteam-agent, never the other way round', async () => {
     route((u) => u.pathname === '/api/v1/scans' ? { items: [
       scan({ id: 'aaaaaaaa-0000-0000-0000-000000000001', options: { tools: ['defensebot'], preset: 'defense', asset_ids: ['a1'], range_ids: [], organization_id: 'o1' } }),
       scan({ id: 'aaaaaaaa-0000-0000-0000-000000000002', options: { tools: ['nmap', 'nuclei', 'hackbot'], preset: 'standard', asset_ids: ['a1', 'a2'], range_ids: [], organization_id: 'o1' } }),
@@ -107,10 +107,10 @@ describe('Engine names follow what actually ran', () => {
     const rows = await within(table).findAllByRole('row');
     const text = rows.slice(1).map((r) => r.textContent ?? '');
     expect(text[0]).toContain('orchis-defense-agent');
-    expect(text[0]).not.toContain('Hackbot');
-    expect(text[1]).toContain('Hackbot');
+    expect(text[0]).not.toContain('orchis-redteam-agent');
+    expect(text[1]).toContain('orchis-redteam-agent');
     expect(text[1]).not.toContain('orchis-defense-agent');
-    expect(text[2]).toContain('Hackbot + orchis-defense-agent');
+    expect(text[2]).toContain('orchis-redteam-agent + orchis-defense-agent');
     // Internal words never leak into the list: no preset names and no tool names.
     for (const row of rows.slice(1)) {
       expect(within(row).queryByText(/^(standard|defense|nmap|nuclei|preset)$/i)).toBeNull();

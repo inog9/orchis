@@ -54,42 +54,42 @@ func LimitSummary(s string) string {
 }
 func (r *Result) Validate() error {
 	if r.Schema != 1 || r.SessionID == "" || !(Progress{SessionID: r.SessionID, Phase: r.Phase}).Valid() {
-		return fmt.Errorf("invalid Hackbot result identity")
+		return fmt.Errorf("invalid orchis-redteam-agent result identity")
 	}
 	switch r.Disposition {
 	case "complete", "limited", "input_required", "failed", "cancelled":
 	default:
-		return fmt.Errorf("invalid Hackbot disposition")
+		return fmt.Errorf("invalid orchis-redteam-agent disposition")
 	}
 	if len(r.Phases) > 13 || r.VerifiedTasks < 0 {
-		return fmt.Errorf("invalid Hackbot coverage")
+		return fmt.Errorf("invalid orchis-redteam-agent coverage")
 	}
 	for _, phase := range r.Phases {
 		if !(Progress{Phase: phase}).Valid() {
-			return fmt.Errorf("invalid Hackbot coverage phase")
+			return fmt.Errorf("invalid orchis-redteam-agent coverage phase")
 		}
 	}
 	if len(r.Report) > 1<<20 || len(r.Validation) > 1<<20 || len(r.Summary) > 32000 || len(r.Findings) > 2000 || len(r.Blockers) > 100 {
-		return fmt.Errorf("Hackbot result too large")
+		return fmt.Errorf("orchis-redteam-agent result too large")
 	}
 	if strings.TrimSpace(r.Report) == "" || strings.TrimSpace(r.Validation) == "" {
-		return fmt.Errorf("Hackbot report artifacts are missing")
+		return fmt.Errorf("orchis-redteam-agent report artifacts are missing")
 	}
 	r.Summary = LimitSummary(r.Summary)
 	if r.Summary == "" {
-		r.Summary = fmt.Sprintf("Hackbot completed %d verified tasks and validated %d findings. Delivery: %s. See the report for coverage and limitations.", r.VerifiedTasks, len(r.Findings), r.Disposition)
+		r.Summary = fmt.Sprintf("orchis-redteam-agent completed %d verified tasks and validated %d findings. Delivery: %s. See the report for coverage and limitations.", r.VerifiedTasks, len(r.Findings), r.Disposition)
 	}
 	for _, f := range r.Findings {
 		var details struct {
 			Verdict string `json:"verdict"`
 		}
 		if f.ID == "" || f.Title == "" || len(f.Title) > 300 || f.Value == "" || len(f.Value) > 500 || len(f.Details) > 8<<10 || json.Unmarshal(f.Details, &details) != nil || details.Verdict != "VALIDATED" {
-			return fmt.Errorf("invalid Hackbot finding")
+			return fmt.Errorf("invalid orchis-redteam-agent finding")
 		}
 		switch f.Severity {
 		case "info", "low", "medium", "high", "critical":
 		default:
-			return fmt.Errorf("invalid Hackbot severity")
+			return fmt.Errorf("invalid orchis-redteam-agent severity")
 		}
 	}
 	return nil

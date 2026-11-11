@@ -45,7 +45,7 @@ func main() {
 		}
 	}
 	if *kind == "hackbot" && concurrency != 1 {
-		fatal("Hackbot requires one active engagement per container")
+		fatal("orchis-redteam-agent requires one active engagement per container")
 	}
 	loop, _ := strconv.ParseBool(os.Getenv("ORCHIS_ALLOW_LOOPBACK_TARGETS"))
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

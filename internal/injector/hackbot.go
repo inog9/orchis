@@ -30,13 +30,13 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 	root := firstNonEmpty(os.Getenv("ORCHIS_HACKBOT_DATA"), "/data")
 	dir := filepath.Join(root, spec.ExecutionID.String())
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fail("Cannot create private Hackbot workspace.")
+		return fail("Cannot create private orchis-redteam-agent workspace.")
 	}
 	var params struct {
 		Language string `json:"language"`
 	}
 	if err := json.Unmarshal(spec.Params, &params); err != nil {
-		return fail("Invalid Hackbot parameters.")
+		return fail("Invalid orchis-redteam-agent parameters.")
 	}
 	prompt := fmt.Sprintf("Run pentest this website %s, use skill pentest.", spec.Target)
 	inputsDir, err := writeScannerInputs(dir, spec.ScannerInputs)
@@ -72,10 +72,10 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 	cmd.Stderr = &stderr
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
-		return fail("Cannot open Hackbot status stream.")
+		return fail("Cannot open orchis-redteam-agent status stream.")
 	}
 	if err = cmd.Start(); err != nil {
-		return fail("Cannot start Hackbot Lite; check worker installation.")
+		return fail("Cannot start orchis-redteam-agent; check worker installation.")
 	}
 	scanner := bufio.NewScanner(pipe)
 	scanner.Buffer(make([]byte, 4096), 1<<20)
@@ -90,7 +90,7 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 			ResultFile string `json:"resultFile"`
 		}
 		if err = json.Unmarshal(scanner.Bytes(), &event); err != nil || event.Schema != 1 {
-			protocolErr = fmt.Errorf("Invalid Hackbot lifecycle record.")
+			protocolErr = fmt.Errorf("Invalid orchis-redteam-agent lifecycle record.")
 			cancel()
 			break
 		}
@@ -106,22 +106,22 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 			}
 			progress := hackbot.Progress{SessionID: session, Phase: phase}
 			if !progress.Valid() {
-				protocolErr = fmt.Errorf("Invalid Hackbot progress.")
+				protocolErr = fmt.Errorf("Invalid orchis-redteam-agent progress.")
 				cancel()
 				break
 			}
 			if err = w.Client.post(runCtx, "executions/"+spec.ExecutionID.String()+"/progress", progress, nil); err != nil {
-				protocolErr = fmt.Errorf("Cannot record Hackbot progress.")
+				protocolErr = fmt.Errorf("Cannot record orchis-redteam-agent progress.")
 				cancel()
 			}
 		case "complete", "limited", "input_required", "failed", "cancelled":
 			if terminal != "" {
-				protocolErr = fmt.Errorf("Duplicate Hackbot terminal event.")
+				protocolErr = fmt.Errorf("Duplicate orchis-redteam-agent terminal event.")
 				cancel()
 			}
 			terminal, resultFile = event.Event, event.ResultFile
 		default:
-			protocolErr = fmt.Errorf("Unknown Hackbot lifecycle event.")
+			protocolErr = fmt.Errorf("Unknown orchis-redteam-agent lifecycle event.")
 			cancel()
 		}
 		if protocolErr != nil {
@@ -129,7 +129,7 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 		}
 	}
 	if err = scanner.Err(); err != nil {
-		protocolErr = fmt.Errorf("Invalid Hackbot status stream.")
+		protocolErr = fmt.Errorf("Invalid orchis-redteam-agent status stream.")
 		cancel()
 	}
 	runErr := cmd.Wait()
@@ -143,7 +143,7 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 	if runErr != nil {
 		var ee *exec.ExitError
 		if !errors.As(runErr, &ee) {
-			return fail("Hackbot process failed.")
+			return fail("orchis-redteam-agent process failed.")
 		}
 		code = ee.ExitCode()
 	}
@@ -151,14 +151,14 @@ func (w *Worker) executeHackbot(ctx context.Context, spec *execution.ClaimSpec) 
 	expected := map[string]int{"complete": 0, "limited": 2, "input_required": 3, "failed": 1, "cancelled": 130}
 	wanted, ok := expected[terminal]
 	if !ok || wanted != code || resultFile == "" {
-		return fail("Hackbot did not deliver a valid terminal result. Inspect private worker diagnostics.")
+		return fail("orchis-redteam-agent did not deliver a valid terminal result. Inspect private worker diagnostics.")
 	}
 	payload, err := readHackbotResult(dir, resultFile)
 	if err != nil {
-		return fail("Hackbot result artifact is missing or invalid.")
+		return fail("orchis-redteam-agent result artifact is missing or invalid.")
 	}
 	if payload.Disposition != terminal || payload.SessionID != session {
-		return fail("Hackbot result identity does not match the job.")
+		return fail("orchis-redteam-agent result identity does not match the job.")
 	}
 	if err = payload.Validate(); err != nil {
 		return fail(err.Error())

@@ -84,7 +84,7 @@ ai-image: ## Bangun worker/proxy AI non-root; tidak membutuhkan API key untuk bu
 
 prod-init: ## Buat secret di luar checkout (root; ORCHIS_STATE opsional)
 	python3 deploy/prod/ops.py init
-prod-build: ## Validasi engine lalu bangun server/web, renderer, scanner dan Hackbot
+prod-build: ## Validasi engine lalu bangun server/web, renderer, scanner dan orchis-redteam-agent
 	python3 deploy/prod/ops.py build
 prod-mitre-config: ## Terapkan pin MITRE checkout pada konfigurasi project terpilih; restart eksplisit sesudah build
 	python3 deploy/prod/ops.py mitre-config
@@ -120,7 +120,7 @@ hackbot-check: ## Periksa checkout engine dan hash integrasi tanpa Docker
 hackbot-engines: ## Bangun kedua engine dari checkout yang dikunci
 	python3 deploy/hackbot/build.py
 
-hackbot-image: hackbot-engines ## Bangun worker Hackbot dari kode checkout ini
+hackbot-image: hackbot-engines ## Bangun worker orchis-redteam-agent dari kode checkout ini
 	docker build --build-arg VERSION=$(or $(VERSION),local) -f deploy/hackbot/Dockerfile -t orchis-hackbot-worker:$(or $(VERSION),local) .
 
 build-test: ## Tes validasi source engine dan orkestrasi build, tanpa Docker

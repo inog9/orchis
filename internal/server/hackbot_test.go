@@ -295,7 +295,7 @@ func finishPreliminaryScanners(t *testing.T, a *app, scan uuid.UUID, failed stri
 	for index, tool := range []string{"nmap", "nuclei"} {
 		var status string
 		if err := env.Owner.QueryRow(ctx, `SELECT status FROM scan_jobs WHERE assessment_id=$1 AND tool='hackbot'`, scan).Scan(&status); err != nil || status != "waiting" {
-			t.Fatalf("Hackbot ran before both scanners finished: %s %v", status, err)
+			t.Fatalf("orchis-redteam-agent ran before both scanners finished: %s %v", status, err)
 		}
 		var executionID uuid.UUID
 		if err := env.Owner.QueryRow(ctx, `SELECT x.id FROM executions x JOIN scan_jobs j ON j.tenant_id=x.tenant_id AND j.simulation_id=x.simulation_id WHERE j.assessment_id=$1 AND j.tool=$2`, scan, tool).Scan(&executionID); err != nil {
@@ -392,7 +392,7 @@ func TestHackbotRevokedPreliminaryCancelsDependent(t *testing.T) {
 	response = a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, analyst)
 	response.JSON(&scan)
 	if scan.Status != "canceled" || hackbotJob(scan.Jobs).Status != "canceled" || hackbotJob(scan.Jobs).SimulationID != nil {
-		t.Fatalf("dependent Hackbot was left queued or started: %+v", scan)
+		t.Fatalf("dependent orchis-redteam-agent was left queued or started: %+v", scan)
 	}
 }
 

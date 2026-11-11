@@ -2,7 +2,7 @@ import type { ScanJob } from '../api/scans';
 import { t as textUI } from '../i18n/runtime';
 
 // Kosakata engine v3: pengguna hanya melihat dua engine. Nmap dan Nuclei adalah langkah
-// persiapan internal Hackbot dan tidak pernah tampil sebagai nama di UI.
+// persiapan internal orchis-redteam-agent dan tidak pernah tampil sebagai nama di UI.
 export type EngineKind = 'web' | 'defense' | 'full';
 
 export function toolsFor(kind: EngineKind): string[] {
@@ -12,9 +12,9 @@ export function toolsFor(kind: EngineKind): string[] {
 }
 
 // Nama tampilan untuk teks lama dari branch lain; tidak mengubah identifier tool
-// yang tersimpan. DefenseBot -> orchis-defense-agent, Hackbot tetap Hackbot.
+// yang tersimpan. DefenseBot -> orchis-defense-agent, Hackbot -> orchis-redteam-agent.
 export function agentDisplayName(value: string): string {
-    return value.replace(/\bDefenseBot\b/g, 'orchis-defense-agent').replace(/\bdefensebot\b/gi, 'orchis-defense-agent');
+    return value.replace(/\bhackbot\b/gi, 'orchis-redteam-agent').replace(/\bdefensebot\b/gi, 'orchis-defense-agent');
 }
 
 export function isFullTools(tools: string[] | undefined): boolean {
@@ -22,16 +22,16 @@ export function isFullTools(tools: string[] | undefined): boolean {
 }
 
 export function engineLabel(tool: string): string {
-    return tool === 'defensebot' ? 'orchis-defense-agent' : 'Hackbot';
+    return tool === 'defensebot' ? 'orchis-defense-agent' : 'orchis-redteam-agent';
 }
 
-// Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "Hackbot".
-// Nama engine yang benar menurut alat yang dipilih: hanya orchis-defense-agent -> "orchis-defense-agent", hanya jalur web -> "Hackbot".
+// Label engine untuk riwayat scan: "nmap + nuclei + hackbot" ditampilkan sebagai "orchis-redteam-agent".
+// Nama engine yang benar menurut alat yang dipilih: hanya orchis-defense-agent -> "orchis-defense-agent", hanya jalur web -> "orchis-redteam-agent".
 export function engineSetLabel(tools: string[] | undefined): string {
     const list = tools ?? ['nmap', 'nuclei', 'hackbot'];
     if (isFullTools(list)) return textUI('flow_eng_full_sub');
     if (list.includes('defensebot') && !list.includes('hackbot')) return 'orchis-defense-agent';
-    return 'Hackbot';
+    return 'orchis-redteam-agent';
 }
 
 export function kindLabel(kind: EngineKind): string {
@@ -40,10 +40,10 @@ export function kindLabel(kind: EngineKind): string {
     return textUI('flow_eng_full');
 }
 
-// Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine Hackbot
+// Satu baris per engine untuk detail scan: job nmap/nuclei/hackbot dilebur menjadi engine orchis-redteam-agent
 // dengan tahap berbahasa manusia; defensebot menjadi engine orchis-defense-agent.
 export type EngineRow = {
-    engine: 'Hackbot' | 'orchis-defense-agent';
+    engine: 'orchis-redteam-agent' | 'orchis-defense-agent';
     stage: string;
     status: string;
     jobs: ScanJob[];
@@ -70,7 +70,7 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
             : web.some((j) => j.status === 'waiting') ? 'waiting'
             : web.every((j) => j.status === 'finished') ? 'finished' : 'incomplete';
         rows.push({
-            engine: 'Hackbot',
+            engine: 'orchis-redteam-agent',
             stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web),
             status,
             jobs: web,
@@ -90,11 +90,11 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
     return rows;
 }
 
-// Nama engine yang tampil untuk daftar injector luring: pipeline Hackbot (nmap/nuclei/hackbot)
-// dilaporkan sebagai satu "Hackbot", koleksi endpoint sebagai "orchis-defense-agent" (AUDIT UI-004d).
+// Nama engine yang tampil untuk daftar injector luring: pipeline orchis-redteam-agent (nmap/nuclei/hackbot)
+// dilaporkan sebagai satu "orchis-redteam-agent", koleksi endpoint sebagai "orchis-defense-agent" (AUDIT UI-004d).
 export function engineNames(keys: string[]): string[] {
     const out: string[] = [];
-    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('Hackbot');
+    if (keys.some(k => k === 'nmap' || k === 'nuclei' || k === 'hackbot')) out.push('orchis-redteam-agent');
     if (keys.some(k => k === 'defensebot')) out.push('orchis-defense-agent');
     return out;
 }

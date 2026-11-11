@@ -36,7 +36,7 @@ type Service struct {
 // SeedCatalog menyemai integrasi injector bawaan dan kontraknya. Aman dijalankan berulang.
 func SeedCatalog(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error {
 	integ := []struct{ kind, key, name, desc string }{
-		{"injector", "hackbot", "Hackbot", "Unattended web pentesting and evidence-backed reports."},
+		{"injector", "hackbot", "orchis-redteam-agent", "Unattended web pentesting and evidence-backed reports."},
 		{"injector", "defensebot", "orchis-defense-agent", "Maps installed software to known vulnerabilities and reports hardening gaps."},
 		{"injector", "nmap", "Nmap", "Port and service discovery."},
 		{"injector", "nuclei", "Nuclei", "Template-based vulnerability scanning."},
