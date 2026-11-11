@@ -40,6 +40,9 @@ type NewFinding struct {
 	Title    string          `json:"title"`
 	Severity string          `json:"severity"`
 	Details  json.RawMessage `json:"details"`
+	// Identity distinguishes separate Hackbot vulnerabilities at the same URL.
+	// It is set only by the server and cannot be supplied in injector JSON.
+	Identity string `json:"-"`
 }
 
 func normalizeValue(v string) string { return strings.ToLower(strings.TrimSpace(v)) }
@@ -96,7 +99,11 @@ func ingest(ctx context.Context, tx pgx.Tx, tenant, execID, asset uuid.UUID, sim
 		if len(details) == 0 || len(details) > maxDetailsBytes || !json.Valid(details) {
 			details = json.RawMessage(`{}`)
 		}
-		hash := valueHash(f.Type, f.Value)
+		identity := f.Value
+		if f.Identity != "" {
+			identity += "\x00" + strings.TrimSpace(f.Identity)
+		}
+		hash := valueHash(f.Type, identity)
 		key := f.Type + string(hash)
 		if seen[key] { // duplikat di batch yang sama dihitung sekali
 			continue
