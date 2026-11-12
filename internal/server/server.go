@@ -31,6 +31,7 @@ import (
 	"orchis-go/internal/mitre"
 	"orchis-go/internal/organizations"
 	"orchis-go/internal/people"
+	"orchis-go/internal/recommendations"
 	"orchis-go/internal/reporting"
 	"orchis-go/internal/retention"
 	"orchis-go/internal/scancontrol"
@@ -87,6 +88,7 @@ func New(o Options) http.Handler {
 	})
 	ah.Register(mux)
 	(&scans.Handlers{Svc: ScanService(o)}).Register(mux)
+	(&recommendations.Handlers{Svc: &recommendations.Service{DB: o.DB, Tenant: o.Tenant}, Runtime: Runtime(o)}).Register(mux)
 	(&schedules.Handlers{Svc: ScheduleService(o)}).Register(mux)
 	(&scancontrol.Handlers{Svc: ScanControlService(o)}).Register(mux)
 	(&retention.Handlers{Svc: RetentionService(o)}).Register(mux)

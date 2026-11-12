@@ -465,7 +465,7 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 			res.Findings = nil
 			if res.Hackbot == nil {
 				if outcome == "success" {
-					return httpx.BadRequest("Hackbot result is required.")
+					return httpx.BadRequest("orchis-redteam-agent result is required.")
 				}
 			} else {
 				if err := res.Hackbot.Validate(); err != nil {
@@ -486,7 +486,7 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 				}
 			}
 		} else if res.Hackbot != nil {
-			return httpx.BadRequest("Hackbot result is not valid for this contract.")
+			return httpx.BadRequest("orchis-redteam-agent result is not valid for this contract.")
 		}
 		if ckey == contract.KeyDefenseBot {
 			if res.Defense == nil {
@@ -785,7 +785,7 @@ func ProvisionToken(ctx context.Context, d *db.DB, tenant uuid.UUID, key, token 
 // Progress accepts only bounded public metadata from the claiming Hackbot worker.
 func (r *Runtime) Progress(ctx context.Context, in *Injector, id uuid.UUID, p hackbot.Progress) error {
 	if in.Key != "hackbot" || !p.Valid() {
-		return httpx.BadRequest("Invalid Hackbot progress.")
+		return httpx.BadRequest("Invalid orchis-redteam-agent progress.")
 	}
 	return r.DB.InTenant(ctx, r.Tenant, func(tx pgx.Tx) error {
 		data, _ := json.Marshal(p)

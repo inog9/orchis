@@ -15,6 +15,7 @@ import (
 	"orchis-go/internal/hackbot"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/recommendations"
 	"orchis-go/internal/reporting"
 	"orchis-go/internal/scancontrol"
 	"orchis-go/internal/scanscope"
@@ -40,7 +41,7 @@ func (s *Service) Tick(ctx context.Context, tenant uuid.UUID) error {
 			return err
 		}
 		// A canceled preliminary check must not leave its dependent test waiting forever.
-		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; Hackbot was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='hackbot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status='canceled')`, tenant); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; orchis-redteam-agent was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='hackbot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool IN ('nmap','nuclei') AND p.status='canceled')`, tenant); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs j SET status='canceled',error='Preliminary scanner canceled; orchis-defense-agent was not started.',ended_at=now() WHERE j.tenant_id=$1 AND j.tool='defensebot' AND j.status='waiting' AND EXISTS(SELECT 1 FROM scan_jobs p WHERE p.tenant_id=j.tenant_id AND p.assessment_id=j.assessment_id AND p.control_asset_id=j.control_asset_id AND p.tool='nmap' AND p.status='canceled')`, tenant); err != nil {
@@ -270,7 +271,7 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 					return e
 				}
 				if summary == "" {
-					summary = "Hackbot did not complete this pentest. Coverage: " + j.status + ". See the execution details for the blocker."
+					summary = "orchis-redteam-agent did not complete this pentest. Coverage: " + j.status + ". See the execution details for the blocker."
 				}
 				x.Summary = hackbot.LimitSummary(reporting.Redact(summary, 32000))
 				x.CompletedPhases = phases
@@ -323,6 +324,9 @@ func (s *Service) freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 		if err = s.Reports.FreezeScanSnapshot(ctx, tx, tenant, a.OrganizationID, a.ID, snap); err != nil {
 			return err
 		}
+		if err = recommendations.Enqueue(ctx, tx, tenant, a.ID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -352,7 +356,7 @@ func linkOutsideConfirmation(a *reporting.Asset, covActions map[string]string) {
 				case strings.Contains(action, contract.KeyNucleiVS):
 					outside[cve]["Nuclei"] = true
 				case strings.Contains(action, contract.KeyHackbot):
-					outside[cve]["Hackbot"] = true
+					outside[cve]["orchis-redteam-agent"] = true
 				}
 			}
 		}

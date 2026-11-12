@@ -1,7 +1,7 @@
 # Menjalankan Orchis dengan Docker Compose
 
 Satu berkas `docker-compose.yaml` di root repo menjalankan seluruh stack: server, PostgreSQL, RabbitMQ,
-Elasticsearch, MinIO, renderer PDF, worker Nmap/Nuclei, Hackbot/OpenCode, DefenseBot, dan Caddy (HTTPS). Layanan `migrate` berjalan
+Elasticsearch, MinIO, renderer PDF, worker Nmap/Nuclei, orchis-redteam-agent/OpenCode, DefenseBot, dan Caddy (HTTPS). Layanan `migrate` berjalan
 sekali sebelum server (migrasi lalu provisioning); server baru start setelah keduanya sukses.
 
 ## Prasyarat build
@@ -26,7 +26,7 @@ Akun operator build harus dapat membaca source tersebut dan mengakses Docker.
 ```bash
 sudo make prod-init                      # rahasia acak di /var/lib/orchis (di luar checkout, izin 0600)
 sudo python3 deploy/prod/ops.py env > .env    # nilai non-rahasia untuk compose (lihat .env.example)
-sudo make prod-build                     # server, renderer, scanner, engine dan worker Hackbot
+sudo make prod-build                     # server, renderer, scanner, engine dan worker orchis-redteam-agent
 sudo make prod-up                        # docker compose up + tunggu health dan heartbeat injector
 sudo make prod-probe                     # HTTPS, login, renderer
 ```

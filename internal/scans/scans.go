@@ -149,7 +149,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 	}
 	full := len(in.Tools) == 4 && containsFullTools(in.Tools)
 	if len(in.Tools) > 0 && !full && !(len(in.Tools) == 3 && containsPipelineTools(in.Tools)) {
-		return nil, invalid("tools", "Web pentests run the Hackbot pipeline; a full assessment adds the orchis-defense-agent engine.")
+		return nil, invalid("tools", "Web pentests run the orchis-redteam-agent pipeline; a full assessment adds the orchis-defense-agent engine.")
 	}
 	in.Tools = []string{"nmap", "nuclei", "hackbot"}
 	if full {
@@ -240,7 +240,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 				return err
 			}
 			if busy {
-				return httpx.Conflict("Hackbot is already testing " + t.name + "; wait for that run to finish before starting another.")
+				return httpx.Conflict("orchis-redteam-agent is already testing " + t.name + "; wait for that run to finish before starting another.")
 			}
 			// Full assessment juga menjalankan orchis-defense-agent: aset butuh agent terdaftar, bukan hanya URL web.
 			// Penilaian penuh boleh campuran: aset ber-agent menjalankan orchis-defense-agent, aset ber-URL menjalankan Hackbot,
@@ -319,7 +319,7 @@ func (s *Service) Launch(ctx context.Context, p *auth.Principal, in Input, key, 
 			hasWeb := e == nil
 			if !hasWeb && !(full && t.agent) {
 				if full {
-					return invalid("asset_ids", t.name+" needs an approved web URL for Hackbot or an enrolled agent for orchis-defense-agent.")
+					return invalid("asset_ids", t.name+" needs an approved web URL for orchis-redteam-agent or an enrolled agent for orchis-defense-agent.")
 				}
 				return invalid("asset_ids", "Every web pentest requires an approved HTTP(S) URL.")
 			}
@@ -478,7 +478,7 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 				}
 			}
 			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
-				j.Summary = "Hackbot did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
+				j.Summary = "orchis-redteam-agent did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
 			}
 			j.Summary = hackbot.LimitSummary(reporting.Redact(j.Summary, 32000))
 			if j.Summary != "" {

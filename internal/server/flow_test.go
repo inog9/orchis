@@ -59,7 +59,7 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 	mixed.AssetIDs = []uuid.UUID{uuid.MustParse(urlOnly)}
 	var mixedScan scans.Scan
 	if r := f.a.do("POST", "/api/v1/scans", mixed, f.analyst, "Idempotency-Key", "full-mixed"); r.Status != 201 {
-		t.Fatalf("full on URL-only asset must run Hackbot only: %d %s", r.Status, r.Body)
+		t.Fatalf("full on URL-only asset must run orchis-redteam-agent only: %d %s", r.Status, r.Body)
 	} else {
 		r.JSON(&mixedScan)
 	}
@@ -116,7 +116,7 @@ func TestFullAssessmentLaunchOrderingAndGuard(t *testing.T) {
 	// Guard Hackbot: run web kedua pada aset yang sama ditolak selama run pertama masih hidup.
 	second := scans.Input{OrganizationID: org, AssetIDs: []uuid.UUID{assetID}}
 	if r := f.a.do("POST", "/api/v1/scans", second, f.analyst, "Idempotency-Key", "overlap"); r.Status != 409 || !strings.Contains(string(r.Body), "already testing") {
-		t.Fatalf("second Hackbot run must be refused: %d %s", r.Status, r.Body)
+		t.Fatalf("second orchis-redteam-agent run must be refused: %d %s", r.Status, r.Body)
 	}
 
 	// Cancel berantai: assessment kedua hanya untuk orchis-defense-agent yang menunggu Nmap aset sama dibatalkan
@@ -244,7 +244,7 @@ func TestFindingRetestLaunchesSameEngine(t *testing.T) {
 		tools[j.Tool] = true
 	}
 	if !tools["hackbot"] || tools["defensebot"] {
-		t.Fatalf("outside retest must run the Hackbot pipeline only: %+v", scan.Jobs)
+		t.Fatalf("outside retest must run the orchis-redteam-agent pipeline only: %+v", scan.Jobs)
 	}
 
 	inside := insertFinding(t, f, asset, "osv-exact")

@@ -16,7 +16,7 @@ import (
 )
 
 func TestFirstClassScanParallelIdempotencyPartialFailureAndFrozenReport(t *testing.T) {
-	t.Skip("legacy: menguji eksekusi nmap/nuclei per job lama; pipeline Hackbot dicakup flow_test.go")
+	t.Skip("legacy: menguji eksekusi nmap/nuclei per job lama; pipeline orchis-redteam-agent dicakup flow_test.go")
 	f := newScanFixture(t, true)
 	ctx := context.Background()
 	o := createOrg(t, f.a, f.admin, "scan")
@@ -209,7 +209,7 @@ func TestScanSelectedAssetsRequireAuthorizationOrganisationAndSafeOptions(t *tes
 }
 
 func TestScanAssetRevokedBeforeDispatchAndCancellationAreIdempotent(t *testing.T) {
-	t.Skip("legacy: menguji eksekusi nmap/nuclei per job lama; pipeline Hackbot dicakup flow_test.go")
+	t.Skip("legacy: menguji eksekusi nmap/nuclei per job lama; pipeline orchis-redteam-agent dicakup flow_test.go")
 	f := newScanFixture(t, true)
 	o := createOrg(t, f.a, f.admin, "scan-revoke")
 	ctx := context.Background()

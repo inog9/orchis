@@ -1,3 +1,4 @@
+import { ScanRecommendations } from '../components/ScanRecommendations';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
 import { DefenseResult } from '../components/DefenseResult';
@@ -140,6 +141,7 @@ export function ScanDetailPage() {
             </div>)}
           </div></div>)}
       </section>
+      {!running && s.report_id && !s.results_expired_at && can(me,'finding.read') && can(me,'report.read') && <ScanRecommendations scanID={s.id}/>}
       {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{agentDisplayName(s.summary)}</p></section>}
       {s.report_id && can(me,'report.read') && <section className="sims__panel"><h2 className="sims__h">{textUI("hackbot_report")}</h2>{s.report_status==='ready' ? <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${s.report_id}/export/pdf?preview=1`}/> : <p role="status">{s.report_status==='failed' ? textUI("hackbot_pdf_failed") : textUI("hackbot_pdf_pending")}</p>}<Link to={`/reports/${s.report_id}`}>{textUI("hackbot_open_report")}</Link></section>}
       {jobs.some((j) => j.defense) && <section className="sims__panel" aria-labelledby="def-h"><h2 id="def-h" className="sims__h">{textUI("m_def_scan_h")}</h2>{jobs.filter((j) => j.defense).map((j) => <div key={j.id}><h3 className="ed-h4">{formatUI(j.name)}</h3><DefenseResult summary={j.defense!}/></div>)}</section>}

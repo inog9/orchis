@@ -3,7 +3,7 @@
     "key": "hackbot.pentest",
     "adapter": "hackbot",
     "integration": "hackbot",
-    "name": "Hackbot web pentest",
+    "name": "orchis-redteam-agent web pentest",
     "kind": "vulnerability_scan",
     "output_types": [
       "vulnerability"

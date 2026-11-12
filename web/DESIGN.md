@@ -81,7 +81,7 @@ Empat state terlihat + fokus: **default, hover, selected, disabled** + `focus-vi
 ## 9. Suara & copy (EN/ID, dua bahasa selalu sinkron)
 
 - Pendek, konkret, tanpa jargon internal. Satu kosakata: **Organisation/Organisasi, Asset/Aset, Agent/Agent, Scan/Scan, Finding/Temuan, Report/Laporan**.
-- Engine hanya dua: **Hackbot** (pentest web) dan **DefenseBot** (koleksi endpoint). Nama engine yang tampil harus selalu sama dengan yang benar-benar berjalan. Dilarang menampilkan Nmap/Nuclei/preset/injector/job-key di UI.
+- Engine hanya dua: **orchis-redteam-agent** (pentest web) dan **DefenseBot** (koleksi endpoint). Nama engine yang tampil harus selalu sama dengan yang benar-benar berjalan. Dilarang menampilkan Nmap/Nuclei/preset/injector/job-key di UI.
 - Label tombol = apa yang terjadi. Empty state menyebut langkah berikutnya. Angka disertai satuan/konteks. Tanpa em dash, tanpa emoji dekoratif, tanpa klaim tanpa bukti (R-02, R-17, R-36). Semua teks baru via `textUI("m_…")` di `en.ts` dan `id.ts`.
 
 ## 10. Terlarang (ringkas, dari antislop + keputusan pemilik)

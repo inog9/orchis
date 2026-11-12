@@ -1,9 +1,9 @@
 # Perjalanan produk ujung-ke-ujung
 
 Dokumen ini menggambarkan perjalanan lengkap pengguna Orchis: dari aset mentah sampai laporan yang
-diverifikasi. Dua engine yang dilihat pengguna: **Web pentest (Hackbot)** untuk sisi luar dan
+diverifikasi. Dua engine yang dilihat pengguna: **Web pentest (orchis-redteam-agent)** untuk sisi luar dan
 **Installed software check (DefenseBot)** untuk sisi dalam. Nmap dan Nuclei adalah langkah persiapan
-internal Hackbot dan tidak pernah ditampilkan di UI.
+internal orchis-redteam-agent dan tidak pernah ditampilkan di UI.
 
 ## Peta perjalanan
 
@@ -29,7 +29,7 @@ internal Hackbot dan tidak pernah ditampilkan di UI.
     │  kartu: Web pentest / Installed software check / Full assessment
     ▼
  Detail pindai (satu baris engine per aset)
-    │  Hackbot:      Bersiap → Menguji → Menyusun laporan
+    │  orchis-redteam-agent:      Bersiap → Menguji → Menyusun laporan
     │  DefenseBot:   Menunggu pemindai → Mengumpulkan → Mencocokkan
     │  Full assessment: engine dipilih per aset (URL, agent, atau keduanya)
     ▼
@@ -44,9 +44,9 @@ internal Hackbot dan tidak pernah ditampilkan di UI.
 ```
 
 Full assessment menerima aset campuran dalam satu pindai: aset dengan URL yang disetujui
-menjalankan Hackbot, aset dengan agent menjalankan DefenseBot, dan aset dengan keduanya
+menjalankan orchis-redteam-agent, aset dengan agent menjalankan DefenseBot, dan aset dengan keduanya
 menjalankan kedua engine. DefenseBot menunggu Nmap aset yang sama bila tahap itu ada;
-ia tidak menunggu seluruh pentest Hackbot selesai.
+ia tidak menunggu seluruh pentest orchis-redteam-agent selesai.
 
 ## Siapa boleh apa
 
@@ -77,6 +77,6 @@ dan tautan perbaikan) dan di checklist aset — tidak ada aset yang disembunyika
 ## Perlindungan yang tetap berlaku
 
 - Launch idempoten (Idempotency-Key), dijaga otorisasi, scan control, stop darurat, dan audit.
-- Hanya satu run Hackbot aktif per aset; run kedua ditolak dengan pesan yang jelas.
+- Hanya satu run orchis-redteam-agent aktif per aset; run kedua ditolak dengan pesan yang jelas.
 - DefenseBot menunggu Nmap aset yang sama pada Full assessment agar tag "seen by scanner" terisi.
 - Data agent tidak dipercaya; koleksi hanya query tetap read-only yang disetujui.

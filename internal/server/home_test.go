@@ -33,7 +33,7 @@ type homeJSON struct {
 		Critical, High, Medium int
 		OpenPorts              int `json:"open_ports"`
 	} `json:"most_exposed"`
-	Injectors []struct{ Key, Status string }
+	Injectors []struct{ Key, Name, Status string }
 }
 
 func getHome(t *testing.T, f *scanFixture, cookie string) homeJSON {
@@ -57,7 +57,17 @@ func TestHomeSummaryReflectsAssetsRunsAndFindings(t *testing.T) {
 		t.Fatalf("ringkasan awal salah: %+v", h)
 	}
 	if len(h.Injectors) != 4 || h.Injectors[0].Status != "offline" {
-		t.Fatalf("empat injector offline diharapkan (orchis-defense-agent, Hackbot, Nmap, Nuclei): %+v", h.Injectors)
+		t.Fatalf("empat injector offline diharapkan (orchis-defense-agent, orchis-redteam-agent, Nmap, Nuclei): %+v", h.Injectors)
+	}
+
+	var redteamName string
+	for _, injector := range h.Injectors {
+		if injector.Key == "hackbot" {
+			redteamName = injector.Name
+		}
+	}
+	if redteamName != "orchis-redteam-agent" {
+		t.Fatalf("legacy tool key must expose the current product name: %q", redteamName)
 	}
 
 	// scan nmap sukses (2 port) + scan nuclei sukses (1 kerentanan critical dan 1 medium) pada aset yang sama

@@ -29,7 +29,7 @@ func (r *Runtime) scannerInputs(ctx context.Context, tx pgx.Tx, simulation uuid.
 			return nil, err
 		}
 		if input.Status != "finished" && input.Status != "failed" && input.Status != "incomplete" {
-			return nil, httpx.Conflict("Hackbot is waiting for preliminary Nmap and Nuclei scans.")
+			return nil, httpx.Conflict("orchis-redteam-agent is waiting for preliminary Nmap and Nuclei scans.")
 		}
 		if seen[input.Tool] {
 			return nil, fmt.Errorf("duplicate preliminary scanner input")
@@ -41,7 +41,7 @@ func (r *Runtime) scannerInputs(ctx context.Context, tx pgx.Tx, simulation uuid.
 		return nil, err
 	}
 	if len(inputs) != 2 || !seen["nmap"] || !seen["nuclei"] {
-		return nil, httpx.Conflict("Hackbot requires both preliminary scanner results.")
+		return nil, httpx.Conflict("orchis-redteam-agent requires both preliminary scanner results.")
 	}
 	return inputs, nil
 }
