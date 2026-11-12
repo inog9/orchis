@@ -15,17 +15,18 @@ type Finding struct {
 	Details  json.RawMessage `json:"details"`
 }
 type Result struct {
-	Schema        int       `json:"schema"`
-	SessionID     string    `json:"session_id"`
-	Disposition   string    `json:"disposition"`
-	Phase         string    `json:"phase"`
-	Summary       string    `json:"summary"`
-	Phases        []string  `json:"phases"`
-	VerifiedTasks int       `json:"verified_tasks"`
-	Blockers      []string  `json:"blockers"`
-	Findings      []Finding `json:"findings"`
-	Report        string    `json:"report"`
-	Validation    string    `json:"validation"`
+	Schema          int       `json:"schema"`
+	ReviewCompleted bool      `json:"review_completed,omitempty"`
+	SessionID       string    `json:"session_id"`
+	Disposition     string    `json:"disposition"`
+	Phase           string    `json:"phase"`
+	Summary         string    `json:"summary"`
+	Phases          []string  `json:"phases"`
+	VerifiedTasks   int       `json:"verified_tasks"`
+	Blockers        []string  `json:"blockers"`
+	Findings        []Finding `json:"findings"`
+	Report          string    `json:"report"`
+	Validation      string    `json:"validation"`
 }
 type Progress struct {
 	SessionID string `json:"session_id,omitempty"`
@@ -60,6 +61,9 @@ func (r *Result) Validate() error {
 	case "complete", "limited", "input_required", "failed", "cancelled":
 	default:
 		return fmt.Errorf("invalid orchis-redteam-agent disposition")
+	}
+	if r.ReviewCompleted && (r.Phase != "report" || (r.Disposition != "complete" && r.Disposition != "limited" && r.Disposition != "input_required")) {
+		return fmt.Errorf("invalid completed report review")
 	}
 	if len(r.Phases) > 13 || r.VerifiedTasks < 0 {
 		return fmt.Errorf("invalid orchis-redteam-agent coverage")

@@ -51,17 +51,17 @@ export type EngineRow = {
     error: string;
 };
 
-function hackbotStage(jobs: ScanJob[]): string {
+function hackbotStage(jobs: ScanJob[], reportReady: boolean): string {
     const anyRunning = jobs.some((j) => j.status === 'running');
     const anyFailed = jobs.some((j) => j.status === 'failed');
     const allDone = jobs.every((j) => j.status === 'finished' || j.status === 'incomplete' || j.status === 'failed' || j.status === 'canceled');
     if (anyFailed && !anyRunning) return '';
-    if (allDone) return textUI('flow_stage_writing');
+    if (allDone) return reportReady ? textUI('m_rep_s_ready') : textUI('flow_stage_writing');
     if (anyRunning) return textUI('flow_stage_testing');
     return textUI('flow_stage_preparing');
 }
 
-export function engineRows(jobs: ScanJob[]): EngineRow[] {
+export function engineRows(jobs: ScanJob[], reportReady = false): EngineRow[] {
     const rows: EngineRow[] = [];
     const web = jobs.filter((j) => j.tool === 'nmap' || j.tool === 'nuclei' || j.tool === 'hackbot');
     if (web.length > 0) {
@@ -71,7 +71,7 @@ export function engineRows(jobs: ScanJob[]): EngineRow[] {
             : web.every((j) => j.status === 'finished') ? 'finished' : 'incomplete';
         rows.push({
             engine: 'orchis-redteam-agent',
-            stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web),
+            stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web, reportReady),
             status,
             jobs: web,
             findings: web.reduce((n, j) => n + (j.findings?.length ?? 0), 0),

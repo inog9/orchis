@@ -16,12 +16,19 @@ import (
 )
 
 func TestHackbotScanLifecycle(t *testing.T) {
-	for _, scenario := range []string{"complete", "limited", "input_required", "scanner_failed"} {
+	for _, scenario := range []string{"complete", "limited", "input_required", "scanner_failed", "reviewed_limited", "reviewed_input_required", "reviewed_scanner_failed"} {
 		t.Run(scenario, func(t *testing.T) {
 			disposition := scenario
+			reviewed := strings.HasPrefix(scenario, "reviewed_")
+			if reviewed {
+				disposition = strings.TrimPrefix(scenario, "reviewed_")
+			}
 			failedScanner := ""
-			if scenario == "scanner_failed" {
+			if disposition == "scanner_failed" {
 				disposition = "complete"
+				if reviewed {
+					disposition = "limited"
+				}
 				failedScanner = "nmap"
 			}
 			a, env := setup(t)
@@ -110,7 +117,7 @@ func TestHackbotScanLifecycle(t *testing.T) {
 			if disposition == "input_required" {
 				code = 3
 			}
-			result := execution.Result{ExitCode: &code, Hackbot: &hackbot.Result{Schema: 1, SessionID: "session-1", Disposition: disposition, Phase: "report", Summary: strings.Repeat("tested ", 350), Report: "# Full fixture report\n\ntoken=supersecret", Validation: "# Internal validation ledger", Findings: []hackbot.Finding{{ID: "f1", Title: "Verified issue", Value: "http://127.0.0.1:8080/#f1", Severity: "medium", Details: json.RawMessage(`{"verdict":"VALIDATED","reason":"Controlled fixture evidence"}`)}}}}
+			result := execution.Result{ExitCode: &code, Hackbot: &hackbot.Result{Schema: 1, ReviewCompleted: reviewed, SessionID: "session-1", Disposition: disposition, Phase: "report", Summary: strings.Repeat("tested ", 350), Report: "# Full fixture report\n\ntoken=supersecret", Validation: "# Internal validation ledger", Findings: []hackbot.Finding{{ID: "f1", Title: "Verified issue", Value: "http://127.0.0.1:8080/#f1", Severity: "medium", Details: json.RawMessage(`{"verdict":"VALIDATED","reason":"Controlled fixture evidence"}`)}}}}
 			if got := inj("/result", result); got.Status != 204 {
 				t.Fatalf("result: %d %s", got.Status, got.Body)
 			}
@@ -130,11 +137,17 @@ func TestHackbotScanLifecycle(t *testing.T) {
 				want = "incomplete"
 			}
 			overall := want
+			if reviewed && failedScanner == "" {
+				overall = "finished"
+			}
 			if failedScanner != "" {
 				overall = "incomplete"
 			}
 			if scan.Status != overall || hackbotJob(scan.Jobs).Status != want {
 				t.Fatalf("coverage mislabeled: %+v", scan)
+			}
+			if scan.LimitedCoverage != (disposition != "complete" || failedScanner != "") {
+				t.Fatal("coverage flag is incorrect")
 			}
 			if len(strings.Fields(scan.Summary)) > 300 {
 				t.Fatal("summary exceeds limit")

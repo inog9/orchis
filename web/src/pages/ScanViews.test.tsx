@@ -24,6 +24,13 @@ const mount = (ui: React.ReactNode, path: string, pattern = '*') => render(<Quer
 afterEach(() => vi.restoreAllMocks());
 
 describe('ScanList', () => {
+  it('shows a finished review with limited coverage in the scan list', async () => {
+    route((u) => u.pathname === '/api/v1/scans' ? { items: [scan({ limited_coverage: true })], next_cursor: null } : undefined);
+    mount(<ScanList />, '/simulations');
+    const table = await screen.findByRole('table', { name: 'Scans' });
+    expect(within(table).getByText('Finished')).toBeInTheDocument();
+    expect(within(table).getByText(/Incomplete coverage/)).toBeInTheDocument();
+  });
   it('menampilkan baris: organisasi, status bertulisan, alat, preset, durasi', async () => {
     route((u) => u.pathname === '/api/v1/scans' ? { items: [scan({}), scan({ id: 'bbbbbbbb-1111-2222-3333-444444444444', status: 'running', ended_at: null })], next_cursor: null } : undefined);
     mount(<ScanList />, '/simulations');
@@ -53,6 +60,15 @@ describe('ScanList', () => {
 });
 
 describe('ScanDetailPage', () => {
+  it('shows finished review and limited coverage separately when the report is ready', async () => {
+    route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', limited_coverage: true, report_id: 'r1', report_status: 'ready', jobs: [job({ tool: 'hackbot', status: 'incomplete' })] }) : undefined);
+    mount(<ScanDetailPage />, '/simulations/s1', '/simulations/:id');
+    expect(await screen.findByRole('heading', { name: 'Org Uno' })).toBeInTheDocument();
+    expect(screen.getAllByText(/Incomplete coverage/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Finished').length).toBeGreaterThan(0);
+    expect(screen.getByText('Ready')).toBeInTheDocument();
+    expect(screen.queryByText('Writing report')).toBeNull();
+  });
   it('selesai: statistik, linimasa hanya created_at/ended_at, tabel temuan terurut severity', async () => {
     const f = (severity: string, title: string) => ({ id: title, type: 'vulnerability', value: 'v-' + title, title, severity, evidence: {} });
     route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', jobs: [job({ id: 'j1', findings: [f('low', 'Rendah')] }), job({ id: 'j2', tool: 'nuclei', findings: [f('critical', 'Kritis')] })] }) : undefined);
