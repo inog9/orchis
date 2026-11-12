@@ -60,6 +60,19 @@ T1105 (Ingress Tool Transfer) via `DefaultLinks` — otomatis muncul di `/mitre`
 - Halaman `/mitre` otomatis menampilkan teknik blueteam (mapped/exercised setelah scan sukses).
 - Overview (peta): fase berikutnya bisa menampilkan koneksi sebagai garis dari aset ke tujuan (mirip arc yang sudah ada).
 
+## 6b. Sumber reputasi IOC (mengacu wtfis — github.com/pirxthepilot/wtfis)
+wtfis adalah CLI passive lookup IP/domain yang menggabungkan banyak sumber OSINT sambil meminimalkan
+panggilan API (agar tetap aman di free tier). Kita adopsi daftar sumbernya untuk `blueteam.analyze`,
+tetap diimplementasikan native di server (Go, machine-readable, cache di DB):
+
+- Tanpa API key: FireHOL blocklist-ipsets, Spamhaus DROP/EDROP, abuse.ch SSLBL (JA3/JA3S), IPinfo, ipwhois.
+- Dengan API key gratis (opsional, rate-limit + cache): VirusTotal (reputasi/kategori vendor), AbuseIPDB
+  (skor abuse), Greynoise (bedakan mass-scanner vs targeted — kurangi false positive), URLhaus/ThreatFox
+  (IOC malware/C2: IP/domain/URL/hash), AlienVault OTX, Google Safe Browsing, PhishTank, MISP.
+- Hash proses (SHA-256 dari kolektor): MalwareBazaar / ThreatFox / VirusTotal.
+- wtfis sendiri tetap berguna sebagai alat manual analis: dari finding `c2_suspect_ip`, jalankan
+  `wtfis <ip>` untuk investigasi mendalam (whois, resolusi, kategori). Opsional: tombol "enrich" di UI (fase 2).
+
 ## 7. Privasi & keamanan
 - Consent eksplisit per-org; data sensitif (high) ikut aturan retensi & redaction yang sudah ada.
 - Tidak ada isi koneksi/payload; hanya metadata 5-tuple + proses.
