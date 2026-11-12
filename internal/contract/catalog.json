@@ -539,7 +539,7 @@
  {
   "key": "blueteam.analyze",
   "adapter": "blueteam",
-  "integration": "blueteam",
+  "integration": "defensebot",
   "name": "Blueteam endpoint detection",
   "kind": "scan",
   "output_types": [
