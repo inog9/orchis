@@ -88,10 +88,12 @@ func Load() (*Config, error) {
 	if err != nil || c.ScanConcurrency < 1 || c.ScanConcurrency > 32 {
 		return nil, fmt.Errorf("ORCHIS_SCAN_CONCURRENCY must be between 1 and 32")
 	}
-	// The older option remains supported for installations that explicitly disable collection.
-	// Legacy zero-touch seeding is opt-in. Existing or expired approvals are never renewed automatically.
-	raw := env("ORCHIS_AUTO_CONSENT", "0")
-	c.AutoConsent = raw != "0" && raw != "false" && raw != "off"
+	// Enrollment is not organizational consent. Refuse legacy automatic approval
+	// configurations rather than silently manufacturing per-query consent.
+	raw := strings.ToLower(strings.TrimSpace(env("ORCHIS_AUTO_CONSENT", "0")))
+	if raw != "0" && raw != "false" && raw != "off" {
+		return nil, fmt.Errorf("ORCHIS_AUTO_CONSENT is no longer supported; explicitly approve each organizational query")
+	}
 	rawInterval := strings.TrimSpace(os.Getenv("ORCHIS_COLLECTION_INTERVAL_SECONDS"))
 	legacy := rawInterval == ""
 	if legacy {

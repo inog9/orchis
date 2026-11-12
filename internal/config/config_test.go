@@ -130,7 +130,7 @@ func TestAutoConsentOffByDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 	if c.AutoConsent {
-		t.Fatal("auto consent must be opt-in")
+		t.Fatal("auto consent must be disabled")
 	}
 	t.Setenv("ORCHIS_AUTO_CONSENT", "0")
 	c, err = Load()
@@ -139,6 +139,10 @@ func TestAutoConsentOffByDefault(t *testing.T) {
 	}
 	if c.AutoConsent {
 		t.Fatal("ORCHIS_AUTO_CONSENT=0 harus mematikan auto consent")
+	}
+	t.Setenv("ORCHIS_AUTO_CONSENT", "1")
+	if _, err = Load(); err == nil {
+		t.Fatal("legacy automatic consent must be rejected")
 	}
 }
 

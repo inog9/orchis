@@ -28,7 +28,7 @@ type Service struct {
 	DB                 *db.DB
 	Exec               *execution.Service
 	CollectionInterval time.Duration
-	// AutoConsent enables legacy opt-in seeding; existing decisions are never renewed automatically.
+	// AutoConsent is retained for compatibility and has no effect; consent is explicit.
 	AutoConsent bool
 }
 

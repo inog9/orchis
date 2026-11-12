@@ -55,7 +55,7 @@ type Options struct {
 	ScanMaxHosts              int
 	ScanConcurrency           int
 	EndpointCollectionSeconds int
-	// AutoConsent mengaktifkan penanaman persetujuan koleksi otomatis (kebijakan pemilik produk).
+	// AutoConsent is retained for compatibility and has no effect; query approval is explicit.
 	AutoConsent  bool
 	WebDir       string
 	Version      string
