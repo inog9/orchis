@@ -8,8 +8,7 @@ package endpoint
 //     tidak pernah ditanam; migration 00037 memang mematikannya secara sengaja.
 //   - Baris yang sudah ada TIDAK pernah ditimpa (ON CONFLICT DO NOTHING); keputusan admin, termasuk
 //     "Nonaktifkan", selalu menang.
-//   - Rotasi dokumen persetujuan: baris scope yang masih enabled tapi konsennya kadaluarsa
-//     disegarkan ke dokumen berlaku oleh AutoConsentTick, sesuai kebijakan zero-touch.
+//   - Persetujuan yang sudah kedaluwarsa tidak diperbarui otomatis; admin harus meninjau ulang.
 
 import (
 	"context"
@@ -74,8 +73,8 @@ ON CONFLICT (tenant_id,organization_id,query_key) DO NOTHING`, tenant, org, c.Ve
 }
 
 // AutoConsentTick menjalankan kebijakan persetujuan otomatis untuk seluruh organisasi non-demo
-// yang punya agent: menanam baris scope yang belum ada dan menyegarkan baris scope yang masih
-// enabled tetapi konsennya kadaluarsa. Baris enabled=false (keputusan admin) tidak pernah disentuh.
+// yang punya agent: hanya menanam baris yang belum ada. Persetujuan lama dan
+// baris enabled=false tidak pernah diperbarui otomatis.
 func (s *Service) AutoConsentTick(ctx context.Context, tenant uuid.UUID) error {
 	return s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
 		var actor uuid.UUID
@@ -109,7 +108,6 @@ WHERE tenant_id=$1 AND status<>'revoked' AND NOT is_demo AND organization_id IS 
 		if err := rows.Err(); err != nil {
 			return err
 		}
-		byOrg := map[uuid.UUID]map[string]struct{}{}
 		for _, p := range pairs {
 			keys := autoConsentKeys(p.os)
 			if len(keys) == 0 {
@@ -121,34 +119,8 @@ SELECT $1,$2,k,true,$5,$3,$4,$5,now() FROM unnest($6::text[]) AS k
 ON CONFLICT (tenant_id,organization_id,query_key) DO NOTHING`, tenant, p.org, c.Version, c.SHA256, actor, keys); err != nil {
 				return err
 			}
-			tag, err := tx.Exec(ctx, `UPDATE osquery_org_settings SET consent_version=$3, consent_sha256=$4, consented_by=$5, consented_at=now(), updated_by=$5, version=version+1
-WHERE tenant_id=$1 AND organization_id=$2 AND enabled AND query_key=ANY($6)
-AND (consent_version IS DISTINCT FROM $3 OR consent_sha256 IS DISTINCT FROM $4)`, tenant, p.org, c.Version, c.SHA256, actor, keys)
-			if err != nil {
-				return err
-			}
-			if tag.RowsAffected() > 0 {
-				set := byOrg[p.org]
-				if set == nil {
-					set = map[string]struct{}{}
-					byOrg[p.org] = set
-				}
-				for _, k := range keys {
-					set[k] = struct{}{}
-				}
-			}
 		}
-		for org, set := range byOrg {
-			keys := make([]string, 0, len(set))
-			for k := range set {
-				keys = append(keys, k)
-			}
-			o := org
-			if err := audit.Write(ctx, tx, audit.Entry{Tenant: tenant, ActorUser: &actor, Action: "endpoint.collection.autoconsent", ResourceType: "organization", ResourceID: &o,
-				Detail: map[string]any{"refreshed": true, "keys": keys}}); err != nil {
-				return err
-			}
-		}
+
 		return nil
 	})
 }

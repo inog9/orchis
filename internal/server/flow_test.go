@@ -246,6 +246,10 @@ func TestFindingRetestLaunchesSameEngine(t *testing.T) {
 	if !tools["hackbot"] || tools["defensebot"] {
 		t.Fatalf("outside retest must run the orchis-redteam-agent pipeline only: %+v", scan.Jobs)
 	}
+	// A second scan on the same asset is blocked until the first is canceled.
+	if r := f.a.do("POST", "/api/v1/scans/"+scan.ID.String()+"/cancel", nil, f.analyst); r.Status != 200 {
+		t.Fatalf("cancel outside retest: %d %s", r.Status, r.Body)
+	}
 
 	inside := insertFinding(t, f, asset, "osv-exact")
 	r = f.a.do("POST", "/api/v1/findings/"+inside+"/retest", nil, f.analyst)

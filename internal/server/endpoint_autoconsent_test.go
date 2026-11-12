@@ -108,8 +108,8 @@ func TestAutoConsentSweepSeedsMissingAndRespectsAdminDisabled(t *testing.T) {
 	if err := f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND enabled AND consent_version='dokumen-lama'`, org).Scan(&stale); err != nil {
 		t.Fatal(err)
 	}
-	if stale != 0 {
-		t.Fatal("baris enabled yang konsennya kadaluarsa harus disegarkan ke dokumen berlaku")
+	if stale == 0 {
+		t.Fatal("expired consent must not be silently renewed")
 	}
 	var off int
 	if err := f.a.env.Owner.QueryRow(ctx, `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND query_key='osquery.packages' AND enabled`, org).Scan(&off); err != nil {

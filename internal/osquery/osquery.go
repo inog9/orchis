@@ -199,7 +199,7 @@ func IsOsquery(key string) bool { return strings.HasPrefix(key, "osquery.") }
 var AllowedTables = map[string]bool{
 	"system_info": true, "os_version": true, "kernel_info": true, "uptime": true, "deb_packages": true, "rpm_packages": true,
 	"users": true, "groups": true, "user_groups": true, "listening_ports": true, "processes": true, "system_controls": true,
-	"disk_encryption": true, "iptables": true, "interface_addresses": true, "routes": true,
+	"disk_encryption": true, "iptables": true, "interface_addresses": true, "routes": true, "process_open_sockets": true,
 	// Ditinjau saat membekukan pack resmi (metadata sistem; tanpa isi berkas, perintah, atau kredensial).
 	"kernel_modules": true, "mounts": true, "etc_hosts": true, "time": true, "pci_devices": true, "usb_devices": true,
 	// orchis-defense-agent: metadata perangkat lunak dan layanan (nama, versi, pemilik paket); tanpa isi berkas, perintah, atau kredensial.

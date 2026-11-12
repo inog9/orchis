@@ -32,6 +32,9 @@ type statusWriter struct {
 
 func (s *statusWriter) WriteHeader(c int) { s.status = c; s.ResponseWriter.WriteHeader(c) }
 
+// Unwrap lets ResponseController flush and set streaming write deadlines.
+func (s *statusWriter) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
 // Base: request id, pemulihan panic (menjadi 500 dengan error_id), dan log akses.
 func Base(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

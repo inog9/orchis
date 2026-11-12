@@ -21,6 +21,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"orchis-go/internal/agentproto"
 	"orchis-go/internal/contract"
 	"orchis-go/internal/execution"
@@ -81,6 +83,8 @@ type Agent struct {
 	ServiceManaged bool
 	Restart        func()
 	Logf           func(format string, a ...any)
+	// Optional dependency injection for a local query runner; never set from a remote command.
+	RunNamedQuery func(context.Context, string) ([]osquery.Dataset, error)
 
 	mu             sync.Mutex
 	diagnosticCode string
@@ -212,6 +216,7 @@ func (a *Agent) Run(ctx context.Context) error {
 	var working chan struct{}
 	var cancelWork context.CancelFunc
 	var pending *agentproto.ControlCommand
+	var collect *agentproto.ControlCommand
 	defer func() {
 		if cancelWork != nil {
 			cancelWork()
@@ -275,7 +280,11 @@ func (a *Agent) Run(ctx context.Context) error {
 					pending = r.Command
 					continue
 				}
-				a.setDiagnostic("uninstall_failed")
+				if validCollectCommand(r.Command, a.Cfg.AgentID, runtime.GOOS) {
+					collect = r.Command
+				} else {
+					a.setDiagnostic("collection_failed")
+				}
 			}
 			backoff, lastBeat = time.Second, time.Now()
 			if r.PollSeconds >= 2 && r.PollSeconds <= 60 {
@@ -302,7 +311,21 @@ func (a *Agent) Run(ctx context.Context) error {
 			continue
 		}
 		var spec execution.ClaimSpec
-		code, err := a.do(ctx, http.MethodPost, "executions/claim", nil, &spec)
+		claimPath := "executions/claim"
+		requested := collect
+		collect = nil
+		if requested != nil {
+			claimPath = "executions/" + requested.ID + "/claim"
+			if len(requested.Queries) > 1 {
+				collect = &agentproto.ControlCommand{Kind: "collect", AgentID: requested.AgentID, ID: requested.ExecutionIDs[1], Queries: requested.Queries[1:], ExecutionIDs: requested.ExecutionIDs[1:]}
+			}
+		}
+		code, err := a.do(ctx, http.MethodPost, claimPath, nil, &spec)
+		if err == nil && code != http.StatusNoContent && requested != nil && (spec.ExecutionID.String() != requested.ID || spec.ContractKey != requested.Queries[0]) {
+			a.setDiagnostic("collection_failed")
+			a.logf("collection command did not match its claimed execution")
+			continue
+		}
 		switch {
 		case errors.Is(err, ErrRevoked):
 			if cancelWork != nil {
@@ -328,6 +351,37 @@ func (a *Agent) Run(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// A command is only a hint to claim one previously authorized execution; it never contains SQL.
+func validCollectCommand(c *agentproto.ControlCommand, agentID, platform string) bool {
+	if c == nil || c.Kind != "collect" || c.AgentID != agentID || len(c.Queries) == 0 || len(c.Queries) > 8 {
+		return false
+	}
+	if _, err := uuid.Parse(c.ID); err != nil {
+		return false
+	}
+	if len(c.Queries) > 1 && len(c.ExecutionIDs) != len(c.Queries) {
+		return false
+	}
+	if len(c.ExecutionIDs) > 0 && (len(c.ExecutionIDs) != len(c.Queries) || c.ExecutionIDs[0] != c.ID) {
+		return false
+	}
+	ids := map[string]bool{}
+	for i, key := range c.Queries {
+		q := osquery.Find(key)
+		if q == nil || !q.SupportsOS(platform) {
+			return false
+		}
+		if len(c.ExecutionIDs) > 0 {
+			v := c.ExecutionIDs[i]
+			if _, err := uuid.Parse(v); err != nil || ids[v] {
+				return false
+			}
+			ids[v] = true
+		}
+	}
+	return true
 }
 
 // revoked: kredensial dicabut selamanya. Rahasia dihapus dari disk, lalu agent diam (tidak keluar, agar service manager tidak
@@ -386,7 +440,11 @@ func (a *Agent) execute(ctx context.Context, spec *execution.ClaimSpec) {
 		terr = fmt.Errorf("unsupported agent contract version: %s v%d", spec.ContractKey, spec.ContractVersion)
 	} else if _, terr = contract.NormalizeVersion(spec.ContractKey, spec.ContractVersion, spec.Params); terr == nil {
 		if osquery.IsOsquery(spec.ContractKey) {
-			datasets, terr = a.runOsquery(tctx, spec.ContractKey)
+			runner := a.runOsquery
+			if a.RunNamedQuery != nil {
+				runner = a.RunNamedQuery
+			}
+			datasets, terr = runner(tctx, spec.ContractKey)
 		} else {
 			findings, terr = Task(tctx, spec.ContractKey)
 		}
@@ -489,7 +547,7 @@ func (a *Agent) selfUpdate(ctx context.Context, want string) error {
 
 func (a *Agent) controlProtocol() int {
 	if a.StartUninstall != nil {
-		return agentproto.ControlProtocol
+		return agentproto.ControlUninstallAndCollect
 	}
-	return 0
+	return agentproto.ControlCollectOnly
 }

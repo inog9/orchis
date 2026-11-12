@@ -34,6 +34,7 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false,
     const summary = job?.defense;
     const running = history.latest?.status === 'running';
     const collected = (data?.items ?? []).map((d) => d.collected_at).filter((v): v is string => !!v).sort().at(-1);
+    const collectionLabels = { idle: textUI('endpoint_collection_idle'), pending: textUI('endpoint_collection_pending'), collecting: textUI('endpoint_collection_collecting'), completed: textUI('endpoint_collection_completed'), failed: textUI('endpoint_collection_failed') };
     const unsupported = data?.supported === false && data.has_agent;
     // Why the button is off is always said in words next to it.
     const blocked = !data ? '' : !data.has_agent ? textUI("m_def_no_agent") : unsupported ? textUI("m_def_unsupported") : !orgID ? textUI("m_def_need_org") : !authorized ? textUI("m_def_need_auth") : '';
@@ -57,6 +58,8 @@ export function EndpointDataPanel({ assetID, canRun, allowed, canDelete = false,
           {formatUI(summary && <DefenseResult summary={summary}/>)}
         </div>))}
         {formatUI(collected && <p className="muted small">{textUI("m_def_collected", [when(collected)])}</p>)}
+        {data.has_agent && data.agent_online === false && <p role="status">{textUI('endpoint_agent_offline')}</p>}
+        {(data.items ?? []).some(item => item.enabled && item.collection_state) && <div aria-live="polite"><h3>{textUI('endpoint_collection_status')}</h3><ul>{(data.items ?? []).filter(item => item.enabled && item.collection_state).map(item => <li key={item.key}>{item.title}: {collectionLabels[item.collection_state ?? 'idle']}</li>)}</ul></div>}
         {formatUI(canDelete && !data.read_only && data.has_agent && <p><button className="btn btn--secondary btn--auto" type="button" onClick={() => setConfirmDelete(true)}>{textUI("m_e39b83b0b4b3")}</button></p>)}
         {formatUI(remove.isError && <p role="alert">{formatUI(describeError(remove.error).message)}</p>)}
         {formatUI(confirmDelete && <Modal labelledBy="delete-endpoint-data-title" onClose={() => setConfirmDelete(false)} width={480}><h2 id="delete-endpoint-data-title" className="dialog__title">{textUI("m_c3623ff5d9f4")}</h2><p>{textUI("m_6562710a3dbf")}</p><footer className="dialog__foot"><button className="btn btn--secondary btn--auto" type="button" onClick={() => setConfirmDelete(false)}>{textUI("m_19766ed6ccb2")}</button><button className="btn btn--primary btn--auto" type="button" disabled={remove.isPending} onClick={() => remove.mutate(data.version, { onSuccess: () => setConfirmDelete(false) })}>{formatUI(remove.isPending ? textUI("m_43b5894c3e4e") : textUI("m_3566e099aa40"))}</button></footer></Modal>)}

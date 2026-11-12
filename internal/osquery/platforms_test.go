@@ -77,3 +77,18 @@ func TestMacOSQueriesAreTheReviewedCrossPlatformSet(t *testing.T) {
 		}
 	}
 }
+
+func TestWindowsNetworkCatalogUsesSupportedTables(t *testing.T) {
+	for _, key := range []string{"osquery.network_ranges", "osquery.network", "osquery.active_connections"} {
+		q := Find(key)
+		if q == nil || !q.SupportsOS("windows") {
+			t.Fatalf("%s not enabled for Windows", key)
+		}
+		if err := q.Validate(); err != nil {
+			t.Fatalf("%s: %v", key, err)
+		}
+	}
+	if Find("osquery.packages").SupportsOS("windows") {
+		t.Fatal("Linux packages query enabled on Windows")
+	}
+}

@@ -88,14 +88,20 @@ func Load() (*Config, error) {
 	if err != nil || c.ScanConcurrency < 1 || c.ScanConcurrency > 32 {
 		return nil, fmt.Errorf("ORCHIS_SCAN_CONCURRENCY must be between 1 and 32")
 	}
-	// Collection runs automatically every 5 minutes by default; set ORCHIS_ENDPOINT_COLLECTION_SECONDS=0 to disable (manual orchis-defense-agent runs only).
-	// Kebijakan pemilik produk: persetujuan koleksi orchis-defense-agent ditanam otomatis saat agent
-	// terdaftar dan disegarkan berkala; matikan dengan ORCHIS_AUTO_CONSENT=0.
-	raw := env("ORCHIS_AUTO_CONSENT", "1")
+	// The older option remains supported for installations that explicitly disable collection.
+	// Legacy zero-touch seeding is opt-in. Existing or expired approvals are never renewed automatically.
+	raw := env("ORCHIS_AUTO_CONSENT", "0")
 	c.AutoConsent = raw != "0" && raw != "false" && raw != "off"
-	c.EndpointCollectionSeconds, err = strconv.Atoi(env("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "300"))
-	if err != nil || c.EndpointCollectionSeconds != 0 && (c.EndpointCollectionSeconds < 60 || c.EndpointCollectionSeconds > 86400) {
-		return nil, fmt.Errorf("ORCHIS_ENDPOINT_COLLECTION_SECONDS must be 0 (manual only) or between 60 and 86400")
+	rawInterval := strings.TrimSpace(os.Getenv("ORCHIS_COLLECTION_INTERVAL_SECONDS"))
+	legacy := rawInterval == ""
+	if legacy {
+		rawInterval = env("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "60")
+	}
+	c.EndpointCollectionSeconds, err = strconv.Atoi(rawInterval)
+	if err != nil || c.EndpointCollectionSeconds < 60 || c.EndpointCollectionSeconds > 86400 {
+		if !(legacy && err == nil && c.EndpointCollectionSeconds == 0) {
+			return nil, fmt.Errorf("ORCHIS_COLLECTION_INTERVAL_SECONDS must be between 60 and 86400")
+		}
 	}
 	c.S3.TLS, _ = strconv.ParseBool(env("ORCHIS_S3_TLS", "false"))
 	secure, err := strconv.ParseBool(env("ORCHIS_COOKIE_SECURE", "false"))

@@ -128,7 +128,7 @@ func (s *Service) Control(ctx context.Context, p *auth.Principal, id uuid.UUID, 
 			if in.Confirmation != id.String() {
 				return fe("confirmation", "Enter the exact agent ID to confirm uninstall.")
 			}
-			if capability != agentproto.ControlProtocol {
+			if !agentproto.CanUninstall(capability) {
 				return httpx.Conflict("Update this agent before remote uninstall; it has not advertised support.")
 			}
 			command := uuid.New()

@@ -237,7 +237,7 @@ func ScanService(o Options) *scans.Service {
 func EndpointService(o Options) *endpoint.Service {
 	seconds := o.EndpointCollectionSeconds
 	if seconds == 0 {
-		seconds = 900
+		seconds = 60
 	}
 	return &endpoint.Service{AutoConsent: o.AutoConsent, DB: o.DB, Exec: &execution.Service{Now: o.Now, DB: o.DB, Guard: o.Guard}, CollectionInterval: time.Duration(seconds) * time.Second}
 }

@@ -1,4 +1,11 @@
 export const en = {
+  "endpoint_agent_offline": "Agent offline",
+  "endpoint_collection_status": "Collection status",
+  "endpoint_collection_idle": "Idle",
+  "endpoint_collection_pending": "Pending",
+  "endpoint_collection_collecting": "Collecting",
+  "endpoint_collection_completed": "Completed",
+  "endpoint_collection_failed": "Failed",
   "review_eyebrow": "OpenCode review",
   "review_title": "What to fix first",
   "review_status_queued": "Queued",

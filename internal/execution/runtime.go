@@ -730,8 +730,10 @@ func (r *Runtime) ClaimNext(ctx context.Context, in *Injector) (*ClaimSpec, erro
 	}
 	var cands []uuid.UUID
 	err := r.DB.InTenantRead(ctx, r.Tenant, func(tx pgx.Tx) error {
-		rows, err := tx.Query(ctx, `SELECT id FROM executions WHERE tenant_id=$1 AND agent_id=$2 AND state='ready' AND not_before <= now()
-ORDER BY ready_at, id LIMIT 5`, r.Tenant, *in.AgentID)
+		rows, err := tx.Query(ctx, `SELECT e.id FROM executions e WHERE e.tenant_id=$1 AND e.agent_id=$2 AND e.state='ready' AND e.not_before <= now()
+AND (NOT EXISTS(SELECT 1 FROM endpoint_collection_requests req WHERE req.tenant_id=e.tenant_id AND req.execution_id=e.id)
+ OR NOT EXISTS(SELECT 1 FROM agents g WHERE g.tenant_id=e.tenant_id AND g.id=e.agent_id AND g.control_protocol IN (2,3)))
+ORDER BY e.ready_at, e.id LIMIT 5`, r.Tenant, *in.AgentID)
 		if err != nil {
 			return err
 		}

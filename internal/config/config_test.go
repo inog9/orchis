@@ -122,14 +122,15 @@ func TestProductionRejectsDefaultServiceAndInitialAdminCredentials(t *testing.T)
 	}
 }
 
-func TestAutoConsentOnByDefault(t *testing.T) {
+func TestAutoConsentOffByDefault(t *testing.T) {
 	t.Setenv("ORCHIS_STATE", t.TempDir())
+	t.Setenv("ORCHIS_AUTO_CONSENT", "")
 	c, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.AutoConsent {
-		t.Fatal("auto consent harus aktif secara bawaan")
+	if c.AutoConsent {
+		t.Fatal("auto consent must be opt-in")
 	}
 	t.Setenv("ORCHIS_AUTO_CONSENT", "0")
 	c, err = Load()
@@ -141,13 +142,25 @@ func TestAutoConsentOnByDefault(t *testing.T) {
 	}
 }
 
-func TestEndpointCollectionRunsEveryFiveMinutesByDefault(t *testing.T) {
+func TestEndpointCollectionInterval(t *testing.T) {
 	t.Setenv("ORCHIS_ENV_FILE", "")
 	t.Setenv("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "")
+	t.Setenv("ORCHIS_COLLECTION_INTERVAL_SECONDS", "")
 	c, err := Load()
-	if err != nil || c.EndpointCollectionSeconds != 300 {
-		t.Fatalf("periodic default expected 300, got %d (%v)", c.EndpointCollectionSeconds, err)
+	if err != nil || c.EndpointCollectionSeconds != 60 {
+		t.Fatalf("default: %d (%v)", c.EndpointCollectionSeconds, err)
 	}
+	t.Setenv("ORCHIS_COLLECTION_INTERVAL_SECONDS", "120")
+	if c, err = Load(); err != nil || c.EndpointCollectionSeconds != 120 {
+		t.Fatalf("override: %d (%v)", c.EndpointCollectionSeconds, err)
+	}
+	for _, invalid := range []string{"-1", "0", "garbage", "59", "86401"} {
+		t.Setenv("ORCHIS_COLLECTION_INTERVAL_SECONDS", invalid)
+		if _, err = Load(); err == nil {
+			t.Fatalf("accepted invalid interval %q", invalid)
+		}
+	}
+	t.Setenv("ORCHIS_COLLECTION_INTERVAL_SECONDS", "")
 	t.Setenv("ORCHIS_ENDPOINT_COLLECTION_SECONDS", "0")
 	if c, err = Load(); err != nil || c.EndpointCollectionSeconds != 0 {
 		t.Fatalf("explicit 0 must disable periodic collection: %d (%v)", c.EndpointCollectionSeconds, err)

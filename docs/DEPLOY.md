@@ -123,3 +123,5 @@ firewall. `--site` menerima hostname atau IPv4 tanpa skema/path/port. Bila memak
 hostname, DNS agent harus mengarahkannya ke alamat server. URL konsol dan pemasangan
 harus memakai identitas `--site` yang sama agar verifikasi hostname TLS tetap berlaku.
 Bawaan ini tetap memakai CA internal; HTTPS publik/ACME belum dibuktikan.
+
+Endpoint monitoring: see [OPERASI.md](OPERASI.md) for the 60-second default, consent renewal, SSE and the server-first signed-agent rollout. Set `ORCHIS_COLLECTION_INTERVAL_SECONDS` in the server environment; changing it requires a service restart, not an image rebuild.

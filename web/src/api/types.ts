@@ -330,11 +330,11 @@ export type EndpointPack = { name: string; description: string; file: string; sh
 export type EndpointConsent = { version: string; sha256: string; text: string; translations?: Partial<Record<"en"|"id",string>> };
 export type EndpointCatalog = { collection_interval_seconds?:number; consent: EndpointConsent; osquery_version: string; license: string; proven_os: string[]; queries: EndpointQueryMeta[]; packs: EndpointPack[] };
 export type OrgOsquerySetting = { version?:number; key: string; enabled: boolean; explicit: boolean; updated_at: string | null; consent_version?: string | null; consent_sha256?: string | null; consented_by?: string | null; consented_at?: string | null };
-export type EndpointDataset = { supported?:boolean;
+export type EndpointDataset = { supported?:boolean; collection_state?: 'idle' | 'pending' | 'collecting' | 'completed' | 'failed'; execution_id?: string;
   key: string; title: string; status: 'ok' | 'skipped' | 'failed' | 'never'; reason: string; collected_at: string | null; last_attempt_at: string | null;
   osquery_version: string; attributes: Record<string, unknown>; rows: Record<string, string>[]; truncated: boolean; enabled: boolean; synthetic: boolean;
 };
-export type EndpointAssetData = { platform?:string;arch?:string;supported?:boolean;
+export type EndpointAssetData = { platform?:string;arch?:string;supported?:boolean;agent_online?:boolean;
   asset_id: string; version: number; read_only: boolean; organization_id: string | null; has_agent: boolean; items: EndpointDataset[];
   findings: { id: string; type: string; severity: string; title: string; value: string; query: string }[];
 };

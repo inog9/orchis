@@ -27,6 +27,7 @@ import (
 	"orchis-go/internal/execution"
 	"orchis-go/internal/httpx"
 	"orchis-go/internal/ids"
+	"orchis-go/internal/osquery"
 )
 
 const (
@@ -435,10 +436,48 @@ AND (platform IS DISTINCT FROM $3 OR arch IS DISTINCT FROM $4)`, s.Tenant, p.Age
 		if err = tx.QueryRow(ctx, `SELECT paused,requested_update_version,uninstall_id,uninstall_status FROM agents WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.AgentID).Scan(&reply.Paused, &requested, &command, &state); err != nil {
 			return err
 		}
-		if command != nil && (state == "queued" || state == "dispatched") && in.ControlProtocol == agentproto.ControlProtocol {
+		if command != nil && (state == "queued" || state == "dispatched") && agentproto.CanUninstall(in.ControlProtocol) {
 			reply.Command = &agentproto.ControlCommand{ID: command.String(), Kind: "uninstall", AgentID: p.AgentID.String()}
 			if _, err = tx.Exec(ctx, `UPDATE agents SET uninstall_status='dispatched' WHERE tenant_id=$1 AND id=$2`, s.Tenant, p.AgentID); err != nil {
 				return err
+			}
+		}
+		// A collect command is a wake-up for a queued, already scoped execution.
+		// Claim remains the acknowledgement and rechecks consent before any SQL runs.
+		if reply.Command == nil && !reply.Paused && agentproto.CanCollect(in.ControlProtocol) {
+			consent := osquery.Consent()
+			rows, e := tx.Query(ctx, `SELECT req.execution_id,req.query_key FROM endpoint_collection_requests req
+JOIN executions e ON e.tenant_id=req.tenant_id AND e.id=req.execution_id AND e.agent_id=req.agent_id AND e.target_asset_id=req.asset_id
+JOIN agents g ON g.tenant_id=req.tenant_id AND g.id=req.agent_id AND g.asset_id=req.asset_id
+JOIN assets a ON a.tenant_id=req.tenant_id AND a.id=req.asset_id AND a.organization_id=g.organization_id
+JOIN osquery_org_settings s ON s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id AND s.query_key=req.query_key
+WHERE req.tenant_id=$1 AND req.agent_id=$2 AND e.state='ready' AND e.not_before<=now()
+AND a.testing_authorized AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT g.is_demo AND g.status<>'revoked'
+AND s.enabled AND s.consent_version=$3 AND s.consent_sha256=$4 AND s.consented_by IS NOT NULL AND s.consented_at IS NOT NULL
+ORDER BY req.created_at,req.execution_id LIMIT 100`, s.Tenant, p.AgentID, consent.Version, consent.SHA256)
+			if e != nil {
+				return e
+			}
+			command := &agentproto.ControlCommand{Kind: "collect", AgentID: p.AgentID.String()}
+			for rows.Next() {
+				var executionID uuid.UUID
+				var key string
+				if e = rows.Scan(&executionID, &key); e != nil {
+					rows.Close()
+					return e
+				}
+				if q := osquery.Find(key); q != nil && q.SupportsOS(p.OS) && osquery.CollectionSupported(p.OS, p.Arch) && len(command.Queries) < 8 {
+					command.Queries = append(command.Queries, key)
+					command.ExecutionIDs = append(command.ExecutionIDs, executionID.String())
+				}
+			}
+			rows.Close()
+			if e = rows.Err(); e != nil {
+				return e
+			}
+			if len(command.Queries) > 0 {
+				command.ID = command.ExecutionIDs[0]
+				reply.Command = command
 			}
 		}
 		policy, err = rollout(ctx, tx, s.Tenant)

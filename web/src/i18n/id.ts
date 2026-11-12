@@ -1,5 +1,12 @@
 import type {en} from './en';
 export const id:Record<keyof typeof en,string> = {
+  "endpoint_agent_offline": "Agent luring",
+  "endpoint_collection_status": "Status pengumpulan",
+  "endpoint_collection_idle": "Belum dimulai",
+  "endpoint_collection_pending": "Menunggu",
+  "endpoint_collection_collecting": "Mengumpulkan",
+  "endpoint_collection_completed": "Selesai",
+  "endpoint_collection_failed": "Gagal",
   "review_eyebrow": "Tinjauan OpenCode",
   "review_title": "Prioritas perbaikan",
   "review_status_queued": "Dalam antrean",

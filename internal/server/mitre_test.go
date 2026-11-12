@@ -60,8 +60,8 @@ func TestMitreImportIsAtomicIdempotentAndLinksContracts(t *testing.T) {
 	}
 	// Fixture memuat T1046, T1595.002 dan T1082 saja: T1046 (nmap), T1595.002 (nuclei), T1082 (agent.system_info,
 	// osquery.inventory, osquery.hardening) = lima tautan bawaan.
-	// Tautan osquery (termasuk pack resmi) dihitung dari katalog beku: tiga aksi non-osquery + rujukan T1082 osquery.
-	wantLinks := 3
+	// Empat aksi non-osquery (termasuk Hackbot) ditambah rujukan T1082 osquery.
+	wantLinks := 4
 	for _, q := range osquery.Queries {
 		for _, ref := range q.Mitre {
 			if ref.ID == "T1082" {
@@ -271,7 +271,7 @@ func TestMitreMatrixMarksExercisedTechniquesPerTenant(t *testing.T) {
 	}
 	r := c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.analyst)
 	r.JSON(&d)
-	if r.Status != 200 || d.URL != "https://attack.mitre.org/techniques/T1595/" || d.Runs != 1 || len(d.Actions) != 1 || d.Actions[0] != "Nuclei vulnerability scan" {
+	if r.Status != 200 || d.URL != "https://attack.mitre.org/techniques/T1595/" || d.Runs != 1 || len(d.Actions) != 2 || d.Actions[0] != "Nuclei vulnerability scan" || d.Actions[1] != "orchis-redteam-agent web pentest" {
 		t.Fatalf("detail: %d %s", r.Status, r.Body)
 	}
 	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595.002", nil, c.analyst)

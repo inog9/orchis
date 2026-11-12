@@ -1,3 +1,4 @@
+import { useEndpointStream } from './endpointStream';
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, ApiError } from './client';
 import type { EndpointAssetData, EndpointCatalog, EndpointConsent, OrgOsquerySetting, AgentRow, EnrollmentStatus, EnrollmentToken, AlertList, ApiToken, CreatedUser, IntegrationRow, MitreDetail, MitreMatrix, NewApiToken, PersonRow, PlatformSettings, ResetLink, RoleRow, TagRow, TeamDetail, TeamRow, UserRow, Asset, AssetPage, AssetPatch, AtomicTest, Contract, AttackPath, ChainEdge, ChainStep, ExecutionDetail, FindingPage, HomeSummary, Scenario, ScenarioDetail, Simulation, SimulationDetail, Group, GroupDetail, ImportPreview, ImportResult, NewAsset, NewAtomicTest, Rule, RulePreview, TagRef, User } from './types';
@@ -552,7 +553,8 @@ export function useSetOrgPack(orgId: string) {
   });
 }
 export function useAssetEndpoint(assetId: string, enabled = true) {
-  return useQuery({ queryKey: ['asset-endpoint', assetId], enabled, queryFn: () => api.get<EndpointAssetData>(`/api/v1/assets/${assetId}/endpoint-data`), retry: false, refetchInterval: 15_000 });
+  const connected = useEndpointStream(assetId, enabled);
+  return useQuery({ queryKey: ['asset-endpoint', assetId], enabled, queryFn: () => api.get<EndpointAssetData>(`/api/v1/assets/${assetId}/endpoint-data`), retry: false, refetchInterval: connected ? false : 60_000 });
 }
 export function useRefreshEndpoint(assetId: string) {
   const qc = useQueryClient();

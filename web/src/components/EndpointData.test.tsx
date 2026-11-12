@@ -40,6 +40,12 @@ function defenseStub(over: { data?: object; scans?: object[]; detail?: object; m
 }
 
 describe('orchis-defense-agent panel', () => {
+  it('shows collection progress and an offline agent without exposing dataset rows', async () => {
+    defenseStub({data: {agent_online:false, items:[{key:'osquery.network_ranges',title:'Network ranges',enabled:true,collection_state:'pending',status:'never',rows:[],attributes:{}}]}});
+    mount(<EndpointDataPanel assetID="a1" allowed canRun />);
+    expect(await screen.findByText('Agent offline')).toBeInTheDocument();
+    expect(screen.getByText('Network ranges: Pending')).toBeInTheDocument();
+  });
   it('says orchis-defense-agent has not run yet and starts a run for this asset only when the button is pressed', async () => {
     const calls: Calls = [];
     defenseStub({}, calls);

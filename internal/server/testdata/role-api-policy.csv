@@ -24,6 +24,7 @@ GET /api/v1/asset-groups/{id},admin|analyst
 GET /api/v1/assets,admin|analyst
 GET /api/v1/assets/{id},admin|analyst
 GET /api/v1/assets/{id}/endpoint-data,admin|analyst
+GET /api/v1/assets/{id}/endpoint-data/stream,admin|analyst
 GET /api/v1/atomic-tests,admin|analyst
 GET /api/v1/atomic-tests/{id},admin|analyst
 GET /api/v1/audit,admin
@@ -169,3 +170,14 @@ GET /api/v1/alerts/policy,admin
 PUT /api/v1/alerts/policy,admin
 PATCH /api/v1/auth/preferences,admin analyst viewer
 GET /api/v1/scan-jobs/{id}/validation,admin
+GET /api/v1/scans/{id}/recommendations,admin|analyst
+POST /api/v1/injector/recommendations/claim,machine
+POST /api/v1/injector/recommendations/{id}/result,machine
+POST /api/v1/audit-schedules/preview,admin|analyst
+GET /api/v1/audit-schedules,admin|analyst
+POST /api/v1/audit-schedules,admin|analyst
+GET /api/v1/audit-schedules/{id},admin|analyst
+PUT /api/v1/audit-schedules/{id},admin|analyst
+POST /api/v1/audit-schedules/{id}/pause,admin|analyst
+DELETE /api/v1/audit-schedules/{id},admin|analyst
+GET /api/v1/audit-schedules/{id}/runs,admin|analyst

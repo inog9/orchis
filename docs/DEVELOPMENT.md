@@ -126,3 +126,5 @@ memeriksa validasi source serta urutan build tanpa menjalankan Docker.
 Tes CI memakai fixture lokal dan tidak memerlukan kredensial model AI.
 Tes engine privat dijalankan di checkout pendamping; source privat tidak disalin
 ke repo Orchis atau ke image server.
+
+Endpoint monitoring uses catalog-only, consent-checked outbound agent claims and PostgreSQL notifications for browser SSE. See [OPERASI.md](OPERASI.md) for configuration, Windows limits and the required server-first rollout.

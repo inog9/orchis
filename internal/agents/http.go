@@ -119,6 +119,27 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 		}
 		httpx.JSON(w, 200, spec)
 	}))
+	mux.HandleFunc("POST "+AgentPrefix+"executions/{id}/claim", h.guard(func(w http.ResponseWriter, r *http.Request, p *Principal) {
+		id, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			httpx.Write(w, r, httpx.NotFound("Execution"))
+			return
+		}
+		var permitted bool
+		err = h.Svc.DB.InTenantRead(r.Context(), h.Svc.Tenant, func(tx pgx.Tx) error {
+			return tx.QueryRow(r.Context(), `SELECT EXISTS(SELECT 1 FROM endpoint_collection_requests WHERE tenant_id=$1 AND execution_id=$2 AND agent_id=$3)`, h.Svc.Tenant, id, p.AgentID).Scan(&permitted)
+		})
+		if err != nil {
+			httpx.Write(w, r, err)
+			return
+		}
+		if !permitted {
+			httpx.Write(w, r, httpx.NotFound("Execution"))
+			return
+		}
+		spec, err := h.RT.Claim(r.Context(), p.Worker(), id)
+		reply(w, r, 200, spec, err)
+	}))
 	mux.HandleFunc("POST "+AgentPrefix+"executions/{id}/heartbeat", h.guard(func(w http.ResponseWriter, r *http.Request, p *Principal) {
 		id, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {

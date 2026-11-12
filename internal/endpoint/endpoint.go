@@ -19,15 +19,16 @@ import (
 	"orchis-go/internal/db"
 	"orchis-go/internal/execution"
 	"orchis-go/internal/httpx"
+	"orchis-go/internal/ids"
 	"orchis-go/internal/osquery"
+	"orchis-go/internal/scancontrol"
 )
 
 type Service struct {
 	DB                 *db.DB
 	Exec               *execution.Service
 	CollectionInterval time.Duration
-	// AutoConsent: kebijakan pemilik produk "pasang agent = setuju koleksi orchis-defense-agent".
-	// Matikan dengan ORCHIS_AUTO_CONSENT=0 bila ingin persetujuan manual murni.
+	// AutoConsent enables legacy opt-in seeding; existing decisions are never renewed automatically.
 	AutoConsent bool
 }
 
@@ -146,7 +147,7 @@ func sortStrings(s []string) {
 
 // CatalogView adalah katalog beku apa adanya. Linux adalah satu-satunya OS yang terbukti; OS lain hanya struktur.
 func CatalogView() Catalog {
-	c := Catalog{CollectionIntervalSeconds: 900, Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, SupportedPlatforms: osquery.SupportedPlatforms(), Queries: []QueryMeta{}, Packs: []PackView{}}
+	c := Catalog{CollectionIntervalSeconds: 60, Consent: osquery.Consent(), OsqueryVersion: osquery.Version, License: osquery.License, ProvenOS: []string{"linux"}, SupportedPlatforms: osquery.SupportedPlatforms(), Queries: []QueryMeta{}, Packs: []PackView{}}
 	for i := range osquery.Packs {
 		c.Packs = append(c.Packs, packView(&osquery.Packs[i]))
 	}
@@ -267,19 +268,21 @@ ON CONFLICT (tenant_id, organization_id, query_key) DO UPDATE SET enabled=EXCLUD
 }
 
 type DatasetView struct {
-	Supported     bool                `json:"supported"`
-	Key           string              `json:"key"`
-	Title         string              `json:"title"`
-	Status        string              `json:"status"` // ok | skipped | failed | never
-	Reason        string              `json:"reason"`
-	CollectedAt   *time.Time          `json:"collected_at"`
-	LastAttemptAt *time.Time          `json:"last_attempt_at"`
-	Version       string              `json:"osquery_version"`
-	Attributes    map[string]any      `json:"attributes"`
-	Rows          []map[string]string `json:"rows"`
-	Truncated     bool                `json:"truncated"`
-	Enabled       bool                `json:"enabled"`
-	Synthetic     bool                `json:"synthetic"`
+	CollectionState string              `json:"collection_state"` // idle | pending | collecting | completed | failed
+	ExecutionID     *uuid.UUID          `json:"execution_id,omitempty"`
+	Supported       bool                `json:"supported"`
+	Key             string              `json:"key"`
+	Title           string              `json:"title"`
+	Status          string              `json:"status"` // ok | skipped | failed | never
+	Reason          string              `json:"reason"`
+	CollectedAt     *time.Time          `json:"collected_at"`
+	LastAttemptAt   *time.Time          `json:"last_attempt_at"`
+	Version         string              `json:"osquery_version"`
+	Attributes      map[string]any      `json:"attributes"`
+	Rows            []map[string]string `json:"rows"`
+	Truncated       bool                `json:"truncated"`
+	Enabled         bool                `json:"enabled"`
+	Synthetic       bool                `json:"synthetic"`
 }
 
 type FindingView struct {
@@ -292,6 +295,7 @@ type FindingView struct {
 }
 
 type AssetData struct {
+	AgentOnline    bool          `json:"agent_online"`
 	Platform       string        `json:"platform"`
 	Arch           string        `json:"arch"`
 	Supported      bool          `json:"supported"`
@@ -317,7 +321,32 @@ FROM assets a WHERE a.tenant_id=$1 AND a.id=$2 AND a.deleted_at IS NULL`, p.Tena
 		if err != nil {
 			return err
 		}
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM agents WHERE tenant_id=$1 AND asset_id=$2 AND status='online' AND NOT paused AND last_heartbeat_at>now()-interval '90 seconds')`, p.TenantID, asset).Scan(&out.AgentOnline); err != nil {
+			return err
+		}
 		out.Supported = osquery.CollectionSupported(out.Platform, out.Arch)
+		type progress struct {
+			id    uuid.UUID
+			state string
+		}
+		progressByKey := map[string]progress{}
+		pr, err := tx.Query(ctx, `SELECT DISTINCT ON (c.key) c.key,e.id,CASE WHEN e.state='ready' THEN 'pending' WHEN e.state='running' THEN 'collecting' WHEN e.outcome='success' AND d.execution_id=e.id AND d.last_status='ok' THEN 'completed' ELSE 'failed' END FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id LEFT JOIN endpoint_datasets d ON d.tenant_id=e.tenant_id AND d.asset_id=e.target_asset_id AND d.query_key=c.key WHERE e.tenant_id=$1 AND e.target_asset_id=$2 AND c.key LIKE 'osquery.%' ORDER BY c.key,e.created_at DESC,e.id DESC`, p.TenantID, asset)
+		if err != nil {
+			return err
+		}
+		for pr.Next() {
+			var key string
+			var v progress
+			if err = pr.Scan(&key, &v.id, &v.state); err != nil {
+				pr.Close()
+				return err
+			}
+			progressByKey[key] = v
+		}
+		pr.Close()
+		if err = pr.Err(); err != nil {
+			return err
+		}
 		stored := map[string]DatasetView{}
 		rows, err := tx.Query(ctx, `SELECT query_key, rows, attributes, truncated, collected_at, last_attempt_at, COALESCE(osquery_version,''), last_status, last_reason, is_demo
 FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)
@@ -358,6 +387,11 @@ FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2`, p.TenantID, asset)
 				v.Attributes = map[string]any{}
 			}
 			v.Key, v.Title = q.Key, q.Title
+			v.CollectionState = "idle"
+			if state, ok := progressByKey[q.Key]; ok {
+				v.CollectionState = state.state
+				v.ExecutionID = &state.id
+			}
 			v.Supported = out.Supported
 			en, _, err := execution.OsqueryEnabled(ctx, tx, p.TenantID, out.OrganizationID, q)
 			if err != nil {
@@ -409,7 +443,67 @@ func (s *Service) Refresh(ctx context.Context, p *auth.Principal, asset uuid.UUI
 		}
 		testID = t.ID
 	}
-	return s.Exec.Run(ctx, p, testID, ip, reqID)
+	var execID uuid.UUID
+	err = s.DB.InTenant(ctx, p.TenantID, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, p.TenantID); err != nil {
+			return err
+		}
+		var agent uuid.UUID
+		var org *uuid.UUID
+		var platform, arch string
+		var live, paused, authorized bool
+		err := tx.QueryRow(ctx, `SELECT g.id,a.organization_id,g.os,g.arch,COALESCE(g.last_heartbeat_at>now()-interval '90 seconds',false),g.paused OR g.uninstall_status IN('queued','dispatched'),a.testing_authorized
+FROM assets a JOIN agents g ON g.tenant_id=a.tenant_id AND g.asset_id=a.id AND g.organization_id=a.organization_id
+WHERE a.tenant_id=$1 AND a.id=$2 AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT g.is_demo AND g.status<>'revoked'
+ORDER BY g.last_heartbeat_at DESC NULLS LAST LIMIT 1 FOR SHARE OF a,g`, p.TenantID, asset).Scan(&agent, &org, &platform, &arch, &live, &paused, &authorized)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return httpx.Conflict("No active agent is associated with this asset.")
+		}
+		if err != nil {
+			return err
+		}
+		if !live || paused {
+			return httpx.Conflict("The agent is offline or paused; collection has not started.")
+		}
+		if !authorized {
+			return httpx.Conflict("This asset is not authorized for collection.")
+		}
+		if !q.SupportsOS(platform) || !osquery.CollectionSupported(platform, arch) {
+			return httpx.Conflict("This query is not supported on the agent's platform.")
+		}
+		enabled, _, err := execution.OsqueryEnabled(ctx, tx, p.TenantID, org, q)
+		if err != nil {
+			return err
+		}
+		if !enabled {
+			return httpx.Conflict("This query has no current organizational consent.")
+		}
+		err = tx.QueryRow(ctx, `SELECT e.id FROM executions e JOIN contracts c ON c.tenant_id=e.tenant_id AND c.id=e.contract_id WHERE e.tenant_id=$1 AND e.agent_id=$2 AND e.target_asset_id=$3 AND c.key=$4 AND e.state IN ('ready','running') ORDER BY e.created_at LIMIT 1`, p.TenantID, agent, asset, key).Scan(&execID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			execID = ids.New()
+			if err = s.Exec.QueueTest(ctx, tx, p, testID, execID, ip, reqID); err != nil {
+				return err
+			}
+		} else if err != nil {
+			return err
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO endpoint_collection_requests(tenant_id,execution_id,agent_id,asset_id,query_key,requested_by) SELECT $1,e.id,e.agent_id,e.target_asset_id,$4,$5 FROM executions e WHERE e.tenant_id=$1 AND e.id=$2 AND e.agent_id=$3 ON CONFLICT (tenant_id,execution_id) DO NOTHING`, p.TenantID, execID, agent, key, p.UserID)
+		if err != nil {
+			return err
+		}
+		var bound bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM endpoint_collection_requests WHERE tenant_id=$1 AND execution_id=$2 AND agent_id=$3 AND asset_id=$4 AND query_key=$5)`, p.TenantID, execID, agent, asset, key).Scan(&bound); err != nil {
+			return err
+		}
+		if !bound {
+			return httpx.Conflict("The collection could not be bound to this agent.")
+		}
+		return audit.Write(ctx, tx, audit.Entry{Tenant: p.TenantID, ActorUser: &p.UserID, Action: "endpoint.collection.request", ResourceType: "execution", ResourceID: &execID, IP: ip, RequestID: reqID, Detail: map[string]any{"asset_id": asset, "agent_id": agent, "query": key}})
+	})
+	if err != nil {
+		return nil, err
+	}
+	return s.Exec.GetExecution(ctx, p, execID)
 }
 
 type Handlers struct{ Svc *Service }
@@ -431,6 +525,7 @@ func id(r *http.Request, name, what string) (uuid.UUID, error) {
 }
 
 func (h *Handlers) Register(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/assets/{id}/endpoint-data/stream", auth.Require(authz.AssetRead, h.stream))
 	mux.HandleFunc("PUT /api/v1/organizations/{id}/endpoint-collection", auth.Require(authz.SettingsManage, func(w http.ResponseWriter, r *http.Request, p *auth.Principal) {
 		org, e := id(r, "id", "Organisation")
 		if e != nil {

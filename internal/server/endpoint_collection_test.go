@@ -122,7 +122,7 @@ func TestEndpointCollectionRejectsUnsupportedPlatformsAndUnknownQueries(t *testi
 	_, asset := f.authorizedAgent(t, "platform")
 	org := f.joinOrg(t, asset)
 	path := "/api/v1/organizations/" + org + "/endpoint-collection"
-	for _, platform := range []string{"windows", "ios", "linux;sh"} {
+	for _, platform := range []string{"ios", "linux;sh"} {
 		in := endpoint.CollectionInput{Platform: platform, Consent: osquery.Consent().ConsentRef}
 		if r := f.a.do("PUT", path, in, f.admin); r.Status != 422 {
 			t.Fatalf("unsupported automatic platform %s: %d", platform, r.Status)
@@ -146,7 +146,6 @@ func TestEndpointCollectionSchedulerNeverUsesUnapprovedRevokedOrUnsupportedAgent
 		{"disabled", `UPDATE osquery_org_settings SET enabled=false WHERE organization_id=$1`, `UPDATE osquery_org_settings SET enabled=true WHERE organization_id=$1`, org},
 		{"revoked", `UPDATE agents SET status='revoked' WHERE id=$1`, `UPDATE agents SET status='online' WHERE id=$1`, enrolled.AgentID},
 		{"demo", `UPDATE agents SET is_demo=true WHERE id=$1`, `UPDATE agents SET is_demo=false WHERE id=$1`, enrolled.AgentID},
-		{"platform", `UPDATE agents SET os='windows' WHERE id=$1`, `UPDATE agents SET os='linux' WHERE id=$1`, enrolled.AgentID},
 		{"architecture", `UPDATE agents SET arch='arm64' WHERE id=$1`, `UPDATE agents SET arch='x86_64' WHERE id=$1`, enrolled.AgentID},
 		{"testing", `UPDATE assets SET testing_authorized=false WHERE id=$1`, `UPDATE assets SET testing_authorized=true WHERE id=$1`, asset},
 		{"organisation", `UPDATE assets SET organization_id=NULL WHERE id=$1`, `UPDATE assets SET organization_id='` + org.String() + `' WHERE id=$1`, asset},
@@ -187,7 +186,7 @@ func TestOsqueryUnpinnedPlatformsNeverReceiveNamedQueries(t *testing.T) {
 	f := newAgentFixture(t)
 	secret, asset := f.approvedAgent(t, "unsupported-osquery", "osquery.inventory")
 	ctx := context.Background()
-	for _, p := range []struct{ os, arch string }{{"windows", "x86_64"}, {"linux", "arm64"}} {
+	for _, p := range []struct{ os, arch string }{{"linux", "arm64"}} {
 		if _, e := f.a.env.Owner.Exec(ctx, `UPDATE agents SET os=$2,arch=$3 WHERE asset_id=$1`, asset, p.os, p.arch); e != nil {
 			t.Fatal(e)
 		}

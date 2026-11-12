@@ -105,6 +105,16 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 			return err
 		}
 		c := osquery.Consent()
+		// Filter before the batch limit: unsupported or removed catalog entries must
+		// not starve compatible, enabled queries further down the queue.
+		var supportedQueries []string
+		for _, q := range osquery.Queries {
+			for _, platform := range []string{"linux", "macos", "windows"} {
+				if q.SupportsOS(platform) {
+					supportedQueries = append(supportedQueries, platform+":"+q.Key)
+				}
+			}
+		}
 		type item struct {
 			agent, asset, actor uuid.UUID
 			key, os, arch       string
@@ -116,11 +126,12 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
    JOIN osquery_org_settings s ON s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id
    LEFT JOIN endpoint_collection_schedule d ON d.tenant_id=g.tenant_id AND d.agent_id=g.id AND d.query_key=s.query_key
    WHERE g.tenant_id=$1 AND g.os||'/'||g.arch=ANY($5::text[]) AND g.status='online' AND NOT g.paused AND g.uninstall_status NOT IN('queued','dispatched') AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
+   AND g.os||':'||s.query_key=ANY($6::text[])
    AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT o.is_demo AND a.testing_authorized
    AND s.enabled AND s.consent_version=$2 AND s.consent_sha256=$3 AND s.consented_by IS NOT NULL AND s.consented_at IS NOT NULL
    AND (d.last_enqueued_at IS NULL OR d.last_enqueued_at<=now()-make_interval(secs=>$4))
    AND NOT EXISTS(SELECT 1 FROM executions e JOIN contracts co ON co.tenant_id=e.tenant_id AND co.id=e.contract_id WHERE e.tenant_id=g.tenant_id AND e.target_asset_id=a.id AND co.key=s.query_key AND e.state IN ('ready','running'))
-   ORDER BY g.id,s.query_key LIMIT 100 FOR SHARE OF g,a,s`, tenant, c.Version, c.SHA256, interval.Seconds(), osquery.SupportedPlatforms())
+   ORDER BY g.id,s.query_key LIMIT 100 FOR SHARE OF g,a,s`, tenant, c.Version, c.SHA256, interval.Seconds(), osquery.SupportedPlatforms(), supportedQueries)
 		if err != nil {
 			return err
 		}

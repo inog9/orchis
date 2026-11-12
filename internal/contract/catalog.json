@@ -323,6 +323,26 @@
   }
  },
  {
+  "key": "osquery.active_connections",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Active TCP connections (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 30,
+  "description": "Read a snapshot of established TCP sockets on Windows after explicit organizational approval.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
   "key": "osquery.network_ranges",
   "adapter": "osquery",
   "integration": "agent",

@@ -368,7 +368,8 @@
       ],
       "os": [
         "linux",
-        "macos"
+        "macos",
+        "windows"
       ],
       "sensitivity": "medium",
       "load": "light",
@@ -728,6 +729,56 @@
         }
       ],
       "platform": "linux"
+    },
+    {
+      "key": "osquery.active_connections",
+      "title": "Active TCP connections (Windows)",
+      "description": "A snapshot of established TCP sockets, including local and remote addresses and process IDs; no packet contents or process command lines. Requires explicit query consent.",
+      "category": "network",
+      "sql": "SELECT pid,local_address,local_port,remote_address,remote_port,protocol,state FROM process_open_sockets WHERE state = 'ESTABLISHED' LIMIT 256",
+      "tables": [
+        "process_open_sockets"
+      ],
+      "columns": [
+        "pid",
+        "local_address",
+        "local_port",
+        "remote_address",
+        "remote_port",
+        "protocol",
+        "state"
+      ],
+      "os": [
+        "windows"
+      ],
+      "sensitivity": "high",
+      "load": "light",
+      "needs_root": false,
+      "max_rows": 256,
+      "timeout_seconds": 30,
+      "mitre": [
+        {
+          "id": "T1049",
+          "reason": "Lists established network sockets on an explicitly approved endpoint."
+        }
+      ],
+      "attributes": {
+        "first_row": {},
+        "aggregates": []
+      },
+      "rules": [],
+      "example": [
+        {
+          "pid": "1234",
+          "local_address": "192.0.2.2",
+          "local_port": "50000",
+          "remote_address": "198.51.100.2",
+          "remote_port": "443",
+          "protocol": "6",
+          "state": "ESTABLISHED"
+        }
+      ],
+      "platform": "windows"
     },
     {
       "key": "osquery.network_ranges",
