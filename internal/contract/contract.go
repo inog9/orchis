@@ -67,7 +67,7 @@ func init() {
 
 // NoNetworkTarget reports contracts that work on data already stored for an asset (orchis-defense-agent): there is no host or URL to
 // check against the scan guard, but asset authorization, scan controls and the emergency stop still apply.
-func NoNetworkTarget(d *Def) bool { return d != nil && d.Adapter == "defensebot" }
+func NoNetworkTarget(d *Def) bool { return d != nil && (d.Adapter == "defensebot" || d.Adapter == "blueteam") }
 
 func Find(key string) *Def {
 	var best *Def
