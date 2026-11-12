@@ -151,6 +151,8 @@ try {
   emit('state',{phase:'report'});
   const draft = JSON.parse(fs.readFileSync(path.join(root,'result-draft.json'),'utf8'));
   const result = prepareResult(draft, root, session);
+  // Set only after the separate reporting session exits successfully.
+  result.review_completed = true;
   const disposition = result.disposition;
   const file = path.join(root,'result.json'); fs.writeFileSync(file,JSON.stringify(result));
   emit(disposition,{phase:'report',resultFile:file});
