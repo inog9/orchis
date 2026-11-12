@@ -21,7 +21,8 @@ func TestHackbotWorkerLifecycle(t *testing.T) {
 		t.Run(event, func(t *testing.T) {
 			root := t.TempDir()
 			t.Setenv("ORCHIS_HACKBOT_DATA", root)
-			result := hackbot.Result{Schema: 1, SessionID: "fixture", Disposition: event, Phase: "report", Summary: "Tested fixture coverage.", Report: "# Report", Validation: "# Ledger"}
+			reviewed := event == "complete" || event == "limited" || event == "input_required"
+			result := hackbot.Result{Schema: 1, ReviewCompleted: reviewed, SessionID: "fixture", Disposition: event, Phase: "report", Summary: "Tested fixture coverage.", Report: "# Report", Validation: "# Ledger"}
 			payload, _ := json.Marshal(result)
 			code := map[string]int{"complete": 0, "limited": 2, "input_required": 3, "failed": 1, "cancelled": 130}[event]
 			script := fmt.Sprintf(`#!/usr/bin/env python3
@@ -76,6 +77,9 @@ sys.exit(%d)
 			}
 			if res.Hackbot == nil {
 				t.Fatalf("missing result: %s", res.Error)
+			}
+			if res.Hackbot.ReviewCompleted != reviewed {
+				t.Fatal("completed review marker was lost")
 			}
 			if !strings.Contains(res.Hackbot.Summary, "nmap finished (1 observations)") {
 				t.Fatal("summary lost preliminary scanner work")

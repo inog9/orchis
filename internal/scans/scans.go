@@ -75,6 +75,7 @@ type Input struct {
 	Preset         string      `json:"preset"`
 }
 type Scan struct {
+	LimitedCoverage   bool                  `json:"limited_coverage"`
 	ReportID          *uuid.UUID            `json:"report_id,omitempty"`
 	ReportStatus      string                `json:"report_status,omitempty"`
 	Summary           string                `json:"summary,omitempty"`
@@ -107,11 +108,12 @@ type Job struct {
 	Findings     []reporting.Finding `json:"findings"`
 }
 
-const scanCols = `id,organization_id,name,status,runner,scan_options,created_at,ended_at,results_expired_at`
+const scanCols = `a.id,a.organization_id,a.name,a.status,a.runner,a.scan_options,a.created_at,a.ended_at,a.results_expired_at,
+ EXISTS(SELECT 1 FROM scan_jobs limited WHERE limited.tenant_id=a.tenant_id AND limited.assessment_id=a.id AND limited.status IN ('incomplete','failed','skipped'))`
 
 func scanRow(row pgx.Row) (Scan, error) {
 	var out Scan
-	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt, &out.ResultsExpiredAt)
+	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt, &out.ResultsExpiredAt, &out.LimitedCoverage)
 	return out, err
 }
 
@@ -430,7 +432,7 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 	var out Scan
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
 		var e error
-		out, e = scanRow(tx.QueryRow(ctx, `SELECT `+scanCols+` FROM assessments WHERE tenant_id=$1 AND id=$2 AND is_scan`, p.TenantID, id))
+		out, e = scanRow(tx.QueryRow(ctx, `SELECT `+scanCols+` FROM assessments a WHERE a.tenant_id=$1 AND a.id=$2 AND a.is_scan`, p.TenantID, id))
 		if errors.Is(e, pgx.ErrNoRows) {
 			return httpx.NotFound("Scan")
 		}
@@ -561,7 +563,7 @@ func (s *Service) List(ctx context.Context, p *auth.Principal, org *uuid.UUID, c
 	}
 	items := []Scan{}
 	err := s.DB.InTenantRead(ctx, p.TenantID, func(tx pgx.Tx) error {
-		rows, e := tx.Query(ctx, `SELECT `+scanCols+` FROM assessments WHERE tenant_id=$1 AND is_scan AND ($2::uuid IS NULL OR organization_id=$2) AND ($3::uuid IS NULL OR id<$3) ORDER BY id DESC LIMIT 26`, p.TenantID, org, before)
+		rows, e := tx.Query(ctx, `SELECT `+scanCols+` FROM assessments a WHERE a.tenant_id=$1 AND a.is_scan AND ($2::uuid IS NULL OR a.organization_id=$2) AND ($3::uuid IS NULL OR a.id<$3) ORDER BY a.id DESC LIMIT 26`, p.TenantID, org, before)
 		if e != nil {
 			return e
 		}

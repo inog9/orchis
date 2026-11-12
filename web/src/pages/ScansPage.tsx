@@ -70,7 +70,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
           <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_preset")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
-            <span role="cell"><StatusBadge status={s.status}/></span>
+            <span role="cell"><StatusBadge status={s.status}/>{s.status === 'finished' && s.limited_coverage && <small> · {textUI('hackbot_incomplete')}</small>}</span>
             <span role="cell" className="sims__engine" title={engineSetLabel(s.options.tools)}>{formatUI(engineSetLabel(s.options.tools))}</span>
             <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
             
@@ -111,7 +111,7 @@ export function ScanDetailPage() {
       <div className="page__head"><div>
         <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(engineSetLabel(s.options.tools))])}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
-        <p className="page__sub" role="status"><StatusBadge status={s.status}/> <span className="mono">{stamp(s.created_at)}</span></p>
+        <p className="page__sub" role="status"><StatusBadge status={s.status}/> {s.status === 'finished' && s.limited_coverage && <span>{textUI('hackbot_incomplete')} · </span>}<span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
       </div>
       <div className="sims__actions">
@@ -132,7 +132,7 @@ export function ScanDetailPage() {
         {Array.from(groups).map(([key, gj]) => <div key={key} className="sims__group"><h3>{formatUI(gj[0]!.name)}</h3>
           <div className="sims__jobs" role="table" aria-label={gj[0]!.name}>
             <div className="sims__jrow sims__head" role="row"><span role="columnheader">{textUI("m_sim_job_tool")}</span><span role="columnheader">{textUI("flow_chk_latest")}</span><span role="columnheader">{textUI("m_sim_job_status")}</span><span role="columnheader">{textUI("m_sim_job_findings")}</span><span role="columnheader">{textUI("m_sim_job_note")}</span></div>
-            {engineRows(gj).map((e) => <div key={e.engine} className="sims__jrow" role="row">
+            {engineRows(gj, s.report_status === 'ready').map((e) => <div key={e.engine} className="sims__jrow" role="row">
               <span role="cell"><strong>{e.engine}</strong></span>
               <span role="cell">{e.stage || '—'}</span>
               <span role="cell"><StatusBadge status={e.status}/></span>
