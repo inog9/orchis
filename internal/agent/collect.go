@@ -28,6 +28,8 @@ func Task(ctx context.Context, key string) ([]execution.NewFinding, error) {
 		return ListeningPorts(ctx)
 	case contract.KeyAgentInfo:
 		return SystemInfo(ctx)
+	case contract.KeyBlueteamConnections:
+		return Connections(ctx)
 	}
 	return nil, fmt.Errorf("aksi %q tidak dikenal agent ini", key)
 }

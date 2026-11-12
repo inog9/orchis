@@ -1,519 +1,564 @@
 [
-  {
-    "key": "hackbot.pentest",
-    "adapter": "hackbot",
-    "integration": "hackbot",
-    "name": "orchis-redteam-agent web pentest",
-    "kind": "vulnerability_scan",
-    "output_types": [
-      "vulnerability"
-    ],
-    "timeout_seconds": 60,
-    "description": "Unattended web pentest with verified evidence, full report and activity summary.",
-    "version": 1,
-    "needs_agent": false,
-    "category": "Network",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "language": {
-          "type": "string",
-          "label": "Report language",
-          "enum": [
-            "en",
-            "id"
-          ],
-          "default": "en"
-        }
-      },
-      "order": [
-        "language"
-      ]
+ {
+  "key": "hackbot.pentest",
+  "adapter": "hackbot",
+  "integration": "hackbot",
+  "name": "orchis-redteam-agent web pentest",
+  "kind": "vulnerability_scan",
+  "output_types": [
+   "vulnerability"
+  ],
+  "timeout_seconds": 60,
+  "description": "Unattended web pentest with verified evidence, full report and activity summary.",
+  "version": 1,
+  "needs_agent": false,
+  "category": "Network",
+  "input_schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "language": {
+     "type": "string",
+     "label": "Report language",
+     "enum": [
+      "en",
+      "id"
+     ],
+     "default": "en"
     }
-  },
-  {
-    "key": "nmap.tcp_connect",
-    "adapter": "nmap",
-    "integration": "nmap",
-    "name": "Nmap TCP connect scan",
-    "kind": "scan",
-    "output_types": [
-      "open_port",
-      "service"
-    ],
-    "timeout_seconds": 600,
-    "description": "Finds open TCP ports and, optionally, the service behind each port. Uses a full TCP connect (no raw packets).",
-    "version": 1,
-    "needs_agent": false,
-    "category": "Network",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "profile": {
-          "type": "string",
-          "label": "Ports",
-          "enum": [
-            "top100",
-            "top1000",
-            "web",
-            "custom"
-          ],
-          "enum_labels": [
-            "Top 100 ports",
-            "Top 1000 ports",
-            "Web ports (80, 443, 8000, 8080, 8443)",
-            "Custom list"
-          ],
-          "default": "top100"
-        },
-        "ports": {
-          "type": "string",
-          "label": "Port list",
-          "pattern": "^[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?){0,49}$",
-          "max_length": 600,
-          "help": "Ports and ranges separated by commas.",
-          "show_when": {
-            "field": "profile",
-            "value": "custom"
-          },
-          "error_message": "Use ports like 22,80,8000-8100 (at most 50 entries)."
-        },
-        "service_detection": {
-          "type": "boolean",
-          "label": "Detect services and versions",
-          "default": false,
-          "help": "Slower, and sends probes to every open port."
-        }
-      },
-      "order": [
-        "profile",
-        "ports",
-        "service_detection"
-      ]
-    }
-  },
-  {
-    "key": "nuclei.scan",
-    "adapter": "nuclei",
-    "integration": "nuclei",
-    "name": "Nuclei vulnerability scan",
-    "kind": "vulnerability_scan",
-    "output_types": [
-      "vulnerability"
-    ],
-    "timeout_seconds": 900,
-    "description": "Checks a web target against Nuclei templates and reports matching vulnerabilities and exposures.",
-    "version": 1,
-    "needs_agent": false,
-    "category": "Network",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "severity": {
-          "type": "array",
-          "label": "Severity to report",
-          "items_enum": [
-            "info",
-            "low",
-            "medium",
-            "high",
-            "critical"
-          ],
-          "min_items": 1,
-          "max_items": 5,
-          "default": [
-            "medium",
-            "high",
-            "critical"
-          ]
-        },
-        "tags": {
-          "type": "array",
-          "label": "Template tags (optional)",
-          "items_pattern": "^[a-z0-9][a-z0-9_-]{0,31}$",
-          "max_items": 10,
-          "default": [],
-          "help": "Limit the scan to templates with these tags."
-        },
-        "template_profile": {
-          "type": "string",
-          "label": "Template profile",
-          "enum": [
-            "default",
-            "exposure",
-            "cves",
-            "misconfig"
-          ],
-          "enum_labels": [
-            "Default templates",
-            "Exposure",
-            "CVEs",
-            "Misconfiguration"
-          ]
-        }
-      },
-      "order": [
-        "severity",
-        "tags",
-        "template_profile"
-      ]
-    }
-  },
-  {
-    "key": "agent.listening_ports",
-    "adapter": "agent.listening_ports",
-    "integration": "agent",
-    "name": "Listening ports (agent)",
-    "kind": "scan",
-    "output_types": [
-      "open_port"
-    ],
-    "timeout_seconds": 60,
-    "description": "Lists the TCP ports that are listening on the endpoint itself. Read-only; nothing is sent over the network.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "agent.system_info",
-    "adapter": "agent.system_info",
-    "integration": "agent",
-    "name": "System information (agent)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Reads the operating system, kernel, architecture and host name from the endpoint. Read-only.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.inventory",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "System inventory (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Operating system, kernel, CPU, memory and uptime of the endpoint. Read-only.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.packages",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Installed packages (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 120,
-    "description": "Package names, source package names, versions and architectures of installed deb and rpm software, used only to map software to known vulnerabilities. Versions are matched, not judged.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.users",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Local accounts (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Local user accounts, their shell and group memberships. Password hashes and SSH keys are never read.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.network",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Listening ports (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "open_port"
-    ],
-    "timeout_seconds": 60,
-    "description": "TCP/UDP ports listening on the endpoint and the name of the owning program. Command lines are never read.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.hardening",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Hardening settings (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "A few kernel security settings and disk encryption status. Read-only.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.firewall",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Firewall rules (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Whether any iptables rules or an active ufw, firewalld or nftables service exist. Needs administrator rights.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.network_ranges",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Network ranges (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 20,
-    "description": "Interface and route metadata proposed by the endpoint; separate administrator approval is required before server scanning.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.os_release",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Operating system release (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Distribution name, version and codename, used to choose the right vulnerability data for installed packages.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.kernel",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Running kernel (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "The kernel release that is running now, compared with installed kernel packages to tell whether a reboot is needed.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.npm_global",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Global npm packages (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Names and versions of globally installed npm packages (for example command-line tools), used for vulnerability mapping.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.pip_packages",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Python packages (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 90,
-    "description": "Names and versions of installed Python packages, used for vulnerability mapping.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.macos_apps",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "macOS applications (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 90,
-    "description": "Names, bundle identifiers and versions of installed macOS applications, used for vulnerability mapping.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.homebrew",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Homebrew packages (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 60,
-    "description": "Names and versions of Homebrew packages, used for vulnerability mapping.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "osquery.exposure",
-    "adapter": "osquery",
-    "integration": "agent",
-    "name": "Listening services and owning package (osquery)",
-    "kind": "scan",
-    "output_types": [
-      "text"
-    ],
-    "timeout_seconds": 90,
-    "description": "TCP/UDP ports that listen on this endpoint, the program name and the package that owns the program. Used to tell which vulnerable software is reachable. Command lines are never read.",
-    "version": 1,
-    "needs_agent": true,
-    "category": "DefenseBot",
-    "input_schema": {
-      "type": "object",
-      "properties": {},
-      "order": []
-    }
-  },
-  {
-    "key": "defensebot.match",
-    "adapter": "defensebot",
-    "integration": "defensebot",
-    "name": "DefenseBot vulnerability mapping",
-    "kind": "vulnerability_scan",
-    "output_types": [
-      "vulnerability",
-      "text"
-    ],
-    "timeout_seconds": 1200,
-    "description": "Maps the software installed on an enrolled endpoint to known vulnerabilities and reports hardening gaps. Reads data collected by the agent; contacts public vulnerability services with software names and versions only.",
-    "version": 1,
-    "needs_agent": false,
-    "category": "Endpoint",
-    "input_schema": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "language": {
-          "type": "string",
-          "label": "Report language",
-          "enum": [
-            "en",
-            "id"
-          ],
-          "default": "en"
-        }
-      },
-      "order": [
-        "language"
-      ]
-    }
+   },
+   "order": [
+    "language"
+   ]
   }
+ },
+ {
+  "key": "nmap.tcp_connect",
+  "adapter": "nmap",
+  "integration": "nmap",
+  "name": "Nmap TCP connect scan",
+  "kind": "scan",
+  "output_types": [
+   "open_port",
+   "service"
+  ],
+  "timeout_seconds": 600,
+  "description": "Finds open TCP ports and, optionally, the service behind each port. Uses a full TCP connect (no raw packets).",
+  "version": 1,
+  "needs_agent": false,
+  "category": "Network",
+  "input_schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "profile": {
+     "type": "string",
+     "label": "Ports",
+     "enum": [
+      "top100",
+      "top1000",
+      "web",
+      "custom"
+     ],
+     "enum_labels": [
+      "Top 100 ports",
+      "Top 1000 ports",
+      "Web ports (80, 443, 8000, 8080, 8443)",
+      "Custom list"
+     ],
+     "default": "top100"
+    },
+    "ports": {
+     "type": "string",
+     "label": "Port list",
+     "pattern": "^[0-9]{1,5}(-[0-9]{1,5})?(,[0-9]{1,5}(-[0-9]{1,5})?){0,49}$",
+     "max_length": 600,
+     "help": "Ports and ranges separated by commas.",
+     "show_when": {
+      "field": "profile",
+      "value": "custom"
+     },
+     "error_message": "Use ports like 22,80,8000-8100 (at most 50 entries)."
+    },
+    "service_detection": {
+     "type": "boolean",
+     "label": "Detect services and versions",
+     "default": false,
+     "help": "Slower, and sends probes to every open port."
+    }
+   },
+   "order": [
+    "profile",
+    "ports",
+    "service_detection"
+   ]
+  }
+ },
+ {
+  "key": "nuclei.scan",
+  "adapter": "nuclei",
+  "integration": "nuclei",
+  "name": "Nuclei vulnerability scan",
+  "kind": "vulnerability_scan",
+  "output_types": [
+   "vulnerability"
+  ],
+  "timeout_seconds": 900,
+  "description": "Checks a web target against Nuclei templates and reports matching vulnerabilities and exposures.",
+  "version": 1,
+  "needs_agent": false,
+  "category": "Network",
+  "input_schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "severity": {
+     "type": "array",
+     "label": "Severity to report",
+     "items_enum": [
+      "info",
+      "low",
+      "medium",
+      "high",
+      "critical"
+     ],
+     "min_items": 1,
+     "max_items": 5,
+     "default": [
+      "medium",
+      "high",
+      "critical"
+     ]
+    },
+    "tags": {
+     "type": "array",
+     "label": "Template tags (optional)",
+     "items_pattern": "^[a-z0-9][a-z0-9_-]{0,31}$",
+     "max_items": 10,
+     "default": [],
+     "help": "Limit the scan to templates with these tags."
+    },
+    "template_profile": {
+     "type": "string",
+     "label": "Template profile",
+     "enum": [
+      "default",
+      "exposure",
+      "cves",
+      "misconfig"
+     ],
+     "enum_labels": [
+      "Default templates",
+      "Exposure",
+      "CVEs",
+      "Misconfiguration"
+     ]
+    }
+   },
+   "order": [
+    "severity",
+    "tags",
+    "template_profile"
+   ]
+  }
+ },
+ {
+  "key": "agent.listening_ports",
+  "adapter": "agent.listening_ports",
+  "integration": "agent",
+  "name": "Listening ports (agent)",
+  "kind": "scan",
+  "output_types": [
+   "open_port"
+  ],
+  "timeout_seconds": 60,
+  "description": "Lists the TCP ports that are listening on the endpoint itself. Read-only; nothing is sent over the network.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "agent.system_info",
+  "adapter": "agent.system_info",
+  "integration": "agent",
+  "name": "System information (agent)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Reads the operating system, kernel, architecture and host name from the endpoint. Read-only.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.inventory",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "System inventory (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Operating system, kernel, CPU, memory and uptime of the endpoint. Read-only.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.packages",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Installed packages (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 120,
+  "description": "Package names, source package names, versions and architectures of installed deb and rpm software, used only to map software to known vulnerabilities. Versions are matched, not judged.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.users",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Local accounts (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Local user accounts, their shell and group memberships. Password hashes and SSH keys are never read.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.network",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Listening ports (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "open_port"
+  ],
+  "timeout_seconds": 60,
+  "description": "TCP/UDP ports listening on the endpoint and the name of the owning program. Command lines are never read.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.hardening",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Hardening settings (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "A few kernel security settings and disk encryption status. Read-only.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.firewall",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Firewall rules (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Whether any iptables rules or an active ufw, firewalld or nftables service exist. Needs administrator rights.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.network_ranges",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Network ranges (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 20,
+  "description": "Interface and route metadata proposed by the endpoint; separate administrator approval is required before server scanning.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.os_release",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Operating system release (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Distribution name, version and codename, used to choose the right vulnerability data for installed packages.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.kernel",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Running kernel (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "The kernel release that is running now, compared with installed kernel packages to tell whether a reboot is needed.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.npm_global",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Global npm packages (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Names and versions of globally installed npm packages (for example command-line tools), used for vulnerability mapping.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.pip_packages",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Python packages (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 90,
+  "description": "Names and versions of installed Python packages, used for vulnerability mapping.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.macos_apps",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "macOS applications (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 90,
+  "description": "Names, bundle identifiers and versions of installed macOS applications, used for vulnerability mapping.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.homebrew",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Homebrew packages (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Names and versions of Homebrew packages, used for vulnerability mapping.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "osquery.exposure",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Listening services and owning package (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 90,
+  "description": "TCP/UDP ports that listen on this endpoint, the program name and the package that owns the program. Used to tell which vulnerable software is reachable. Command lines are never read.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "defensebot.match",
+  "adapter": "defensebot",
+  "integration": "defensebot",
+  "name": "DefenseBot vulnerability mapping",
+  "kind": "vulnerability_scan",
+  "output_types": [
+   "vulnerability",
+   "text"
+  ],
+  "timeout_seconds": 1200,
+  "description": "Maps the software installed on an enrolled endpoint to known vulnerabilities and reports hardening gaps. Reads data collected by the agent; contacts public vulnerability services with software names and versions only.",
+  "version": 1,
+  "needs_agent": false,
+  "category": "Endpoint",
+  "input_schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "properties": {
+    "language": {
+     "type": "string",
+     "label": "Report language",
+     "enum": [
+      "en",
+      "id"
+     ],
+     "default": "en"
+    }
+   },
+   "order": [
+    "language"
+   ]
+  }
+ },
+ {
+  "key": "blueteam.connections",
+  "adapter": "agent",
+  "integration": "agent",
+  "name": "Outbound connections (agent)",
+  "kind": "scan",
+  "output_types": [
+   "net_connection"
+  ],
+  "timeout_seconds": 60,
+  "description": "Collects active outbound network connections (process, destination IP/port, state) from the endpoint itself. Read-only; metadata only, no payload.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Blueteam",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ },
+ {
+  "key": "blueteam.analyze",
+  "adapter": "blueteam",
+  "integration": "blueteam",
+  "name": "Blueteam endpoint detection",
+  "kind": "scan",
+  "output_types": [
+   "agent_tamper",
+   "agent_unresponsive",
+   "new_listening_port",
+   "new_software_installed",
+   "new_local_account",
+   "c2_suspect_connection"
+  ],
+  "timeout_seconds": 300,
+  "description": "Deterministic rules over collected endpoint data: agent tamper, new listening ports, new software, new privileged accounts, and suspicious outbound (C2) connections.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "Blueteam",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
+ }
 ]

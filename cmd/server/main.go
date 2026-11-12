@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"orchis-go/internal/blueteam"
 	"orchis-go/internal/blob"
 	"orchis-go/internal/bootstrap"
 	"orchis-go/internal/config"
@@ -254,6 +255,7 @@ func serve(ctx context.Context, cfg *config.Config) error {
 	go server.Runtime(opts).RunSweeper(ctx, 15*time.Second)
 	go server.SimulationService(opts).RunTicker(ctx, tenant, 15*time.Second)
 	go server.AgentService(opts).RunSweeper(ctx, 15*time.Second, func(err error) { slog.Error("sweep agent gagal", "err", err) })
+	go (&blueteam.Service{DB: d}).RunTicker(ctx, tenant, 5*time.Minute)
 	if cfg.AMQPURL != "" {
 		go (&mq.Relay{DB: d, Tenant: tenant, URL: cfg.AMQPURL}).Run(ctx)
 		if es != nil {

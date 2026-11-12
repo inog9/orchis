@@ -26,6 +26,8 @@ const (
 	// Aksi yang berjalan DI endpoint oleh agent (hanya-baca, tanpa parameter, tanpa menyentuh jaringan).
 	KeyAgentPorts = "agent.listening_ports"
 	KeyAgentInfo  = "agent.system_info"
+	KeyBlueteamAnalyze     = "blueteam.analyze"
+	KeyBlueteamConnections = "blueteam.connections"
 
 	// Aksi osquery (hanya-baca, tanpa parameter): query bernama dari katalog beku internal/osquery. Dijalankan agent di endpoint.
 	AdapterOsquery = "osquery"

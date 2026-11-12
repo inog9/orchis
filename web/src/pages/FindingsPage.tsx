@@ -1,4 +1,5 @@
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
+import { displayLabel } from "../i18n/display";
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { ScanComparison, type Comparison } from '../components/ScanComparison';
@@ -102,7 +103,8 @@ export function FindingsPage({ organizationID, organizationName }: {
     const latestID = reportList.data?.items[0]?.id;
     const comparison = useQuery({ queryKey: ['scan-comparison-report', latestID], enabled: !!latestID && comparisonMode, queryFn: () => api.get<{ id: string; created_at: string; snapshot: { comparison_details?: Comparison } }>(`/api/v1/reports/${latestID}`) });
 
-    const typeLabel = (v: string) => ({ open_port: textUI("m_5c9e0324afba"), service: textUI("m_d677190e0a99"), vulnerability: textUI("m_a123dd728a7a") })[v] ?? v;
+    const BLUETEAM_TYPES = ['agent_tamper', 'agent_unresponsive', 'new_listening_port', 'new_software_installed', 'new_local_account', 'c2_suspect_connection', 'net_connection'];
+    const typeLabel = (v: string) => ({ open_port: textUI("m_5c9e0324afba"), service: textUI("m_d677190e0a99"), vulnerability: textUI("m_a123dd728a7a") })[v] ?? displayLabel(v);
     const chips: { key: string; label: string; remove: () => void }[] = [];
     SEVERITIES.filter((s) => selected.has(s)).forEach((s) => chips.push({ key: `s-${s}`, label: textUI("m_fnd_chip_sev", [SEV_LABEL(s)]), remove: () => toggleSev(s) }));
     if (kevOnly) chips.push({ key: 'kev', label: textUI("m_def_chip_kev"), remove: () => setKevOnly(false) });
@@ -135,7 +137,7 @@ export function FindingsPage({ organizationID, organizationName }: {
         {can(me, 'asset.read') && <label className="filter"><span>{textUI('ui_asset_name')}</span><select aria-label={textUI('ui_asset_name')} value={assetID} onChange={e => setAsset(e.target.value)}><option value="">{textUI('ui_all_assets')}</option>{assetID && !assetChoices.data?.some(a => a.id === assetID) && <option value={assetID}>{loaded[0]?.asset_name || textUI('m_a04e2c43801b')}</option>}{assetChoices.data?.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></label>}
         <label className="search-input fnd-search"><Search size={15} aria-hidden="true"/><input type="search" placeholder={textUI("m_fc3f375fe446")} aria-label={textUI("m_fc3f375fe446")} value={text} onChange={(e) => setText(e.target.value)}/></label>
         <label className="filter"><span className="sr-only">{textUI("m_51035b5b67dc")}</span><select aria-label={textUI("m_51035b5b67dc")} value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">{textUI("m_f10988e79e8d")}</option><option value="open_port">{textUI("m_5c9e0324afba")}</option><option value="service">{textUI("m_d677190e0a99")}</option><option value="vulnerability">{textUI("m_a123dd728a7a")}</option></select></label>
+          <option value="">{textUI("m_f10988e79e8d")}</option><option value="open_port">{textUI("m_5c9e0324afba")}</option><option value="service">{textUI("m_d677190e0a99")}</option><option value="vulnerability">{textUI("m_a123dd728a7a")}</option>{formatUI(BLUETEAM_TYPES.map((t) => <option key={t} value={t}>{formatUI(displayLabel(t))}</option>))}</select></label>
         <label className="filter"><span className="sr-only">{textUI("m_fnd_sort")}</span><select aria-label={textUI("m_fnd_sort")} value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
           <option value="severity">{textUI("m_fnd_sort_sev")}</option><option value="recent">{textUI("m_fnd_sort_recent")}</option><option value="frequent">{textUI("m_fnd_sort_freq")}</option></select></label>
       </div>

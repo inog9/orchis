@@ -44,7 +44,21 @@ type FindingTechnique struct {
 // EstimatedTechniques memetakan temuan ke teknik secara konservatif. Hanya kerentanan yang dikaitkan (T1190,
 // Exploit Public-Facing Application) dan hanya sebagai perkiraan: temuan port/layanan/teks tidak dipetakan,
 // karena itu hasil pemindaian (discovery), bukan celah yang bisa dieksploitasi.
+// typeTechniques memetakan tipe temuan blueteam ke teknik ATT&CK (basis: estimate dari tipe,
+// konservatif — hanya tipe yang memang berarti perilaku tersebut).
+var typeTechniques = map[string][2]string{
+	"agent_tamper":           {"T1562", "Impair Defenses"},
+	"agent_unresponsive":     {"T1562", "Impair Defenses"},
+	"new_listening_port":     {"T1049", "System Network Connections Discovery"},
+	"new_software_installed": {"T1072", "Software Deployment Tools"},
+	"new_local_account":      {"T1136", "Create Account"},
+	"c2_suspect_connection":  {"T1071", "Application Layer Protocol"},
+}
+
 func EstimatedTechniques(f Finding) []FindingTechnique {
+	if t, ok := typeTechniques[f.Type]; ok {
+		return []FindingTechnique{{ID: t[0], Name: t[1], Basis: "estimate", Reason: "Mapped from the finding type by a fixed rule; it does not prove the technique was used."}}
+	}
 	if f.Type != "vulnerability" {
 		return nil
 	}
