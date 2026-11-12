@@ -475,7 +475,7 @@ FOR UPDATE OF e`, r.Tenant, id, in.ID, in.AgentID).Scan(&asset, &sim, &ckey, &co
 					outcome = "error"
 				}
 				for _, f := range res.Hackbot.Findings {
-					res.Findings = append(res.Findings, NewFinding{Type: "vulnerability", Value: f.Value, Title: f.Title, Severity: f.Severity, Details: f.Details})
+					res.Findings = append(res.Findings, NewFinding{Type: "vulnerability", Value: f.Value, Title: f.Title, Severity: f.Severity, Details: f.Details, Identity: f.Title})
 				}
 				payload, err := json.Marshal(res.Hackbot)
 				if err != nil {

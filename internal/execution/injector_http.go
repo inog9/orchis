@@ -3,6 +3,7 @@ package execution
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -36,6 +37,27 @@ func (h *InjectorHandlers) guard(next func(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *InjectorHandlers) Register(mux *http.ServeMux) {
+	mux.HandleFunc("POST "+InjectorPrefix+"executions/{id}/recover-hackbot", h.guard(func(w http.ResponseWriter, r *http.Request, in *Injector) {
+		id, err := uuid.Parse(r.PathValue("id"))
+		if err != nil {
+			httpx.Write(w, r, httpx.NotFound("Execution"))
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 3<<20)
+		var res hackbot.Result
+		decoder := json.NewDecoder(r.Body)
+		decoder.DisallowUnknownFields()
+		if err = decoder.Decode(&res); err != nil {
+			httpx.Write(w, r, httpx.BadRequest("Invalid recovery result JSON."))
+			return
+		}
+		if _, err = decoder.Token(); err != io.EOF {
+			httpx.Write(w, r, httpx.BadRequest("Unexpected data after recovery result."))
+			return
+		}
+		scan, err := h.RT.RecoverHackbot(context.WithoutCancel(r.Context()), in, id, res)
+		reply(w, r, 200, map[string]uuid.UUID{"scan_id": scan}, err)
+	}))
 	mux.HandleFunc("POST "+InjectorPrefix+"executions/{id}/retention", h.guard(func(w http.ResponseWriter, r *http.Request, in *Injector) {
 		id, err := uuid.Parse(r.PathValue("id"))
 		if err != nil {
