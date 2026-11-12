@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { usePrefersReducedMotion } from '../login/hooks';
+import { usePrefersReducedMotion } from '../../lib/usePrefersReducedMotion';
 
 // Angka naik dari 0 ke target (ease-out). Gerak dikurangi: langsung ke nilai akhir.
 export function useCountUp(target: number, ms = 700): number {

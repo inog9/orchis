@@ -46,10 +46,14 @@ it.each(['x86_64', 'arm64'] as const)('offers data collection on macOS %s, which
  expect(screen.getByRole('button', { name: 'Collect data now' })).toBeEnabled();
 });
 it('does not offer data collection on an agent type that cannot collect', () => {
- mount(<AgentControls agent={{ ...agent, os: 'windows' }} />);
+ mount(<AgentControls agent={{ ...agent, os: 'linux', arch: 'arm64' }} />);
  expect(screen.queryByRole('button', { name: 'Collect data now' })).toBeNull();
  expect(screen.getByRole('button', { name: 'Pause agent' })).toBeEnabled();
  expect(screen.getByRole('button', { name: 'Uninstall remotely' })).toBeEnabled();
+});
+it.each(['x86_64', 'arm64'] as const)('offers data collection on Windows %s', (arch) => {
+ mount(<AgentControls agent={{ ...agent, os: 'windows', arch }} />);
+ expect(screen.getByRole('button', { name: 'Collect data now' })).toBeEnabled();
 });
 it('explains next to the buttons why a control is off', () => {
  mount(<AgentControls agent={{ ...agent, paused: true, update_available: false }} />);

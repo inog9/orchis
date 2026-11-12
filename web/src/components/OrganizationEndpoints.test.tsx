@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { AgentRow } from '../api/types';
@@ -12,24 +11,29 @@ function mount(agent: AgentRow) {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><MemoryRouter initialEntries={[`/organizations/org-1?tab=agents&endpoint=${agent.id}`]}><OrganizationEndpoints org="org-1" agents={[agent]} /></MemoryRouter></QueryClientProvider>);
 }
 afterEach(() => vi.restoreAllMocks());
-it('shows one clear notice for a Windows agent instead of controls that can never work', async () => {
-  mount({ ...base, os: 'windows', instance_name: 'win' } as AgentRow);
-  expect(await screen.findByText(/only available for Linux amd64 and macOS agents/)).toBeInTheDocument();
+it('shows one notice and keeps agent controls for an unsupported collection platform', async () => {
+  mount({ ...base, os: 'linux', arch: 'arm64', instance_name: 'unsupported' });
+  expect(await screen.findByText(/Endpoint data and collection are unavailable/)).toBeInTheDocument();
   expect(await screen.findByRole('button', { name: 'Pause agent' })).toBeEnabled();
   for (const name of ['Collect data now', 'Delete collected data', 'Approve range']) expect(screen.queryByRole('button', { name })).toBeNull();
   expect(screen.queryByText('Network ranges reported by this agent')).toBeNull();
 });
+it.each(['x86_64', 'arm64'] as const)('offers endpoint collection for Windows %s', async (arch) => {
+  mount({ ...base, os: 'windows', arch, instance_name: 'win' });
+  expect(await screen.findByRole('button', { name: 'Collect data now' })).toBeEnabled();
+  expect(screen.queryByText(/Endpoint data and collection are unavailable/)).toBeNull();
+});
 it('offers endpoint data, collection and the experimental note for a macOS agent', async () => {
   mount(base);
   expect(await screen.findByRole('button', { name: 'Collect data now' })).toBeInTheDocument();
-  expect(screen.queryByText(/only available for Linux amd64 and macOS agents/)).toBeNull();
+  expect(screen.queryByText(/Endpoint data and collection are unavailable/)).toBeNull();
   expect(screen.getByText(/Not yet proven on a real Mac/)).toBeInTheDocument();
 });
 it('keeps endpoint data and collection for a Linux amd64 agent and reports no network ranges', async () => {
   mount({ ...base, os: 'linux', instance_name: 'lab' } as AgentRow);
   expect(await screen.findByRole('button', { name: 'Collect data now' })).toBeInTheDocument();
   expect(screen.queryByText('Network ranges reported by this agent')).toBeNull();
-  expect(screen.queryByText(/only available for Linux amd64 and macOS agents/)).toBeNull();
+  expect(screen.queryByText(/Endpoint data and collection are unavailable/)).toBeNull();
   expect(screen.queryByRole('link', { name: /Review collection consent/ })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Approve range' })).toBeNull();
 });

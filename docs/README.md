@@ -10,6 +10,7 @@ Hackbot untuk sisi web, dan DefenseBot untuk endpoint.
 | Mengembangkan, membangun, dan menjalankan tes | [DEVELOPMENT](DEVELOPMENT.md) |
 | Menyiapkan checkout dan worker Hackbot/OpenCode | [Build Hackbot](../deploy/hackbot/README.md) |
 | Memahami sumber data dan cakupan endpoint | [DEFENSEBOT](DEFENSEBOT.md) |
+| Mengatur audit berkala, zona waktu, dan riwayat jadwal | [AUDIT-SCHEDULES](AUDIT-SCHEDULES.md) |
 | Mengoperasikan, upgrade, backup, dan restore | [OPERASI](OPERASI.md) |
 | Menyiapkan pilot | [PILOT](PILOT.md) |
 | Menelusuri API dan referensi offline | [API](API.md), [referensi API](api/README.md) |

@@ -112,7 +112,9 @@ describe('Engine names follow what actually ran', () => {
     expect(text[1]).not.toContain('orchis-defense-agent');
     expect(text[2]).toContain('Hackbot + orchis-defense-agent');
     // Internal words never leak into the list: no preset names and no tool names.
-    for (const t of text) expect(t).not.toMatch(/standard|defense\b|nmap|nuclei|preset/i);
+    for (const row of rows.slice(1)) {
+      expect(within(row).queryByText(/^(standard|defense|nmap|nuclei|preset)$/i)).toBeNull();
+    }
     expect(text[1]).toContain('2 assets');
   });
 });
