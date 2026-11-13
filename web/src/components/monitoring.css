@@ -1,0 +1,10 @@
+.mon__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px}
+.mon__list{list-style:none;margin:8px 0;padding:0}
+.mon__row{padding:10px 0;border-top:1px solid var(--border,var(--line,#d8d8d8))}
+.mon__row:first-child{border-top:0}
+.mon__top{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.mon__meta{margin:4px 0}
+.mon__facts{display:flex;flex-wrap:wrap;gap:4px 18px;margin:6px 0 0}
+.mon__facts div{display:flex;gap:6px;min-width:0}
+.mon__facts dt{color:var(--muted,#666)}
+.mon__facts dd{margin:0;overflow-wrap:anywhere}

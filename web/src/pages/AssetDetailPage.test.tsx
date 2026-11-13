@@ -110,7 +110,7 @@ describe('AssetDetailPage', () => {
 
   it('tabel temuan: severity, nilai, query, dan counter untuk subset', async () => {
     const many = Array.from({ length: 12 }, (_, i) => finding(i + 1, i < 2 ? 'critical' : 'low'));
-    route((url) => (url.includes('/findings') ? json({ items: many, next_cursor: null }) : undefined));
+    route((url) => (url.includes('/findings') ? json({ items: url.includes('type=monitoring') ? [] : many, next_cursor: null }) : undefined));
     mount();
     expect((await screen.findAllByText(/^Finding number /)).length).toBe(10);
     expect(screen.getAllByText('Critical')).toHaveLength(2);
