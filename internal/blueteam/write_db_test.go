@@ -46,3 +46,45 @@ func TestWriteAcceptsEveryBlueteamFindingType(t *testing.T) {
 		t.Fatalf("stored %d of %d: %v", n, len(types), err)
 	}
 }
+
+// Dataset yang belum pernah terkumpul tidak boleh disimpan sebagai baseline kosong.
+func TestUpdateBaselinesSkipsDatasetsThatNeverArrived(t *testing.T) {
+	env := testutil.New(t)
+	ctx := context.Background()
+	org, asset := ids.New(), ids.New()
+	for _, q := range []string{`INSERT INTO organizations (id, tenant_id, name, slug) VALUES ($1,$2,'O','o')`} {
+		if _, err := env.Owner.Exec(ctx, q, org, env.TenantA); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := env.Owner.Exec(ctx, `INSERT INTO assets (id, tenant_id, organization_id, category, name, source) VALUES ($1,$2,$3,'host','h','manual')`, asset, env.TenantA, org); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := env.Owner.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	have := map[string][]map[string]string{"osquery.packages": {{"name": "tar", "version": "1"}}}
+	if err := UpdateBaselines(ctx, tx, env.TenantA, asset, have, []string{"osquery.packages", "osquery.network"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var keys []string
+	rows, err := env.Owner.Query(ctx, `SELECT query_key FROM endpoint_baselines WHERE asset_id=$1`, asset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var k string
+		if err := rows.Scan(&k); err != nil {
+			t.Fatal(err)
+		}
+		keys = append(keys, k)
+	}
+	rows.Close()
+	if len(keys) != 1 || keys[0] != "osquery.packages" {
+		t.Fatalf("only datasets that exist get a baseline: %v", keys)
+	}
+}

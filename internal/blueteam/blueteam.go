@@ -304,7 +304,10 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 // UpdateBaselines menyimpan rows dataset sebagai baseline berikutnya.
 func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, datasets map[string][]map[string]string, keys []string) error {
 	for _, k := range keys {
-		rows := datasets[k]
+		rows, ok := datasets[k]
+		if !ok || rows == nil {
+			continue // dataset belum pernah terkumpul: jangan simpan baseline kosong (nanti semua baris tampak "baru")
+		}
 		raw, _ := json.Marshal(rows)
 		h := sha256.Sum256(raw)
 		if _, err := tx.Exec(ctx, `INSERT INTO endpoint_baselines(tenant_id,asset_id,query_key,rows,rows_hash,updated_at)

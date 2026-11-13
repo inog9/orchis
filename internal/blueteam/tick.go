@@ -91,7 +91,7 @@ func (s *Service) analyzeAsset(ctx context.Context, tx pgx.Tx, tenant, asset uui
 			return err
 		}
 		var rows []map[string]string
-		if err := json.Unmarshal(raw, &rows); err == nil {
+		if err := json.Unmarshal(raw, &rows); err == nil && rows != nil { // 'null' = baseline kosong lama: dianggap belum ada
 			baselines[key] = rows
 		}
 	}
