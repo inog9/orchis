@@ -3,6 +3,7 @@ package blueteam
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -161,7 +162,9 @@ func (s *Service) RunTicker(ctx context.Context, tenant uuid.UUID, interval time
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			_ = s.RunOnce(ctx, tenant)
+			if err := s.RunOnce(ctx, tenant); err != nil {
+				slog.Error("analisis blueteam gagal", "err", err)
+			}
 		}
 	}
 }

@@ -22,12 +22,12 @@ import (
 
 // AgentRow adalah info agent untuk satu aset.
 type AgentRow struct {
-	ID             uuid.UUID
-	Hostname       string
-	Status         string
+	ID              uuid.UUID
+	Hostname        string
+	Status          string
 	UninstallStatus string
-	RevokedAt      *time.Time
-	LastHeartbeat  *time.Time
+	RevokedAt       *time.Time
+	LastHeartbeat   *time.Time
 }
 
 // Connection adalah satu koneksi keluar yang di-agregasi per (proses, tujuan).
@@ -181,7 +181,7 @@ func ruleAccounts(in Input) []Finding {
 			sev = "critical"
 		}
 		out = append(out, Finding{Type: "new_local_account", Value: k, Severity: sev,
-			Title: fmt.Sprintf("New local account %s (uid %s)", r["username"], r["uid"]),
+			Title:   fmt.Sprintf("New local account %s (uid %s)", r["username"], r["uid"]),
 			Details: map[string]any{"row": r, "uid0": r["uid"] == "0"}})
 	}
 	// group admin baru
@@ -207,7 +207,7 @@ func ruleAccounts(in Input) []Finding {
 			continue
 		}
 		out = append(out, Finding{Type: "new_local_account", Value: "admin:" + userNames[r["user_id"]], Severity: "critical",
-			Title: fmt.Sprintf("Account %s added to privileged group %s", userNames[r["user_id"]], gname),
+			Title:   fmt.Sprintf("Account %s added to privileged group %s", userNames[r["user_id"]], gname),
 			Details: map[string]any{"user": userNames[r["user_id"]], "group": gname}})
 	}
 	return out
@@ -253,7 +253,7 @@ func ruleConnections(in Input) []Finding {
 			sort.Ints(portList)
 			out = append(out, Finding{
 				Type: "c2_suspect_connection", Value: dst, Severity: sev,
-				Title: fmt.Sprintf("Suspicious outbound connections to %s (%d conns, ports %v)", dst, total, portList),
+				Title:   fmt.Sprintf("Suspicious outbound connections to %s (%d conns, ports %v)", dst, total, portList),
 				Details: map[string]any{"dst": dst, "connections": total, "ports": portList, "processes": plist, "non_standard_port": nonStd, "beacon_like": total >= 10},
 			})
 		}

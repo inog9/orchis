@@ -53,16 +53,17 @@ func SafeEvidence(in map[string]any) map[string]any {
 
 func newPrintTemplate(language string) *template.Template {
 	return template.Must(template.New("report").Funcs(template.FuncMap{
-		"comparison": func(s Snapshot) string { return reportComparison(language, s) },
-		"text":       func(v string) string { return reportText(language, v) },
-		"defense":    func(s Snapshot) template.HTML { return defenseHTML(language, s) },
-		"remediation": func(s Snapshot) template.HTML { return remediationHTML(language, s) },
-		"aiAdvice":    func(s Snapshot) template.HTML { return aiAdviceHTML(language, s) },
-		"hasDefense": hasDefense,
-		"language":   func() string { return language },
-		"label":      func(v string) string { return reportLabel(language, v) },
-		"date":       func(t time.Time) string { return reportDate(language, t) },
-		"number":     func(v int) string { return reportNumber(language, v) },
+		"comparison":    func(s Snapshot) string { return reportComparison(language, s) },
+		"text":          func(v string) string { return reportText(language, v) },
+		"defense":       func(s Snapshot) template.HTML { return defenseHTML(language, s) },
+		"remediation":   func(s Snapshot) template.HTML { return remediationHTML(language, s) },
+		"aiAdvice":      func(s Snapshot) template.HTML { return aiAdviceHTML(language, s) },
+		"hasDefense":    hasDefense,
+		"hasMonitoring": hasMonitoring,
+		"language":      func() string { return language },
+		"label":         func(v string) string { return reportLabel(language, v) },
+		"date":          func(t time.Time) string { return reportDate(language, t) },
+		"number":        func(v int) string { return reportNumber(language, v) },
 		"params": func(raw json.RawMessage) string {
 			var out bytes.Buffer
 			if err := json.Compact(&out, raw); err != nil {

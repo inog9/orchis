@@ -10,7 +10,7 @@ import (
 func baseInput() Input {
 	return Input{
 		Tenant: uuid.New(), Asset: uuid.New(), AssetName: "macbook", Now: time.Now(), OfflineMinutes: 15,
-		Datasets: map[string][]map[string]string{},
+		Datasets:  map[string][]map[string]string{},
 		Baselines: map[string][]map[string]string{},
 	}
 }
