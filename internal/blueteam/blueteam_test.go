@@ -73,3 +73,23 @@ func TestStandardPortNotFlagged(t *testing.T) {
 		}
 	}
 }
+
+// Putaran pertama (belum ada baseline) hanya mencatat baseline: tidak boleh membanjiri temuan "baru".
+func TestFirstPassWithoutBaselineCreatesNoFindings(t *testing.T) {
+	in := baseInput()
+	in.Datasets["osquery.packages"] = []map[string]string{{"name": "tar", "version": "7.5.15"}, {"name": "curl", "version": "8.0"}}
+	in.Datasets["osquery.programs"] = []map[string]string{{"name": "Autopsy", "version": "4.23.1"}}
+	in.Datasets["osquery.network"] = []map[string]string{{"address": "0.0.0.0", "port": "22"}}
+	in.Datasets["osquery.users"] = []map[string]string{{"uid": "0", "username": "root"}, {"uid": "1000", "username": "ada"}}
+	in.Datasets["osquery.user_groups"] = []map[string]string{{"user_id": "1000", "group_id": "0"}}
+	if fs := Run(in); len(fs) != 0 {
+		t.Fatalf("first pass must only record a baseline, got %d findings: %+v", len(fs), fs[:1])
+	}
+	// Setelah baseline ada, perubahan nyata tetap terdeteksi.
+	in.Baselines = map[string][]map[string]string{"osquery.network": in.Datasets["osquery.network"]}
+	in.Datasets["osquery.network"] = append(in.Datasets["osquery.network"], map[string]string{"address": "0.0.0.0", "port": "9999"})
+	fs := Run(in)
+	if len(fs) != 1 || fs[0].Type != "new_listening_port" {
+		t.Fatalf("a port opened after the baseline must be detected: %+v", fs)
+	}
+}

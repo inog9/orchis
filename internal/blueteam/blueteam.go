@@ -114,6 +114,10 @@ func ruleDiff(in Input, key, keySep, ftype, severity string, mk func(map[string]
 	if cur == nil {
 		return nil
 	}
+	// Tanpa baseline (putaran pertama) semua baris akan tampak "baru": cukup catat baseline, jangan buat temuan.
+	if _, ok := in.Baselines[key]; !ok {
+		return nil
+	}
 	old := map[string]bool{}
 	for _, r := range in.Baselines[key] {
 		parts := []string{}
@@ -171,7 +175,12 @@ func ruleAccounts(in Input) []Finding {
 	for _, r := range in.Baselines["osquery.users"] {
 		oldUsers[r["uid"]+"|"+r["username"]] = true
 	}
+	_, haveUsersBaseline := in.Baselines["osquery.users"]
+	_, haveGroupsBaseline := in.Baselines["osquery.user_groups"]
 	for _, r := range users {
+		if !haveUsersBaseline {
+			break
+		}
 		k := r["uid"] + "|" + r["username"]
 		if oldUsers[k] {
 			continue
@@ -198,6 +207,9 @@ func ruleAccounts(in Input) []Finding {
 		userNames[r["uid"]] = r["username"]
 	}
 	for _, r := range in.Datasets["osquery.user_groups"] {
+		if !haveGroupsBaseline {
+			break
+		}
 		k := r["user_id"] + "|" + r["group_id"]
 		if oldG[k] {
 			continue
