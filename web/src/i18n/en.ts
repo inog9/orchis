@@ -334,7 +334,7 @@ export const en = {
   "m_def_starting": "Starting…",
   "m_def_never": "orchis-defense-agent has not run on this asset yet.",
   "m_mon_title": "Monitoring",
-  "m_mon_sub": "Detections from the endpoint monitor. It checks every 5 minutes; the first pass only records a baseline.",
+  "m_mon_sub": "Detections from the endpoint monitor. It checks every minute; the first pass only records a baseline.",
   "m_mon_none": "No detections. New listening ports, new software or accounts, agent tampering and unusual outbound connections will appear here.",
   "m_mon_loading": "Loading detections…",
   "m_mon_count": "{0} detections",

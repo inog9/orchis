@@ -335,7 +335,7 @@ export const id:Record<keyof typeof en,string> = {
   "m_def_starting": "Memulai…",
   "m_def_never": "orchis-defense-agent belum pernah dijalankan pada aset ini.",
   "m_mon_title": "Pemantauan",
-  "m_mon_sub": "Deteksi dari pemantau endpoint. Diperiksa tiap 5 menit; putaran pertama hanya mencatat baseline.",
+  "m_mon_sub": "Deteksi dari pemantau endpoint. Diperiksa tiap menit; putaran pertama hanya mencatat baseline.",
   "m_mon_none": "Belum ada deteksi. Port listening baru, software atau akun baru, perusakan agent, dan koneksi keluar yang tidak biasa akan muncul di sini.",
   "m_mon_loading": "Memuat deteksi…",
   "m_mon_count": "{0} deteksi",
