@@ -34,12 +34,26 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "microsoft", Product: "visual_studio_code", Names: []string{"code", "visual studio code.app"}, Bundles: []string{"com.microsoft.vscode"}},
 	{Vendor: "brave", Product: "browser", Names: []string{"brave", "brave browser", "brave browser.app"}, Bundles: []string{"com.brave.browser"}},
 	{Vendor: "google", Product: "chrome", Names: []string{"google chrome", "google chrome.app"}, Bundles: []string{"com.google.chrome"}},
-	{Vendor: "mozilla", Product: "firefox", Names: []string{"firefox", "firefox.app"}, Bundles: []string{"org.mozilla.firefox"}},
+	{Vendor: "mozilla", Product: "firefox", Names: []string{"firefox", "firefox.app", "mozilla firefox"}, Bundles: []string{"org.mozilla.firefox"}},
 	{Vendor: "telegram", Product: "telegram_desktop", Names: []string{"telegram", "telegram.app"}, Bundles: []string{"ru.keepcoder.telegram"}},
 	{Vendor: "docker", Product: "docker", Names: []string{"docker", "docker.app", "docker desktop", "docker desktop.app"}, Bundles: []string{"com.docker.docker"}},
 	{Vendor: "zoom", Product: "zoom", Names: []string{"zoom", "zoom.us.app"}, Bundles: []string{"us.zoom.xos"}},
 	{Vendor: "discord", Product: "discord", Names: []string{"discord", "discord.app"}, Bundles: []string{"com.hnc.discord"}},
 	{Vendor: "spotify", Product: "spotify", Names: []string{"spotify", "spotify.app"}, Bundles: []string{"com.spotify.client"}},
+	// Windows (nama program sudah dinormalisasi tanpa versi/arsitektur). Tiap pasangan diverifikasi ada di kamus CPE NVD.
+	{Vendor: "7-zip", Product: "7-zip", Names: []string{"7-zip"}},
+	{Vendor: "git-scm", Product: "git", Names: []string{"git"}},
+	{Vendor: "wireshark", Product: "wireshark", Names: []string{"wireshark"}},
+	{Vendor: "nodejs", Product: "node.js", Names: []string{"node.js", "nodejs"}},
+	{Vendor: "apache", Product: "netbeans", Names: []string{"apache netbeans ide", "apache netbeans"}},
+	{Vendor: "microsoft", Product: "edge_chromium", Names: []string{"microsoft edge"}},
+	{Vendor: "anydesk", Product: "anydesk", Names: []string{"anydesk"}},
+	{Vendor: "oracle", Product: "vm_virtualbox", Names: []string{"oracle vm virtualbox", "virtualbox"}},
+	{Vendor: "postman", Product: "postman", Names: []string{"postman"}},
+	{Vendor: "portswigger", Product: "burp_suite", Names: []string{"burp suite", "burp suite community edition", "burp suite professional"}},
+	{Vendor: "videolan", Product: "vlc_media_player", Names: []string{"vlc media player", "vlc"}},
+	{Vendor: "putty", Product: "putty", Names: []string{"putty", "putty release"}},
+	{Vendor: "rarlab", Product: "winrar", Names: []string{"winrar"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
@@ -399,4 +413,21 @@ func (n *NVD) CPEExists(ctx context.Context, vendor, product string) (bool, erro
 	n.cpeOK[cpe] = ok
 	n.mu.Unlock()
 	return ok, nil
+}
+
+var (
+	progArchRe    = regexp.MustCompile(`(?i)\s*\((x64|x86|x86_64|amd64|arm64|[0-9]+-bit|user|machine)[^)]*\)`)
+	progVersionRe = regexp.MustCompile(`(?i)(\s+v?[0-9]+(\.[0-9]+)*[a-z0-9._+-]*)+$`)
+	progLeadVerRe = regexp.MustCompile(`(?i)\s+(v?[0-9]+(\.[0-9]+)+[a-z0-9._+-]*)`)
+)
+
+// normalizeProgramName menghapus penanda arsitektur dan versi dari nama program Windows dan mengembalikan nama bersih (huruf kecil)
+// beserta versi yang ditemukan di nama (kosong bila tidak ada). Dipakai agar "7-Zip 26.00 (x64)" cocok dengan entri kamus "7-zip".
+func normalizeProgramName(name string) (clean, version string) {
+	n := strings.TrimSpace(progArchRe.ReplaceAllString(name, ""))
+	if m := progLeadVerRe.FindStringSubmatch(n); m != nil {
+		version = strings.TrimPrefix(strings.TrimPrefix(m[1], "v"), "V")
+	}
+	n = strings.TrimSpace(progVersionRe.ReplaceAllString(n, ""))
+	return strings.ToLower(n), version
 }

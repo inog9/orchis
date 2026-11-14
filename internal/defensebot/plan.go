@@ -225,9 +225,25 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 		}
 	}
 	if rows, _, ok := okRows(in, QueryPrograms); ok {
+		seenProg := map[string]bool{}
 		for _, r := range rows {
-			if v, pr, mapped := cpeFor(r["name"], ""); mapped {
-				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+			// Nama program Windows memuat versi dan arsitektur ("7-Zip 26.00 (x64)"): cocokkan juga nama yang dinormalisasi.
+			clean, nameVer := normalizeProgramName(r["name"])
+			version := strings.TrimSpace(r["version"])
+			if version == "" {
+				version = nameVer
+			}
+			v, pr, mapped := cpeFor(r["name"], "")
+			if !mapped {
+				v, pr, mapped = cpeFor(clean, "")
+			}
+			if mapped {
+				k := v + ":" + pr + ":" + version
+				if seenProg[k] { // entri ganda (per-user/per-mesin) tidak diperiksa dua kali
+					continue
+				}
+				seenProg[k] = true
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: version})
 				continue
 			}
 			if c, ok := aiCPE[AppKey(r["name"])]; ok {
