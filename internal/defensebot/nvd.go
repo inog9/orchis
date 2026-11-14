@@ -76,6 +76,15 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "apachefriends", Product: "xampp", Names: []string{"xampp"}},
 	{Vendor: "dropbox", Product: "dropbox", Names: []string{"dropbox"}},
 	{Vendor: "winscp", Product: "winscp", Names: []string{"winscp"}},
+	{Vendor: "r-project", Product: "r", Names: []string{"r for windows"}},
+	{Vendor: "apple", Product: "bonjour", Names: []string{"bonjour"}},
+	{Vendor: "linuxfoundation", Product: "osquery", Names: []string{"osquery"}},
+	{Vendor: "sleuthkit", Product: "autopsy", Names: []string{"autopsy"}},
+	{Vendor: "avg", Product: "secure_browser", Names: []string{"avg secure browser"}},
+	{Vendor: "graphviz", Product: "graphviz", Names: []string{"graphviz"}},
+	{Vendor: "tonec", Product: "internet_download_manager", Names: []string{"internet download manager"}},
+	{Vendor: "expressvpn", Product: "expressvpn", Names: []string{"expressvpn"}},
+	{Vendor: "anthropic", Product: "claude_desktop", Names: []string{"claude"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
@@ -547,7 +556,7 @@ var noiseProgramPrefixes = []string{"windows driver package", "microsoft.", "win
 	"microsoft sql server compact", "msdn library", "msi development tools", "kits configuration", "vc runtimes", "intel(r) c++", "application verifier",
 	"epic games launcher prerequisites", "launcher prerequisites", "wildtangent", "update installer for", "widgets platform", "directx", "diagnosticshub",
 	"holo", "mixedreality", "ncsiuwp", "pinningconfirmation", "capturepicker", "desktopview", "environmentsapp", "roomadjustment", "passthrough",
-	"b&amp;o ", "office 16 click-to-run", "mozilla maintenance", "java auto updater", "avg update helper", "udk package"}
+	"b&amp;o ", "office 16 click-to-run", "mozilla maintenance", "java auto updater", "python launcher", "avg update helper", "udk package"}
 
 var pythonPartRe = regexp.MustCompile(`(?i)^python [0-9.]+ (add to path|core interpreter|development libraries|documentation|executables|standard library|tcl/tk support|test suite|utility scripts|pip bootstrap)`)
 

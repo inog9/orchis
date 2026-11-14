@@ -81,9 +81,28 @@ func TestArchTokensWithoutParenthesesAreStripped(t *testing.T) {
 
 func TestCommonProgramsAreCountedSeparatelyFromTheRest(t *testing.T) {
 	in := Input{Datasets: map[string]DatasetInput{QueryPrograms: {Status: "ok", Rows: []map[string]string{
-		{"name": "Graphviz", "version": "7.0"}, {"name": "Total War: SHOGUN 2", "version": "1"}, {"name": "Obscure Tool", "version": "1"}}}}}
+		{"name": "Warp", "version": "7.0"}, {"name": "Total War: SHOGUN 2", "version": "1"}, {"name": "Obscure Tool", "version": "1"}}}}}
 	p := buildPlan(in, nil)
-	if p.Unmapped != 3 || p.UnmappedCommon != 1 || len(p.UnmappedCommonNames) != 1 || p.UnmappedCommonNames[0] != "Graphviz" {
+	if p.Unmapped != 3 || p.UnmappedCommon != 1 || len(p.UnmappedCommonNames) != 1 || p.UnmappedCommonNames[0] != "Warp" {
 		t.Fatalf("unmapped=%d common=%d names=%v", p.Unmapped, p.UnmappedCommon, p.UnmappedCommonNames)
+	}
+}
+
+func TestPopularWindowsAppsMapToVerifiedCPEs(t *testing.T) {
+	cases := map[string][2]string{
+		"R for Windows 4.3.3": {"r-project", "r"}, "Bonjour": {"apple", "bonjour"}, "osquery": {"linuxfoundation", "osquery"},
+		"Autopsy": {"sleuthkit", "autopsy"}, "Graphviz": {"graphviz", "graphviz"}, "ExpressVPN": {"expressvpn", "expressvpn"},
+		"Internet Download Manager": {"tonec", "internet_download_manager"}, "OpenSSL 3.6.1 Light (64-bit)": {"openssl", "openssl"},
+		"FortiClient VPN": {"fortinet", "forticlient"}, "Wazuh Agent": {"wazuh", "wazuh"}, "Adobe Flash Player 11 Plugin": {"adobe", "flash_player"},
+	}
+	for name, want := range cases {
+		clean, _ := normalizeProgramName(name)
+		v, p, ok := cpeFor(name, "")
+		if !ok {
+			v, p, ok = cpeFor(clean, "")
+		}
+		if !ok || v != want[0] || p != want[1] {
+			t.Errorf("%q => %s:%s ok=%v, want %s:%s", name, v, p, ok, want[0], want[1])
+		}
 	}
 }
