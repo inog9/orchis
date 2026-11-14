@@ -580,5 +580,25 @@
    "properties": {},
    "order": []
   }
+ },
+ {
+  "key": "osquery.programs",
+  "adapter": "osquery",
+  "integration": "agent",
+  "name": "Installed programs (osquery)",
+  "kind": "scan",
+  "output_types": [
+   "text"
+  ],
+  "timeout_seconds": 60,
+  "description": "Installed Windows programs (name, version, publisher); no file contents are read. Used to detect new software and match known vulnerabilities.",
+  "version": 1,
+  "needs_agent": true,
+  "category": "DefenseBot",
+  "input_schema": {
+   "type": "object",
+   "properties": {},
+   "order": []
+  }
  }
 ]
