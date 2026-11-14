@@ -1,86 +1,141 @@
-# Orchis
+# ORCHIS
 
-Orchis adalah platform validasi keamanan self-hosted dengan backend Go, frontend
-React (UI v3), dan laporan PDF/JSON. Alur utama:
+**Continuous security validation for Red and Blue Teams.** Self-hosted, with a Go
+backend, a React frontend, and PDF/JSON reports.
 
-**Organisasi → Aset dan agent → Pindai → Temuan → Laporan → Perbaikan dan retest**
+ORCHIS schedules authorised security assessments against your assets and watches
+your endpoints from the inside, then puts everything into one queue: what was
+found, how severe it is, and whether the fix actually worked.
 
-| Pilihan pindai | Yang dijalankan |
-|---|---|
-| Web pentest (orchis-redteam-agent) | Nmap dan Nuclei sebagai persiapan, lalu pengujian web melalui worker OpenCode |
-| Installed software check (DefenseBot) | Koleksi osquery yang disetujui dari endpoint, lalu pencocokan kerentanan dan hardening |
-| Full assessment | Memilih engine per aset: URL yang disetujui menjalankan orchis-redteam-agent, agent menjalankan DefenseBot, aset dengan keduanya menjalankan keduanya |
+![ORCHIS findings view](docs/ui-audit/shots/after/findings--dark--en--1440.jpg)
 
-Aset dalam satu Full assessment boleh campuran. Pengujian memerlukan otorisasi,
-prasyarat engine, dan jendela pindai yang berlaku. Kegagalan atau cakupan parsial
-tercatat sebagai keterbatasan; hasil kosong tidak membuktikan aset aman.
-Lihat [alur produk](docs/FLOW.md), [orchis-redteam-agent](deploy/hackbot/README.md), dan
-[DefenseBot](docs/DEFENSEBOT.md).
+<sub>Screenshot uses synthetic demo data.</sub>
 
-## Mulai
+## What it does
 
-Untuk deployment, siapkan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, Python 3.12+,
-dan akses ke dua repo engine privat yang dipatok di
-[`engine-lock.json`](deploy/hackbot/engine-lock.json).
-**Siapkan checkout engine terlebih dahulu** mengikuti [panduan build orchis-redteam-agent](deploy/hackbot/README.md#build-and-configure).
+| Side | What runs | What you get |
+|---|---|---|
+| **Red** (orchis-redteam-agent) | Nmap and Nuclei as preparation, then web testing through an isolated worker | Validated findings with evidence and remediation advice |
+| **Blue** (DefenseBot) | A lightweight endpoint agent collects approved osquery data about software, accounts, and network | CVE matches for installed software, plus hardening findings |
+| **Monitoring** | The same agent reports about once a minute | Detections for new listening ports, new local accounts, suspicious outbound connections, and agent tampering |
+
+The main flow is:
+
+**Organisation → Assets and agents → Scan → Findings → Report → Fix and retest**
+
+A full assessment picks the engine per asset: an approved URL runs the Red Team
+agent, an endpoint agent runs DefenseBot, and an asset with both runs both.
+
+Things worth knowing before you rely on a result:
+
+- Testing requires explicit authorisation per asset, plus a valid scan window.
+- A failed or partial scan is recorded as a limitation. An empty result does not
+  prove an asset is safe.
+- Software that cannot be mapped to vulnerability data is counted and shown as
+  "not mapped". It is not silently skipped.
+- Detections that are no longer observed are marked stale automatically. They are
+  never deleted.
+
+## Quick start (development)
+
+You need Go (see `go.mod`), Node.js (see `.nvmrc`), Docker with Compose v2, and
+Python 3.12+.
 
 ```bash
-make hackbot-check                 # validasi source dan pin, tanpa Docker
-sudo make prod-init                # sekali untuk state baru; secret di /var/lib/orchis
+npm --prefix web ci
+make dev-up                     # PostgreSQL on 127.0.0.1:15432
+make build                      # frontend + server binary
+./bin/server migrate
+ORCHIS_WEB_DIR=$PWD/web/dist ORCHIS_ADMIN_EMAIL=admin@orchis.local ./bin/server serve
+```
+
+If `ORCHIS_ADMIN_PASSWORD` is empty, the first admin password is generated and
+printed once in the log. See [development and tests](docs/DEVELOPMENT.md) for
+scanners, the endpoint agent, and the full test suite.
+
+## Production deployment
+
+Production runs as a Docker Compose stack on Linux amd64 (PostgreSQL, RabbitMQ,
+Elasticsearch, object storage, and Caddy for HTTPS). Secrets and state live
+outside the checkout.
+
+```bash
+make hackbot-check                 # validate engine sources and pins, no Docker
+sudo make prod-init                # once per new state; secrets in /var/lib/orchis
 sudo python3 deploy/prod/ops.py env > .env
-sudo make prod-build               # server/web, renderer, scanner, engine, worker orchis-redteam-agent
+sudo make prod-build
 sudo make prod-up
 sudo make prod-probe
 ```
 
-Jalankan build dengan akun yang memiliki akses Docker dan dapat membaca checkout engine.
-Untuk state yang sudah ada, gunakan `ORCHIS_STATE` yang sama dan ikuti
-[prosedur upgrade](docs/OPERASI.md); jangan menjalankan init ulang.
-Login pertama ada di `initial-admin.json` dalam direktori state privat.
+The Red Team worker needs two private engine checkouts pinned in
+[`engine-lock.json`](deploy/hackbot/engine-lock.json). Prepare them first by
+following the [worker build guide](deploy/hackbot/README.md#build-and-configure).
 
-Panduan [deployment](docs/DEPLOY.md) menjelaskan HTTPS, agent, dan konfigurasi
-instalasi. Untuk bekerja pada source, lihat [pengembangan dan tes](docs/DEVELOPMENT.md).
-Jalankan `make help` untuk melihat perintah yang tersedia.
+For an existing installation, keep the same `ORCHIS_STATE` and follow the
+[upgrade procedure](docs/OPERASI.md); do not run init again. The first login is
+in `initial-admin.json` inside the private state directory. HTTPS, agent
+releases, and installer settings are covered in [deployment](docs/DEPLOY.md).
+Run `make help` to list every command.
 
-## Struktur repo
+## Endpoint agent
 
-| Lokasi | Isi |
+Install the agent from **Assets → Agents** in the console. It enrols with a
+single-use token, connects out to the platform only, and runs read-only checks.
+
+| Platform | Endpoint collection |
 |---|---|
-| `cmd/` | Entry point server, agent, injector, dan utilitas rilis |
-| `internal/` | Domain, layanan, API, worker, dan tes Go |
-| `web/` | Aplikasi React dan tes frontend |
-| `migrations/` | Migrasi PostgreSQL; dijalankan sebelum server versi baru |
-| `deploy/` | Dockerfile, konfigurasi pengembangan/produksi, engine lock, dan CI |
-| `e2e/` | Fixture, tes browser, dan pemeriksaan alur lengkap |
-| `docs/` | Panduan produk, API, operasi, arsitektur, dan bukti audit |
-| `docker-compose.yaml` | Stack produksi; konfigurasi non-rahasia dari `.env` |
+| Linux x86_64 | Supported. Debian and Ubuntu packages are matched to CVEs. |
+| macOS x86_64 / arm64 | Supported |
+| Windows x86_64 / arm64 | Supported |
 
-`bin/`, `dist/`, `work/`, dan `node_modules/` adalah hasil lokal dan diabaikan Git.
-Setiap komponen Node (`web/`, `e2e/`, `deploy/report/`) memiliki lockfile sendiri;
-jalankan npm dengan `--prefix`, bukan dari root repo.
-Checkout engine privat berada di luar repo Orchis. Secret, token model, dan state
-produksi juga disimpan di luar checkout.
+RPM-based distributions are not matched to vulnerabilities yet, and coverage of
+installed applications differs per operating system. See
+[DefenseBot](docs/DEFENSEBOT.md) for the details.
 
-## Dokumentasi
+## Repository layout
 
-- [Indeks dokumentasi](docs/README.md) — rute panduan menurut kebutuhan.
-- [Alur produk dan kesiapan aset](docs/FLOW.md), [peran pengguna](docs/ROLES.md).
-- [Audit terjadwal](docs/AUDIT-SCHEDULES.md).
-- [API dan Swagger/OpenAPI](docs/API.md), [skema laporan](docs/REPORT-SCHEMA.md).
-- [Operasi, upgrade, backup dan restore](docs/OPERASI.md).
-- [Arsitektur](docs/ARSITEKTUR.md), [kompatibilitas fitur historis](docs/FEATURE-COMPATIBILITY.md).
-- [Changelog](CHANGELOG.md), [lisensi](LICENSE), [komponen pihak ketiga](NOTICE).
+| Path | Contents |
+|---|---|
+| `cmd/` | Entry points: server, agent, injector, and release tools |
+| `internal/` | Domain, services, API, workers, and Go tests |
+| `web/` | React application and frontend tests |
+| `migrations/` | PostgreSQL migrations, run before a new server version |
+| `deploy/` | Dockerfiles, development and production configuration, engine lock, CI |
+| `e2e/` | Fixtures, browser tests, and end-to-end checks |
+| `docs/` | Product, API, operations, and architecture guides |
+| `docker-compose.yaml` | Production stack; non-secret settings come from `.env` |
 
-## Batasan
+Each Node component (`web/`, `e2e/`, `deploy/report/`) has its own lockfile, so
+run npm with `--prefix` and not from the repository root.
 
-DefenseBot mendukung koleksi endpoint Linux x86_64, macOS x86_64/arm64, dan
-Windows x86_64/arm64. Artefak yang didukung dipatok di
-[`catalog.json`](internal/osquery/catalog.json). Cakupan pemetaan berbeda per OS;
-distribusi RPM belum didukung. Lihat [cakupan endpoint](docs/DEFENSEBOT.md).
-orchis-redteam-agent memerlukan konfigurasi autentikasi model pada home worker persisten.
-Nmap/Nuclei berjalan dari jaringan server, sehingga hasil keterjangkauan mengikuti
-posisi scanner. Aset atau origin baru memerlukan persetujuan tersendiri.
+## Documentation
 
-Chains, Single tests/Atomic, AI, dan MITRE merupakan fitur lanjutan yang disembunyikan
-secara bawaan (`ORCHIS_ADVANCED_FEATURES=true`). Data dan API historis tetap mengikuti
-[batas kompatibilitas](docs/FEATURE-COMPATIBILITY.md).
+Most guides are written in Indonesian.
+
+- [Documentation index](docs/README.md)
+- [Product flow and asset readiness](docs/FLOW.md), [user roles](docs/ROLES.md), [user guide](docs/USER-GUIDE.md)
+- [Scheduled audits](docs/AUDIT-SCHEDULES.md)
+- [API and OpenAPI](docs/API.md), [report schema](docs/REPORT-SCHEMA.md)
+- [Operations, upgrade, backup and restore](docs/OPERASI.md)
+- [Architecture](docs/ARSITEKTUR.md), [historical feature compatibility](docs/FEATURE-COMPATIBILITY.md)
+- [Changelog](CHANGELOG.md)
+
+## Limitations
+
+- Nmap and Nuclei run from the server network, so reachability results reflect
+  where the scanner sits.
+- The Red Team agent needs model authentication configured in the persistent
+  worker home.
+- A new asset or origin needs its own approval before it can be tested.
+- Chains, single tests, AI, and MITRE are advanced features and are hidden by
+  default (`ORCHIS_ADVANCED_FEATURES=true`).
+
+## Use it responsibly
+
+Only test systems you own or are explicitly authorised to test. ORCHIS enforces
+per-asset authorisation, but responsibility for scope stays with you.
+
+## License
+
+[Apache-2.0](LICENSE). Third-party components are listed in [NOTICE](NOTICE).
