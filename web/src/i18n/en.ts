@@ -73,6 +73,8 @@ export const en = {
 "ov_loading":"Loading security overview",
 "ov_load_error":"Overview could not be loaded",
 
+  "flow_pentest_limited_description": "Some areas could not be assessed. Review the recorded findings and coverage notes before planning follow-up checks.",
+  "flow_pentest_limitations": "Limitations",
   "hackbot_incomplete": "Incomplete coverage",
   "hackbot_summary": "orchis-redteam-agent activity summary",
   "hackbot_pdf_pending":"Preparing the PDF report…",
@@ -461,7 +463,7 @@ export const en = {
   "m_sim_col_started": "STARTED",
   "m_sim_col_duration": "DURATION",
   "m_sim_s_running": "Running",
-  "m_sim_s_finished": "Finished",
+  "m_sim_s_finished": "Completed",
   "m_sim_s_failed": "Failed",
   "m_sim_s_canceled": "Canceled",
   "m_sim_s_waiting": "Waiting",

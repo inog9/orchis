@@ -1,3 +1,4 @@
+import { completionStatus } from './scanView';
 import type { ScanJob } from '../api/scans';
 import { t as textUI } from '../i18n/runtime';
 
@@ -65,10 +66,10 @@ export function engineRows(jobs: ScanJob[], reportReady = false): EngineRow[] {
     const rows: EngineRow[] = [];
     const web = jobs.filter((j) => j.tool === 'nmap' || j.tool === 'nuclei' || j.tool === 'hackbot');
     if (web.length > 0) {
-        const status = web.some((j) => j.status === 'running') ? 'running'
-            : web.every((j) => j.status === 'failed') ? 'failed'
-            : web.some((j) => j.status === 'waiting') ? 'waiting'
-            : web.every((j) => j.status === 'finished') ? 'finished' : 'incomplete';
+        const status = web.some((j) => completionStatus(j) === 'running') ? 'running'
+            : web.every((j) => completionStatus(j) === 'failed') ? 'failed'
+            : web.some((j) => completionStatus(j) === 'waiting') ? 'waiting'
+            : web.every((j) => completionStatus(j) === 'finished') ? 'finished' : 'incomplete';
         rows.push({
             engine: 'orchis-redteam-agent',
             stage: status === 'waiting' ? textUI('flow_stage_preparing') : hackbotStage(web, reportReady),
@@ -81,7 +82,7 @@ export function engineRows(jobs: ScanJob[], reportReady = false): EngineRow[] {
     const defense = jobs.filter((j) => j.tool === 'defensebot');
     if (defense.length > 0) {
         const j = defense[0]!;
-        const status = j.status;
+        const status = completionStatus(j);
         const stage = status === 'running' ? textUI('flow_stage_matching')
             : status === 'waiting' ? textUI('flow_stage_wait_scanner')
             : status === 'finished' || status === 'incomplete' ? textUI('flow_stage_collecting') : '';

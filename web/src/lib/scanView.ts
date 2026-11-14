@@ -31,7 +31,7 @@ export function statusTone(status: string): Tone {
 export function jobCounts(jobs: ScanJob[] = []) {
     const c = { total: jobs.length, finished: 0, running: 0, waiting: 0, failed: 0, other: 0 };
     for (const j of jobs) {
-        if (j.status === 'finished') c.finished += 1;
+        if (completionStatus(j) === 'finished') c.finished += 1;
         else if (j.status === 'running') c.running += 1;
         else if (j.status === 'waiting') c.waiting += 1;
         else if (j.status === 'failed') c.failed += 1;
@@ -45,4 +45,8 @@ export function flattenFindings(jobs: ScanJob[] = []): FlatFinding[] {
     const rank = ['critical', 'high', 'medium', 'low', 'info'];
     return jobs.flatMap((j) => (j.findings ?? []).map((f) => ({ ...f, tool: j.tool, target: j.target })))
         .sort((a, b) => rank.indexOf(a.severity) - rank.indexOf(b.severity));
+}
+
+export function completionStatus(scan: {status:string;completion_status?:string}): string {
+    return scan.completion_status ?? scan.status;
 }

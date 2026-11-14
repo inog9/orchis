@@ -173,7 +173,7 @@ describe('OrganizationDetailPage', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(3);
     expect(within(table).getByText('macos · arm64')).toBeInTheDocument();
     expect(within(table).getByText('Online')).toBeInTheDocument();
-    expect(within(table).getByText('Finished')).toBeInTheDocument();
+    expect(within(table).getByText('Completed')).toBeInTheDocument();
     expect(within(table).getByText('Never scanned')).toBeInTheDocument();
     // Kartu agen terpasang: hostname, tag status, versi, heartbeat.
     expect(screen.getByRole('heading', { name: 'Installed agents' })).toBeInTheDocument();

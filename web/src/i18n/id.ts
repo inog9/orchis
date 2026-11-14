@@ -74,6 +74,8 @@ export const id:Record<keyof typeof en,string> = {
 "ov_loading":"Memuat ringkasan keamanan",
 "ov_load_error":"Ringkasan tidak dapat dimuat",
 
+  "flow_pentest_limited_description": "Beberapa area belum dapat dinilai. Tinjau temuan dan catatan cakupan sebelum merencanakan pemeriksaan lanjutan.",
+  "flow_pentest_limitations": "Keterbatasan",
   "hackbot_incomplete": "Cakupan tidak lengkap",
  "hackbot_summary": "Ringkasan aktivitas orchis-redteam-agent",
   "hackbot_pdf_pending":"Menyiapkan laporan PDF…",

@@ -25,18 +25,18 @@ afterEach(() => vi.restoreAllMocks());
 
 describe('ScanList', () => {
   it('shows a finished review with limited coverage in the scan list', async () => {
-    route((u) => u.pathname === '/api/v1/scans' ? { items: [scan({ limited_coverage: true })], next_cursor: null } : undefined);
+    route((u) => u.pathname === '/api/v1/scans' ? { items: [scan({ status:'incomplete', completion_status:'finished', limited_coverage: true })], next_cursor: null } : undefined);
     mount(<ScanList />, '/simulations');
     const table = await screen.findByRole('table', { name: 'Scans' });
-    expect(within(table).getByText('Finished')).toBeInTheDocument();
-    expect(within(table).getByText(/Incomplete coverage/)).toBeInTheDocument();
+    expect(within(table).getByText('Completed')).toBeInTheDocument();
+    expect(within(table).queryByText(/Incomplete coverage/)).toBeNull();
   });
   it('menampilkan baris: organisasi, status bertulisan, alat, preset, durasi', async () => {
     route((u) => u.pathname === '/api/v1/scans' ? { items: [scan({}), scan({ id: 'bbbbbbbb-1111-2222-3333-444444444444', status: 'running', ended_at: null })], next_cursor: null } : undefined);
     mount(<ScanList />, '/simulations');
     const table = await screen.findByRole('table', { name: 'Scans' });
     await waitFor(() => expect(within(table).getAllByText('Org Uno')).toHaveLength(2));
-    expect(within(table).getByText('Finished')).toBeInTheDocument();
+    expect(within(table).getByText('Completed')).toBeInTheDocument();
     expect(within(table).getByText('Running')).toBeInTheDocument();
     expect(within(table).getAllByText('orchis-redteam-agent')).toHaveLength(2);
     expect(within(table).getByText('3m 12s')).toBeInTheDocument();
@@ -60,12 +60,13 @@ describe('ScanList', () => {
 });
 
 describe('ScanDetailPage', () => {
-  it('shows finished review and limited coverage separately when the report is ready', async () => {
-    route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', limited_coverage: true, report_id: 'r1', report_status: 'ready', jobs: [job({ tool: 'hackbot', status: 'incomplete' })] }) : undefined);
+  it('shows completed status and places pentest limitations in the description', async () => {
+    route((u) => u.pathname === '/api/v1/scans/s1' ? scan({ id: 's1', status:'incomplete', completion_status:'finished', limited_coverage: true, report_id: 'r1', report_status: 'ready', jobs: [job({ tool: 'hackbot', status: 'incomplete', completion_status:'finished', limitations:['Authenticated routes were not tested because credentials were unavailable.'] })] }) : undefined);
     mount(<ScanDetailPage />, '/simulations/s1', '/simulations/:id');
     expect(await screen.findByRole('heading', { name: 'Org Uno' })).toBeInTheDocument();
-    expect(screen.getAllByText(/Incomplete coverage/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Finished').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/Incomplete coverage/)).toBeNull();
+    expect(screen.getByText('Authenticated routes were not tested because credentials were unavailable.')).toBeVisible();
+    expect(screen.getAllByText('Completed').length).toBeGreaterThan(0);
     expect(screen.getByText('Ready')).toBeInTheDocument();
     expect(screen.queryByText('Writing report')).toBeNull();
   });

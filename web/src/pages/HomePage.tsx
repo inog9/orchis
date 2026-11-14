@@ -1,3 +1,4 @@
+import { completionStatus } from '../lib/scanView';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -64,7 +65,7 @@ function ReviewQueue({me}:{me:User|null|undefined}){
 function RecentAudits(){
  const q=useQuery({queryKey:['overview','recent-audits'],queryFn:()=>api.get<{items:Scan[]}>('/api/v1/scans'),refetchInterval:10000,retry:false});
  return <section className="overview-recent" aria-labelledby="ov-recent-title"><header className="overview-section-head"><div><h2 id="ov-recent-title">{t('ov_recent')}</h2><p>{t('ov_recent_hint')}</p></div><Link to="/simulations">{t('ov_history')} <ArrowRight size={14}/></Link></header>
-  {q.isPending?<Loading label={t('ov_loading_scans')}/>:q.isError?<ErrorNote error={q.error} retry={()=>q.refetch()}/>:q.data?.items.length===0?<div className="overview-simple-empty"><p>{t('ov_no_audits')}</p></div>:<ul className="overview-audits">{q.data?.items.slice(0,4).map(s=><li key={s.id}><Link to={`/simulations/${s.id}`}><span className="overview-audit__name">{agentDisplayName(s.name)}</span><StateTag tone={s.status==='finished'?'success':['failed','incomplete'].includes(s.status)?'warn':s.status==='running'?'accent':'neutral'}>{scanStatusLabel(s.status)}</StateTag><time dateTime={s.created_at} title={date(s.created_at)}>{relativeTime(s.created_at)}</time><ChevronRight size={14} aria-hidden="true"/></Link></li>)}</ul>}
+  {q.isPending?<Loading label={t('ov_loading_scans')}/>:q.isError?<ErrorNote error={q.error} retry={()=>q.refetch()}/>:q.data?.items.length===0?<div className="overview-simple-empty"><p>{t('ov_no_audits')}</p></div>:<ul className="overview-audits">{q.data?.items.slice(0,4).map(s=><li key={s.id}><Link to={`/simulations/${s.id}`}><span className="overview-audit__name">{agentDisplayName(s.name)}</span><StateTag tone={completionStatus(s)==='finished'?'success':['failed','incomplete'].includes(completionStatus(s))?'warn':s.status==='running'?'accent':'neutral'}>{scanStatusLabel(completionStatus(s))}</StateTag><time dateTime={s.created_at} title={date(s.created_at)}>{relativeTime(s.created_at)}</time><ChevronRight size={14} aria-hidden="true"/></Link></li>)}</ul>}
  </section>;
 }
 function NextAudit({canRun}:{canRun:boolean}){
