@@ -273,7 +273,7 @@ func ruleConnections(in Input) []Finding {
 	return out
 }
 
-// Write menyimpan findings (upsert seperti execution) dan memicu alert untuk yang critical.
+// Write menyimpan findings (upsert seperti execution) dan memicu alert untuk yang high (warning) dan critical.
 func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 	for _, f := range findings {
 		h := sha256.Sum256([]byte(f.Type + "\x00" + f.Value))
@@ -287,10 +287,14 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 		if err != nil {
 			return err
 		}
-		if f.Severity == "critical" {
+		if f.Severity == "critical" || f.Severity == "high" {
+			sev, label := "warning", "Endpoint detection"
+			if f.Severity == "critical" {
+				sev, label = "critical", "Critical endpoint detection"
+			}
 			if err := alerts.Raise(ctx, tx, in.Tenant, alerts.New{
-				Kind: "blueteam_critical", Severity: "critical",
-				Title: "Critical endpoint detection on " + in.AssetName,
+				Kind: "blueteam_" + f.Severity, Severity: sev,
+				Title: label + " on " + in.AssetName,
 				Body:  f.Title, ResourceType: "finding", ResourceID: &fid,
 				Audience: authz.FindingRead, DedupeKey: "blueteam:" + fid.String(),
 			}); err != nil {
