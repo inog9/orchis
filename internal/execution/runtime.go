@@ -699,6 +699,39 @@ WHERE tenant_id=$1 AND state='running' AND lease_until < now() RETURNING id, sim
 			}
 		}
 		timedOut = len(dead)
+		// Eksekusi agent yang tidak pernah diambil karena agent offline: tutup (timeout) agar tidak menggantung selamanya
+		// dan tidak memblokir backup/operasi lain. Agent yang online kembali tidak terpengaruh (heartbeat baru).
+		orphan, err := tx.Query(ctx, `
+UPDATE executions e SET state='ended', outcome='timeout', ended_at=now(), lease_until=NULL,
+  error='The agent stayed offline; this task was never picked up.', version=e.version+1, updated_at=now()
+WHERE e.tenant_id=$1 AND e.state='ready' AND e.executor_kind='agent' AND e.updated_at < now() - interval '30 minutes'
+  AND NOT EXISTS (SELECT 1 FROM agents g WHERE g.tenant_id=e.tenant_id AND g.id=e.agent_id AND g.last_heartbeat_at > now() - interval '10 minutes')
+RETURNING e.id, e.simulation_id`, r.Tenant)
+		if err != nil {
+			return err
+		}
+		var abandoned []deadExec
+		for orphan.Next() {
+			var d deadExec
+			if err := orphan.Scan(&d.id, &d.sim); err != nil {
+				orphan.Close()
+				return err
+			}
+			abandoned = append(abandoned, d)
+		}
+		orphan.Close()
+		if err := orphan.Err(); err != nil {
+			return err
+		}
+		for _, d := range abandoned {
+			if err := logLine(ctx, tx, r.Tenant, d.id, "warn", "Closed: the agent stayed offline and never picked this task up."); err != nil {
+				return err
+			}
+			if err := r.afterEnd(ctx, tx, d.sim); err != nil {
+				return err
+			}
+		}
+		timedOut += len(abandoned)
 		return nil
 	})
 	return
