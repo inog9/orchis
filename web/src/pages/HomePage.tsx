@@ -38,16 +38,26 @@ function SeveritySummary({findings}:{findings:NonNullable<HomeSummary['findings'
   {sum===0&&<p className="overview-caption">{t('ov_no_vulnerabilities')}</p>}
  </section>;
 }
+// Area temuan critical di Overview: web/aplikasi/jaringan dari scan, plus deteksi endpoint (jaringan, aplikasi, akun, agent).
+function areaOf(type:string):string{
+ switch(type){
+  case 'new_listening_port':case 'c2_suspect_connection':case 'open_port':return t('ov_area_network');
+  case 'new_software_installed':return t('ov_area_apps');
+  case 'new_local_account':return t('ov_area_account');
+  case 'agent_tamper':case 'agent_unresponsive':return t('ov_area_agent');
+  default:return t('ov_area_vuln');
+ }
+}
 function ReviewQueue({me}:{me:User|null|undefined}){
  const [open,setOpen]=useState<Finding|null>(null);
  const q=useQuery({queryKey:['overview','review-queue'],enabled:can(me,'finding.read'),queryFn:async()=>{
   // The API sorts by last seen. Separate severity filters ensure an older
   // critical finding cannot be displaced by a more recent lower-severity row.
-  const pages=await Promise.all(['critical','high'].map(severity=>api.get<FindingPage>(`/api/v1/findings?type=vulnerability&severity=${severity}&triage=open&limit=5`)));
-  return [...new Map([...pages[0]!.items,...pages[1]!.items].filter(f=>f.type==='vulnerability'&&['critical','high'].includes(f.severity)).map(f=>[f.id,f])).values()].slice(0,5);
+  const page=await api.get<FindingPage>(`/api/v1/findings?severity=critical&triage=open&limit=5`);
+  return page.items.filter(f=>f.severity==='critical').slice(0,5);
  },refetchInterval:30000,retry:false});
  return <section className="overview-review" aria-labelledby="ov-review-title"><header className="overview-section-head"><div><p className="overview-kicker">{t('ov_attention')}</p><h2 id="ov-review-title">{t('ov_review_title')}</h2><p>{t('ov_review_hint')}</p></div><Link to="/findings">{t('ov_all_findings')} <ArrowRight size={14}/></Link></header>
-  {q.isPending?<Loading label={t('ov_loading_findings')}/>:q.isError?<ErrorNote error={q.error} retry={()=>q.refetch()}/>:q.data?.length===0?<div className="overview-empty"><ShieldCheck size={24} aria-hidden="true"/><h3>{t('ov_queue_empty')}</h3><p>{t('ov_queue_empty_hint')}</p></div>:<ol className="overview-findings">{q.data?.map(f=>{const d=defenseOf(f);return <li key={f.id} data-finding-id={f.id}><button className="overview-finding" onClick={()=>setOpen(f)} aria-haspopup="dialog"><span className="overview-finding__severity"><SeverityPill severity={f.severity}>{capitalLabel(f.severity)}</SeverityPill></span><span className="overview-finding__text"><strong>{f.title}</strong><span>{f.asset_name||t('ov_unassigned')}{d?.kev&&<em>{t('ov_exploited')}</em>}{d?.exposure==='exposed'&&<em>{t('ov_exposed')}</em>}</span></span><time dateTime={f.last_seen_at} title={date(f.last_seen_at)}>{relativeTime(f.last_seen_at)}</time><ChevronRight size={16} aria-hidden="true"/></button></li>})}</ol>}
+  {q.isPending?<Loading label={t('ov_loading_findings')}/>:q.isError?<ErrorNote error={q.error} retry={()=>q.refetch()}/>:q.data?.length===0?<div className="overview-empty"><ShieldCheck size={24} aria-hidden="true"/><h3>{t('ov_queue_empty')}</h3><p>{t('ov_queue_empty_hint')}</p></div>:<ol className="overview-findings">{q.data?.map(f=>{const d=defenseOf(f);return <li key={f.id} data-finding-id={f.id}><button className="overview-finding" onClick={()=>setOpen(f)} aria-haspopup="dialog"><span className="overview-finding__severity"><SeverityPill severity={f.severity}>{capitalLabel(f.severity)}</SeverityPill></span><span className="overview-finding__text"><strong>{f.title}</strong><span><em>{areaOf(f.type)}</em>{f.asset_name||t('ov_unassigned')}{d?.kev&&<em>{t('ov_exploited')}</em>}{d?.exposure==='exposed'&&<em>{t('ov_exposed')}</em>}</span></span><time dateTime={f.last_seen_at} title={date(f.last_seen_at)}>{relativeTime(f.last_seen_at)}</time><ChevronRight size={16} aria-hidden="true"/></button></li>})}</ol>}
   {open&&<FindingDrawer key={open.id} finding={open} onClose={()=>{setOpen(null);void q.refetch();}} canAsset={can(me,'asset.read')}/>}
  </section>;
 }
