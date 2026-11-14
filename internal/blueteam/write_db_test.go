@@ -45,10 +45,10 @@ func TestWriteAcceptsEveryBlueteamFindingType(t *testing.T) {
 	if err := env.Owner.QueryRow(ctx, `SELECT count(*) FROM findings WHERE asset_id=$1`, asset).Scan(&n); err != nil || n != len(types) {
 		t.Fatalf("stored %d of %d: %v", n, len(types), err)
 	}
-	// Temuan berseverity high menghasilkan alert warning; tiap temuan satu alert.
+	// Hanya high jaringan (port baru, C2) yang memicu alert warning; high lain tidak.
 	var warn int
-	if err := env.Owner.QueryRow(ctx, `SELECT count(*) FROM alerts WHERE tenant_id=$1 AND kind='blueteam_high' AND severity='warning'`, env.TenantA).Scan(&warn); err != nil || warn != len(types) {
-		t.Fatalf("high alerts %d of %d: %v", warn, len(types), err)
+	if err := env.Owner.QueryRow(ctx, `SELECT count(*) FROM alerts WHERE tenant_id=$1 AND kind='blueteam_high' AND severity='warning'`, env.TenantA).Scan(&warn); err != nil || warn != 2 {
+		t.Fatalf("high network alerts %d of 2: %v", warn, err)
 	}
 }
 

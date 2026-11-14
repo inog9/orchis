@@ -273,6 +273,9 @@ func ruleConnections(in Input) []Finding {
 	return out
 }
 
+// networkTypes: hanya deteksi jaringan berseverity high yang memicu alert; high lain (aplikasi, akun, agent) cukup jadi temuan.
+var networkTypes = map[string]bool{"new_listening_port": true, "c2_suspect_connection": true}
+
 // Write menyimpan findings (upsert seperti execution) dan memicu alert untuk yang high (warning) dan critical.
 func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 	for _, f := range findings {
@@ -287,7 +290,7 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 		if err != nil {
 			return err
 		}
-		if f.Severity == "critical" || f.Severity == "high" {
+		if f.Severity == "critical" || (f.Severity == "high" && networkTypes[f.Type]) {
 			sev, label := "warning", "Endpoint detection"
 			if f.Severity == "critical" {
 				sev, label = "critical", "Critical endpoint detection"
