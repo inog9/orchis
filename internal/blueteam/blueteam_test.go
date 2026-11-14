@@ -93,3 +93,22 @@ func TestFirstPassWithoutBaselineCreatesNoFindings(t *testing.T) {
 		t.Fatalf("a port opened after the baseline must be detected: %+v", fs)
 	}
 }
+
+func TestEphemeralListeningPortsAreNotReported(t *testing.T) {
+	in := Input{AssetName: "h",
+		Baselines: map[string][]map[string]string{"osquery.network": {{"port": "445", "address": "0.0.0.0", "protocol": "6", "process": "System"}}},
+		Datasets: map[string][]map[string]string{"osquery.network": {
+			{"port": "445", "address": "0.0.0.0", "protocol": "6", "process": "System"},
+			{"port": "9999", "address": "0.0.0.0", "protocol": "6", "process": "python.exe"},
+			{"port": "52377", "address": "0.0.0.0", "protocol": "6", "process": "svchost.exe"},
+			{"port": "49152", "address": "::", "protocol": "6", "process": "x"}}}}
+	var ports []string
+	for _, f := range Run(in) {
+		if f.Type == "new_listening_port" {
+			ports = append(ports, f.Value)
+		}
+	}
+	if len(ports) != 1 || ports[0] != "0.0.0.0:9999" {
+		t.Fatalf("expected only port 9999, got %v", ports)
+	}
+}

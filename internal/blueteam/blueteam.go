@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -74,9 +75,14 @@ var adminGroups = map[string]bool{"root": true, "admin": true, "administrators":
 func Run(in Input) []Finding {
 	var out []Finding
 	out = append(out, ruleTamper(in)...)
-	out = append(out, ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
+	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
 		return fmt.Sprintf("%s:%s", r["address"], r["port"]), fmt.Sprintf("New listening port %s on %s", r["port"], r["address"])
-	})...)
+	}) {
+		if row, ok := f.Details["row"].(map[string]string); ok && isEphemeralPort(row["port"]) {
+			continue // port dinamis/sementara (49152-65535) berganti terus: bukan sinyal, hanya kebisingan
+		}
+		out = append(out, f)
+	}
 	for _, key := range []string{"osquery.packages", "osquery.macos_apps", "osquery.programs"} {
 		out = append(out, ruleDiff(in, key, "name|version", "new_software_installed", "high", func(r map[string]string) (string, string) {
 			return r["name"] + "|" + r["version"], fmt.Sprintf("New software installed: %s %s", r["name"], r["version"])
@@ -324,4 +330,10 @@ func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, da
 		}
 	}
 	return nil
+}
+
+// isEphemeralPort: rentang port dinamis IANA (49152-65535) dipakai OS untuk soket sementara dan berganti tiap menit.
+func isEphemeralPort(p string) bool {
+	n, err := strconv.Atoi(p)
+	return err == nil && n >= 49152
 }
