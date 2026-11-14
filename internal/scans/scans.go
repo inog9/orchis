@@ -75,6 +75,7 @@ type Input struct {
 	Preset         string      `json:"preset"`
 }
 type Scan struct {
+	CompletionStatus  string                `json:"completion_status,omitempty"`
 	LimitedCoverage   bool                  `json:"limited_coverage"`
 	ReportID          *uuid.UUID            `json:"report_id,omitempty"`
 	ReportStatus      string                `json:"report_status,omitempty"`
@@ -92,28 +93,30 @@ type Scan struct {
 	Jobs              []Job                 `json:"jobs,omitempty"`
 }
 type Job struct {
-	ID           uuid.UUID           `json:"id"`
-	AssetID      *uuid.UUID          `json:"asset_id"`
-	RangeID      *uuid.UUID          `json:"range_id"`
-	Name         string              `json:"name"`
-	Target       string              `json:"target"`
-	Tool         string              `json:"tool"`
-	Status       string              `json:"status"`
-	Error        string              `json:"error"`
-	Summary      string              `json:"summary,omitempty"`
-	Disposition  string              `json:"disposition,omitempty"`
-	Defense      *defensebot.Summary `json:"defense,omitempty"`
-	Phase        string              `json:"phase,omitempty"`
-	SimulationID *uuid.UUID          `json:"simulation_id"`
-	Findings     []reporting.Finding `json:"findings"`
+	CompletionStatus string              `json:"completion_status,omitempty"`
+	Limitations      []string            `json:"limitations,omitempty"`
+	ID               uuid.UUID           `json:"id"`
+	AssetID          *uuid.UUID          `json:"asset_id"`
+	RangeID          *uuid.UUID          `json:"range_id"`
+	Name             string              `json:"name"`
+	Target           string              `json:"target"`
+	Tool             string              `json:"tool"`
+	Status           string              `json:"status"`
+	Error            string              `json:"error"`
+	Summary          string              `json:"summary,omitempty"`
+	Disposition      string              `json:"disposition,omitempty"`
+	Defense          *defensebot.Summary `json:"defense,omitempty"`
+	Phase            string              `json:"phase,omitempty"`
+	SimulationID     *uuid.UUID          `json:"simulation_id"`
+	Findings         []reporting.Finding `json:"findings"`
 }
 
 const scanCols = `a.id,a.organization_id,a.name,a.status,a.runner,a.scan_options,a.created_at,a.ended_at,a.results_expired_at,
- EXISTS(SELECT 1 FROM scan_jobs limited WHERE limited.tenant_id=a.tenant_id AND limited.assessment_id=a.id AND limited.status IN ('incomplete','failed','skipped'))`
+ EXISTS(SELECT 1 FROM scan_jobs limited WHERE limited.tenant_id=a.tenant_id AND limited.assessment_id=a.id AND limited.status IN ('incomplete','failed','skipped'))` + `,` + scanCompletionSQL
 
 func scanRow(row pgx.Row) (Scan, error) {
 	var out Scan
-	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt, &out.ResultsExpiredAt, &out.LimitedCoverage)
+	err := row.Scan(&out.ID, &out.OrganizationID, &out.Name, &out.Status, &out.Runner, &out.Options, &out.CreatedAt, &out.EndedAt, &out.ResultsExpiredAt, &out.LimitedCoverage, &out.CompletionStatus)
 	return out, err
 }
 
@@ -463,7 +466,8 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 			if j.SimulationID == nil {
 				continue
 			}
-			e = tx.QueryRow(ctx, `SELECT COALESCE(hackbot_result->>'summary',''),COALESCE(hackbot_result->>'disposition',''),COALESCE(hackbot_progress->>'phase','') FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, p.TenantID, *j.SimulationID).Scan(&j.Summary, &j.Disposition, &j.Phase)
+			var reviewCompleted bool
+			e = tx.QueryRow(ctx, `SELECT COALESCE(hackbot_result->>'summary',''),COALESCE(hackbot_result->>'disposition',''),COALESCE(hackbot_progress->>'phase',''),COALESCE(hackbot_result->'blockers','[]'::jsonb),COALESCE(state='ended' AND hackbot_result->>'phase'='report' AND COALESCE(hackbot_result->>'report','')<>'' AND COALESCE(hackbot_result->>'validation','')<>'' AND outcome NOT IN ('canceled','timeout'),false) FROM executions WHERE tenant_id=$1 AND simulation_id=$2 ORDER BY id LIMIT 1`, p.TenantID, *j.SimulationID).Scan(&j.Summary, &j.Disposition, &j.Phase, &j.Limitations, &reviewCompleted)
 			if e != nil && !errors.Is(e, pgx.ErrNoRows) {
 				return e
 			}
@@ -481,6 +485,12 @@ func (s *Service) Get(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Sc
 			}
 			if j.Tool == "hackbot" && j.Summary == "" && j.Status != "running" && j.Status != "waiting" {
 				j.Summary = "orchis-redteam-agent did not complete this pentest. Coverage: " + j.Status + ". See the execution details for the blocker."
+			}
+			if j.Tool == "hackbot" && j.Status == "incomplete" && reviewCompleted && (j.Disposition == "limited" || j.Disposition == "input_required") {
+				j.CompletionStatus = "finished"
+			}
+			for n := range j.Limitations {
+				j.Limitations[n] = reporting.Redact(j.Limitations[n], 1000)
 			}
 			j.Summary = hackbot.LimitSummary(reporting.Redact(j.Summary, 32000))
 			if j.Summary != "" {

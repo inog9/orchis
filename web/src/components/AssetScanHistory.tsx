@@ -1,3 +1,4 @@
+import { completionStatus } from '../lib/scanView';
 import { t as textUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
@@ -25,7 +26,7 @@ export function AssetScanHistory({ assetID, organizationID, allowed }: { assetID
         : items.length === 0 ? <p className="muted">{textUI("m_ast_scan_none")}</p>
         : <ul className="ast-scans">{items.map((s) => <li key={s.id}>
             <Link to={`/simulations/${s.id}`} className="mono">{s.id.slice(0, 13)}</Link>
-            <StatusBadge status={s.status}/>
+            <StatusBadge status={completionStatus(s)}/>
             <span>{engineSetLabel(s.options.tools)}</span>
             <span className="muted small">{started(s.created_at)} · {formatDuration(durationMs(s), u)}</span>
           </li>)}</ul>}

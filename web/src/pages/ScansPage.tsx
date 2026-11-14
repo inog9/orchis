@@ -1,3 +1,4 @@
+import { completionStatus } from '../lib/scanView';
 import { ScanRecommendations } from '../components/ScanRecommendations';
 import { t as textUI, tr as richUI, useLocale, locale, fv as formatUI } from "../i18n/runtime";
 import { ScanComparison } from '../components/ScanComparison';
@@ -51,7 +52,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
         return all;
     }, refetchInterval: 10000 });
     const needle = search.trim().toLowerCase();
-    const items = (needle ? searchable.data ?? [] : q.data?.items ?? []).filter(s => !needle || [s.name, s.id, orgName(s.organization_id), s.status, scanStatusLabel(s.status), engineSetLabel(s.options.tools)].join(' ').toLowerCase().includes(needle));
+    const items = (needle ? searchable.data ?? [] : q.data?.items ?? []).filter(s => !needle || [s.name, s.id, orgName(s.organization_id), s.status, scanStatusLabel(completionStatus(s)), engineSetLabel(s.options.tools)].join(' ').toLowerCase().includes(needle));
     const canRun = can(me, 'assessment.run') && can(me, 'simulation.run');
     const setOrg = (v: string) => { const next = new URLSearchParams(params); if (v) next.set('org', v); else next.delete('org'); setParams(next); setCursor(''); };
     return <section className="page sims" aria-labelledby="scans-title">
@@ -70,7 +71,7 @@ export function ScanList({ organizationID, organizationName, embedded = false }:
           <div className="sims__row sims__head" role="row"><span role="columnheader">{textUI("m_sim_col_scan")}</span><span role="columnheader">{textUI("m_sim_col_status")}</span><span role="columnheader">{textUI("m_sim_col_tools")}</span><span role="columnheader">{textUI("m_sim_col_preset")}</span><span role="columnheader">{textUI("m_sim_col_started")}</span><span role="columnheader">{textUI("m_sim_col_duration")}</span></div>
           {items.map((s) => <div key={s.id} className="sims__row" role="row">
             <span role="cell" className="sims__scan"><Link to={`/simulations/${s.id}`}>{formatUI(embedded ? s.name : orgName(s.organization_id))}</Link><code className="mono" title={s.id}>{s.id.slice(0, 13)}</code></span>
-            <span role="cell"><StatusBadge status={s.status}/>{s.status === 'finished' && s.limited_coverage && <small> · {textUI('hackbot_incomplete')}</small>}</span>
+            <span role="cell"><StatusBadge status={completionStatus(s)}/></span>
             <span role="cell" className="sims__engine" title={engineSetLabel(s.options.tools)}>{formatUI(engineSetLabel(s.options.tools))}</span>
             <span role="cell" className="mono">{textUI("flow_n_assets", [(s.options.asset_ids ?? []).length])}</span>
             
@@ -97,6 +98,7 @@ export function ScanDetailPage() {
     const s = q.data;
     const jobs = s.jobs ?? [];
     const counts = jobCounts(jobs);
+    const hasPentest = jobs.some(j=>j.tool==='hackbot');
     const flat = flattenFindings(jobs);
     const running = s.status === 'running';
     const cmp = s.comparison_details?.totals;
@@ -111,7 +113,7 @@ export function ScanDetailPage() {
       <div className="page__head"><div>
         <p className="eyebrow">{richUI("m_d573647405a4", [formatUI(engineSetLabel(s.options.tools))])}</p>
         <h1 id="scan-title" className="page__title">{formatUI(orgQ.data?.name ?? s.name)}</h1>
-        <p className="page__sub" role="status"><StatusBadge status={s.status}/> {s.status === 'finished' && s.limited_coverage && <span>{textUI('hackbot_incomplete')} · </span>}<span className="mono">{stamp(s.created_at)}</span></p>
+        <p className="page__sub" role="status"><StatusBadge status={completionStatus(s)}/> <span className="mono">{stamp(s.created_at)}</span></p>
         <p className="sims__caveat">{textUI("m_sim_caveat")}</p>
       </div>
       <div className="sims__actions">
@@ -123,7 +125,7 @@ export function ScanDetailPage() {
       {formatUI(cancel.error && <p className="alert" role="alert">{formatUI(describeError(cancel.error).message)}</p>)}
       {formatUI(s.results_expired_at && <p role="status" className="alert">{textUI("m_6e77528b9b49")}</p>)}
       <div className="sims__stats">
-        <div className="stat" role="group" aria-label={textUI("m_sim_d_status")}><span className="stat__label">{textUI("m_sim_d_status")}</span><span className="sims__stat-v"><StatusBadge status={s.status}/></span><span className="stat__sub">{formatUI(s.ended_at ? textUI("m_sim_ended_at", [stamp(s.ended_at)]) : textUI("m_sim_not_ended"))}</span></div>
+        <div className="stat" role="group" aria-label={textUI("m_sim_d_status")}><span className="stat__label">{textUI("m_sim_d_status")}</span><span className="sims__stat-v"><StatusBadge status={completionStatus(s)}/></span><span className="stat__sub">{formatUI(s.ended_at ? textUI("m_sim_ended_at", [stamp(s.ended_at)]) : textUI("m_sim_not_ended"))}</span></div>
         <div className="stat" role="group" aria-label={textUI("m_sim_d_duration")}><span className="stat__label">{textUI("m_sim_d_duration")}</span><span className="stat__value">{formatDuration(durationMs(s), units())}</span></div>
         <div className="stat" role="group" aria-label={textUI("m_sim_d_jobs")}><span className="stat__label">{textUI("m_sim_d_jobs")}</span><span className="stat__value">{counts.finished} / {counts.total}</span><span className="stat__sub">{textUI("m_sim_jobs_sub", [counts.running, counts.waiting, counts.failed])}</span></div>
         <div className="stat" role="group" aria-label={textUI("m_sim_d_findings")}><span className="stat__label">{textUI("m_sim_d_findings")}</span><span className="stat__value">{flat.length}</span>{formatUI(cmp ? <span className="stat__sub">{formatUI(`${cmp.new} ${textUI("m_18fdd549b2ed").toLowerCase()} · ${cmp.persistent} ${textUI("m_6bf85034bd50").toLowerCase()}`)}</span> : running ? <span className="stat__sub">{textUI("m_sim_findings_sub")}</span> : null)}</div>
@@ -142,7 +144,7 @@ export function ScanDetailPage() {
           </div></div>)}
       </section>
       {!running && s.report_id && !s.results_expired_at && can(me,'finding.read') && can(me,'report.read') && <ScanRecommendations scanID={s.id}/>}
-      {s.summary && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2><p>{agentDisplayName(s.summary)}</p></section>}
+      {(s.summary || (hasPentest && s.limited_coverage) || jobs.some(j=>j.limitations?.length)) && <section className="sims__panel" aria-label={textUI("hackbot_summary")}><h2 className="sims__h">{textUI("hackbot_summary")}</h2>{s.summary && <p>{agentDisplayName(s.summary)}</p>}{hasPentest && s.limited_coverage && !jobs.some(j=>j.limitations?.length) && <p>{textUI('flow_pentest_limited_description')}</p>}{jobs.some(j=>j.limitations?.length) && <div><h3>{textUI('flow_pentest_limitations')}</h3><ul>{[...new Set(jobs.flatMap(j=>j.limitations??[]))].map(note=><li key={note}>{agentDisplayName(note)}</li>)}</ul></div>}</section>}
       {s.report_id && can(me,'report.read') && <section className="sims__panel"><h2 className="sims__h">{textUI("hackbot_report")}</h2>{s.report_status==='ready' ? <iframe className="pentest-pdf" title={textUI("hackbot_report")} src={`/api/v1/reports/${s.report_id}/export/pdf?preview=1`}/> : <p role="status">{s.report_status==='failed' ? textUI("hackbot_pdf_failed") : textUI("hackbot_pdf_pending")}</p>}<Link to={`/reports/${s.report_id}`}>{textUI("hackbot_open_report")}</Link></section>}
       {jobs.some((j) => j.defense) && <section className="sims__panel" aria-labelledby="def-h"><h2 id="def-h" className="sims__h">{textUI("m_def_scan_h")}</h2>{jobs.filter((j) => j.defense).map((j) => <div key={j.id}><h3 className="ed-h4">{formatUI(j.name)}</h3><DefenseResult summary={j.defense!}/></div>)}</section>}
       <ScanComparison comparison={s.comparison_details} pending={running}/>

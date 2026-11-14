@@ -18,7 +18,7 @@ it('menampilkan riwayat dari /scans organisasi yang disaring menurut aset', asyn
   expect(await screen.findByRole('link', { name: 'aaaaaaaa-1111' })).toHaveAttribute('href', '/simulations/aaaaaaaa-1111-2222-3333-444444444444');
   expect(screen.queryByRole('link', { name: 'bbbbbbbb-1111' })).toBeNull();
   expect(String(f.mock.calls[0]![0])).toContain('/api/v1/scans?org=o1');
-  expect(screen.getByText('Finished')).toBeInTheDocument();
+  expect(screen.getByText('Completed')).toBeInTheDocument();
 });
 it('kosong menjelaskan batas 25 scan; tanpa izin atau organisasi tidak ada panel dan tidak memanggil API', async () => {
   const f = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ items: [], next_cursor: null })));

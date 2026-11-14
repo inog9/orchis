@@ -1,3 +1,4 @@
+import { completionStatus } from '../../lib/scanView';
 import { t as textUI, useLocale, fv as formatUI } from '../../i18n/runtime';
 import { useHome } from '../../api/hooks';
 import { useScans } from '../../api/scans';
@@ -27,6 +28,6 @@ export function OrgOverviewStats({ orgID, agents, bySeverity, canAssets, canScan
       {canAssets && <StatCard label={textUI("m_orgs_m_assets")} value={entry?.assets} loading={home.isPending}><span className="stat__sub">{entry ? textUI("m_orgd_authorized", [entry.authorized]) : ''}</span></StatCard>}
       <StatCard label={textUI("m_orgs_m_agents")} value={ac.total}><span className="stat__sub">{textUI("m_orgd_online_offline", [ac.online, ac.offline])}</span></StatCard>
       {canFindings && <StatCard label={textUI("m_orgs_m_findings")} value={bySeverity ? severityTotal(bySeverity) : undefined} text={bySeverity ? undefined : '—'}>{bySeverity && <div className="stat__sev"><SeverityBar by={bySeverity}/></div>}</StatCard>}
-      {canScans && <StatCard label={textUI("m_orgs_stat_last")} text={last ? relativeTime(last.created_at) : '—'} loading={scans.isPending && scans.fetchStatus !== 'idle'}>{last && <span className="stat__sub orgd__lastscan"><StatusBadge status={last.status}/></span>}</StatCard>}
+      {canScans && <StatCard label={textUI("m_orgs_stat_last")} text={last ? relativeTime(last.created_at) : '—'} loading={scans.isPending && scans.fetchStatus !== 'idle'}>{last && <span className="stat__sub orgd__lastscan"><StatusBadge status={completionStatus(last)}/></span>}</StatCard>}
     </div>);
 }
