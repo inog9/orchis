@@ -107,12 +107,32 @@ func TestEphemeralListeningPortsAreNotReported(t *testing.T) {
 	for _, f := range Run(in) {
 		if f.Type == "new_listening_port" {
 			ports = append(ports, f.Value)
-			if f.Severity != "critical" {
-				t.Fatalf("a new listening port must be critical, got %s", f.Severity)
+			if f.Severity != "critical" { // 9999 dibuka python.exe pada 0.0.0.0: server ad-hoc terpapar
+				t.Fatalf("an exposed ad-hoc server must be critical, got %s", f.Severity)
 			}
 		}
 	}
 	if len(ports) != 1 || ports[0] != "0.0.0.0:9999" {
 		t.Fatalf("expected only port 9999, got %v", ports)
+	}
+}
+
+func TestListeningSeverityUsesExposureAndProcess(t *testing.T) {
+	cases := []struct{ addr, port, proc, want string }{
+		{"0.0.0.0", "9999", "python.exe", "critical"},
+		{"0.0.0.0", "3389", "svchost.exe", "critical"},
+		{"::", "445", "System", "critical"},
+		{"0.0.0.0", "3000", "node.exe", "critical"},
+		{"0.0.0.0", "8080", "nginx", "high"},
+		{"192.168.1.23", "8443", "myapp", "high"},
+		{"127.0.0.1", "9999", "python3", "low"},
+		{"::1", "3389", "x", "low"},
+		{"fe80::2db7:7cdf:acb1:492b", "546", "svchost.exe", "low"},
+		{"169.254.6.3", "8000", "x", "low"},
+	}
+	for _, c := range cases {
+		if got := listeningSeverity(c.addr, c.port, c.proc); got != c.want {
+			t.Errorf("%s:%s (%s) = %s, want %s", c.addr, c.port, c.proc, got, c.want)
+		}
 	}
 }

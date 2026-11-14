@@ -9,8 +9,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -75,11 +77,13 @@ var adminGroups = map[string]bool{"root": true, "admin": true, "administrators":
 func Run(in Input) []Finding {
 	var out []Finding
 	out = append(out, ruleTamper(in)...)
-	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "critical", func(r map[string]string) (string, string) {
+	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
 		return fmt.Sprintf("%s:%s", r["address"], r["port"]), fmt.Sprintf("New listening port %s on %s", r["port"], r["address"])
 	}) {
 		if row, ok := f.Details["row"].(map[string]string); ok && isEphemeralPort(row["port"]) {
 			continue // port dinamis/sementara (32768+) berganti terus: bukan sinyal, hanya kebisingan
+		} else if ok {
+			f.Severity = listeningSeverity(row["address"], row["port"], row["process"])
 		}
 		out = append(out, f)
 	}
@@ -336,4 +340,31 @@ func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, da
 func isEphemeralPort(p string) bool {
 	n, err := strconv.Atoi(p)
 	return err == nil && n >= 32768
+}
+
+// Port layanan sensitif: terbuka ke jaringan = permukaan serangan langsung.
+var sensitivePorts = map[int]bool{21: true, 22: true, 23: true, 135: true, 139: true, 445: true, 1433: true, 2375: true, 3306: true, 3389: true,
+	5432: true, 5900: true, 5985: true, 5986: true, 6379: true, 9200: true, 11211: true, 27017: true}
+
+// Interpreter/shell yang membuka port biasanya server ad-hoc (python -m http.server, nc, reverse shell), bukan layanan sistem.
+var adhocProcesses = []string{"python", "powershell", "pwsh", "cmd", "node", "nc", "ncat", "netcat", "socat", "perl", "ruby", "php", "bash", "sh"}
+
+// listeningSeverity menilai port listening baru berdasarkan keterpaparan dan jenis prosesnya:
+// loopback/link-local = low (tidak terjangkau dari jaringan); terpapar + port sensitif atau proses ad-hoc = critical; lainnya high.
+func listeningSeverity(address, port, process string) string {
+	if ip, err := netip.ParseAddr(address); err == nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return "low"
+		}
+	}
+	if n, err := strconv.Atoi(port); err == nil && sensitivePorts[n] {
+		return "critical"
+	}
+	p := strings.ToLower(strings.TrimSuffix(strings.ToLower(process), ".exe"))
+	for _, a := range adhocProcesses {
+		if p == a || strings.HasPrefix(p, a) && len(p) > len(a) && strings.ContainsAny(p[len(a):], "0123456789.-_") {
+			return "critical"
+		}
+	}
+	return "high"
 }
