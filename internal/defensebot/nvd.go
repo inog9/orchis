@@ -32,13 +32,13 @@ type cpeRule struct {
 // AI AppMapper, but only after NVD confirms the proposed CPE (see CPEExists).
 var cpeDictionary = []cpeRule{
 	{Vendor: "anysphere", Product: "cursor", Names: []string{"cursor", "cursor.app"}, Bundles: []string{"com.todesktop.230313mzl4w4u92"}},
-	{Vendor: "microsoft", Product: "visual_studio_code", Names: []string{"code", "visual studio code.app"}, Bundles: []string{"com.microsoft.vscode"}},
+	{Vendor: "microsoft", Product: "visual_studio_code", Names: []string{"code", "visual studio code.app", "microsoft visual studio code"}, Bundles: []string{"com.microsoft.vscode"}},
 	{Vendor: "brave", Product: "browser", Names: []string{"brave", "brave browser", "brave browser.app"}, Bundles: []string{"com.brave.browser"}},
 	{Vendor: "google", Product: "chrome", Names: []string{"google chrome", "google chrome.app"}, Bundles: []string{"com.google.chrome"}},
 	{Vendor: "mozilla", Product: "firefox", Names: []string{"firefox", "firefox.app", "mozilla firefox"}, Bundles: []string{"org.mozilla.firefox"}},
-	{Vendor: "telegram", Product: "telegram_desktop", Names: []string{"telegram", "telegram.app"}, Bundles: []string{"ru.keepcoder.telegram"}},
+	{Vendor: "telegram", Product: "telegram_desktop", Names: []string{"telegram", "telegram.app", "telegram desktop"}, Bundles: []string{"ru.keepcoder.telegram"}},
 	{Vendor: "docker", Product: "desktop", Names: []string{"docker", "docker.app", "docker desktop", "docker desktop.app"}, Bundles: []string{"com.docker.docker"}},
-	{Vendor: "zoom", Product: "zoom", Names: []string{"zoom", "zoom.us.app"}, Bundles: []string{"us.zoom.xos"}},
+	{Vendor: "zoom", Product: "zoom", Names: []string{"zoom", "zoom.us.app", "zoom workplace"}, Bundles: []string{"us.zoom.xos"}},
 	{Vendor: "discord", Product: "discord", Names: []string{"discord", "discord.app"}, Bundles: []string{"com.hnc.discord"}},
 	{Vendor: "spotify", Product: "spotify", Names: []string{"spotify", "spotify.app"}, Bundles: []string{"com.spotify.client"}},
 	// Windows (nama program sudah dinormalisasi tanpa versi/arsitektur). Tiap pasangan diverifikasi ada di kamus CPE NVD.
@@ -61,6 +61,21 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "teamviewer", Product: "teamviewer", Names: []string{"teamviewer"}},
 	{Vendor: "valvesoftware", Product: "steam_client", Names: []string{"steam"}},
 	{Vendor: "openvpn", Product: "openvpn", Names: []string{"openvpn"}},
+	{Vendor: "oracle", Product: "jdk", Names: []string{"java(tm) se development kit"}},
+	{Vendor: "adobe", Product: "flash_player", Names: []string{"adobe flash player", "adobe flash player 11 plugin"}},
+	{Vendor: "microsoft", Product: "silverlight", Names: []string{"microsoft silverlight"}},
+	{Vendor: "openssl", Product: "openssl", Names: []string{"openssl", "openssl light"}},
+	{Vendor: "fortinet", Product: "forticlient", Names: []string{"forticlient", "forticlient vpn"}},
+	{Vendor: "whatsapp", Product: "whatsapp", Names: []string{"whatsapp"}},
+	{Vendor: "microsoft", Product: "teams", Names: []string{"microsoft teams", "microsoft teams classic"}},
+	{Vendor: "microsoft", Product: "onedrive", Names: []string{"microsoft onedrive"}},
+	{Vendor: "nmap", Product: "npcap", Names: []string{"npcap"}},
+	{Vendor: "wazuh", Product: "wazuh", Names: []string{"wazuh agent"}},
+	{Vendor: "rustdesk", Product: "rustdesk", Names: []string{"rustdesk"}},
+	{Vendor: "keepassxc", Product: "keepassxc", Names: []string{"keepassxc"}},
+	{Vendor: "apachefriends", Product: "xampp", Names: []string{"xampp"}},
+	{Vendor: "dropbox", Product: "dropbox", Names: []string{"dropbox"}},
+	{Vendor: "winscp", Product: "winscp", Names: []string{"winscp"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
@@ -459,20 +474,23 @@ func (n *NVD) CPEExists(ctx context.Context, vendor, product string) (bool, erro
 }
 
 var (
-	progArchRe    = regexp.MustCompile(`(?i)\s*\((x64|x86|x86_64|amd64|arm64|[0-9]+-bit|user|machine)[^)]*\)`)
-	progVersionRe = regexp.MustCompile(`(?i)(\s+v?[0-9]+(\.[0-9]+)*[a-z0-9._+-]*)+$`)
-	progLeadVerRe = regexp.MustCompile(`(?i)\s+(v?[0-9]+(\.[0-9]+)+[a-z0-9._+-]*)`)
+	progArchRe         = regexp.MustCompile(`(?i)\s*\((x64|x86|x86_64|amd64|arm64|[0-9]+-bit|user|machine)[^)]*\)`)
+	progVersionRe      = regexp.MustCompile(`(?i)(\s+v?[0-9]+(\.[0-9]+)*[a-z0-9._+-]*)+$`)
+	progBareArchRe     = regexp.MustCompile(`(?i)\s+(x64|x86|x86_64|amd64|arm64|64-bit|32-bit)(\s|$)`)
+	progAnyDottedVerRe = regexp.MustCompile(`(?i)\s+v?[0-9]+(\.[0-9]+)+[a-z0-9._+-]*`)
+	progLeadVerRe      = regexp.MustCompile(`(?i)\s+(v?[0-9]+(\.[0-9]+)+[a-z0-9._+-]*)`)
 )
 
 // normalizeProgramName menghapus penanda arsitektur dan versi dari nama program Windows dan mengembalikan nama bersih (huruf kecil)
 // beserta versi yang ditemukan di nama (kosong bila tidak ada). Dipakai agar "7-Zip 26.00 (x64)" cocok dengan entri kamus "7-zip".
 func normalizeProgramName(name string) (clean, version string) {
-	n := strings.TrimSpace(progArchRe.ReplaceAllString(name, ""))
+	n := strings.TrimSpace(progBareArchRe.ReplaceAllString(progArchRe.ReplaceAllString(name, ""), " "))
 	if m := progLeadVerRe.FindStringSubmatch(n); m != nil {
 		version = strings.TrimPrefix(strings.TrimPrefix(m[1], "v"), "V")
 	}
+	n = progAnyDottedVerRe.ReplaceAllString(n, "") // versi bertitik di tengah nama: "OpenSSL 3.6.1 Light" -> "OpenSSL Light"
 	n = strings.TrimSpace(progVersionRe.ReplaceAllString(n, ""))
-	return strings.ToLower(n), version
+	return strings.ToLower(strings.Join(strings.Fields(n), " ")), version
 }
 
 // breakerOpen melaporkan apakah terlalu banyak kegagalan beruntun sehingga sisa permintaan NVD tidak perlu dicoba.
@@ -522,14 +540,23 @@ var (
 )
 
 // noiseProgramPrefixes: komponen sistem Windows yang bukan aplikasi untuk diperiksa kerentanannya satu per satu.
-var noiseProgramPrefixes = []string{"windows driver package", "microsoft.", "windows ", "update for ", "security update for ", "hotfix for "}
+var noiseProgramPrefixes = []string{"windows driver package", "microsoft.", "windows ", "update for ", "security update for ", "hotfix for ",
+	"nvidia ", "hp ", "omen ", "xbox", "vs_", "winrt intellisense", "universal crt", "sdk arm64", "microsoft .net native", "microsoft visual c++",
+	"microsoft visual studio setup", "microsoft visual studio installer", "microsoft visual studio 2008", "microsoft windows sdk", "microsoft store",
+	"microsoft update health", "microsoft bing", "microsoft engagement", "microsoft family", "microsoft gameinput", "microsoft web publishing",
+	"microsoft sql server compact", "msdn library", "msi development tools", "kits configuration", "vc runtimes", "intel(r) c++", "application verifier",
+	"epic games launcher prerequisites", "launcher prerequisites", "wildtangent", "update installer for", "widgets platform", "directx", "diagnosticshub",
+	"holo", "mixedreality", "ncsiuwp", "pinningconfirmation", "capturepicker", "desktopview", "environmentsapp", "roomadjustment", "passthrough",
+	"b&amp;o ", "office 16 click-to-run", "mozilla maintenance", "java auto updater", "avg update helper", "udk package"}
+
+var pythonPartRe = regexp.MustCompile(`(?i)^python [0-9.]+ (add to path|core interpreter|development libraries|documentation|executables|standard library|tcl/tk support|test suite|utility scripts|pip bootstrap)`)
 
 // isNoiseProgram menandai entri daftar program yang bukan aplikasi: kosong, GUID mentah, paket Store/AppX ("Publisher.App"),
 // paket driver Windows, pembaruan sistem, dan potongan runtime Visual C++ (sudah diwakili paket redistributable-nya).
 // Dipanggil hanya untuk program yang TIDAK terpetakan, jadi aplikasi bernama "Node.js" tetap diperiksa lebih dulu.
 func isNoiseProgram(name string) bool {
 	n := strings.TrimSpace(name)
-	if n == "" || guidNameRe.MatchString(n) || vcRuntimeRe.MatchString(n) {
+	if n == "" || guidNameRe.MatchString(n) || vcRuntimeRe.MatchString(n) || pythonPartRe.MatchString(n) {
 		return true
 	}
 	if !strings.Contains(n, " ") && storePkgRe.MatchString(n) {
@@ -538,6 +565,25 @@ func isNoiseProgram(name string) bool {
 	l := strings.ToLower(n)
 	for _, p := range noiseProgramPrefixes {
 		if strings.HasPrefix(l, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// commonProgramKeywords: perangkat lunak yang sering dipasang sengaja dan relevan untuk keamanan (peramban, runtime, perkakas
+// jarak jauh/VPN, kantor, pengembangan, keamanan). Program tak terpetakan yang cocok dihitung sebagai "umum" (prioritas).
+var commonProgramKeywords = []string{"java", "jdk", "jre", "adobe", "flash", "silverlight", "office", "teams", "onedrive", "outlook", "zoom", "whatsapp",
+	"telegram", "visual studio", "openssl", "openvpn", "forticlient", "norton", "wireshark", "postman", "xampp", "mysql", "keepass", "npcap", "wazuh",
+	"rustdesk", "anydesk", "teamviewer", "slack", "dropbox", "google drive", "docker", "winscp", "filezilla", "7-zip", "vlc", "notepad++", "putty",
+	"git", "node", "python", "r for windows", "expressvpn", "hotspot shield", "avg", "internet download manager", "winrar", "balena", "windirstat",
+	"graphviz", "autopsy", "ida pro", "webview2", "defender", "android studio", "composer", "osquery", "kiro", "warp", "claude", "tor browser",
+	"chrome", "firefox", "edge", "brave", "opera", "safari", "skype", "discord", "spotify", "steam", "epic games", "bonjour", "apple mobile"}
+
+func isCommonProgram(name string) bool {
+	l := strings.ToLower(name)
+	for _, k := range commonProgramKeywords {
+		if strings.Contains(l, k) {
 			return true
 		}
 	}

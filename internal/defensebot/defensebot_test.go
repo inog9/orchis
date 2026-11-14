@@ -692,7 +692,9 @@ type fakeMapper struct {
 	err error
 }
 
-func (f fakeMapper) ProposeCPE(context.Context, []AppRef) (map[string]string, error) { return f.m, f.err }
+func (f fakeMapper) ProposeCPE(context.Context, []AppRef) (map[string]string, error) {
+	return f.m, f.err
+}
 
 func TestAIMapperProposalsAreValidatedAgainstNVD(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

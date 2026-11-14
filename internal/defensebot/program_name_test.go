@@ -36,13 +36,14 @@ func TestWindowsProgramsMapThroughNormalizedNames(t *testing.T) {
 func TestNoiseProgramsAreSeparatedFromRealUnmappedApps(t *testing.T) {
 	noise := []string{"", "  ", "E2A4F912-2574-4A75-9BB0-0D023378592B", "26720RandomSaladGamesLLC.SimpleSolitaire", "Microsoft.AAD.BrokerPlugin",
 		"AppUp.IntelGraphicsExperience", "Windows Driver Package - Google, Inc. (WinUSB) AndroidUsbDeviceClass (08/27/2012 7.0.0000.00004)",
-		"Security Update for Microsoft Office 2016 (KB1234567)", "Microsoft Visual C++ 2013 x64 Minimum Runtime - 12.0.40664"}
+		"Security Update for Microsoft Office 2016 (KB1234567)", "Microsoft Visual C++ 2013 x64 Minimum Runtime - 12.0.40664", "Microsoft Visual C++ 2010 x64 Redistributable - 10.0.40219",
+		"Python 3.10.6 Core Interpreter (64-bit)", "NVIDIA Graphics Driver 610.91", "vs_minshellmsi", "HP Support Assistant"}
 	for _, n := range noise {
 		if !isNoiseProgram(n) {
 			t.Errorf("%q should be treated as noise", n)
 		}
 	}
-	real := []string{"Audacity 3.7.8", "Microsoft Visual C++ 2010 x64 Redistributable - 10.0.40219", "Microsoft .NET Runtime - 8.0.1", "ExpressVPN",
+	real := []string{"Audacity 3.7.8", "Microsoft .NET Runtime - 8.0.1", "ExpressVPN",
 		"Microsoft Office Home and Student 2021 - en-us", "FortiClient VPN", "Dota 2"}
 	for _, n := range real {
 		if isNoiseProgram(n) {
@@ -61,5 +62,28 @@ func TestUnmappedCountExcludesNoiseAndDuplicates(t *testing.T) {
 	p := buildPlan(in, nil)
 	if p.Unmapped != 1 || p.Ignored != 3 {
 		t.Fatalf("unmapped=%d ignored=%d, want 1 and 3", p.Unmapped, p.Ignored)
+	}
+}
+
+func TestArchTokensWithoutParenthesesAreStripped(t *testing.T) {
+	cases := map[string]string{"Wireshark 4.6.8 x64": "wireshark", "Postman x64 11.92.0": "postman", "OpenVPN 2.7.0-I017 amd64": "openvpn"}
+	for in, want := range cases {
+		if got, _ := normalizeProgramName(in); got != want {
+			t.Errorf("%q => %q, want %q", in, got, want)
+		}
+		if clean, _ := normalizeProgramName(in); true {
+			if _, _, ok := cpeFor(clean, ""); !ok {
+				t.Errorf("%q (clean %q) is not mapped", in, clean)
+			}
+		}
+	}
+}
+
+func TestCommonProgramsAreCountedSeparatelyFromTheRest(t *testing.T) {
+	in := Input{Datasets: map[string]DatasetInput{QueryPrograms: {Status: "ok", Rows: []map[string]string{
+		{"name": "Graphviz", "version": "7.0"}, {"name": "Total War: SHOGUN 2", "version": "1"}, {"name": "Obscure Tool", "version": "1"}}}}}
+	p := buildPlan(in, nil)
+	if p.Unmapped != 3 || p.UnmappedCommon != 1 || len(p.UnmappedCommonNames) != 1 || p.UnmappedCommonNames[0] != "Graphviz" {
+		t.Fatalf("unmapped=%d common=%d names=%v", p.Unmapped, p.UnmappedCommon, p.UnmappedCommonNames)
 	}
 }

@@ -19,19 +19,21 @@ type component struct {
 type cpeComp struct{ Vendor, Product, Name, Version string }
 
 type plan struct {
-	CPE         []cpeComp
-	Ecosystem   string
-	Platform    string
-	OSName      string
-	OSVersion   string
-	Components  []*component
-	Notes       []Note
-	Binary2Src  map[string]string // binary package -> source package
-	Unmapped    int
-	Ignored     int    // program sistem/Store/driver/duplikat yang tidak relevan untuk pemeriksaan kerentanan
-	NewestKern  string // version of the newest installed kernel image package
-	RunningABI  string
-	KernelCount int // inactive kernel packages skipped
+	CPE                 []cpeComp
+	Ecosystem           string
+	Platform            string
+	OSName              string
+	OSVersion           string
+	Components          []*component
+	Notes               []Note
+	Binary2Src          map[string]string // binary package -> source package
+	Unmapped            int
+	UnmappedCommon      int
+	UnmappedCommonNames []string
+	Ignored             int    // program sistem/Store/driver/duplikat yang tidak relevan untuk pemeriksaan kerentanan
+	NewestKern          string // version of the newest installed kernel image package
+	RunningABI          string
+	KernelCount         int // inactive kernel packages skipped
 }
 
 var kernelPkgRe = regexp.MustCompile(`^linux-(?:image|image-unsigned|modules|modules-extra|headers|tools|cloud-tools|buildinfo|lib-rust)-(\d+\.\d+\.\d+-\d+)(?:-(.+))?$`)
@@ -269,6 +271,13 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 				continue
 			} else {
 				seenUnmapped[k] = true
+			}
+			if k := "common:" + strings.ToLower(strings.TrimSpace(r["name"])); isCommonProgram(r["name"]) && !seenUnmapped[k] {
+				seenUnmapped[k] = true
+				p.UnmappedCommon++
+				if len(p.UnmappedCommonNames) < 25 {
+					p.UnmappedCommonNames = append(p.UnmappedCommonNames, strings.TrimSpace(r["name"]))
+				}
 			}
 			unmapped++
 		}
