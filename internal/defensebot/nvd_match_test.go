@@ -70,3 +70,26 @@ func TestParseNVDHonoursTheVersionInsideTheCriteria(t *testing.T) {
 		t.Fatalf("an unversioned ('-') entry cannot be compared and must not match: %+v", got)
 	}
 }
+
+func TestDateBoundedRangesDoNotMatchBuildNumbers(t *testing.T) {
+	const crit = "cpe:2.3:a:valvesoftware:steam_client:*:*:*:*:*:*:*:*"
+	d := nvdDoc("CVE-2021-30481", cpeMatch{Vulnerable: true, Criteria: crit, EndExcl: "2021-04-17"})
+	if got := parseNVD(d, "valvesoftware", "steam_client", "2.10.91.91"); len(got) != 0 {
+		t.Fatalf("a date bound cannot be compared with a build number: %+v", got)
+	}
+}
+
+func TestPythonVersionFromMSIAndName(t *testing.T) {
+	if got := pythonCPEVersion("3.10.6150.0"); got != "3.10.6" {
+		t.Fatalf("MSI version: %s", got)
+	}
+	if got := pythonCPEVersion("3.14.2150.0"); got != "3.14.2" {
+		t.Fatalf("MSI version: %s", got)
+	}
+	if got := pythonCPEVersion("3.12.1"); got != "3.12.1" {
+		t.Fatalf("plain version: %s", got)
+	}
+	if v, p, ok := cpeFor("docker desktop", ""); !ok || v != "docker" || p != "desktop" {
+		t.Fatalf("Docker Desktop must map to docker:desktop, got %s:%s", v, p)
+	}
+}

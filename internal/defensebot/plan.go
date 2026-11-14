@@ -239,7 +239,11 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 			}
 			if mapped {
 				if pr == "python" {
-					version = pythonCPEVersion(version)
+					if nameVer != "" {
+						version = nameVer // "Python 3.10.6 (64-bit)": versi di nama lebih tepat daripada versi MSI
+					} else {
+						version = pythonCPEVersion(version)
+					}
 				}
 				k := v + ":" + pr + ":" + version
 				if seenProg[k] { // entri ganda (per-user/per-mesin) tidak diperiksa dua kali
