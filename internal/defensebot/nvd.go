@@ -398,7 +398,7 @@ func parseNVD(doc nvdResponse, vendor, product, version string) []NVDVuln {
 					if !strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
 						continue
 					}
-					if !criteriaVersionMatches(version, m.Criteria) || !cpeMatchInRange(version, m) {
+					if !targetPlatformApplies(m.Criteria) || !criteriaVersionMatches(version, m.Criteria) || !cpeMatchInRange(version, m) {
 						continue
 					}
 					matched = true
@@ -597,4 +597,22 @@ func isCommonProgram(name string) bool {
 		}
 	}
 	return false
+}
+
+// nonDesktopTargets: nilai kolom target_sw CPE untuk perangkat seluler/perangkat khusus. Agent ORCHIS hanya berjalan di
+// komputer (Windows/macOS/Linux), jadi entri untuk platform ini bukan bukti rentan. Contoh nyata: CVE-2020-1907 punya entri
+// "whatsapp:*:portal" dengan batas "sebelum 173.0.0.29.505", yang salah cocok dengan WhatsApp Windows 2.2644.
+var nonDesktopTargets = map[string]bool{"android": true, "iphone_os": true, "ios": true, "ipados": true, "watchos": true, "tvos": true,
+	"portal": true, "fire_os": true, "chrome_os": true, "chromeos": true}
+
+func targetPlatformApplies(criteria string) bool {
+	parts := strings.Split(criteria, ":")
+	if len(parts) < 11 {
+		return true
+	}
+	t := strings.ToLower(parts[10])
+	if nonDesktopTargets[t] || strings.HasPrefix(t, "android") {
+		return false
+	}
+	return true
 }

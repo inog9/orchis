@@ -17,8 +17,9 @@ const maxNVDCacheFile = 4 << 20
 
 // nvdCacheVersion: naikkan bila cara membentuk/menafsirkan hasil berubah; entri versi lain diabaikan.
 // v2: entri v1 memuat negatif palsu akibat parameter isVulnerable yang membuat NVD membalas 404.
+// v4: entri platform seluler/Portal (target_sw) diabaikan; v3 memuat positif palsu dari entri itu.
 // v3: batas tanggal diabaikan dan CPE Docker diganti ke desktop; hasil lama berisi positif palsu.
-const nvdCacheVersion = 3
+const nvdCacheVersion = 4
 
 type nvdDiskEntry struct {
 	V         int       `json:"v"`

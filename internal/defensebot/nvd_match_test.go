@@ -93,3 +93,18 @@ func TestPythonVersionFromMSIAndName(t *testing.T) {
 		t.Fatalf("Docker Desktop must map to docker:desktop, got %s:%s", v, p)
 	}
 }
+
+// CVE-2020-1907: entri iphone_os/android/portal tidak berlaku untuk WhatsApp Windows.
+func TestMobileAndPortalTargetsDoNotMatchDesktopApps(t *testing.T) {
+	d := nvdDoc("CVE-2020-1907",
+		cpeMatch{Vulnerable: true, Criteria: "cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:portal:*:*", EndExcl: "173.0.0.29.505"},
+		cpeMatch{Vulnerable: true, Criteria: "cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:android:*:*", EndExcl: "2.20.196.16"},
+		cpeMatch{Vulnerable: true, Criteria: "cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:iphone_os:*:*", EndExcl: "2.20.90"})
+	if got := parseNVD(d, "whatsapp", "whatsapp", "2.2644.101.0"); len(got) != 0 {
+		t.Fatalf("mobile/portal entries must not match a Windows desktop app: %+v", got)
+	}
+	win := nvdDoc("CVE-2026-23863", cpeMatch{Vulnerable: true, Criteria: "cpe:2.3:a:whatsapp:whatsapp:*:*:*:*:*:windows:*:*", EndExcl: "2.3000.1032164386.258709"})
+	if got := parseNVD(win, "whatsapp", "whatsapp", "2.2644.101.0"); len(got) != 1 {
+		t.Fatal("a Windows-targeted entry must still match")
+	}
+}
