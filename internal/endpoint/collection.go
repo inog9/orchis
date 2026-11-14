@@ -254,10 +254,10 @@ func (s *Service) RunCollection(ctx context.Context, tenant uuid.UUID, interval 
 	defer tick.Stop()
 	for {
 		if err := s.CollectTick(ctx, tenant, interval); err != nil {
-			slog.Error("endpoint collection failed", "err", err)
+			slog.Error("endpoint collection failed", "err", errDetail(err))
 		}
 		if err := s.ConnectionsTick(ctx, tenant, ConnectionsInterval); err != nil {
-			slog.Error("connections collection failed", "err", err)
+			slog.Error("connections collection failed", "err", errDetail(err))
 		}
 		select {
 		case <-ctx.Done():
@@ -321,4 +321,13 @@ ORDER BY g.id LIMIT 100 FOR SHARE OF g,a`, tenant, c.Version, c.SHA256, interval
 		}
 		return nil
 	})
+}
+
+// errDetail menyertakan field yang ditolak pada galat validasi, supaya log penjadwal bisa didiagnosis.
+func errDetail(err error) string {
+	var p *httpx.Problem
+	if errors.As(err, &p) && len(p.Fields) > 0 {
+		return err.Error() + fmt.Sprintf(" %+v", p.Fields)
+	}
+	return err.Error()
 }

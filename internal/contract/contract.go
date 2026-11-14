@@ -170,7 +170,7 @@ func normalizeDefinition(def *Def, raw json.RawMessage) (json.RawMessage, error)
 			return nil, err
 		}
 		return json.Marshal(p)
-	case "agent.listening_ports", "agent.system_info", AdapterOsquery:
+	case "agent.listening_ports", "agent.system_info", "blueteam", "blueteam.connections", AdapterOsquery:
 		// Tanpa parameter: terima hanya objek kosong, supaya tidak ada jalur untuk menyelipkan perintah ke agent.
 		var none struct{}
 		if err := strict(raw, &none); err != nil {
