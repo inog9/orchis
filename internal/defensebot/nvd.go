@@ -54,6 +54,12 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "videolan", Product: "vlc_media_player", Names: []string{"vlc media player", "vlc"}},
 	{Vendor: "putty", Product: "putty", Names: []string{"putty", "putty release"}},
 	{Vendor: "rarlab", Product: "winrar", Names: []string{"winrar"}},
+	{Vendor: "filezilla-project", Product: "filezilla_client", Names: []string{"filezilla", "filezilla client"}},
+	{Vendor: "python", Product: "python", Names: []string{"python"}},
+	{Vendor: "audacityteam", Product: "audacity", Names: []string{"audacity"}},
+	{Vendor: "teamviewer", Product: "teamviewer", Names: []string{"teamviewer"}},
+	{Vendor: "valvesoftware", Product: "steam_client", Names: []string{"steam"}},
+	{Vendor: "openvpn", Product: "openvpn", Names: []string{"openvpn"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
