@@ -79,7 +79,7 @@ func Run(in Input) []Finding {
 		return fmt.Sprintf("%s:%s", r["address"], r["port"]), fmt.Sprintf("New listening port %s on %s", r["port"], r["address"])
 	}) {
 		if row, ok := f.Details["row"].(map[string]string); ok && isEphemeralPort(row["port"]) {
-			continue // port dinamis/sementara (49152-65535) berganti terus: bukan sinyal, hanya kebisingan
+			continue // port dinamis/sementara (32768+) berganti terus: bukan sinyal, hanya kebisingan
 		}
 		out = append(out, f)
 	}
@@ -332,8 +332,8 @@ func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, da
 	return nil
 }
 
-// isEphemeralPort: rentang port dinamis IANA (49152-65535) dipakai OS untuk soket sementara dan berganti tiap menit.
+// isEphemeralPort: rentang port dinamis dipakai OS untuk soket sementara dan berganti tiap menit: Windows/macOS 49152+, Linux 32768-60999. Dipakai 32768+ agar aman di semua OS.
 func isEphemeralPort(p string) bool {
 	n, err := strconv.Atoi(p)
-	return err == nil && n >= 49152
+	return err == nil && n >= 32768
 }

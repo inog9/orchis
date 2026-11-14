@@ -101,7 +101,8 @@ func TestEphemeralListeningPortsAreNotReported(t *testing.T) {
 			{"port": "445", "address": "0.0.0.0", "protocol": "6", "process": "System"},
 			{"port": "9999", "address": "0.0.0.0", "protocol": "6", "process": "python.exe"},
 			{"port": "52377", "address": "0.0.0.0", "protocol": "6", "process": "svchost.exe"},
-			{"port": "49152", "address": "::", "protocol": "6", "process": "x"}}}}
+			{"port": "49152", "address": "::", "protocol": "6", "process": "x"},
+			{"port": "40000", "address": "0.0.0.0", "protocol": "6", "process": "linux-ephemeral"}}}}
 	var ports []string
 	for _, f := range Run(in) {
 		if f.Type == "new_listening_port" {
