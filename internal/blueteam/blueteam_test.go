@@ -106,6 +106,9 @@ func TestEphemeralListeningPortsAreNotReported(t *testing.T) {
 	for _, f := range Run(in) {
 		if f.Type == "new_listening_port" {
 			ports = append(ports, f.Value)
+			if f.Severity != "critical" {
+				t.Fatalf("a new listening port must be critical, got %s", f.Severity)
+			}
 		}
 	}
 	if len(ports) != 1 || ports[0] != "0.0.0.0:9999" {

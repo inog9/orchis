@@ -75,7 +75,7 @@ var adminGroups = map[string]bool{"root": true, "admin": true, "administrators":
 func Run(in Input) []Finding {
 	var out []Finding
 	out = append(out, ruleTamper(in)...)
-	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
+	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "critical", func(r map[string]string) (string, string) {
 		return fmt.Sprintf("%s:%s", r["address"], r["port"]), fmt.Sprintf("New listening port %s on %s", r["port"], r["address"])
 	}) {
 		if row, ok := f.Details["row"].(map[string]string); ok && isEphemeralPort(row["port"]) {
