@@ -9,6 +9,8 @@ import { Modal } from '../components/Modal';
 import { TagPicker } from '../components/TagPicker';
 import { describeError } from '../components/ErrorNote';
 import { CATEGORIES, categoryOf, inferKind } from './categories';
+// Hanya kategori ini yang bisa dibuat sekarang; sisanya ditampilkan "Coming soon" dan tidak bisa diklik.
+const AVAILABLE_CATEGORIES = new Set(['host', 'web_application', 'saas_application']);
 import { OrganizationFilter } from '../components/OrganizationFilter';
 import { CategoryFields, attributesOf, missingRequired } from './CategoryFields';
 import { badAddress, kindsText, specOf } from './categorySchema';
@@ -86,7 +88,8 @@ export function AddAssetDialog({ onClose, organizationID }: {
         {formatUI(!cat ? (<div className="category-grid">
             {formatUI(CATEGORIES.map((c) => {
                 const Icon = c.icon;
-                return (<button key={c.key} type="button" className="category" onClick={() => setCategory(c.key)}>
+                const available = AVAILABLE_CATEGORIES.has(c.key);
+                return (<button key={c.key} type="button" className={available ? 'category' : 'category category--soon'} disabled={!available} aria-disabled={!available} onClick={() => available && setCategory(c.key)}>
                   <span className="category__icon">
                     <Icon size={18}/>
                   </span>
@@ -94,6 +97,7 @@ export function AddAssetDialog({ onClose, organizationID }: {
                     <strong>{formatUI(c.label)}</strong>
                     <span>{formatUI(c.description)}</span>
                   </span>
+                  {!available && <span className="category__soon">{textUI("asset_cat_soon")}</span>}
                 </button>);
             }))}
           </div>) : (<form className="dialog__form" onSubmit={submit} noValidate>

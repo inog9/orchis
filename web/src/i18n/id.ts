@@ -1079,6 +1079,7 @@ export const id:Record<keyof typeof en,string> = {
   "m_483166d9eabb": "{0} baru",
   "m_06cb0d31b1b7": "Buat aset baru",
   "m_4664827f8e89": "Progres",
+  "asset_cat_soon": "Segera hadir",
   "m_c2888b84cba7": "1 Kategori",
   "m_1a631d591dd7": "2 Detail",
   "m_a4b51e19d81d": "Tidak dapat membuat aset",

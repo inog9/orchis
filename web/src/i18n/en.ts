@@ -1078,6 +1078,7 @@ export const en = {
   "m_483166d9eabb": "New {0}",
   "m_06cb0d31b1b7": "Create a new asset",
   "m_4664827f8e89": "Progress",
+  "asset_cat_soon": "Coming soon",
   "m_c2888b84cba7": "1 Category",
   "m_1a631d591dd7": "2 Details",
   "m_a4b51e19d81d": "We couldn’t create the asset",
