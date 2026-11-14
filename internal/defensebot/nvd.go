@@ -227,7 +227,9 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		// NVD menyimpan konfigurasi CVE sebagai RANGE versi; cpeName dengan versi eksak
 		// selalu 0 hasil. Query per produk (tanpa versi), lalu filter range di parseNVD.
 		match := fmt.Sprintf("cpe:2.3:a:%s:%s:*:*:*:*:*:*:*:*", vendor, product)
-		q := url.Values{"virtualMatchString": {match}, "isVulnerable": {""}, "resultsPerPage": {"500"}}
+		// Jangan kirim isVulnerable: NVD membalas 404 untuk parameter itu (nilai kosong), dan 404 dulu dibaca "tidak ada CVE".
+		// Filter rentan/tidak ditangani parseNVD lewat cpeMatch.Vulnerable.
+		q := url.Values{"virtualMatchString": {match}, "resultsPerPage": {"500"}}
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, n.base()+"/rest/json/cves/2.0?"+q.Encode(), nil)
 		if err != nil {
 			return nil, err
@@ -263,9 +265,10 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 			continue
 		}
 		if resp.StatusCode == http.StatusNotFound {
-			// virtualMatchString tanpa hasil mengembalikan 404: bukan error, hanya tidak ada CVE.
-			n.diskPut(cpe, nil)
-			return nil, nil
+			// NVD membalas 200 dengan totalResults=0 bila memang tidak ada CVE. 404 berarti permintaan ditolak/tidak dikenal:
+			// jangan dibaca "aman" (negatif palsu) dan jangan disimpan di cache.
+			last = fmt.Errorf("nvd http 404")
+			continue
 		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("nvd http %d", resp.StatusCode)
@@ -360,7 +363,7 @@ func parseNVD(doc nvdResponse, vendor, product, version string) []NVDVuln {
 					if !strings.HasPrefix(strings.ToLower(m.Criteria), prefix) {
 						continue
 					}
-					if !cpeMatchInRange(version, m) {
+					if !criteriaVersionMatches(version, m.Criteria) || !cpeMatchInRange(version, m) {
 						continue
 					}
 					matched = true
@@ -466,4 +469,31 @@ func (n *NVD) breakerOpen() bool {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return n.failures >= breakerFailures
+}
+
+// pythonCPEVersion: pemasang Windows melaporkan versi MSI ("3.10.6150.0"); CPE python memakai "3.10.6".
+func pythonCPEVersion(v string) string {
+	parts := strings.Split(strings.TrimSpace(v), ".")
+	if len(parts) > 3 {
+		parts = parts[:3]
+	}
+	return strings.Join(parts, ".")
+}
+
+// criteriaVersionMatches memeriksa kolom versi di dalam kriteria CPE ("cpe:2.3:a:v:p:<versi>:..."). "*" berarti "versi apa pun"
+// (dibatasi oleh rentang versionStart/End), "-" berarti tanpa versi (tidak bisa dibandingkan: tidak cocok), dan nilai spesifik
+// hanya cocok bila versi terpasang sama persis. Tanpa ini, entri versi tunggal (mis. 3.2.8) cocok ke SEMUA versi.
+func criteriaVersionMatches(installed, criteria string) bool {
+	parts := strings.Split(criteria, ":")
+	if len(parts) < 6 {
+		return false
+	}
+	switch v := parts[5]; v {
+	case "*":
+		return true
+	case "-", "":
+		return false
+	default:
+		return CompareVersions("npm", installed, v) == 0
+	}
 }

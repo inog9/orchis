@@ -238,6 +238,9 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 				v, pr, mapped = cpeFor(clean, "")
 			}
 			if mapped {
+				if pr == "python" {
+					version = pythonCPEVersion(version)
+				}
 				k := v + ":" + pr + ":" + version
 				if seenProg[k] { // entri ganda (per-user/per-mesin) tidak diperiksa dua kali
 					continue

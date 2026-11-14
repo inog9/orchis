@@ -1,0 +1,72 @@
+package defensebot
+
+import "testing"
+
+func nvdDoc(cve string, matches ...cpeMatch) nvdResponse {
+	var d nvdResponse
+	d.Vulnerabilities = append(d.Vulnerabilities, struct {
+		CVE struct {
+			ID           string `json:"id"`
+			Descriptions []struct {
+				Lang  string `json:"lang"`
+				Value string `json:"value"`
+			} `json:"descriptions"`
+			Metrics struct {
+				V31 []struct {
+					Data struct {
+						BaseScore    float64 `json:"baseScore"`
+						BaseSeverity string  `json:"baseSeverity"`
+					} `json:"cvssData"`
+				} `json:"cvssMetricV31"`
+				V30 []struct {
+					Data struct {
+						BaseScore    float64 `json:"baseScore"`
+						BaseSeverity string  `json:"baseSeverity"`
+					} `json:"cvssData"`
+				} `json:"cvssMetricV30"`
+			} `json:"metrics"`
+			References []struct {
+				URL string `json:"url"`
+			} `json:"references"`
+			Configurations []struct {
+				Nodes []struct {
+					CPEMatch []cpeMatch `json:"cpeMatch"`
+				} `json:"nodes"`
+			} `json:"configurations"`
+		} `json:"cve"`
+	}{})
+	v := &d.Vulnerabilities[0].CVE
+	v.ID = cve
+	v.Configurations = append(v.Configurations, struct {
+		Nodes []struct {
+			CPEMatch []cpeMatch `json:"cpeMatch"`
+		} `json:"nodes"`
+	}{Nodes: []struct {
+		CPEMatch []cpeMatch `json:"cpeMatch"`
+	}{{CPEMatch: matches}}})
+	return d
+}
+
+// Entri versi tunggal hanya cocok untuk versi itu; entri wildcard mengikuti rentangnya.
+func TestParseNVDHonoursTheVersionInsideTheCriteria(t *testing.T) {
+	const pre = "cpe:2.3:a:oracle:vm_virtualbox:"
+	const tail = ":*:*:*:*:*:*:*"
+	single := nvdDoc("CVE-2010-0001", cpeMatch{Vulnerable: true, Criteria: pre + "3.2.8" + tail})
+	if got := parseNVD(single, "oracle", "vm_virtualbox", "7.0.8"); len(got) != 0 {
+		t.Fatalf("a CVE for 3.2.8 must not match 7.0.8: %+v", got)
+	}
+	if got := parseNVD(single, "oracle", "vm_virtualbox", "3.2.8"); len(got) != 1 {
+		t.Fatal("a CVE for 3.2.8 must match 3.2.8")
+	}
+	ranged := nvdDoc("CVE-2023-0002", cpeMatch{Vulnerable: true, Criteria: pre + "*" + tail, EndExcl: "7.0.10"})
+	if got := parseNVD(ranged, "oracle", "vm_virtualbox", "7.0.8"); len(got) != 1 || got[0].Fixed != "7.0.10" {
+		t.Fatalf("7.0.8 is inside <7.0.10 and the fix is 7.0.10: %+v", got)
+	}
+	if got := parseNVD(ranged, "oracle", "vm_virtualbox", "7.0.12"); len(got) != 0 {
+		t.Fatalf("7.0.12 is outside the range: %+v", got)
+	}
+	na := nvdDoc("CVE-2020-0003", cpeMatch{Vulnerable: true, Criteria: pre + "-" + tail})
+	if got := parseNVD(na, "oracle", "vm_virtualbox", "7.0.8"); len(got) != 0 {
+		t.Fatalf("an unversioned ('-') entry cannot be compared and must not match: %+v", got)
+	}
+}

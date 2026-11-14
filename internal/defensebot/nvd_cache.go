@@ -15,7 +15,12 @@ const DefaultNVDCacheTTL = 24 * time.Hour
 // maxNVDCacheFile membatasi satu berkas cache; yang lebih besar diabaikan (bukan dipercaya).
 const maxNVDCacheFile = 4 << 20
 
+// nvdCacheVersion: naikkan bila cara membentuk/menafsirkan hasil berubah; entri versi lain diabaikan.
+// v2: entri v1 memuat negatif palsu akibat parameter isVulnerable yang membuat NVD membalas 404.
+const nvdCacheVersion = 2
+
 type nvdDiskEntry struct {
+	V         int       `json:"v"`
 	CPE       string    `json:"cpe"`
 	FetchedAt time.Time `json:"fetched_at"`
 	Vulns     []NVDVuln `json:"vulns"`
@@ -54,7 +59,7 @@ func (n *NVD) diskGet(cpe string) ([]NVDVuln, bool) {
 		return nil, false
 	}
 	var e nvdDiskEntry
-	if err := json.NewDecoder(f).Decode(&e); err != nil || e.CPE != cpe {
+	if err := json.NewDecoder(f).Decode(&e); err != nil || e.V != nvdCacheVersion || e.CPE != cpe {
 		return nil, false
 	}
 	if age := n.now().Sub(e.FetchedAt); age < 0 || age > n.cacheTTL() {
@@ -72,7 +77,7 @@ func (n *NVD) diskPut(cpe string, vulns []NVDVuln) {
 	if err := os.MkdirAll(n.CacheDir, 0o700); err != nil {
 		return
 	}
-	raw, err := json.Marshal(nvdDiskEntry{CPE: cpe, FetchedAt: n.now().UTC(), Vulns: vulns})
+	raw, err := json.Marshal(nvdDiskEntry{V: nvdCacheVersion, CPE: cpe, FetchedAt: n.now().UTC(), Vulns: vulns})
 	if err != nil || len(raw) > maxNVDCacheFile {
 		return
 	}
