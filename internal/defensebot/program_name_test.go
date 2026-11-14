@@ -106,3 +106,33 @@ func TestPopularWindowsAppsMapToVerifiedCPEs(t *testing.T) {
 		}
 	}
 }
+
+func TestMacAppNoiseIsIgnoredAndHelpersAreDeduplicated(t *testing.T) {
+	rows := []map[string]string{
+		{"name": "Safari.app", "bundle_identifier": "com.apple.Safari", "version": "17"},
+		{"name": "Brave Browser.app", "bundle_identifier": "com.brave.Browser", "version": "1.70"},
+		{"name": "Brave Browser Helper (GPU).app", "bundle_identifier": "com.brave.Browser.helper", "version": "1.70"},
+		{"name": "Claude Helper.app", "bundle_identifier": "com.anthropic.claudefordesktop.helper", "version": "1"},
+		{"name": "Uninstall OpenVPN Connect.app", "bundle_identifier": "net.openvpn.uninstaller", "version": "1"},
+		{"name": "IDLE 3.app", "bundle_identifier": "org.python.IDLE", "version": "3.9"},
+		{"name": "Burp Suite.app", "bundle_identifier": "com.install4j.6592-1155-2163-3973.70", "version": "2026.4"},
+		{"name": "Python.app", "bundle_identifier": "org.python.python", "version": "3.9.6"},
+		{"name": "osquery.app", "bundle_identifier": "io.osquery.agent", "version": "5.23.1"},
+		{"name": "Warp.app", "bundle_identifier": "dev.warp.Warp-Stable", "version": "0.1"},
+		{"name": "Obscure.app", "bundle_identifier": "com.example.obscure", "version": "1"},
+	}
+	p := buildPlan(Input{Datasets: map[string]DatasetInput{QueryApps: {Status: "ok", Rows: rows}}}, nil)
+	want := map[string]bool{"brave:browser": true, "portswigger:burp_suite": true, "python:python": true, "linuxfoundation:osquery": true}
+	if len(p.CPE) != len(want) {
+		t.Fatalf("mapped products = %d (%+v), want %d", len(p.CPE), p.CPE, len(want))
+	}
+	for _, c := range p.CPE {
+		if !want[c.Vendor+":"+c.Product] {
+			t.Errorf("unexpected mapping %s:%s", c.Vendor, c.Product)
+		}
+	}
+	// Tidak terpetakan relevan: Warp (umum) dan Obscure. Diabaikan: Safari, helper Brave, Claude Helper, Uninstall, IDLE.
+	if p.Unmapped != 2 || p.UnmappedCommon != 1 || p.Ignored != 5 {
+		t.Fatalf("unmapped=%d common=%d ignored=%d, want 2/1/5", p.Unmapped, p.UnmappedCommon, p.Ignored)
+	}
+}

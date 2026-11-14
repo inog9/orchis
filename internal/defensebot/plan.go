@@ -215,14 +215,41 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	}
 	unmapped := 0
 	if rows, _, ok := okRows(in, QueryApps); ok {
+		seenMapped := map[string]bool{}
+		seenMacUnmapped := map[string]bool{}
 		for _, r := range rows {
+			version := strings.TrimSpace(r["version"])
+			if strings.Contains(strings.ToLower(r["name"]), " helper") {
+				p.Ignored++ // proses pembantu: aplikasi utamanya yang diperiksa (versi helper bisa berbeda dari versi produk)
+				continue
+			}
 			if v, pr, mapped := cpeFor(r["name"], r["bundle_identifier"]); mapped {
-				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				// Aplikasi + helper-nya (mis. Brave dan 4 "Helper") adalah satu produk: periksa dan laporkan sekali.
+				if k := v + ":" + pr + ":" + version; !seenMapped[k] {
+					seenMapped[k] = true
+					p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: version})
+				}
 				continue
 			}
 			if c, ok := aiCPE[AppKey(r["name"])]; ok {
 				p.CPE = append(p.CPE, c)
 				continue
+			}
+			if isNoiseMacApp(r["name"], r["bundle_identifier"]) {
+				p.Ignored++
+				continue
+			}
+			if k := strings.ToLower(strings.TrimSpace(r["name"])) + "|" + version; seenMacUnmapped[k] {
+				p.Ignored++
+				continue
+			} else {
+				seenMacUnmapped[k] = true
+			}
+			if isCommonProgram(r["name"]) {
+				p.UnmappedCommon++
+				if len(p.UnmappedCommonNames) < 25 {
+					p.UnmappedCommonNames = append(p.UnmappedCommonNames, strings.TrimSpace(r["name"]))
+				}
 			}
 			unmapped++
 		}

@@ -51,12 +51,12 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "anydesk", Product: "anydesk", Names: []string{"anydesk"}},
 	{Vendor: "oracle", Product: "vm_virtualbox", Names: []string{"oracle vm virtualbox", "virtualbox"}},
 	{Vendor: "postman", Product: "postman", Names: []string{"postman"}},
-	{Vendor: "portswigger", Product: "burp_suite", Names: []string{"burp suite", "burp suite community edition", "burp suite professional"}},
+	{Vendor: "portswigger", Product: "burp_suite", Names: []string{"burp suite", "burp suite community edition", "burp suite professional", "burp suite.app"}},
 	{Vendor: "videolan", Product: "vlc_media_player", Names: []string{"vlc media player", "vlc"}},
 	{Vendor: "putty", Product: "putty", Names: []string{"putty", "putty release"}},
 	{Vendor: "rarlab", Product: "winrar", Names: []string{"winrar"}},
 	{Vendor: "filezilla-project", Product: "filezilla_client", Names: []string{"filezilla", "filezilla client"}},
-	{Vendor: "python", Product: "python", Names: []string{"python"}},
+	{Vendor: "python", Product: "python", Names: []string{"python"}, Bundles: []string{"org.python.python"}},
 	{Vendor: "audacityteam", Product: "audacity", Names: []string{"audacity"}},
 	{Vendor: "teamviewer", Product: "teamviewer", Names: []string{"teamviewer"}},
 	{Vendor: "valvesoftware", Product: "steam_client", Names: []string{"steam"}},
@@ -78,13 +78,13 @@ var cpeDictionary = []cpeRule{
 	{Vendor: "winscp", Product: "winscp", Names: []string{"winscp"}},
 	{Vendor: "r-project", Product: "r", Names: []string{"r for windows"}},
 	{Vendor: "apple", Product: "bonjour", Names: []string{"bonjour"}},
-	{Vendor: "linuxfoundation", Product: "osquery", Names: []string{"osquery"}},
+	{Vendor: "linuxfoundation", Product: "osquery", Names: []string{"osquery", "osquery.app"}, Bundles: []string{"io.osquery.agent"}},
 	{Vendor: "sleuthkit", Product: "autopsy", Names: []string{"autopsy"}},
 	{Vendor: "avg", Product: "secure_browser", Names: []string{"avg secure browser"}},
 	{Vendor: "graphviz", Product: "graphviz", Names: []string{"graphviz"}},
 	{Vendor: "tonec", Product: "internet_download_manager", Names: []string{"internet download manager"}},
 	{Vendor: "expressvpn", Product: "expressvpn", Names: []string{"expressvpn"}},
-	{Vendor: "anthropic", Product: "claude_desktop", Names: []string{"claude"}},
+	{Vendor: "anthropic", Product: "claude_desktop", Names: []string{"claude"}, Bundles: []string{"com.anthropic.claudefordesktop"}},
 }
 
 var versionRe = regexp.MustCompile(`^[0-9][0-9A-Za-z._+-]{0,40}$`)
@@ -615,4 +615,26 @@ func targetPlatformApplies(criteria string) bool {
 		return false
 	}
 	return true
+}
+
+// noiseMacBundlePrefixes/noiseMacBundles: aplikasi macOS yang bukan produk untuk diperiksa kerentanannya satu per satu:
+// aplikasi bawaan Apple (diperbarui lewat update macOS), serta pembantu dan pemasang bawaan runtime.
+var noiseMacBundlePrefixes = []string{"com.apple."}
+var noiseMacBundles = map[string]bool{"org.python.idle": true, "org.python.pythonlauncher": true, "com.tcltk.wish": true}
+
+// isNoiseMacApp: aplikasi bawaan Apple, helper (proses pembantu Electron/Chromium), uninstaller, dan pembantu runtime Python/Tcl.
+func isNoiseMacApp(name, bundle string) bool {
+	b, n := strings.ToLower(strings.TrimSpace(bundle)), strings.ToLower(strings.TrimSpace(name))
+	if n == "" {
+		return true
+	}
+	for _, p := range noiseMacBundlePrefixes {
+		if strings.HasPrefix(b, p) {
+			return true
+		}
+	}
+	if noiseMacBundles[b] || strings.Contains(n, " helper") || strings.HasPrefix(n, "uninstall ") || strings.Contains(n, "url handler") {
+		return true
+	}
+	return false
 }
