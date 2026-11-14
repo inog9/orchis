@@ -31,7 +31,12 @@ func nvdCandidates(ctx context.Context, p *plan, d Deps, sum *Summary) []*candid
 				code = "timeout"
 			}
 			sum.Notes = append(sum.Notes, Note{Code: code, Detail: "NVD", Limiting: true})
-			break
+			// Satu produk yang gagal (NVD sering 503 sesaat) tidak boleh menggugurkan sisanya; hanya berhenti bila
+			// sumber benar-benar mati (circuit breaker terbuka) atau konteks habis.
+			if code == "timeout" || errors.Is(err, ErrSourceDown) && d.NVD.breakerOpen() {
+				break
+			}
+			continue
 		}
 		comp := &component{Pair: Pair{Ecosystem: "cpe:" + c.Vendor + ":" + c.Product, Name: c.Name, Version: c.Version}, Display: c.Name}
 		for _, v := range vulns {

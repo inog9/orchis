@@ -239,6 +239,13 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		}
 		if resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
 			last = fmt.Errorf("nvd http %d", resp.StatusCode)
+			// NVD sering membalas 503/429 sesaat: beri jeda yang makin panjang sebelum mencoba lagi.
+			backoff := time.Duration(attempt+1) * 3 * time.Second
+			if n.Sleep != nil {
+				n.Sleep(backoff)
+			} else {
+				time.Sleep(backoff)
+			}
 			continue
 		}
 		if resp.StatusCode == http.StatusNotFound {
@@ -436,4 +443,11 @@ func normalizeProgramName(name string) (clean, version string) {
 	}
 	n = strings.TrimSpace(progVersionRe.ReplaceAllString(n, ""))
 	return strings.ToLower(n), version
+}
+
+// breakerOpen melaporkan apakah terlalu banyak kegagalan beruntun sehingga sisa permintaan NVD tidak perlu dicoba.
+func (n *NVD) breakerOpen() bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.failures >= breakerFailures
 }
