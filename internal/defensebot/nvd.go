@@ -114,6 +114,9 @@ type NVD struct {
 	HTTP   *http.Client
 	Sleep  func(time.Duration)
 	Now    func() time.Time
+	// CacheDir (opsional) menyimpan hasil per produk dan versi di disk supaya bertahan antar scan dan restart worker.
+	CacheDir string
+	CacheTTL time.Duration
 
 	mu       sync.Mutex
 	last     time.Time
@@ -199,6 +202,17 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		n.mu.Unlock()
 		return v, nil
 	}
+	n.mu.Unlock()
+	if v, ok := n.diskGet(cpe); ok {
+		n.mu.Lock()
+		if n.cache == nil {
+			n.cache = map[string][]NVDVuln{}
+		}
+		n.cache[cpe] = v
+		n.mu.Unlock()
+		return v, nil
+	}
+	n.mu.Lock()
 	if n.failures >= breakerFailures {
 		n.mu.Unlock()
 		return nil, ErrSourceDown
@@ -250,6 +264,7 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		}
 		if resp.StatusCode == http.StatusNotFound {
 			// virtualMatchString tanpa hasil mengembalikan 404: bukan error, hanya tidak ada CVE.
+			n.diskPut(cpe, nil)
 			return nil, nil
 		}
 		if resp.StatusCode != http.StatusOK {
@@ -267,6 +282,7 @@ func (n *NVD) Query(ctx context.Context, vendor, product, version string) ([]NVD
 		n.cache[cpe] = out
 		n.failures = 0
 		n.mu.Unlock()
+		n.diskPut(cpe, out)
 		return out, nil
 	}
 	n.mu.Lock()

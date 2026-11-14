@@ -29,6 +29,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends python3 python3
  && rm -rf /tmp/templates /tmp/templates.zip /tmp/filter_http_templates.py \
  && apt-get purge -y unzip python3-yaml python3 && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 COPY deploy/prod/scanner-manifest.json /home/injector/nuclei-templates/manifest.json
+# Cache NVD milik defensebot: direktori harus ada dan dimiliki 10001 supaya volume bernama mewarisi izinnya (root FS read-only).
+RUN mkdir -p /var/cache/orchis-nvd && chown 10001:10001 /var/cache/orchis-nvd && chmod 0700 /var/cache/orchis-nvd
 COPY --from=application /out/injector /usr/local/bin/injector
 ENV HOME=/tmp NUCLEI_TEMPLATES_DIR=/home/injector/nuclei-templates
 USER 10001:10001

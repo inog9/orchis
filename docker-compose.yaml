@@ -222,9 +222,12 @@ services:
   defensebot:
     extends: nmap
     command: [--kind, defensebot]
-    volumes: ["${ORCHIS_STATE}/defensebot.json:/run/secrets/app.json:ro"]
+    volumes:
+      - "${ORCHIS_STATE}/defensebot.json:/run/secrets/app.json:ro"
+      - defensebot-nvd-cache:/var/cache/orchis-nvd
     environment:
       ORCHIS_ENV_FILE: /run/secrets/app.json
+      ORCHIS_DEFENSEBOT_NVD_CACHE_DIR: /var/cache/orchis-nvd
       ORCHIS_INJECTOR_CONCURRENCY: '1'
     mem_limit: 512m
     cpus: 0.5
@@ -312,6 +315,7 @@ networks:
   scan: {}
   edge: {}
 volumes:
+  defensebot-nvd-cache:
   hackbot-data:
   hackbot-home:
   pgdata:
