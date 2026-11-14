@@ -2152,6 +2152,7 @@ export const id:Record<keyof typeof en,string> = {
   "flow_triage_open": "Terbuka",
   "flow_triage_accepted": "Risiko diterima",
   "flow_triage_false": "Positif palsu",
+  "flow_triage_stale": "Kedaluwarsa: tidak teramati lagi",
   "flow_triage_fixed": "Diperbaiki, menunggu verifikasi",
   "flow_triage_reason": "Alasan",
   "flow_triage_expires": "Diterima sampai",

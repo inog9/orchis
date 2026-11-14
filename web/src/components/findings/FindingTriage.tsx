@@ -24,7 +24,7 @@ export function FindingTriage({ finding, onChanged }: { finding: Finding; onChan
     const { data: me } = useMe();
     const navigate = useNavigate();
     const qc = useQueryClient();
-    const [status, setStatus] = useState<TriageStatus>((finding.triage_status as TriageStatus) || 'open');
+    const [status, setStatus] = useState<TriageStatus>(finding.triage_status && finding.triage_status !== 'stale' ? finding.triage_status : 'open');
     const [reason, setReason] = useState(finding.triage_reason ?? '');
     const [expires, setExpires] = useState('');
     const [note, setNote] = useState('');

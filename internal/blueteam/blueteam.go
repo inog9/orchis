@@ -295,7 +295,10 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 		err := tx.QueryRow(ctx, `INSERT INTO findings(id,tenant_id,asset_id,type,value,value_hash,title,severity,details,organization_id,subject_address)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL)
  ON CONFLICT (tenant_id, asset_id, type, value_hash) WHERE asset_id IS NOT NULL
- DO UPDATE SET last_seen_at=now(),occurrence_count=findings.occurrence_count+1,title=EXCLUDED.title,severity=EXCLUDED.severity,details=EXCLUDED.details
+ DO UPDATE SET last_seen_at=now(),occurrence_count=findings.occurrence_count+1,title=EXCLUDED.title,severity=EXCLUDED.severity,details=EXCLUDED.details,
+   absent_count=0,absent_collected_at=NULL,
+   triage_status=CASE WHEN findings.triage_status='stale' THEN 'open' ELSE findings.triage_status END,
+   triage_reason=CASE WHEN findings.triage_status='stale' THEN '' ELSE findings.triage_reason END
  RETURNING id`, ids.New(), in.Tenant, in.Asset, f.Type, f.Value, hex.EncodeToString(h[:]), f.Title, f.Severity, details, in.OrgID).Scan(&fid)
 		if err != nil {
 			return err

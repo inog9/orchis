@@ -2151,6 +2151,7 @@ export const en = {
   "flow_triage_open": "Open",
   "flow_triage_accepted": "Accepted risk",
   "flow_triage_false": "False positive",
+  "flow_triage_stale": "Stale: no longer observed",
   "flow_triage_fixed": "Fixed, pending verification",
   "flow_triage_reason": "Reason",
   "flow_triage_expires": "Accepted until",

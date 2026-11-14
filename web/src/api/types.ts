@@ -165,7 +165,7 @@ export type Finding = {
   occurrence_count: number;
   organization_id?: string | null;
   organization_name?: string | null;
-  triage_status?: 'open' | 'accepted_risk' | 'false_positive' | 'fixed_pending';
+  triage_status?: 'open' | 'accepted_risk' | 'false_positive' | 'fixed_pending' | 'stale';
   triage_reason?: string;
   triage_expires_at?: string | null;
   triage_by?: string | null;

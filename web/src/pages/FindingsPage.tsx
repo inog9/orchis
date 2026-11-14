@@ -24,7 +24,7 @@ function useDebounced<T>(value: T, ms: number) {
     useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t); }, [value, ms]);
     return v;
 }
-const triageLabel = (s: string) => ({ open: '', accepted_risk: textUI("flow_triage_accepted"), false_positive: textUI("flow_triage_false"), fixed_pending: textUI("flow_triage_fixed") } as Record<string, string>)[s] ?? '';
+const triageLabel = (s: string) => ({ open: '', accepted_risk: textUI("flow_triage_accepted"), false_positive: textUI("flow_triage_false"), fixed_pending: textUI("flow_triage_fixed"), stale: textUI("flow_triage_stale") } as Record<string, string>)[s] ?? '';
 const SEV_LABEL = (s: Finding['severity']) => ({ critical: textUI("m_427dd2969bd1"), high: textUI("m_c4ebc6d4a583"), medium: textUI("m_8e588cd18774"), low: textUI("m_f793de205ead"), info: textUI("m_170322a32f3c") })[s];
 const full = (iso: string) => { const d = new Date(iso); return Number.isNaN(d.getTime()) ? '' : d.toLocaleString(locale(), { dateStyle: 'medium', timeStyle: 'short' }); };
 
