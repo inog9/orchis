@@ -369,6 +369,8 @@ export const id:Record<keyof typeof en,string> = {
   "m_def_stat_exp": "Terlihat scanner",
   "m_def_stat_unmapped": "Belum terpetakan (tidak diperiksa)",
   "m_def_stat_unmapped_hint": "Program terpasang ini belum punya pemetaan data kerentanan, jadi TIDAK diperiksa. Hasil nol temuan tidak mencakup program tersebut.",
+  "m_def_stat_ignored": "Diabaikan (sistem, Store, driver)",
+  "m_def_stat_ignored_hint": "Komponen sistem, paket Store, paket driver, entri kosong dan duplikat bukan aplikasi yang diperiksa, jadi tidak dihitung sebagai belum terpetakan.",
   "m_def_stat_sw": "Software diperiksa",
   "m_def_stat_reboot": "Perlu reboot",
   "m_def_incomplete": "Hasil tidak lengkap. Temuan yang tidak ada bukan berarti perangkat lunak aman.",

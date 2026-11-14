@@ -103,6 +103,7 @@ type Summary struct {
 	OSVersion        string         `json:"os_version,omitempty"`
 	SoftwareChecked  int            `json:"software_checked"`
 	SoftwareUnmapped int            `json:"software_unmapped"`
+	SoftwareIgnored  int            `json:"software_ignored,omitempty"` // sistem/Store/driver/duplikat: tidak dihitung sebagai "belum terpetakan"
 	Findings         int            `json:"findings"`
 	Omitted          int            `json:"omitted"`
 	BySeverity       map[string]int `json:"by_severity"`

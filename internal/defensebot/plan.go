@@ -28,6 +28,7 @@ type plan struct {
 	Notes       []Note
 	Binary2Src  map[string]string // binary package -> source package
 	Unmapped    int
+	Ignored     int    // program sistem/Store/driver/duplikat yang tidak relevan untuk pemeriksaan kerentanan
 	NewestKern  string // version of the newest installed kernel image package
 	RunningABI  string
 	KernelCount int // inactive kernel packages skipped
@@ -226,6 +227,7 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	}
 	if rows, _, ok := okRows(in, QueryPrograms); ok {
 		seenProg := map[string]bool{}
+		seenUnmapped := map[string]bool{}
 		for _, r := range rows {
 			// Nama program Windows memuat versi dan arsitektur ("7-Zip 26.00 (x64)"): cocokkan juga nama yang dinormalisasi.
 			clean, nameVer := normalizeProgramName(r["name"])
@@ -256,6 +258,17 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 			if c, ok := aiCPE[AppKey(r["name"])]; ok {
 				p.CPE = append(p.CPE, c)
 				continue
+			}
+			if isNoiseProgram(r["name"]) {
+				p.Ignored++
+				continue
+			}
+			// Program yang sama (nama+versi) dari instalasi per-user dan per-mesin dihitung sekali.
+			if k := strings.ToLower(strings.TrimSpace(r["name"])) + "|" + strings.TrimSpace(r["version"]); seenUnmapped[k] {
+				p.Ignored++
+				continue
+			} else {
+				seenUnmapped[k] = true
 			}
 			unmapped++
 		}

@@ -368,6 +368,8 @@ export const en = {
   "m_def_stat_exp": "Seen by scanner",
   "m_def_stat_unmapped": "Not mapped (not checked)",
   "m_def_stat_unmapped_hint": "These installed programs have no vulnerability mapping yet, so they were NOT checked. A result of zero findings does not cover them.",
+  "m_def_stat_ignored": "Ignored (system, Store, drivers)",
+  "m_def_stat_ignored_hint": "System components, Store packages, driver packages, empty and duplicate entries are not applications to check, so they are not counted as unmapped.",
   "m_def_stat_sw": "Software checked",
   "m_def_stat_reboot": "Reboot needed",
   "m_def_incomplete": "Incomplete result. A missing finding does not mean the software is safe.",

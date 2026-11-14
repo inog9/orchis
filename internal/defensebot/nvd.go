@@ -514,3 +514,32 @@ func criteriaVersionMatches(installed, criteria string) bool {
 		return CompareVersions("npm", installed, v) == 0
 	}
 }
+
+var (
+	guidNameRe  = regexp.MustCompile(`(?i)^\{?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}?$`)
+	storePkgRe  = regexp.MustCompile(`^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)+$`)
+	vcRuntimeRe = regexp.MustCompile(`(?i)visual c\+\+ .*(additional|minimum) runtime`)
+)
+
+// noiseProgramPrefixes: komponen sistem Windows yang bukan aplikasi untuk diperiksa kerentanannya satu per satu.
+var noiseProgramPrefixes = []string{"windows driver package", "microsoft.", "windows ", "update for ", "security update for ", "hotfix for "}
+
+// isNoiseProgram menandai entri daftar program yang bukan aplikasi: kosong, GUID mentah, paket Store/AppX ("Publisher.App"),
+// paket driver Windows, pembaruan sistem, dan potongan runtime Visual C++ (sudah diwakili paket redistributable-nya).
+// Dipanggil hanya untuk program yang TIDAK terpetakan, jadi aplikasi bernama "Node.js" tetap diperiksa lebih dulu.
+func isNoiseProgram(name string) bool {
+	n := strings.TrimSpace(name)
+	if n == "" || guidNameRe.MatchString(n) || vcRuntimeRe.MatchString(n) {
+		return true
+	}
+	if !strings.Contains(n, " ") && storePkgRe.MatchString(n) {
+		return true
+	}
+	l := strings.ToLower(n)
+	for _, p := range noiseProgramPrefixes {
+		if strings.HasPrefix(l, p) {
+			return true
+		}
+	}
+	return false
+}
