@@ -44,15 +44,14 @@ describe('FindingsPage', () => {
     expect(screen.getByText('Severity: High')).toBeInTheDocument();
   });
 
-  it('satu severity dikirim ke server; dua severity disaring di klien; Hapus semua mereset', async () => {
+  it('bawaan hanya critical (dikirim ke server); menambah high disaring di klien; Hapus semua menampilkan semuanya', async () => {
     const urls: string[] = []; route({ urls }); mount();
     await screen.findByText('Judul kritis');
-    const chips = screen.getByRole('group', { name: /severity breakdown/i });
-    await userEvent.click(within(chips).getByRole('button', { name: /critical/i }));
     await waitFor(() => expect(urls.some((u) => u.includes('severity=critical'))).toBe(true));
+    const chips = screen.getByRole('group', { name: /severity breakdown/i });
     await userEvent.click(within(chips).getByRole('button', { name: /high/i }));
-    await waitFor(() => expect(screen.queryByText('Judul rendah')).not.toBeInTheDocument());
-    expect(screen.getByText('Judul tinggi')).toBeInTheDocument();
+    expect(await screen.findByText('Judul tinggi')).toBeInTheDocument();
+    expect(screen.queryByText('Judul rendah')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /clear all/i }));
     expect(await screen.findByText('Judul rendah')).toBeInTheDocument();
   });
@@ -99,8 +98,16 @@ describe('FindingsPage', () => {
     expect(screen.getByRole('button', { name: /try again|retry/i })).toBeInTheDocument();
   });
 
-  it('kosong dengan filter menawarkan hapus filter', async () => {
+  it('kosong pada filter bawaan (critical) menawarkan Tampilkan semua severity', async () => {
     route({ items: [] }); mount();
+    expect(await screen.findByText('No critical findings')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Show all severities' }));
+    expect(await screen.findByText(/no findings yet|belum ada/i)).toBeInTheDocument();
+  });
+
+  it('kosong dengan filter pengguna menawarkan hapus filter', async () => {
+    route({ items: [] }); mount();
+    await userEvent.click(await screen.findByRole('button', { name: 'Show all severities' }));
     await screen.findByText(/no findings yet|belum ada/i);
     await userEvent.type(screen.getByRole('searchbox'), 'zzz');
     await userEvent.click(await screen.findByRole('button', { name: 'Clear filters' }));

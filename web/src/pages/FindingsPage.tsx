@@ -73,7 +73,8 @@ export function FindingsPage({ organizationID, organizationName }: {
     const Heading = inOrg ? 'h2' : 'h1';
     const [text, setText] = useState('');
     const [type, setType] = useState('');
-    const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+    // Default: hanya critical yang tampil; severity lain ditambahkan lewat filter, "Clear" menampilkan semuanya.
+    const [selected, setSelected] = useState<ReadonlySet<string>>(new Set(['critical']));
     const [kevOnly, setKevOnly] = useState(false);
     const [exposedOnly, setExposedOnly] = useState(false);
     const [actionable, setActionable] = useState(false);
@@ -114,6 +115,8 @@ export function FindingsPage({ organizationID, organizationName }: {
     if (assetID) chips.push({ key: 'a', label: textUI("m_fnd_chip_asset", [assetChoices.data?.find(a => a.id === assetID)?.name || loaded[0]?.asset_name || textUI("m_a04e2c43801b")]), remove: () => { const next = new URLSearchParams(params); next.delete('asset_id'); setParams(next); } });
     if (!inOrg && organization) chips.push({ key: 'o', label: textUI("m_fnd_chip_org", [loaded[0]?.organization_name || textUI("m_6fcd5de74842")]), remove: () => setOrg('') });
     const filtered = chips.length > 0;
+    // Hanya filter bawaan (critical) yang aktif: kosong berarti belum ada yang critical, bukan filter pengguna yang terlalu ketat.
+    const onlyDefaultCritical = chips.length === 1 && chips[0]!.key === 's-critical' && !text && !type && !kevOnly && !exposedOnly && !actionable;
 
     const sevCounts = countBySeverity(items);
     const renderRows = (list: Finding[]) => (<ul className="fnd-list" aria-label={textUI("m_e171c2ff25b5")}>{list.map((f) => <Row key={f.id} f={f} me={me} onOpen={(item) => setOpen(item)}/>)}</ul>);
@@ -160,8 +163,8 @@ export function FindingsPage({ organizationID, organizationName }: {
 
       {!comparisonMode && (res.isPending ? (<ul className="fnd-list" aria-label={textUI("m_3b06d3881b0f")} aria-busy="true">{[0, 1, 2, 3, 4].map((i) => <li key={i} className="fnd-row fnd-row--skeleton"><span className="skeleton"/></li>)}</ul>)
         : res.isError ? (<div className="state state--error" role="alert"><h2>{textUI("m_8891e771bd5c")}</h2><p>{richUI("m_19636dc199da", [formatUI(describeError(res.error).message)])}</p><button type="button" className="btn btn--secondary btn--auto" onClick={() => res.refetch()}>{textUI("m_d8b8392e2c54")}</button></div>)
-        : items.length === 0 ? (<div className="state" role="status"><h2>{formatUI(filtered ? textUI("m_991467873550") : textUI("m_3076f1ee8a92"))}</h2><p>{formatUI(filtered ? textUI("m_fff0463f16e2") : can(me, 'organization.read') ? textUI("m_af431b0a42ac") : textUI("m_dd629c0d9e7e"))}</p>
-            {filtered ? <button type="button" className="btn btn--secondary btn--auto" onClick={clearAll}>{textUI("m_fnd_clear_filters")}</button> : can(me, 'organization.read') && <Link className="btn btn--secondary btn--auto" to="/organizations">{textUI("m_d78c44ecc1be")}</Link>}</div>)
+        : items.length === 0 ? (<div className="state" role="status"><h2>{formatUI(onlyDefaultCritical ? textUI("fnd_no_critical") : filtered ? textUI("m_991467873550") : textUI("m_3076f1ee8a92"))}</h2><p>{formatUI(onlyDefaultCritical ? textUI("fnd_no_critical_hint") : filtered ? textUI("m_fff0463f16e2") : can(me, 'organization.read') ? textUI("m_af431b0a42ac") : textUI("m_dd629c0d9e7e"))}</p>
+            {onlyDefaultCritical ? (<><button type="button" className="btn btn--secondary btn--auto" onClick={clearAll}>{textUI("fnd_show_all_sev")}</button>{can(me, 'organization.read') && <Link className="btn btn--secondary btn--auto" to="/organizations">{textUI("m_d78c44ecc1be")}</Link>}</>) : filtered ? <button type="button" className="btn btn--secondary btn--auto" onClick={clearAll}>{textUI("m_fnd_clear_filters")}</button> : can(me, 'organization.read') && <Link className="btn btn--secondary btn--auto" to="/organizations">{textUI("m_d78c44ecc1be")}</Link>}</div>)
         : (<>
           <p className="fnd-count" aria-live="polite">{textUI("m_fnd_shown", [items.length])}</p>
           {listBody}
