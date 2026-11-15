@@ -114,10 +114,10 @@ prod-smoke: ## Stack baru lokal, scan nyata, PDF, backup terenkripsi, restore te
 volume-study: ## Ukur sintetis 50 organisasi/5000 aset/200000 temuan pada DB/ES disposable
 	python3 deploy/ci/volume.py
 
-hackbot-check: ## Periksa checkout engine dan hash integrasi tanpa Docker
+hackbot-check: ## Periksa source engine dan hash integrasi dalam repo tanpa Docker
 	python3 deploy/hackbot/build.py --check
 
-hackbot-engines: ## Bangun kedua engine dari checkout yang dikunci
+hackbot-engines: ## Bangun kedua engine dari source dalam repo
 	python3 deploy/hackbot/build.py
 
 hackbot-image: hackbot-engines ## Bangun worker orchis-redteam-agent dari kode checkout ini

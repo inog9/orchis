@@ -19,6 +19,9 @@ npm --prefix web audit
 npm --prefix e2e audit
 npm --prefix deploy/report audit
 make check
+make hackbot-check
+(cd engines/hackbot-lite && go test ./...)
+npm --prefix engines/opencode-hackbot test
 python3 -m unittest discover -s deploy/hackbot -p "*_test.py"
 python3 -m unittest discover -s deploy/prod -p "*_test.py"
 # Rules are executable configuration; test their firing conditions locally.

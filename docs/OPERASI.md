@@ -13,8 +13,8 @@ multi-stage Dockerfile. Runtime server statis memakai UID 10001, rootfs hanya
 baca, tanpa capability. PostgreSQL/RabbitMQ/Elasticsearch/MinIO tidak memublikasikan
 port host. Server hanya dapat dijangkau melalui Caddy pada port HTTPS loopback.
 
-Siapkan kedua checkout engine privat dan jalankan `make hackbot-check` sebelum
-build; revisi dan hash mengikuti [panduan engine](../deploy/hackbot/README.md).
+Source kedua engine tersedia dalam repo ini. Jalankan `make hackbot-check` sebelum
+build; asal source dan hash mengikuti [panduan engine](../deploy/hackbot/README.md).
 Go/Node host juga tidak dibutuhkan untuk image worker: binary dibuat dalam Docker.
 
 Jalankan sebagai operator root agar secret 0600 dapat dimiliki UID container:

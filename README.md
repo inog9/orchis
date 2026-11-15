@@ -19,13 +19,11 @@ Lihat [alur produk](docs/FLOW.md), [orchis-redteam-agent](deploy/hackbot/README.
 
 ## Mulai
 
-Untuk deployment, siapkan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, Python 3.12+,
-dan akses ke dua repo engine privat yang dipatok di
-[`engine-lock.json`](deploy/hackbot/engine-lock.json).
-**Siapkan checkout engine terlebih dahulu** mengikuti [panduan build orchis-redteam-agent](deploy/hackbot/README.md#build-and-configure).
+Untuk deployment, siapkan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, dan Python 3.12+.
+Source engine sudah berada dalam repo ini; lihat [panduan build orchis-redteam-agent](deploy/hackbot/README.md#build-and-configure).
 
 ```bash
-make hackbot-check                 # validasi source dan pin, tanpa Docker
+make hackbot-check                 # validasi source engine dalam repo, tanpa Docker
 sudo make prod-init                # sekali untuk state baru; secret di /var/lib/orchis
 sudo python3 deploy/prod/ops.py env > .env
 sudo make prod-build               # server/web, renderer, scanner, engine, worker orchis-redteam-agent
@@ -33,7 +31,7 @@ sudo make prod-up
 sudo make prod-probe
 ```
 
-Jalankan build dengan akun yang memiliki akses Docker dan dapat membaca checkout engine.
+Jalankan build dengan akun yang memiliki akses Docker dan dapat membaca repo ini.
 Untuk state yang sudah ada, gunakan `ORCHIS_STATE` yang sama dan ikuti
 [prosedur upgrade](docs/OPERASI.md); jangan menjalankan init ulang.
 Login pertama ada di `initial-admin.json` dalam direktori state privat.

@@ -37,48 +37,33 @@ finishes. Cancellation or revoked authorization prevents further stages.
 
 ## Build and configure
 
-The build needs **both private Git checkouts**, not extracted source archives:
+The engine sources live in this repository:
 
 ```
-orchis/
-orchis-hackbot-lite/
-orchis-opencode-hackbot/
+engines/hackbot-lite/        # harness and pentest tools
+engines/opencode-hackbot/    # active OpenCode worker and report skill
 ```
 
-Clone with an account that can read the repositories named in
-[`engine-lock.json`](engine-lock.json), then check out the exact pinned revisions.
-From the Orchis root:
+Their original commit histories are included. `engine-lock.json` records their
+imported revisions for provenance and the hashes of integration-critical files.
+Run these commands from the Orchis root:
 
 ```sh
-git clone https://github.com/r1pu5u/orchis-hackbot-lite.git ../orchis-hackbot-lite
-git clone https://github.com/r1pu5u/orchis-opencode-hackbot.git ../orchis-opencode-hackbot
-python3 - <<'PINS'
-import json, subprocess
-from pathlib import Path
-lock = json.loads(Path('deploy/hackbot/engine-lock.json').read_text())
-for directory, pin in [('../orchis-hackbot-lite', lock), ('../orchis-opencode-hackbot', lock['opencode'])]:
-    subprocess.run(['git', '-C', directory, 'checkout', '--detach', pin['revision']], check=True)
-PINS
 make hackbot-check
+make hackbot-engines
+make hackbot-image
 ```
 
-Existing checkouts must contain the pinned commits; fetch them if necessary before
-checking out. Review local changes before switching revisions.
-`ORCHIS_HACKBOT_SOURCE` and `ORCHIS_OPENCODE_SOURCE` select alternate paths.
-Export both when building with custom locations; preserve them when invoking the
-build under another operator account.
+No sibling checkout, Git metadata, submodule initialization, or private-repository
+credential is required. The builds still fetch pinned external tools and base
+images. `make hackbot-check` checks the bundled integration hashes without Docker;
+when intentionally changing one of those files, update its hash in
+`engine-lock.json` in the same change. `make hackbot-engines` builds the tool image
+and then the OpenCode image. `make hackbot-image` also builds the worker injector.
+`make prod-build` performs the same preflight before production image builds.
 
-`make hackbot-check` checks revisions and integration file hashes without Docker.
-`make hackbot-engines` validates both sources before building the tool image and
-then the OpenCode image. `make hackbot-image` also builds the worker injector from
-this Orchis checkout. `make prod-build` runs the same source preflight **before any
-production image build**, then builds the complete stack. GitHub credentials are
-used only for cloning, never passed into Docker layers.
-
-If a checkout is missing, the preflight prints its path, repository and required
-revision. An image already present in Docker is not a substitute for the source
-checkouts needed by a reproducible build. Do not bypass the revision/hash checks
-or create artificial Git metadata around an archive.
+This is one source repository; the existing separate Docker images and services
+are retained. Missing or changed integration files stop the build.
 
 Fresh `ops.py init` generates credentials for all four workers. Existing setups
 run `ops.py hackbot-init --state /path/to/existing/state` before provisioning the
@@ -91,8 +76,8 @@ The pinned OpenCode worker reads the `opencode-go` credential from the private
 This legacy path is retained for compatibility; OpenCode runs the engagement,
 not Pi. Provision the credential securely once; Orchis does not supply model
 credentials. The pinned worker uses `opencode-go/deepseek-v4.1-flash` and bounds
-its model run to four hours after stack setup. Source and configuration details are in the pinned
-OpenCode repository.
+its model run to four hours after stack setup. Source and configuration details are in
+`engines/opencode-hackbot`.
 
 Missing authorized test accounts produce coverage limitations. orchis-redteam-agent receives
 permission for the exact selected origin; discovered origins require separate
@@ -124,7 +109,7 @@ download is required.
 scanner handoff, scanner failure, result ingestion, PDF access, authorization
 revocation and lease expiry. Worker tests cover private files, changed handoffs
 and claim payload size. OpenCode engine tests cover scanner-input imports, hashes and private-evidence
-result validation. Run `npm test` in that companion checkout. Build preflight
+result validation. Run `npm test` in `engines/opencode-hackbot` and `go test ./...` in `engines/hackbot-lite`. Build preflight
 and orchestration tests run without Docker via `make build-test`.
 
 The explicit production smoke profile uses real local Nmap/Nuclei stages and a

@@ -7,19 +7,15 @@ sekali sebelum server (migrasi lalu provisioning); server baru start setelah ked
 ## Prasyarat build
 
 Gunakan Linux amd64, Docker Engine + Compose v2 + Buildx (BuildKit), Git, dan Python 3.12+.
-Siapkan **kedua checkout privat** (`orchis-hackbot-lite` dan
-`orchis-opencode-hackbot`) sesuai revisi dan hash di
-[`engine-lock.json`](../deploy/hackbot/engine-lock.json). Lihat
-[panduan setup engine](../deploy/hackbot/README.md#build-and-configure).
+Kedua source engine tersedia di `engines/hackbot-lite` dan `engines/opencode-hackbot`
+dalam checkout ini. Lihat [panduan build engine](../deploy/hackbot/README.md#build-and-configure).
 
 ```bash
 make hackbot-check                       # berhenti dengan petunjuk bila source/pin tidak cocok
 ```
 
-Lokasi bawaan adalah direktori saudara repo Orchis. Gunakan
-`ORCHIS_HACKBOT_SOURCE` dan `ORCHIS_OPENCODE_SOURCE` untuk lokasi lain.
-`prod-build` memeriksa keduanya sebelum memulai build image server atau engine.
-Akun operator build harus dapat membaca source tersebut dan mengakses Docker.
+`prod-build` memeriksa hash integrasi keduanya sebelum memulai build image server atau engine.
+Akun operator build harus dapat membaca repo ini dan mengakses Docker.
 
 ## Langkah
 

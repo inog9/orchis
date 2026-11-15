@@ -112,19 +112,18 @@ python3 e2e/mutation-agent-address.py
 python3 e2e/mutation-core.py
 ```
 
-## Build dan engine privat
+## Build dan engine pentest
 
 `make build` membangun frontend, server, dan utilitas backup untuk pengembangan.
 `make injector-image` membuat scanner pengembangan; image produksi dibangun oleh
 `make prod-build`. Dockerfile produksi membangun binary dari source checkout ini.
 
-Untuk menjalankan orchis-redteam-agent, siapkan kedua checkout privat sesuai
-[panduan engine](../deploy/hackbot/README.md), lalu jalankan `make hackbot-check`.
+Source engine berada di `engines/hackbot-lite` dan `engines/opencode-hackbot`;
+ikuti [panduan engine](../deploy/hackbot/README.md), lalu jalankan `make hackbot-check`.
 `make hackbot-image` membangun engine dan worker, sedangkan `make build-test`
 memeriksa validasi source serta urutan build tanpa menjalankan Docker.
 
 Tes CI memakai fixture lokal dan tidak memerlukan kredensial model AI.
-Tes engine privat dijalankan di checkout pendamping; source privat tidak disalin
-ke repo Orchis atau ke image server.
+Tes engine dijalankan dari direktori tersebut; source engine tidak disalin ke image server.
 
 Endpoint monitoring uses catalog-only, consent-checked outbound agent claims and PostgreSQL notifications for browser SSE. See [OPERASI.md](OPERASI.md) for configuration, Windows limits and the required server-first rollout.
