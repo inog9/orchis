@@ -1,0 +1,8 @@
+{
+  "packages": [
+    "/opt/pi-packages/node_modules/pi-subagents",
+    "/opt/pi-packages/node_modules/billion-context",
+    "/opt/pi-packages/node_modules/@xynogen/pix-todo",
+    "/opt/pi-packages/node_modules/@juicesharp/rpiv-ask-user-question"
+  ]
+}

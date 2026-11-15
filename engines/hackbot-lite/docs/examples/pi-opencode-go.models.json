@@ -1,0 +1,39 @@
+{
+  "providers": {
+    "opencode-go": {
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "api": "openai-completions",
+      "apiKey": "$OPENCODE_API_KEY",
+      "models": [
+        {
+          "id": "deepseek-v4.1-flash",
+          "name": "DeepSeek V4.1 Flash (OpenCode Go)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": "max"
+          },
+          "input": ["text", "image"],
+          "contextWindow": 1000000,
+          "maxTokens": 384000,
+          "cost": {
+            "input": 0.30,
+            "output": 1.20,
+            "cacheRead": 0.006,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsStore": false,
+            "supportsDeveloperRole": false,
+            "maxTokensField": "max_tokens",
+            "requiresReasoningContentOnAssistantMessages": true,
+            "thinkingFormat": "deepseek"
+          }
+        }
+      ]
+    }
+  }
+}

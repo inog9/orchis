@@ -1,0 +1,20 @@
+services:
+  pentest:
+    build: .
+    image: orchis-pentest:local
+    init: true
+    stdin_open: true
+    tty: true
+    shm_size: 1gb
+    stop_grace_period: 60s
+    environment:
+      TERM: xterm-256color
+      PENTEST_HARNES_STACK: /opt/pentest/docker/stack.py
+    volumes:
+      - engagements:/data
+      - pi-home:/home/pentest
+    working_dir: /data
+    # Proxy, ingestion, and browser-control ports deliberately stay internal.
+volumes:
+  engagements:
+  pi-home:
