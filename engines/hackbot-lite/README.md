@@ -179,7 +179,7 @@ An engagement continues while authorized, useful checklist/hypothesis work remai
 and the provider remains available. Spending is reported as an estimate. The controller enforces:
 
 - Phase dependencies from setup/exploration through recon, auth, authz, injection,
-  fuzzing, deep endpoint fuzzing, gadgets, reflection, evidence, and report.
+  fuzzing, deep endpoint fuzzing, reflection, evidence, and report.
 - Explicit scope, actor/session contracts, unique outputs, request/time/rate
   bounds, and task dependencies before specialist dispatch.
 - Offline local review/reflection accepts empty targets and zero request/rate
@@ -488,7 +488,6 @@ skills/
 | `pentest` | Shared rules, workflow, and checklist |
 | `pentest-exploration` | Initial exploration, test-account setup, and triage |
 | `pentest-recon` | Routes, API inventory, JavaScript, and business flows |
-| `wordpress-pentest` | Frontend plugin discovery, calibrated slash/readme oracles, bounded 10k/132k enumeration, all-plugin source review, and live proof |
 | `pentest-js-analysis` | Delegated lazy-JS/gau-first archive collection and full-corpus jsluice/direct review |
 | `pentest-dependency-confusion` | Dependency-confusion discovery from collected JS/source maps, independent npxconfuse coverage and optional exposed manifests |
 | `pentest-auth` | Authentication and account lifecycle |
@@ -496,7 +495,6 @@ skills/
 | `pentest-injection` | Injection and unsafe parsing |
 | `pentest-fuzzing` | Bounded discovery and fuzzing |
 | `pentest-endpoint-fuzz-full` | Seeded deep endpoint discovery and five-run loop |
-| `pentest-gadgets` | Gadget definitions, proof requirements, and research notes |
 | `pentest-reflection` | Coverage reconciliation and valuable follow-up judgment |
 | `pentest-evidence` | Evidence capture, verdicts, and scoring |
 | `pentest-report` | Client report and internal validation ledger |
@@ -518,14 +516,6 @@ does not provision its account credentials or authorize its network activity.
 
 - Interceptor CLI, browser extension/native messaging host, and Chromium for
   browser work; the Interceptor skills are bundled.
-- ffuf with the documented 2.1-compatible flags, Python 3.9+, curl and unzip
-  for WordPress discovery/source retrieval.
-  `wordpress-pentest` bundles the unchanged 10,000/132,211-entry plugin lists,
-  an offline preparer and a bounded ffuf supervisor; the supervisor requires
-  Linux/macOS. The skill's references cover calibration, source versions,
-  unauthenticated-first full review and live validation.
-  Bulk ffuf runs directly; Gori (or a configured legacy proxy) handles selected candidate replays and
-  evidence instead of the dictionary traffic.
 - Gori for capture/replay and HTTP evidence (included in Docker), or an explicitly
   configured native Burp/Caido integration.
 - The `r1pu5u/jxscout` fork for JavaScript collection/analysis. Docker includes a
@@ -555,7 +545,7 @@ does not provision its account credentials or authorize its network activity.
   verification is required; the CLI image does not provision a phone or account.
 - An authorized Collaborator/interactsh callback service for OOB tests. Gori's
   configured OAST workflow can supply this; installing binaries alone cannot.
-- ripgrep for source/corpus review, unzip for WordPress archives, and standard
+- ripgrep for source/corpus review, unzip for archives, and standard
   shell utilities (`awk`, `sed`, `tr`, `cat`, `grep`, `sort`, `wc`, `file`). All
   bundled Python helpers use the standard library; no pip packages or standalone
   Tree-sitter installation are required.

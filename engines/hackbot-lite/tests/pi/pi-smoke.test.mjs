@@ -171,15 +171,13 @@ test("real Pi: full lead tools, parallel specialists, visible questions, native 
   assert.ok(commands.success);
   assert.deepEqual(first.diagnostics, [], "RPC stdout was not JSON-lines");
   assert.ok(commands.data.commands.some(command => command.name === "pentest-run"), JSON.stringify(commands));
-  const wordpressSkill = commands.data.commands.find(command => command.name === "skill:wordpress-pentest");
-  assert.ok(wordpressSkill, "Pi did not parse/load the bundled WordPress skill");
+  assert.ok(!commands.data.commands.some(command => command.name === "skill:wordpress-pentest"));
   first.send({ id: "prompt", type: "prompt", message: "DELEGATE_SMOKE: execute the offline fixture sequence." });
   await first.wait(event => event.type === "agent_end");
   const sessionsDir = path.join(project, ".pentest-harnes", "sessions");
   const sessionID = fs.readdirSync(sessionsDir)[0];
   const sessionRoot = path.join(sessionsDir, sessionID);
-  assert.equal(wordpressSkill.sourceInfo?.path ?? wordpressSkill.path,
-    path.join(sessionRoot, "workspace", ".pi", "skills", "wordpress-pentest", "SKILL.md"));
+  assert.equal(fs.existsSync(path.join(sessionRoot, "workspace", ".pi", "skills", "wordpress-pentest")), false);
   const state = JSON.parse(fs.readFileSync(path.join(sessionRoot, "state.json"), "utf8"));
   assert.equal(state.tasks["smoke-worker"]?.status, "returned", JSON.stringify(first.records).slice(-8000));
   assert.equal(state.tasks["future-auth"]?.status, "pending");
@@ -436,7 +434,7 @@ test("real user Pi config: native Fleet, compression and todo load without model
   assert.doesNotMatch(stderr, /Failed to load extension|Duplicate tool/i);
   const sessions = path.join(root, ".pentest-harnes", "sessions");
   const session = path.join(sessions, fs.readdirSync(sessions)[0]);
-  for (const name of ["interceptor", "interceptor-browser", "interceptor-research", "wordpress-pentest"]) {
+  for (const name of ["interceptor", "interceptor-browser", "interceptor-research"]) {
     const skill = commands.data.commands.find(command => command.name === `skill:${name}`);
     assert.ok(skill, `Pi did not load ${name}`);
     assert.equal(skill.sourceInfo?.path ?? skill.path, path.join(session, "workspace", ".pi", "skills", name, "SKILL.md"), `Pi did not use the bundled ${name} skill`);

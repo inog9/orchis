@@ -20,8 +20,8 @@ func smallBundle() fs.FS {
 		"AGENTS.md":                              {Data: []byte("# Orchestrator\nUse [pentest](skills/pentest/SKILL.md).\n")},
 		"skills/pentest/SKILL.md":                {Data: []byte("main skill")},
 		"skills/pentest/references/terms.md":     {Data: []byte("shared terms")},
-		"skills/pentest-gadgets/SKILL.md":        {Data: []byte("gadget skill")},
-		"skills/pentest-gadgets/references/a.md": {Data: []byte("[terms](../../pentest/references/terms.md)")},
+		"skills/pentest-sample/SKILL.md":        {Data: []byte("gadget skill")},
+		"skills/pentest-sample/references/a.md": {Data: []byte("[terms](../../pentest/references/terms.md)")},
 	}
 }
 
@@ -51,7 +51,7 @@ func TestBundledInstallPreservesEveryFileAndReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.Skills) != 21 || len(plan.Targets) != 4 {
+	if len(plan.Skills) != 19 || len(plan.Targets) != 4 {
 		t.Fatalf("unexpected bundle: %d skills, %d targets", len(plan.Skills), len(plan.Targets))
 	}
 	if err := plan.Apply(); err != nil {
@@ -109,7 +109,7 @@ func TestInstalledOrchestratorReferencesResolveForEachAgent(t *testing.T) {
 			}
 			instructions := read(t, filepath.Join(root, "AGENTS.md"))
 			matches := links.FindAllStringSubmatch(instructions, -1)
-			if len(matches) < 21 {
+			if len(matches) < 19 {
 				t.Fatalf("missing specialist routing: %s", instructions)
 			}
 			for _, match := range matches {

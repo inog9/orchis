@@ -74,7 +74,6 @@ limits, and output formats; this file defines how to coordinate them.
 | [totp-cli](skills/totp-cli/SKILL.md) | Authenticator challenges for the exact authorized test account. |
 | [pentest-phone-verification](skills/pentest-phone-verification/SKILL.md) | Required phone/SMS verification using the authorized test phone. |
 | [pentest-recon](skills/pentest-recon/SKILL.md) | Per-role crawls, route/API inventory, business logic, and collection coordination. |
-| [wordpress-pentest](skills/wordpress-pentest/SKILL.md) | WordPress frontend plugin discovery, calibrated slash/readme oracles, bounded plugin wordlists, source acquisition/review, and live validation. |
 | [pentest-js-analysis](skills/pentest-js-analysis/SKILL.md) | Historical/lazy-loaded JS collection gaps, full-corpus review shards, and source/sink tracing. |
 | [pentest-dependency-confusion](skills/pentest-dependency-confusion/SKILL.md) | Package-name evidence from collected assets and independent registry-analysis coverage. |
 | [pentest-auth](skills/pentest-auth/SKILL.md) | Authentication, session handling, and account lifecycle. |
@@ -82,7 +81,6 @@ limits, and output formats; this file defines how to coordinate them.
 | [pentest-injection](skills/pentest-injection/SKILL.md) | Injection and unsafe parsing on observed inputs. |
 | [pentest-fuzzing](skills/pentest-fuzzing/SKILL.md) | Bounded discovery and fuzzing. |
 | [pentest-endpoint-fuzz-full](skills/pentest-endpoint-fuzz-full/SKILL.md) | Seeded deep endpoint discovery and its five-run hypothesis loop. |
-| [pentest-gadgets](skills/pentest-gadgets/SKILL.md) | Prove useful primitives and validate chains with earlier findings. |
 | [pentest-reflection](skills/pentest-reflection/SKILL.md) | Judge missing coverage, ambiguous evidence, and valuable follow-up tasks. |
 | [pentest-evidence](skills/pentest-evidence/SKILL.md) | Reproducibility, candidate verdicts, evidence capture, and CVSS 3.1. |
 | [pentest-report](skills/pentest-report/SKILL.md) | Client report and separate internal validation ledger. |
@@ -95,7 +93,7 @@ Follow this dependency order:
 exploration + required account verification
   -> recon + JS analysis + dependency-confusion analysis
   -> auth -> authz -> injection -> fuzzing -> endpoint-fuzz-full
-  -> gadgets -> reflection -> evidence -> report
+  -> reflection -> evidence -> report
 ```
 
 - Exploration must produce `reports/accounts.md`, `reports/role-matrix.md`,

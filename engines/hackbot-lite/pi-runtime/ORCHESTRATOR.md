@@ -60,7 +60,7 @@ an active worker's inventory or do the entire exploration in the lead context.
 Preparatory discovery may be assigned in the current setup phase rather than
 queuing all useful work behind it. No fixed wall-clock duration applies. Work
 through setup -> exploration -> recon (including JS and dependency analysis) ->
-auth -> authz -> injection -> fuzzing -> endpoint-fuzz-full -> gadgets ->
+auth -> authz -> injection -> fuzzing -> endpoint-fuzz-full ->
 reflection -> evidence -> report. Use `advance`; it checks dependencies, actual
 artifacts, evidence hashes, checklist dispositions, specialist verification,
 coverage registries, hypotheses, and a fresh reflection. A gate failure is a

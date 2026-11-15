@@ -26,8 +26,13 @@ func TestPreviewAndInstallFromUnrelatedDirectory(t *testing.T) {
 	if code := cli.Run(args[:len(args)-1], pentestharnes.Skills(), "test", &stdout, &stderr); code != 0 {
 		t.Fatalf("install failed: %s", stderr.String())
 	}
-	if _, err := os.Stat(filepath.Join(root, ".agents/skills/pentest-gadgets/references/research/framework-cspt.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(root, ".agents/skills/pentest/references/gori.md")); err != nil {
 		t.Fatal(err)
+	}
+	for _, name := range []string{"pentest-gadgets", "wordpress-pentest"} {
+		if _, err := os.Stat(filepath.Join(root, ".agents/skills", name)); !os.IsNotExist(err) {
+			t.Fatalf("removed skill %s was installed: %v", name, err)
+		}
 	}
 	if _, err := os.Stat(filepath.Join(root, ".claude")); !os.IsNotExist(err) {
 		t.Fatal("unexpected target")
@@ -43,7 +48,7 @@ func TestCommandContracts(t *testing.T) {
 	}{
 		{"help", []string{"--help"}, 0, "pentest-harnes init"},
 		{"version", []string{"version"}, 0, "v1.2.3"},
-		{"list", []string{"list"}, 0, "pentest-gadgets"},
+		{"list", []string{"list"}, 0, "pentest-reflection"},
 		{"unknown", []string{"missing"}, 2, "unknown command"},
 		{"bad flag", []string{"init", "--missing"}, 2, "flag provided but not defined"},
 		{"default bad flag", []string{"--missing"}, 2, "flag provided but not defined"},
@@ -89,7 +94,7 @@ func TestInitInstallsOrchestratorAndAllSkills(t *testing.T) {
 			t.Errorf("init did not install %s: %v", path, err)
 		}
 	}
-	if !strings.Contains(stdout.String(), "Installed orchestrator and 21 skills") {
+	if !strings.Contains(stdout.String(), "Installed orchestrator and 19 skills") {
 		t.Fatalf("unexpected installation summary: %s", stdout.String())
 	}
 }

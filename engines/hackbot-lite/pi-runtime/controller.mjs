@@ -3,10 +3,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { artifact, assertArtifacts, atomicJSON, privateText, readJSON } from "./storage.mjs";
 
-export const PHASES = ["setup", "exploration", "recon", "auth", "authz", "injection", "fuzzing", "endpoint-fuzz-full", "gadgets", "reflection", "evidence", "report"];
+export const PHASES = ["setup", "exploration", "recon", "auth", "authz", "injection", "fuzzing", "endpoint-fuzz-full", "reflection", "evidence", "report"];
 export const VERDICTS = ["VALIDATED", "INVALID", "INFORMATIONAL", "NEEDS_MORE_EVIDENCE", "BLOCKED"];
 export const FAMILIES = ["siblings", "roles", "tenants", "methods", "failure-paths", "chains"];
-const PRIMARY_SKILLS = { exploration: ["pentest-exploration"], recon: ["pentest-recon", "pentest-js-analysis", "pentest-dependency-confusion"], auth: ["pentest-auth"], authz: ["pentest-authz"], injection: ["pentest-injection"], fuzzing: ["pentest-fuzzing"], "endpoint-fuzz-full": ["pentest-endpoint-fuzz-full"], gadgets: ["pentest-gadgets"], reflection: ["pentest-reflection"], evidence: ["pentest-evidence"], report: ["pentest-report"] };
+const PRIMARY_SKILLS = { exploration: ["pentest-exploration"], recon: ["pentest-recon", "pentest-js-analysis", "pentest-dependency-confusion"], auth: ["pentest-auth"], authz: ["pentest-authz"], injection: ["pentest-injection"], fuzzing: ["pentest-fuzzing"], "endpoint-fuzz-full": ["pentest-endpoint-fuzz-full"], reflection: ["pentest-reflection"], evidence: ["pentest-evidence"], report: ["pentest-report"] };
 const settled = value => ["tested", "blocked", "not_applicable"].includes(value.status);
 const slug = value => typeof value === "string" && /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,100}$/.test(value);
 const required = (value, label) => { if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required`); return value; };
@@ -22,7 +22,7 @@ export function parseChecklist(text) {
   for (const line of text.split(/\r?\n/)) {
     if (line.startsWith("## ")) {
       const section = line.slice(3).split(".")[0];
-      phase = ({ "0": "setup", "0b": "exploration", "1": "recon", "1b": "recon", "1c": "recon", "2": "auth", "3": "authz", "4": "injection", "5": "injection", "6": "injection", "7": "auth", "7b": "fuzzing", "7c": "endpoint-fuzz-full", "8": "recon", "8b": "gadgets", "8c": "reflection", "8d": "reflection", "9": "report" })[section];
+      phase = ({ "0": "setup", "0b": "exploration", "1": "recon", "1b": "recon", "1c": "recon", "2": "auth", "3": "authz", "4": "injection", "5": "injection", "6": "injection", "7": "auth", "7b": "fuzzing", "7c": "endpoint-fuzz-full", "8": "recon", "8c": "reflection", "8d": "reflection", "9": "report" })[section];
       if (!phase) throw new Error(`Unmapped checklist section: ${line}`);
       current = undefined;
     } else if (/^- \[[ x~]\] /.test(line)) {

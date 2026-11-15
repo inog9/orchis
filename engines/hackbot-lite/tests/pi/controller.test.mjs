@@ -23,7 +23,7 @@ function fixture(t, { withScope = true } = {}) {
   write(".pi/skills/pentest/references/checklist.md", fs.readFileSync(new URL("../../skills/pentest/references/checklist.md", import.meta.url), "utf8"));
   write(".pi/skills/pentest-auth/SKILL.md", "# Authentication\n");
   write(".pi/skills/pentest-reflection/SKILL.md", "# Reflection\n");
-  for (const skill of ["pentest-exploration", "pentest-recon", "pentest-js-analysis", "pentest-dependency-confusion", "pentest-authz", "pentest-injection", "pentest-fuzzing", "pentest-endpoint-fuzz-full", "pentest-gadgets", "pentest-evidence", "pentest-report"]) write(`.pi/skills/${skill}/SKILL.md`, `# ${skill}\n`);
+  for (const skill of ["pentest-exploration", "pentest-recon", "pentest-js-analysis", "pentest-dependency-confusion", "pentest-authz", "pentest-injection", "pentest-fuzzing", "pentest-endpoint-fuzz-full", "pentest-evidence", "pentest-report"]) write(`.pi/skills/${skill}/SKILL.md`, `# ${skill}\n`);
   write("private/evidence.txt");
   const controller = new Controller(root, workspace);
   const scope = { target: "fixture", origins: ["https://app.example.test"], methods: ["GET", "PATCH"], authorization: "Explicit fixture authorization", window: "Until checklist completion", actions: "Test-owned records only", evidence: ["private/evidence.txt"] };
@@ -429,7 +429,7 @@ test("reconciliation without an output retains compatible pending redispatch at 
 
 test("new role reopens coverage; intermediate roles and pending authz cells remain gaps", t => {
   const { controller } = fixture(t);
-  controller.state.phase = "gadgets";
+  controller.state.phase = "endpoint-fuzz-full";
   controller.state.phases.authz = { completedAt: "fixture" };
   controller.apply("role", { id: "approver", label: "Approver", policy: "UNKNOWN" });
   assert.equal(controller.state.phase, "exploration");
