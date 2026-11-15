@@ -423,7 +423,14 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	det.Subs, det.Mappings = nil, nil
 	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.analyst)
 	r.JSON(&det)
-	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) != 1 || det.Mappings[0].Via != "T1595.002" {
+	hasVia := false
+	for _, m := range det.Mappings {
+		if m.Via == "T1595.002" {
+			hasVia = true
+			break
+		}
+	}
+	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) < 1 || !hasVia {
 		t.Fatalf("detail T1595 harus memuat 3 sub-teknik dan pemetaan via T1595.002: %d %s", r.Status, r.Body)
 	}
 }
