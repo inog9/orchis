@@ -96,22 +96,25 @@ type Provenance struct {
 
 // Summary is stored with the execution and read by scans and reports.
 type Summary struct {
-	Schema           int            `json:"schema"`
-	Disposition      string         `json:"disposition"` // complete | limited
-	Platform         string         `json:"platform,omitempty"`
-	OSName           string         `json:"os_name,omitempty"`
-	OSVersion        string         `json:"os_version,omitempty"`
-	SoftwareChecked  int            `json:"software_checked"`
-	SoftwareUnmapped int            `json:"software_unmapped"`
-	Findings         int            `json:"findings"`
-	Omitted          int            `json:"omitted"`
-	BySeverity       map[string]int `json:"by_severity"`
-	KnownExploited   int            `json:"known_exploited"`
-	Exposed          int            `json:"exposed"`
-	RebootRequired   int            `json:"reboot_required"`
-	Hardening        int            `json:"hardening"`
-	Notes            []Note         `json:"notes"`
-	Provenance       Provenance     `json:"provenance"`
+	Schema                 int            `json:"schema"`
+	Disposition            string         `json:"disposition"` // complete | limited
+	Platform               string         `json:"platform,omitempty"`
+	OSName                 string         `json:"os_name,omitempty"`
+	OSVersion              string         `json:"os_version,omitempty"`
+	SoftwareChecked        int            `json:"software_checked"`
+	SoftwareUnmapped       int            `json:"software_unmapped"`
+	SoftwareUnmappedCommon int            `json:"software_unmapped_common,omitempty"`
+	UnmappedCommonNames    []string       `json:"unmapped_common_names,omitempty"`
+	SoftwareIgnored        int            `json:"software_ignored,omitempty"` // sistem/Store/driver/duplikat: tidak dihitung sebagai "belum terpetakan"
+	Findings               int            `json:"findings"`
+	Omitted                int            `json:"omitted"`
+	BySeverity             map[string]int `json:"by_severity"`
+	KnownExploited         int            `json:"known_exploited"`
+	Exposed                int            `json:"exposed"`
+	RebootRequired         int            `json:"reboot_required"`
+	Hardening              int            `json:"hardening"`
+	Notes                  []Note         `json:"notes"`
+	Provenance             Provenance     `json:"provenance"`
 }
 
 // Finding mirrors the finding shape accepted by the execution service.

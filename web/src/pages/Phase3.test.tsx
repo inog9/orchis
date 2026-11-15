@@ -201,7 +201,7 @@ describe('FindingsPage', () => {
   it('keadaan kosong mengajak membuka organisasi', async () => {
     route(analyst, (u) => (u.includes('/findings') ? json({ items: [], next_cursor: null, search: 'none' }) : undefined));
     mount(<FindingsPage />, '/findings');
-    expect(await screen.findByText('No findings yet')).toBeInTheDocument();
+    expect(await screen.findByText('No critical findings')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /open organisations/i })).toBeInTheDocument();
   });
 

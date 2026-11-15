@@ -118,6 +118,9 @@ func TestHackbotScanLifecycle(t *testing.T) {
 				code = 3
 			}
 			result := execution.Result{ExitCode: &code, Hackbot: &hackbot.Result{Schema: 1, ReviewCompleted: reviewed, SessionID: "session-1", Disposition: disposition, Phase: "report", Summary: strings.Repeat("tested ", 350), Report: "# Full fixture report\n\ntoken=supersecret", Validation: "# Internal validation ledger", Findings: []hackbot.Finding{{ID: "f1", Title: "Verified issue", Value: "http://127.0.0.1:8080/#f1", Severity: "medium", Details: json.RawMessage(`{"verdict":"VALIDATED","reason":"Controlled fixture evidence"}`)}}}}
+			if disposition != "complete" {
+				result.Hackbot.Blockers = []string{"Authenticated routes were not tested: credentials unavailable."}
+			}
 			if got := inj("/result", result); got.Status != 204 {
 				t.Fatalf("result: %d %s", got.Status, got.Body)
 			}
@@ -149,6 +152,48 @@ func TestHackbotScanLifecycle(t *testing.T) {
 			if scan.LimitedCoverage != (disposition != "complete" || failedScanner != "") {
 				t.Fatal("coverage flag is incorrect")
 			}
+			expectedCompletion := ""
+			if overall == "incomplete" && failedScanner == "" && disposition != "complete" {
+				expectedCompletion = "finished"
+			}
+			if scan.CompletionStatus != expectedCompletion {
+				t.Fatalf("run completion: got %q want %q", scan.CompletionStatus, expectedCompletion)
+			}
+			if disposition != "complete" {
+				web := hackbotJob(scan.Jobs)
+				if web.CompletionStatus != "finished" || len(web.Limitations) != 1 {
+					t.Fatalf("final report lost completion or limitations: %+v", web)
+				}
+			}
+			var listing struct {
+				Items []scans.Scan `json:"items"`
+			}
+			listed := a.do("GET", "/api/v1/scans", nil, analyst)
+			listed.JSON(&listing)
+			if listed.Status != 200 || len(listing.Items) != 1 || listing.Items[0].CompletionStatus != expectedCompletion {
+				t.Fatalf("list/detail completion differs: %d %s", listed.Status, listed.Body)
+			}
+
+			if expectedCompletion == "finished" {
+				var originalOutcome string
+				if err := env.Owner.QueryRow(ctx, `SELECT outcome FROM executions WHERE id=$1`, id).Scan(&originalOutcome); err != nil {
+					t.Fatal(err)
+				}
+				for _, interrupted := range []string{"canceled", "timeout"} {
+					if _, err := env.Owner.Exec(ctx, `UPDATE executions SET outcome=$2 WHERE id=$1`, id, interrupted); err != nil {
+						t.Fatal(err)
+					}
+					var stopped scans.Scan
+					a.do("GET", "/api/v1/scans/"+scan.ID.String(), nil, analyst).JSON(&stopped)
+					if stopped.CompletionStatus != "" || hackbotJob(stopped.Jobs).CompletionStatus != "" {
+						t.Fatalf("%s run displayed as completed", interrupted)
+					}
+				}
+				if _, err := env.Owner.Exec(ctx, `UPDATE executions SET outcome=$2 WHERE id=$1`, id, originalOutcome); err != nil {
+					t.Fatal(err)
+				}
+			}
+
 			if len(strings.Fields(scan.Summary)) > 300 {
 				t.Fatal("summary exceeds limit")
 			}

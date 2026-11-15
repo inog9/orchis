@@ -9,7 +9,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/netip"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -22,12 +25,12 @@ import (
 
 // AgentRow adalah info agent untuk satu aset.
 type AgentRow struct {
-	ID             uuid.UUID
-	Hostname       string
-	Status         string
+	ID              uuid.UUID
+	Hostname        string
+	Status          string
 	UninstallStatus string
-	RevokedAt      *time.Time
-	LastHeartbeat  *time.Time
+	RevokedAt       *time.Time
+	LastHeartbeat   *time.Time
 }
 
 // Connection adalah satu koneksi keluar yang di-agregasi per (proses, tujuan).
@@ -74,9 +77,16 @@ var adminGroups = map[string]bool{"root": true, "admin": true, "administrators":
 func Run(in Input) []Finding {
 	var out []Finding
 	out = append(out, ruleTamper(in)...)
-	out = append(out, ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
+	for _, f := range ruleDiff(in, "osquery.network", "port|address", "new_listening_port", "high", func(r map[string]string) (string, string) {
 		return fmt.Sprintf("%s:%s", r["address"], r["port"]), fmt.Sprintf("New listening port %s on %s", r["port"], r["address"])
-	})...)
+	}) {
+		if row, ok := f.Details["row"].(map[string]string); ok && isEphemeralPort(row["port"]) {
+			continue // port dinamis/sementara (32768+) berganti terus: bukan sinyal, hanya kebisingan
+		} else if ok {
+			f.Severity = listeningSeverity(row["address"], row["port"], row["process"])
+		}
+		out = append(out, f)
+	}
 	for _, key := range []string{"osquery.packages", "osquery.macos_apps", "osquery.programs"} {
 		out = append(out, ruleDiff(in, key, "name|version", "new_software_installed", "high", func(r map[string]string) (string, string) {
 			return r["name"] + "|" + r["version"], fmt.Sprintf("New software installed: %s %s", r["name"], r["version"])
@@ -112,6 +122,10 @@ func ruleTamper(in Input) []Finding {
 func ruleDiff(in Input, key, keySep, ftype, severity string, mk func(map[string]string) (string, string)) []Finding {
 	cur := in.Datasets[key]
 	if cur == nil {
+		return nil
+	}
+	// Tanpa baseline (putaran pertama) semua baris akan tampak "baru": cukup catat baseline, jangan buat temuan.
+	if _, ok := in.Baselines[key]; !ok {
 		return nil
 	}
 	old := map[string]bool{}
@@ -171,7 +185,12 @@ func ruleAccounts(in Input) []Finding {
 	for _, r := range in.Baselines["osquery.users"] {
 		oldUsers[r["uid"]+"|"+r["username"]] = true
 	}
+	_, haveUsersBaseline := in.Baselines["osquery.users"]
+	_, haveGroupsBaseline := in.Baselines["osquery.user_groups"]
 	for _, r := range users {
+		if !haveUsersBaseline {
+			break
+		}
 		k := r["uid"] + "|" + r["username"]
 		if oldUsers[k] {
 			continue
@@ -181,7 +200,7 @@ func ruleAccounts(in Input) []Finding {
 			sev = "critical"
 		}
 		out = append(out, Finding{Type: "new_local_account", Value: k, Severity: sev,
-			Title: fmt.Sprintf("New local account %s (uid %s)", r["username"], r["uid"]),
+			Title:   fmt.Sprintf("New local account %s (uid %s)", r["username"], r["uid"]),
 			Details: map[string]any{"row": r, "uid0": r["uid"] == "0"}})
 	}
 	// group admin baru
@@ -198,6 +217,9 @@ func ruleAccounts(in Input) []Finding {
 		userNames[r["uid"]] = r["username"]
 	}
 	for _, r := range in.Datasets["osquery.user_groups"] {
+		if !haveGroupsBaseline {
+			break
+		}
 		k := r["user_id"] + "|" + r["group_id"]
 		if oldG[k] {
 			continue
@@ -207,7 +229,7 @@ func ruleAccounts(in Input) []Finding {
 			continue
 		}
 		out = append(out, Finding{Type: "new_local_account", Value: "admin:" + userNames[r["user_id"]], Severity: "critical",
-			Title: fmt.Sprintf("Account %s added to privileged group %s", userNames[r["user_id"]], gname),
+			Title:   fmt.Sprintf("Account %s added to privileged group %s", userNames[r["user_id"]], gname),
 			Details: map[string]any{"user": userNames[r["user_id"]], "group": gname}})
 	}
 	return out
@@ -253,7 +275,7 @@ func ruleConnections(in Input) []Finding {
 			sort.Ints(portList)
 			out = append(out, Finding{
 				Type: "c2_suspect_connection", Value: dst, Severity: sev,
-				Title: fmt.Sprintf("Suspicious outbound connections to %s (%d conns, ports %v)", dst, total, portList),
+				Title:   fmt.Sprintf("Suspicious outbound connections to %s (%d conns, ports %v)", dst, total, portList),
 				Details: map[string]any{"dst": dst, "connections": total, "ports": portList, "processes": plist, "non_standard_port": nonStd, "beacon_like": total >= 10},
 			})
 		}
@@ -261,7 +283,10 @@ func ruleConnections(in Input) []Finding {
 	return out
 }
 
-// Write menyimpan findings (upsert seperti execution) dan memicu alert untuk yang critical.
+// networkTypes: hanya deteksi jaringan berseverity high yang memicu alert; high lain (aplikasi, akun, agent) cukup jadi temuan.
+var networkTypes = map[string]bool{"new_listening_port": true, "c2_suspect_connection": true}
+
+// Write menyimpan findings (upsert seperti execution) dan memicu alert untuk yang high (warning) dan critical.
 func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 	for _, f := range findings {
 		h := sha256.Sum256([]byte(f.Type + "\x00" + f.Value))
@@ -270,15 +295,22 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 		err := tx.QueryRow(ctx, `INSERT INTO findings(id,tenant_id,asset_id,type,value,value_hash,title,severity,details,organization_id,subject_address)
  VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NULL)
  ON CONFLICT (tenant_id, asset_id, type, value_hash) WHERE asset_id IS NOT NULL
- DO UPDATE SET last_seen_at=now(),occurrence_count=findings.occurrence_count+1,title=EXCLUDED.title,severity=EXCLUDED.severity,details=EXCLUDED.details
+ DO UPDATE SET last_seen_at=now(),occurrence_count=findings.occurrence_count+1,title=EXCLUDED.title,severity=EXCLUDED.severity,details=EXCLUDED.details,
+   absent_count=0,absent_collected_at=NULL,
+   triage_status=CASE WHEN findings.triage_status='stale' THEN 'open' ELSE findings.triage_status END,
+   triage_reason=CASE WHEN findings.triage_status='stale' THEN '' ELSE findings.triage_reason END
  RETURNING id`, ids.New(), in.Tenant, in.Asset, f.Type, f.Value, hex.EncodeToString(h[:]), f.Title, f.Severity, details, in.OrgID).Scan(&fid)
 		if err != nil {
 			return err
 		}
-		if f.Severity == "critical" {
+		if f.Severity == "critical" || (f.Severity == "high" && networkTypes[f.Type]) {
+			sev, label := "warning", "Endpoint detection"
+			if f.Severity == "critical" {
+				sev, label = "critical", "Critical endpoint detection"
+			}
 			if err := alerts.Raise(ctx, tx, in.Tenant, alerts.New{
-				Kind: "blueteam_critical", Severity: "critical",
-				Title: "Critical endpoint detection on " + in.AssetName,
+				Kind: "blueteam_" + f.Severity, Severity: sev,
+				Title: label + " on " + in.AssetName,
 				Body:  f.Title, ResourceType: "finding", ResourceID: &fid,
 				Audience: authz.FindingRead, DedupeKey: "blueteam:" + fid.String(),
 			}); err != nil {
@@ -292,7 +324,10 @@ func Write(ctx context.Context, tx pgx.Tx, in Input, findings []Finding) error {
 // UpdateBaselines menyimpan rows dataset sebagai baseline berikutnya.
 func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, datasets map[string][]map[string]string, keys []string) error {
 	for _, k := range keys {
-		rows := datasets[k]
+		rows, ok := datasets[k]
+		if !ok || rows == nil {
+			continue // dataset belum pernah terkumpul: jangan simpan baseline kosong (nanti semua baris tampak "baru")
+		}
 		raw, _ := json.Marshal(rows)
 		h := sha256.Sum256(raw)
 		if _, err := tx.Exec(ctx, `INSERT INTO endpoint_baselines(tenant_id,asset_id,query_key,rows,rows_hash,updated_at)
@@ -302,4 +337,37 @@ func UpdateBaselines(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, da
 		}
 	}
 	return nil
+}
+
+// isEphemeralPort: rentang port dinamis dipakai OS untuk soket sementara dan berganti tiap menit: Windows/macOS 49152+, Linux 32768-60999. Dipakai 32768+ agar aman di semua OS.
+func isEphemeralPort(p string) bool {
+	n, err := strconv.Atoi(p)
+	return err == nil && n >= 32768
+}
+
+// Port layanan sensitif: terbuka ke jaringan = permukaan serangan langsung.
+var sensitivePorts = map[int]bool{21: true, 22: true, 23: true, 135: true, 139: true, 445: true, 1433: true, 2375: true, 3306: true, 3389: true,
+	5432: true, 5900: true, 5985: true, 5986: true, 6379: true, 9200: true, 11211: true, 27017: true}
+
+// Interpreter/shell yang membuka port biasanya server ad-hoc (python -m http.server, nc, reverse shell), bukan layanan sistem.
+var adhocProcesses = []string{"python", "powershell", "pwsh", "cmd", "node", "nc", "ncat", "netcat", "socat", "perl", "ruby", "php", "bash", "sh"}
+
+// listeningSeverity menilai port listening baru berdasarkan keterpaparan dan jenis prosesnya:
+// loopback/link-local = low (tidak terjangkau dari jaringan); terpapar + port sensitif atau proses ad-hoc = critical; lainnya high.
+func listeningSeverity(address, port, process string) string {
+	if ip, err := netip.ParseAddr(address); err == nil {
+		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+			return "low"
+		}
+	}
+	if n, err := strconv.Atoi(port); err == nil && sensitivePorts[n] {
+		return "critical"
+	}
+	p := strings.ToLower(strings.TrimSuffix(strings.ToLower(process), ".exe"))
+	for _, a := range adhocProcesses {
+		if p == a || strings.HasPrefix(p, a) && len(p) > len(a) && strings.ContainsAny(p[len(a):], "0123456789.-_") {
+			return "critical"
+		}
+	}
+	return "high"
 }

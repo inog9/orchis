@@ -248,7 +248,9 @@ func (s *Service) ListFindings(ctx context.Context, p *auth.Principal, f Finding
 			args = append(args, v)
 			where = append(where, strings.ReplaceAll(cond, "?", "$"+strconv.Itoa(len(args))))
 		}
-		if f.Type != "" {
+		if f.Type == MonitoringGroup {
+			add("f.type=ANY(?)", monitoringTypeList)
+		} else if f.Type != "" {
 			add("f.type=?", f.Type)
 		}
 		if f.Severity != "" {
@@ -304,11 +306,23 @@ func (s *Service) ListFindings(ctx context.Context, p *auth.Principal, f Finding
 
 func isFindingType(t string) bool {
 	switch t {
-	case "open_port", "port_scan", "service", "vulnerability", "url", "text":
+	case "open_port", "port_scan", "service", "vulnerability", "url", "text", MonitoringGroup:
 		return true
 	}
-	return false
+	return monitoringTypeSet[t]
 }
+
+// MonitoringGroup adalah filter gabungan untuk semua deteksi endpoint monitor (blue team).
+const MonitoringGroup = "monitoring"
+
+var monitoringTypeList = []string{"agent_tamper", "agent_unresponsive", "new_listening_port", "new_software_installed", "new_local_account", "c2_suspect_connection"}
+var monitoringTypeSet = func() map[string]bool {
+	m := map[string]bool{"net_connection": true}
+	for _, t := range monitoringTypeList {
+		m[t] = true
+	}
+	return m
+}()
 
 func (s *Service) GetFinding(ctx context.Context, p *auth.Principal, id uuid.UUID) (*Finding, error) {
 	var out *Finding

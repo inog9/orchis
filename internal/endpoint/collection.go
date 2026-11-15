@@ -163,13 +163,17 @@ func (s *Service) CollectTick(ctx context.Context, tenant uuid.UUID, interval ti
 // enqueueCollection queues one approved fixed query for one agent. The same definition is reused per agent and query; there
 // is no shell and no user-supplied SQL. actor is the administrator whose approval allows the collection.
 func (s *Service) enqueueCollection(ctx context.Context, tx pgx.Tx, tenant, agent, asset, actor uuid.UUID, q *osquery.Query, automatic bool) error {
+	return s.enqueueKey(ctx, tx, tenant, agent, asset, actor, q.Key, q.Title, automatic)
+}
+
+func (s *Service) enqueueKey(ctx context.Context, tx pgx.Tx, tenant, agent, asset, actor uuid.UUID, key, title string, automatic bool) error {
 	var contract uuid.UUID
 	var version int
-	if err := tx.QueryRow(ctx, `SELECT id,version FROM contracts WHERE tenant_id=$1 AND key=$2 AND is_active ORDER BY version DESC LIMIT 1`, tenant, q.Key).Scan(&contract, &version); err != nil {
-		return fmt.Errorf("endpoint contract %s: %w", q.Key, err)
+	if err := tx.QueryRow(ctx, `SELECT id,version FROM contracts WHERE tenant_id=$1 AND key=$2 AND is_active ORDER BY version DESC LIMIT 1`, tenant, key).Scan(&contract, &version); err != nil {
+		return fmt.Errorf("endpoint contract %s: %w", key, err)
 	}
-	test := uuid.NewSHA1(agent, []byte("endpoint-collection:"+q.Key))
-	if _, err := tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,target_asset_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(tenant_id,id) DO UPDATE SET contract_id=EXCLUDED.contract_id,contract_version=EXCLUDED.contract_version,deleted_at=NULL`, test, tenant, "Endpoint collection: "+q.Title, contract, version, asset, actor); err != nil {
+	test := uuid.NewSHA1(agent, []byte("endpoint-collection:"+key))
+	if _, err := tx.Exec(ctx, `INSERT INTO atomic_tests(id,tenant_id,name,contract_id,contract_version,target_asset_id,created_by) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(tenant_id,id) DO UPDATE SET contract_id=EXCLUDED.contract_id,contract_version=EXCLUDED.contract_version,deleted_at=NULL`, test, tenant, "Endpoint collection: "+title, contract, version, asset, actor); err != nil {
 		return err
 	}
 	p := &auth.Principal{TenantID: tenant, UserID: actor}
@@ -177,10 +181,10 @@ func (s *Service) enqueueCollection(ctx context.Context, tx pgx.Tx, tenant, agen
 	if err := s.Exec.QueueTest(ctx, tx, p, test, execID, "", "endpoint-collection"); err != nil {
 		return err
 	}
-	if err := audit.Write(ctx, tx, audit.Entry{Tenant: tenant, Action: "endpoint.collection.enqueue", ResourceType: "execution", ResourceID: &execID, Detail: map[string]any{"automatic": automatic, "agent_id": agent, "query": q.Key, "consented_by": actor}}); err != nil {
+	if err := audit.Write(ctx, tx, audit.Entry{Tenant: tenant, Action: "endpoint.collection.enqueue", ResourceType: "execution", ResourceID: &execID, Detail: map[string]any{"automatic": automatic, "agent_id": agent, "query": key, "consented_by": actor}}); err != nil {
 		return err
 	}
-	_, err := tx.Exec(ctx, `INSERT INTO endpoint_collection_schedule(tenant_id,agent_id,query_key,atomic_test_id) VALUES($1,$2,$3,$4) ON CONFLICT(tenant_id,agent_id,query_key) DO UPDATE SET last_enqueued_at=now()`, tenant, agent, q.Key, test)
+	_, err := tx.Exec(ctx, `INSERT INTO endpoint_collection_schedule(tenant_id,agent_id,query_key,atomic_test_id) VALUES($1,$2,$3,$4) ON CONFLICT(tenant_id,agent_id,query_key) DO UPDATE SET last_enqueued_at=now()`, tenant, agent, key, test)
 	return err
 }
 
@@ -250,7 +254,10 @@ func (s *Service) RunCollection(ctx context.Context, tenant uuid.UUID, interval 
 	defer tick.Stop()
 	for {
 		if err := s.CollectTick(ctx, tenant, interval); err != nil {
-			slog.Error("endpoint collection failed", "err", err)
+			slog.Error("endpoint collection failed", "err", errDetail(err))
+		}
+		if err := s.ConnectionsTick(ctx, tenant, ConnectionsInterval); err != nil {
+			slog.Error("connections collection failed", "err", errDetail(err))
 		}
 		select {
 		case <-ctx.Done():
@@ -258,4 +265,69 @@ func (s *Service) RunCollection(ctx context.Context, tenant uuid.UUID, interval 
 		case <-tick.C:
 		}
 	}
+}
+
+// ConnectionsInterval: seberapa sering koneksi keluar dikumpulkan dari tiap agent (bahan deteksi C2 blueteam).
+const ConnectionsInterval = time.Minute
+
+// ConnectionsTick menjadwalkan pengumpulan koneksi keluar (kontrak blueteam.connections) untuk agent online pada organisasi
+// yang koleksi endpoint-nya sudah disetujui (ada pengaturan aktif dengan consent berlaku). Tidak ada shell atau SQL pengguna.
+func (s *Service) ConnectionsTick(ctx context.Context, tenant uuid.UUID, interval time.Duration) error {
+	const key = "blueteam.connections"
+	return s.DB.InTenant(ctx, tenant, func(tx pgx.Tx) error {
+		if err := scancontrol.Lock(ctx, tx, tenant); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1,0))`, "endpoint-connections:"+tenant.String()); err != nil {
+			return err
+		}
+		c := osquery.Consent()
+		type item struct{ agent, asset, actor uuid.UUID }
+		var items []item
+		rows, err := tx.Query(ctx, `SELECT g.id,a.id,(SELECT s.consented_by FROM osquery_org_settings s WHERE s.tenant_id=a.tenant_id AND s.organization_id=a.organization_id AND s.enabled AND s.consent_version=$2 AND s.consent_sha256=$3 AND s.consented_by IS NOT NULL ORDER BY s.consented_at DESC LIMIT 1) AS actor
+FROM agents g
+JOIN assets a ON a.tenant_id=g.tenant_id AND a.id=g.asset_id AND a.organization_id=g.organization_id
+JOIN organizations o ON o.tenant_id=a.tenant_id AND o.id=a.organization_id
+LEFT JOIN endpoint_collection_schedule d ON d.tenant_id=g.tenant_id AND d.agent_id=g.id AND d.query_key=$5
+WHERE g.tenant_id=$1 AND g.status='online' AND NOT g.paused AND g.uninstall_status NOT IN('queued','dispatched') AND g.last_heartbeat_at>now()-interval '90 seconds' AND NOT g.is_demo
+AND a.deleted_at IS NULL AND NOT a.is_demo AND NOT o.is_demo AND a.testing_authorized
+AND (d.last_enqueued_at IS NULL OR d.last_enqueued_at<=now()-make_interval(secs=>$4))
+AND NOT EXISTS(SELECT 1 FROM executions e JOIN contracts co ON co.tenant_id=e.tenant_id AND co.id=e.contract_id WHERE e.tenant_id=g.tenant_id AND e.target_asset_id=a.id AND co.key=$5 AND e.state IN ('ready','running'))
+ORDER BY g.id LIMIT 100 FOR SHARE OF g,a`, tenant, c.Version, c.SHA256, interval.Seconds(), key)
+		if err != nil {
+			return err
+		}
+		for rows.Next() {
+			var i item
+			var actor *uuid.UUID
+			if err = rows.Scan(&i.agent, &i.asset, &actor); err != nil {
+				rows.Close()
+				return err
+			}
+			if actor == nil {
+				continue // belum ada persetujuan koleksi yang berlaku untuk organisasi ini
+			}
+			i.actor = *actor
+			items = append(items, i)
+		}
+		rows.Close()
+		if err = rows.Err(); err != nil {
+			return err
+		}
+		for _, i := range items {
+			if err = s.enqueueKey(ctx, tx, tenant, i.agent, i.asset, i.actor, key, "Outbound connections", true); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// errDetail menyertakan field yang ditolak pada galat validasi, supaya log penjadwal bisa didiagnosis.
+func errDetail(err error) string {
+	var p *httpx.Problem
+	if errors.As(err, &p) && len(p.Fields) > 0 {
+		return err.Error() + fmt.Sprintf(" %+v", p.Fields)
+	}
+	return err.Error()
 }

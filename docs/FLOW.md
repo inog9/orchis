@@ -80,3 +80,15 @@ dan tautan perbaikan) dan di checklist aset — tidak ada aset yang disembunyika
 - Hanya satu run orchis-redteam-agent aktif per aset; run kedua ditolak dengan pesan yang jelas.
 - DefenseBot menunggu Nmap aset yang sama pada Full assessment agar tag "seen by scanner" terisi.
 - Data agent tidak dipercaya; koleksi hanya query tetap read-only yang disetujui.
+
+## Penyelesaian pentest dan keterbatasan
+
+Pentest yang telah mengirim laporan akhir berstatus **Completed** pada daftar,
+detail, dan baris engine meskipun ada area yang belum dapat diuji. Keterbatasan
+tampil di deskripsi pentest. Run yang gagal, dibatalkan, timeout, atau belum
+menghasilkan laporan akhir tidak ditampilkan sebagai selesai.
+
+API menambahkan `completion_status` sebagai metadata penyelesaian untuk scan
+dan job. Nilai `status`, `limited_coverage`, dan outcome laporan tetap menyimpan
+fakta cakupan untuk perbandingan dan retest. Status selesai tidak membuktikan
+seluruh area sudah diuji atau bahwa kerentanan sudah diperbaiki.

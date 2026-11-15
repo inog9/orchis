@@ -28,7 +28,7 @@ it('kartu: aset dan otorisasi dari /home, agent online/offline, temuan dari lapo
   expect(within(screen.getByRole('group', { name: 'Agents' })).getByText('1 online · 2 offline')).toBeInTheDocument();
   expect(within(screen.getByRole('group', { name: 'Findings' })).getByLabelText('13')).toBeInTheDocument();
   const last = screen.getByRole('group', { name: 'Last scan' });
-  expect(await within(last).findByText('Finished')).toBeInTheDocument();
+  expect(await within(last).findByText('Completed')).toBeInTheDocument();
   expect(within(last).queryByText(/standard/)).toBeNull();
 });
 

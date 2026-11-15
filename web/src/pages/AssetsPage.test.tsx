@@ -160,30 +160,23 @@ describe('AddAssetDialog', () => {
   };
   const posted = (spy: ReturnType<typeof route>) => spy.mock.calls.map(([, init]) => init).find((init) => init?.method === 'POST');
 
-  it('menampilkan kolom khusus tiap kategori dan menyembunyikan yang tidak relevan', async () => {
-    await open(/^Cloud resource/);
-    const dialog = screen.getByRole('dialog');
-    for (const name of [/Provider/, /Account \/ subscription \/ project ID/, /Resource type/, /Resource ID \/ ARN/]) expect(within(dialog).getByLabelText(name)).toBeInTheDocument();
-    expect(within(dialog).queryByLabelText('Platform')).toBeNull();
-    expect(within(dialog).queryByLabelText('Architecture')).toBeNull();
-    expect(within(dialog).getByText(/Inventory only/)).toBeInTheDocument();
-  });
-
-  it('identity tidak meminta alamat dan menyimpan atribut khususnya', async () => {
-    const spy = await open(/^Identity/);
-    const dialog = screen.getByRole('dialog');
-    expect(within(dialog).queryByRole('textbox', { name: /Addresses|URLs/ })).toBeNull();
-    await userEvent.type(within(dialog).getByLabelText('Name', { exact: true }), 'svc-backup');
-    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
-    expect(await within(dialog).findByText('Choose a value for Identity type.')).toBeInTheDocument();
-    expect(within(dialog).getByText('Principal / login is required.')).toBeInTheDocument();
-    expect(posted(spy)).toBeUndefined();
-    await userEvent.selectOptions(within(dialog).getByLabelText(/Identity type/), 'service_account');
-    await userEvent.type(within(dialog).getByLabelText(/Principal \/ login/), 'svc-backup@corp.local');
-    await userEvent.click(within(dialog).getByRole('button', { name: /create asset/i }));
-    await waitFor(() => expect(posted(spy)).toBeDefined());
-    const body = JSON.parse(String(posted(spy)!.body));
-    expect(body).toMatchObject({ category: 'identity', addresses: [], attributes: { identity_type: 'service_account', principal: 'svc-backup@corp.local' }, is_internet_facing: false, testing_authorized: false });
+  it('hanya Host, Web application dan SaaS yang bisa dipilih; kategori lain "Coming soon" dan tidak bisa diklik', async () => {
+    route((url) => url.includes('/organizations?') ? json({ items: [{ id: 'org-1', name: 'Acme' }], next_cursor: null }) : json({ items: [], next_cursor: null }));
+    mount();
+    await userEvent.click((await screen.findAllByRole('button', { name: /add asset/i }))[0]!);
+    const dialog = await screen.findByRole('dialog');
+    for (const name of [/^Cloud resource/, /^Container/, /^Network device/, /^Mobile device/, /^IoT/, /^Identity/, /^AI target/, /^Generic asset/]) {
+      const card = within(dialog).getByRole('button', { name });
+      expect(card).toBeDisabled();
+      expect(within(card).getByText('Coming soon')).toBeInTheDocument();
+      await userEvent.click(card);
+    }
+    expect(within(dialog).queryByLabelText('Name', { exact: true })).toBeNull(); // tidak ada formulir yang terbuka
+    for (const name of [/^Host/, /^Web application/, /^SaaS application/]) {
+      const card = within(dialog).getByRole('button', { name });
+      expect(card).toBeEnabled();
+      expect(within(card).queryByText('Coming soon')).toBeNull();
+    }
   });
 
   it('menyebut baris alamat yang tidak cocok dengan tipe aset', async () => {

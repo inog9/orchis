@@ -255,7 +255,12 @@ func serve(ctx context.Context, cfg *config.Config) error {
 	go server.Runtime(opts).RunSweeper(ctx, 15*time.Second)
 	go server.SimulationService(opts).RunTicker(ctx, tenant, 15*time.Second)
 	go server.AgentService(opts).RunSweeper(ctx, 15*time.Second, func(err error) { slog.Error("sweep agent gagal", "err", err) })
-	go (&blueteam.Service{DB: d}).RunTicker(ctx, tenant, 5*time.Minute)
+	// Analisis blue team: bawaan 60 detik (batas bawah 15 detik); ORCHIS_BLUETEAM_INTERVAL_SECONDS mengubahnya.
+	blueInterval := time.Minute
+	if v, err := strconv.Atoi(os.Getenv("ORCHIS_BLUETEAM_INTERVAL_SECONDS")); err == nil && v >= 15 {
+		blueInterval = time.Duration(v) * time.Second
+	}
+	go (&blueteam.Service{DB: d}).RunTicker(ctx, tenant, blueInterval)
 	if cfg.AMQPURL != "" {
 		go (&mq.Relay{DB: d, Tenant: tenant, URL: cfg.AMQPURL}).Run(ctx)
 		if es != nil {

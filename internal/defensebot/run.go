@@ -148,6 +148,9 @@ func Run(ctx context.Context, in Input, d Deps) Output {
 	unsupported := map[string]bool{}
 	sum.SoftwareChecked = len(p.Components)
 	sum.SoftwareUnmapped = p.Unmapped
+	sum.SoftwareIgnored = p.Ignored
+	sum.SoftwareUnmappedCommon = p.UnmappedCommon
+	sum.UnmappedCommonNames = p.UnmappedCommonNames
 	var cands []*candidate
 	if len(p.Components) > 0 && d.OSV != nil {
 		pairs := make([]Pair, len(p.Components))

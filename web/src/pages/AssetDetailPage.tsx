@@ -23,6 +23,7 @@ import { EditAssetDialog } from './EditAssetDialog';
 import { AssetReadiness } from '../components/AssetReadiness';
 import { AssetScanHistory } from '../components/AssetScanHistory';
 import { EndpointDataPanel } from '../components/EndpointDataPanel';
+import { MonitoringPanel } from '../components/MonitoringPanel';
 import { categoryOf, PLATFORM_LABEL } from './categories';
 import { NOTES_LABEL, specOf } from './categorySchema';
 import '../components/pen/pen.css';
@@ -402,6 +403,7 @@ export function AssetDetailPage() {
 
       <EndpointSection assetID={a.id} allowed={canEndpoint} />
       {/* Panel orchis-defense-agent (riwayat run + hapus data) dipertahankan apa adanya. */}
+      {formatUI((a.source === 'agent' || a.category === 'host') && <MonitoringPanel assetID={a.id} allowed={can(me, 'finding.read')}/>)}
       <EndpointDataPanel assetID={a.id} allowed={canEndpoint} canRun={false} authorized={a.testing_authorized} canDelete={can(me, 'asset.write') && can(me, 'settings.manage')} />
 
       {/* Tanpa izin baca temuan, section tetap tampil dengan catatan akses (bukan hilang). */}

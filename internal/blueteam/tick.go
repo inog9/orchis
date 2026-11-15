@@ -3,6 +3,7 @@ package blueteam
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -59,20 +60,25 @@ func (s *Service) RunOnce(ctx context.Context, tenant uuid.UUID) error {
 
 func (s *Service) analyzeAsset(ctx context.Context, tx pgx.Tx, tenant, asset uuid.UUID, name string, org *uuid.UUID, now time.Time) error {
 	datasets := map[string][]map[string]string{}
-	drows, err := tx.Query(ctx, `SELECT query_key, rows FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2 AND last_status='ok'`, tenant, asset)
+	drows, err := tx.Query(ctx, `SELECT query_key, rows, collected_at FROM endpoint_datasets WHERE tenant_id=$1 AND asset_id=$2 AND last_status='ok'`, tenant, asset)
 	if err != nil {
 		return err
 	}
+	var networkCollectedAt *time.Time
 	for drows.Next() {
 		var key string
 		var raw []byte
-		if err := drows.Scan(&key, &raw); err != nil {
+		var collected *time.Time
+		if err := drows.Scan(&key, &raw, &collected); err != nil {
 			drows.Close()
 			return err
 		}
 		var rows []map[string]string
 		if err := json.Unmarshal(raw, &rows); err == nil {
 			datasets[key] = rows
+			if key == "osquery.network" {
+				networkCollectedAt = collected
+			}
 		}
 	}
 	drows.Close()
@@ -90,7 +96,7 @@ func (s *Service) analyzeAsset(ctx context.Context, tx pgx.Tx, tenant, asset uui
 			return err
 		}
 		var rows []map[string]string
-		if err := json.Unmarshal(raw, &rows); err == nil {
+		if err := json.Unmarshal(raw, &rows); err == nil && rows != nil { // 'null' = baseline kosong lama: dianggap belum ada
 			baselines[key] = rows
 		}
 	}
@@ -149,6 +155,9 @@ func (s *Service) analyzeAsset(ctx context.Context, tx pgx.Tx, tenant, asset uui
 	if err := Write(ctx, tx, in, findings); err != nil {
 		return err
 	}
+	if err := MarkStale(ctx, tx, in, networkCollectedAt); err != nil {
+		return err
+	}
 	return UpdateBaselines(ctx, tx, tenant, asset, datasets, diffKeys)
 }
 
@@ -161,7 +170,9 @@ func (s *Service) RunTicker(ctx context.Context, tenant uuid.UUID, interval time
 		case <-ctx.Done():
 			return
 		case <-t.C:
-			_ = s.RunOnce(ctx, tenant)
+			if err := s.RunOnce(ctx, tenant); err != nil {
+				slog.Error("analisis blueteam gagal", "err", err)
+			}
 		}
 	}
 }

@@ -9,9 +9,8 @@ import (
 	"orchis-go/internal/endpoint"
 )
 
-func TestEnrollmentNeverCreatesOrganizationalConsent(t *testing.T) {
-	// The shared fixture deliberately sets the deprecated AutoConsent option:
-	// even that must not grant approval on enrollment.
+func TestEnrollmentEnablesCollectionByDefault(t *testing.T) {
+	// Keputusan produk: setelah agent terpasang, koleksi endpoint aktif secara default (pilihan eksplisit yang ada tidak ditimpa).
 	f := newAgentFixture(t)
 	org := createOrg(t, f.a, f.admin, "explicit-consent")
 	r := f.a.do("POST", "/api/v1/agents/enrollment-tokens", map[string]any{"os": "linux", "arch": "x86_64", "mode": "service", "organization_id": org.ID.String()}, f.admin)
@@ -28,8 +27,15 @@ func TestEnrollmentNeverCreatesOrganizationalConsent(t *testing.T) {
 	if err := f.a.env.Owner.QueryRow(context.Background(), `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1`, org.ID).Scan(&n); err != nil {
 		t.Fatal(err)
 	}
-	if n != 0 {
-		t.Fatalf("enrollment granted %d query approvals", n)
+	if n == 0 {
+		t.Fatalf("enrollment enabled no collection queries")
+	}
+	var off int
+	if err := f.a.env.Owner.QueryRow(context.Background(), `SELECT count(*) FROM osquery_org_settings WHERE organization_id=$1 AND NOT enabled`, org.ID).Scan(&off); err != nil {
+		t.Fatal(err)
+	}
+	if off != 0 {
+		t.Fatalf("%d queries left disabled", off)
 	}
 }
 

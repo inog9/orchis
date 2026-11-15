@@ -297,6 +297,29 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now(),$11,$12,NULLIF($13,''))`, agentID, 
 			Detail: map[string]any{"hostname": in.Hostname, "os": in.OS, "arch": in.Arch, "mode": mode, "asset_id": assetID}}); err != nil {
 			return err
 		}
+		if org != nil {
+			// Default: setelah agent terpasang, koleksi endpoint aktif untuk organisasi. Pilihan eksplisit yang sudah ada (termasuk yang dimatikan) tidak diubah.
+			c := osquery.Consent()
+			enabledKeys := []string{}
+			for _, q := range osquery.Queries {
+				if !q.SupportsOS(in.OS) {
+					continue
+				}
+				tag, err := tx.Exec(ctx, `INSERT INTO osquery_org_settings(tenant_id,organization_id,query_key,enabled,updated_by,consent_version,consent_sha256,consented_by,consented_at) VALUES($1,$2,$3,true,$4,$5,$6,$4,now()) ON CONFLICT(tenant_id,organization_id,query_key) DO NOTHING`, s.Tenant, *org, q.Key, createdBy, c.Version, c.SHA256)
+				if err != nil {
+					return err
+				}
+				if tag.RowsAffected() > 0 {
+					enabledKeys = append(enabledKeys, q.Key)
+				}
+			}
+			if len(enabledKeys) > 0 {
+				if err := audit.Write(ctx, tx, audit.Entry{Tenant: s.Tenant, ActorUser: &createdBy, Action: "endpoint.collection.default_enabled", ResourceType: "agent", ResourceID: &agentID, IP: ip,
+					Detail: map[string]any{"queries": enabledKeys, "consent": map[string]any{"version": c.Version, "sha256": c.SHA256}, "reason": "agent enrolled"}}); err != nil {
+					return err
+				}
+			}
+		}
 		out = &Enrolled{AgentID: agentID, Secret: secret, Mode: mode, PollSeconds: PollSeconds}
 		return nil
 	})

@@ -6,7 +6,7 @@ import type { Scan } from './scans';
 export type DefenseNote = { code: string; count?: number; detail?: string; limiting?: boolean };
 export type DefenseSummary = {
   schema: number; disposition: 'complete' | 'limited'; platform?: string; os_name?: string; os_version?: string;
-  software_checked: number; software_unmapped: number; findings: number; omitted: number; by_severity: Record<string, number>;
+  software_checked: number; software_unmapped: number; software_ignored?: number; software_unmapped_common?: number; unmapped_common_names?: string[]; findings: number; omitted: number; by_severity: Record<string, number>;
   known_exploited: number; exposed: number; reboot_required: number; hardening: number; notes: DefenseNote[];
   provenance: { engine: string; ecosystem?: string; collected_at?: string; queried_at: string; kev_date?: string; epss_date?: string };
 };

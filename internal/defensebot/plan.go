@@ -19,18 +19,21 @@ type component struct {
 type cpeComp struct{ Vendor, Product, Name, Version string }
 
 type plan struct {
-	CPE         []cpeComp
-	Ecosystem   string
-	Platform    string
-	OSName      string
-	OSVersion   string
-	Components  []*component
-	Notes       []Note
-	Binary2Src  map[string]string // binary package -> source package
-	Unmapped    int
-	NewestKern  string // version of the newest installed kernel image package
-	RunningABI  string
-	KernelCount int // inactive kernel packages skipped
+	CPE                 []cpeComp
+	Ecosystem           string
+	Platform            string
+	OSName              string
+	OSVersion           string
+	Components          []*component
+	Notes               []Note
+	Binary2Src          map[string]string // binary package -> source package
+	Unmapped            int
+	UnmappedCommon      int
+	UnmappedCommonNames []string
+	Ignored             int    // program sistem/Store/driver/duplikat yang tidak relevan untuk pemeriksaan kerentanan
+	NewestKern          string // version of the newest installed kernel image package
+	RunningABI          string
+	KernelCount         int // inactive kernel packages skipped
 }
 
 var kernelPkgRe = regexp.MustCompile(`^linux-(?:image|image-unsigned|modules|modules-extra|headers|tools|cloud-tools|buildinfo|lib-rust)-(\d+\.\d+\.\d+-\d+)(?:-(.+))?$`)
@@ -212,27 +215,96 @@ func buildPlan(in Input, aiCPE map[string]cpeComp) *plan {
 	}
 	unmapped := 0
 	if rows, _, ok := okRows(in, QueryApps); ok {
+		seenMapped := map[string]bool{}
+		seenMacUnmapped := map[string]bool{}
 		for _, r := range rows {
+			version := strings.TrimSpace(r["version"])
+			if strings.Contains(strings.ToLower(r["name"]), " helper") {
+				p.Ignored++ // proses pembantu: aplikasi utamanya yang diperiksa (versi helper bisa berbeda dari versi produk)
+				continue
+			}
 			if v, pr, mapped := cpeFor(r["name"], r["bundle_identifier"]); mapped {
-				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+				// Aplikasi + helper-nya (mis. Brave dan 4 "Helper") adalah satu produk: periksa dan laporkan sekali.
+				if k := v + ":" + pr + ":" + version; !seenMapped[k] {
+					seenMapped[k] = true
+					p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: version})
+				}
 				continue
 			}
 			if c, ok := aiCPE[AppKey(r["name"])]; ok {
 				p.CPE = append(p.CPE, c)
 				continue
+			}
+			if isNoiseMacApp(r["name"], r["bundle_identifier"]) {
+				p.Ignored++
+				continue
+			}
+			if k := strings.ToLower(strings.TrimSpace(r["name"])) + "|" + version; seenMacUnmapped[k] {
+				p.Ignored++
+				continue
+			} else {
+				seenMacUnmapped[k] = true
+			}
+			if isCommonProgram(r["name"]) {
+				p.UnmappedCommon++
+				if len(p.UnmappedCommonNames) < 25 {
+					p.UnmappedCommonNames = append(p.UnmappedCommonNames, strings.TrimSpace(r["name"]))
+				}
 			}
 			unmapped++
 		}
 	}
 	if rows, _, ok := okRows(in, QueryPrograms); ok {
+		seenProg := map[string]bool{}
+		seenUnmapped := map[string]bool{}
 		for _, r := range rows {
-			if v, pr, mapped := cpeFor(r["name"], ""); mapped {
-				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: strings.TrimSpace(r["version"])})
+			// Nama program Windows memuat versi dan arsitektur ("7-Zip 26.00 (x64)"): cocokkan juga nama yang dinormalisasi.
+			clean, nameVer := normalizeProgramName(r["name"])
+			version := strings.TrimSpace(r["version"])
+			if version == "" {
+				version = nameVer
+			}
+			v, pr, mapped := cpeFor(r["name"], "")
+			if !mapped {
+				v, pr, mapped = cpeFor(clean, "")
+			}
+			if mapped {
+				if pr == "python" {
+					if nameVer != "" {
+						version = nameVer // "Python 3.10.6 (64-bit)": versi di nama lebih tepat daripada versi MSI
+					} else {
+						version = pythonCPEVersion(version)
+					}
+				}
+				k := v + ":" + pr + ":" + version
+				if seenProg[k] { // entri ganda (per-user/per-mesin) tidak diperiksa dua kali
+					continue
+				}
+				seenProg[k] = true
+				p.CPE = append(p.CPE, cpeComp{Vendor: v, Product: pr, Name: r["name"], Version: version})
 				continue
 			}
 			if c, ok := aiCPE[AppKey(r["name"])]; ok {
 				p.CPE = append(p.CPE, c)
 				continue
+			}
+			if isNoiseProgram(r["name"]) {
+				p.Ignored++
+				continue
+			}
+			// Program yang sama (nama+versi) dari instalasi per-user dan per-mesin dihitung sekali.
+			if k := strings.ToLower(strings.TrimSpace(r["name"])) + "|" + strings.TrimSpace(r["version"]); seenUnmapped[k] {
+				p.Ignored++
+				continue
+			} else {
+				seenUnmapped[k] = true
+			}
+			if k := "common:" + strings.ToLower(strings.TrimSpace(r["name"])); isCommonProgram(r["name"]) && !seenUnmapped[k] {
+				seenUnmapped[k] = true
+				p.UnmappedCommon++
+				if len(p.UnmappedCommonNames) < 25 {
+					p.UnmappedCommonNames = append(p.UnmappedCommonNames, strings.TrimSpace(r["name"]))
+				}
 			}
 			unmapped++
 		}

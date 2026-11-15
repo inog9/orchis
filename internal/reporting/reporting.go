@@ -102,6 +102,7 @@ type Asset struct {
 	Discovered          bool                `json:"discovered,omitempty"`
 	Endpoint            *osquery.Posture    `json:"endpoint,omitempty"`
 	Defense             *defensebot.Summary `json:"defense,omitempty"`
+	Monitoring          []Finding           `json:"monitoring,omitempty"`
 	ID                  uuid.UUID           `json:"id"`
 	Name                string              `json:"name"`
 	Status              string              `json:"status"`
@@ -272,6 +273,9 @@ func (s *Service) Freeze(ctx context.Context, tx pgx.Tx, tenant uuid.UUID) error
 				return a.Findings[i].ID < a.Findings[j].ID
 			})
 			if a.Endpoint, e = endpointPosture(ctx, tx, tenant, a); e != nil {
+				return e
+			}
+			if a.Monitoring, e = monitoringFindings(ctx, tx, tenant, a.ID); e != nil {
 				return e
 			}
 			snap.Assets = append(snap.Assets, a)
