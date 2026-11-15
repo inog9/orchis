@@ -129,4 +129,13 @@ pengujian tetap ada pada Anda.
 
 ## Lisensi
 
-[Apache-2.0](LICENSE). Komponen pihak ketiga tercantum di [NOTICE](NOTICE).
+[ORCHIS Proprietary Use License](LICENSE): boleh memakai aplikasi tanpa
+modifikasi, termasuk untuk audit keamanan komersial. Modifikasi kode dan
+distribusi ulang source code maupun biner memerlukan izin tertulis dari
+pemegang hak cipta. Konfigurasi operasional dan pembagian hasil audit diizinkan.
+
+Lisensi ini tidak mencabut hak atas kode yang sebelumnya dirilis dengan
+Apache-2.0. Salinan lisensi sebelumnya ada di
+[arsip lisensi Apache](docs/licenses/orchis-legacy-Apache-2.0.LICENSE).
+Komponen pihak ketiga tetap memakai lisensinya masing-masing; lihat
+[NOTICE](NOTICE) dan [inventaris lisensi](docs/licenses/README.md).

@@ -1,4 +1,11 @@
-ORCHIS third-party notices
+ORCHIS licensing and third-party notices
+
+Original ORCHIS material released under the current root LICENSE uses the
+ORCHIS Proprietary Use License. Modification and redistribution require
+written permission, subject to the exceptions in that license. Previously
+granted Apache-2.0 rights and all third-party licenses remain unaffected.
+The previous root Apache license is retained in
+docs/licenses/orchis-legacy-Apache-2.0.LICENSE.
 
 The production scanner image includes selected directories from ProjectDiscovery
 nuclei-templates v10.5.1 (http/exposures, http/cves, http/misconfiguration).

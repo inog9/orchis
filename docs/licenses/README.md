@@ -34,3 +34,10 @@ Geologica/IBM Plex Sans memakai font Latin WOFF2 tanpa modifikasi dari Google
 Fonts. Teks OFL dan copyright ada pada geologica.OFL.txt/ibmplexsans.OFL.txt;
 manifest font menyimpan URL, SHA-256, ukuran dan commit sumber lisensinya. Build
 dan renderer memakai aset repository; tidak mengambil font dari internet.
+
+## Lisensi ORCHIS dan versi terdahulu
+
+Lisensi aplikasi saat ini adalah [ORCHIS Proprietary Use License](../../LICENSE).
+`orchis-legacy-Apache-2.0.LICENSE` menyimpan teks root LICENSE sebelum perubahan
+15 November 2026. Hak yang sudah diberikan di bawah Apache-2.0 tetap berlaku;
+lisensi baru tidak mencabutnya dan tidak mengganti lisensi komponen pihak ketiga.
