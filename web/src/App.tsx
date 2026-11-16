@@ -66,7 +66,7 @@ function Guard({ children, guest = false }: {
       </div>);
     }
     if (guest)
-        return me.data ? <Navigate to="/overview" replace/> : <>{formatUI(children)}</>;
+        return me.data ? <Navigate to="/organizations" replace/> : <>{formatUI(children)}</>;
     return me.data ? <>{formatUI(children)}</> : <Navigate to="/login" replace state={{ from: loc.pathname }}/>;
 }
 // Flag presentasi saja: API tetap memeriksa permission, scope dan consent yang sama.
