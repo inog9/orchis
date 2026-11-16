@@ -73,6 +73,8 @@ try {
   await dlg.waitFor({ state: 'detached' });
   await p.getByRole('link', { name: 'Osquery Corporation', exact: true }).click();
   const orgID = p.url().split('/').pop();
+  // Preserve an explicit denial across enrollment; current enrollment approves other supported queries.
+  await api('PUT', `/organizations/${orgID}/osquery/osquery.users`, {enabled:false,version:0});
   await p.getByRole('button', { name: 'Install agent', exact: true }).first().click();
   dlg = p.getByRole('dialog');
   await dlg.getByLabel('Run as').selectOption('user');
@@ -100,10 +102,10 @@ try {
   await p.getByRole('heading', { name: 'orchis-defense-agent', exact: true }).waitFor();
   let d = await endpoint(asset.id);
   const isPack = (i) => i.key.startsWith('osquery.pack.');
-  const manualOnly = ['osquery.inventory', 'osquery.users', 'osquery.network', 'osquery.network_ranges'];
+  const manualOnly = ['osquery.users'];
   ok(d.has_agent && d.items.filter((i) => !isPack(i)).length === 12 && d.items.some(isPack), 'awal: dua belas query bawaan ditambah query pack');
-  ok(manualOnly.every((k) => { const i = item(d, k); return i && !i.enabled && i.status === 'never'; }), 'check Endpoint/network belum disetujui dan belum dikumpulkan');
-  ok(d.items.filter((i) => !manualOnly.includes(i.key)).every((i) => i.enabled), 'query orchis-defense-agent dan seluruh pack runnable otomatis disetujui saat pendaftaran');
+  ok(manualOnly.every((k) => { const i = item(d, k); return i && !i.enabled && i.status === 'never'; }), 'explicitly denied users query remains disabled and uncollected');
+  ok(d.items.filter((i) => !manualOnly.includes(i.key)).every((i) => i.enabled), 'other supported queries and runnable packs are approved by enrollment');
   const me = await api('GET', '/auth/me');
   const consentDocument = (await api('GET', '/osquery/catalog')).consent;
   const consentRef = { version: consentDocument.version, sha256: consentDocument.sha256 };

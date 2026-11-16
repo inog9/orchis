@@ -373,9 +373,9 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	if len(mx.Platforms) < 5 {
 		t.Fatalf("daftar platform untuk filter kosong/terlalu kecil: %v", mx.Platforms)
 	}
-	// Tingkat 1 (mapped): aksi bawaan (T1046, T1595, T1082, T1049, T1518, T1087, T1120, T1016 sebagai induk); tingkat 2 (trained) belum ada
+	// Tingkat 1 (mapped): aksi bawaan (T1046, T1595, T1082, T1049, T1518, T1071, T1087, T1120, T1016 sebagai induk); tingkat 2 (trained) belum ada
 	// eksekusi nyata; tingkat 3 (simulated) belum ada demo.
-	if mx.Mapped != 8 || mx.Exercised != 0 || mx.Simulated != 0 {
+	if mx.Mapped != 9 || mx.Exercised != 0 || mx.Simulated != 0 {
 		t.Fatalf("sebelum demo: mapped=%d exercised=%d simulated=%d", mx.Mapped, mx.Exercised, mx.Simulated)
 	}
 
@@ -384,7 +384,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 		t.Fatal(err)
 	}
 	mx = c.matrix(t, c.analyst)
-	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 8 {
+	if mx.Simulated == 0 || mx.Exercised != 0 || mx.Mapped != 9 {
 		t.Fatalf("setelah demo: mapped=%d exercised=%d simulated=%d (demo tidak boleh jadi trained/mapped)", mx.Mapped, mx.Exercised, mx.Simulated)
 	}
 	var t1190 *struct {
@@ -423,7 +423,7 @@ func TestMitreFullFrozenBundleImportAndThreeCoverageLevels(t *testing.T) {
 	det.Subs, det.Mappings = nil, nil
 	r = c.a.do("GET", "/api/v1/mitre/techniques/T1595", nil, c.analyst)
 	r.JSON(&det)
-	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) != 1 || det.Mappings[0].Via != "T1595.002" {
+	if r.Status != 200 || len(det.Subs) != 3 || len(det.Mappings) != 2 || det.Mappings[0].Via != "T1595.002" || det.Mappings[1].Via != "T1595.002" {
 		t.Fatalf("detail T1595 harus memuat 3 sub-teknik dan pemetaan via T1595.002: %d %s", r.Status, r.Body)
 	}
 }

@@ -41,12 +41,16 @@ await p.getByRole('button', { name: /back to sign in/i }).click();
 
 // 4. masuk benar
 await fill('admin@orchis.local', 'Orchis-Dev-Pass-1');
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 ok(true, 'login benar -> beranda');
 const cookies = await ctx.cookies();
 const sc = cookies.find((c) => c.name === 'orchis_session');
 ok(!!sc && sc.httpOnly && sc.sameSite === 'Lax', 'cookie sesi HttpOnly + SameSite=Lax');
 await p.screenshot({ path: SHOTS + 'home.png' });
+
+const orgResponse=await ctx.request.post(BASE+'/api/v1/organizations',{headers:{'X-Requested-With':'orchis-web'},data:{name:'Inventory laboratory',slug:'inventory-laboratory'}});
+if(!orgResponse.ok())throw Error(await orgResponse.text());
+const org=await orgResponse.json();
 
 // 5. dock dan menu workspace
 ok(await p.getByRole('navigation', { name: 'Primary' }).isVisible(), 'Nav Dock tampil');
@@ -64,14 +68,16 @@ await dlg.waitFor();
 ok((await dlg.locator('.category').count()) === 11, 'dialog menampilkan 11 kategori');
 await p.screenshot({ path: SHOTS + 'add-step1.png' });
 await dlg.getByRole('button', { name: /^Host/ }).click();
+await dlg.getByLabel('Organisation',{exact:true}).selectOption(org.id);
+await dlg.getByLabel('Addresses',{exact:true}).fill('192.0.2.10');
 await dlg.getByRole('button', { name: /create asset/i }).click();
-await dlg.getByText('Name is required').waitFor();
+await dlg.getByText(/Name is required/).waitFor();
 ok(true, 'galat validasi 422 tampil di kolom nama');
 await dlg.getByLabel('Name', { exact: true }).fill('WINTERFELL');
 await dlg.getByLabel('Platform', { exact: true }).selectOption('windows');
 await dlg.getByLabel('Architecture').selectOption('x86_64');
 await dlg.getByLabel('Criticality').selectOption('high');
-await dlg.getByLabel('Addresses', { exact: true }).fill('74.234.220.121\nwinterfell.corp.local');
+await dlg.getByLabel('Addresses', { exact: true }).fill('192.0.2.10\nwinterfell.corp.local');
 await dlg.getByLabel(/I confirm this asset may be tested/i).check();
 await p.screenshot({ path: SHOTS + 'add-step2.png' });
 await dlg.getByRole('button', { name: /create asset/i }).click();
@@ -82,10 +88,11 @@ ok(await p.getByText('Authorized', { exact: true }).isVisible(), 'status otorisa
 // alamat yang tidak valid
 await p.getByRole('button', { name: /add asset/i }).first().click();
 await p.getByRole('dialog').getByRole('button', { name: /^Web application/ }).click();
+await p.getByRole('dialog').getByLabel('Organisation',{exact:true}).selectOption(org.id);
 await p.getByRole('dialog').getByLabel('Name', { exact: true }).fill('portal');
-await p.getByRole('dialog').getByLabel('Addresses', { exact: true }).fill('999.1.1.1');
+await p.getByRole('dialog').getByLabel('URLs', { exact: true }).fill('999.1.1.1');
 await p.getByRole('dialog').getByRole('button', { name: /create asset/i }).click();
-await p.getByRole('dialog').getByText(/Invalid|IP address|hostname|address/i).first().waitFor();
+await p.getByRole('dialog').getByRole('alert').first().waitFor();
 ok(true, 'alamat tidak valid ditolak server dan galatnya tampil');
 await p.keyboard.press('Escape');
 ok((await p.getByRole('dialog').count()) === 0, 'Esc menutup dialog');
@@ -95,7 +102,9 @@ for (const n of ['host-a', 'web-b']) {
   await p.getByRole('button', { name: /add asset/i }).first().click();
   const d = p.getByRole('dialog');
   await d.getByRole('button', { name: n.startsWith('web') ? /^Web application/ : /^Host/ }).click();
+  await d.getByLabel('Organisation',{exact:true}).selectOption(org.id);
   await d.getByLabel('Name', { exact: true }).fill(n);
+  await d.getByLabel(n.startsWith('web')?'URLs':'Addresses',{exact:true}).fill(n.startsWith('web')?'http://127.0.0.1:1':'192.0.2.11');
   await d.getByRole('button', { name: /create asset/i }).click();
   await d.waitFor({ state: 'detached' });
 }

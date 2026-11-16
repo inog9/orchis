@@ -48,9 +48,9 @@ try {
   await p.getByLabel('Email').fill('admin@orchis.local');
   await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
   await p.getByRole('button', { name: /sign in/i }).click();
-  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await p.goto(BASE+'/overview');
-  await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
 
   await api('POST', '/mitre/import');
   const started = Date.now();
@@ -65,7 +65,7 @@ try {
   console.log(`info: impor selesai dalam ${Math.round((Date.now() - started) / 1000)} dtk`);
   ok(m.tactics.map((t) => t.shortname).join(',') === WANT.join(','), 'kolom matriks = 15 taktik dalam urutan resmi (stealth, defense-impairment ...)');
   ok(m.total === 227, `227 teknik induk aktif (dapat ${m.total})`);
-  ok(m.mapped === 8 && m.exercised === 0 && (m.simulated ?? 0) === 0, `awal: mapped=8 trained=0 simulated=0 (dapat ${m.mapped}/${m.exercised}/${m.simulated})`);
+  ok(m.mapped === 9 && m.exercised === 0 && (m.simulated ?? 0) === 0, `awal: mapped=9 trained=0 simulated=0 (dapat ${m.mapped}/${m.exercised}/${m.simulated})`);
   ok(m.last_run.source_version === '20.0' && m.last_run.source_sha256?.length === 64, 'versi ATT&CK 20.0 dan hash sumber tercatat');
   const seen = new Map();
   for (const t of m.tactics) for (const c of t.techniques) seen.set(c.id, (seen.get(c.id) ?? 0) + 1);
@@ -88,9 +88,9 @@ try {
   await p.getByRole('searchbox', { name: 'Search' }).fill('system information');
   ok(await p.getByRole('button', { name: /^T1082 / }).isVisible() && await p.getByRole('button', { name: /^T1046 / }).count() === 0, 'pencarian "system information" menyisakan T1082 (dan bukan T1046)');
   await p.getByRole('searchbox', { name: 'Search' }).fill('');
-  await p.getByLabel('Platform').selectOption('Windows');
+  await p.getByRole('combobox',{name:'Platform',exact:true}).selectOption('Windows');
   const win = await p.locator('button.mcell').count();
-  await p.getByLabel('Platform').selectOption('');
+  await p.getByRole('combobox',{name:'Platform',exact:true}).selectOption('');
   const all = await p.locator('button.mcell').count();
   ok(win > 0 && win < all, `filter platform Windows mengurangi sel (${win} dari ${all})`);
   const onlyMapped = p.locator('label.check', { hasText: 'Only mapped techniques' });
@@ -120,7 +120,7 @@ try {
   await p.getByRole('button', { name: /^T1190 / }).waitFor({ timeout: 30000 });
   ok((await p.getByRole('button', { name: /^T1190 / }).getAttribute('aria-label')).includes('simulated'), 'T1190 ditandai simulated (hanya dari data demo)');
   const m2 = await api('GET', '/mitre/matrix');
-  ok(m2.simulated > 0 && m2.exercised === 0 && m2.mapped === 8, `setelah demo: simulated=${m2.simulated} trained=0 mapped=8`);
+  ok(m2.simulated > 0 && m2.exercised === 0 && m2.mapped === 9, `setelah demo: simulated=${m2.simulated} trained=0 mapped=9`);
   const cellFor = (matrix, id) => matrix.tactics.flatMap((t) => t.techniques).find((c) => c.id === id);
   const simulatedDiscovery = cellFor(m2, 'T1046');
   ok(simulatedDiscovery.mapped && simulatedDiscovery.simulated && simulatedDiscovery.simulated_runs > 0 && simulatedDiscovery.runs === 0, 'T1046 menampilkan mapped dan simulated tanpa menambah run nyata');

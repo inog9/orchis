@@ -13,6 +13,7 @@ function mount() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/overview" element={<p>beranda</p>} />
+          <Route path="/findings" element={<p>viewer findings</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -60,7 +61,7 @@ describe('LoginPage', () => {
 
   it('mengirim kredensial dengan header anti-CSRF lalu pindah ke beranda', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ id: '1', email: 'a@b.c', display_name: 'A', role: 'admin', permissions: [] }), { status: 200 }),
+      new Response(JSON.stringify({ id: '1', email: 'a@b.c', display_name: 'A', role: 'admin', permissions: ['organization.read'] }), { status: 200 }),
     );
     mount();
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.c');
@@ -71,6 +72,15 @@ describe('LoginPage', () => {
     expect(url).toBe('/api/v1/auth/login');
     expect((init!.headers as Record<string, string>)['X-Requested-With']).toBe('orchis-web');
     expect(JSON.parse(init!.body as string)).toEqual({ email: 'a@b.c', password: 'rahasia', remember_me: false });
+  });
+
+  it('lands a Viewer on Findings rather than an inaccessible organisation overview', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({id:'viewer',email:'v@b.c',display_name:'Viewer',role:'viewer',permissions:['finding.read','report.read']})));
+    mount();
+    await userEvent.type(screen.getByLabelText('Email'), 'v@b.c');
+    await userEvent.type(screen.getByLabelText('Password'), 'viewer-password');
+    await userEvent.click(screen.getByRole('button', {name:/sign in/i}));
+    expect(await screen.findByText('viewer findings')).toBeInTheDocument();
   });
 
   it('menampilkan pesan generik pada 401 tanpa membocorkan sisa percobaan', async () => {

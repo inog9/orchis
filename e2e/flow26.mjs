@@ -52,6 +52,7 @@ const defenseRows = (key) => ({
 
 // Injector palsu: mengikuti protokol injector asli — konsumsi dispatch exec.* dari RabbitMQ,
 // klaim lewat API injector dengan token integrasi, lalu kirim hasil deterministik.
+let discoveryGate, releaseDiscovery;
 const AMQP = process.env.E2E_AMQP_URL ?? 'amqp://orchis:orchis@127.0.0.1:15672/';
 async function startFakeInjector() {
   const integs = (await api('GET', '/integrations')).items;
@@ -71,6 +72,7 @@ async function startFakeInjector() {
       if (tok && execID) {
         const claim = await inj(tok, `executions/${execID}/claim`);
         if (claim.ok) {
+          if (key === 'nmap' && discoveryGate) await discoveryGate;
           if (key === 'defensebot') {
             const details = { cve: 'CVE-2024-0001', package: 'libssl3t64', installed_version: '3.0.13-0ubuntu3.4', fixed_version: '3.0.13-0ubuntu3.5', kev: true, exposure: 'exposed', method: 'osv-distro' };
             await inj(tok, `executions/${execID}/result`, { exit_code: 0, defense: { schema: 1, disposition: 'complete', platform: 'ubuntu', software_checked: 2, by_severity: { high: 1 }, findings: 1, known_exploited: 1, notes: [], provenance: { engine: 'defensebot-1', ecosystem: 'Ubuntu:24.04:LTS', queried_at: new Date().toISOString(), osv_pairs: 2, severity_policy: 'advisory', sources: ['OSV (osv.dev)'] } }, findings: [{ type: 'vulnerability', value: 'defensebot:ubuntu:24.04:lts:openssl:cve-2024-0001', title: 'CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4', severity: 'high', details }] });
@@ -103,30 +105,29 @@ await wait(async () => (await page.getByRole('radiogroup', { name: 'Organisation
 await page.getByText('This organisation has no assets yet.').waitFor();
 check(true, 'S1: wizard organisasi kosong meminta menambah aset');
 await page.goto(`${BASE}/organizations/${org.id}`);
-await page.getByRole('heading', { name: 'Coverage' }).waitFor();
-await page.getByText('Every asset is ready to be assessed.').waitFor();
-check(true, 'S1: cakupan organisasi kosong menyatakan semua siap');
+await page.getByRole('heading',{name:org.name,exact:true}).waitFor();
+check(await page.getByRole('link',{name:'Add asset',exact:true}).first().isVisible(),'S1: empty organisation offers asset setup');
 await page.screenshot({ path: `${shots}/s1-empty.png`, fullPage: true });
 
 // ---------- Skenario 2: aset web -> wizard -> tanpa nama Nmap/Nuclei ----------
 const webAsset = await api('POST', '/assets', { name: 'portal.flow.test', category: 'web_application', organization_id: org.id, testing_authorized: true, addresses: [{ kind: 'url', value: 'http://127.0.0.1:18081/' }] });
 await page.goto(`${BASE}/simulations/new?org=${org.id}&asset=${webAsset.id}`);
 await page.getByRole('button', { name: 'Continue' }).click();
-await page.getByRole('radio', { name: 'Web pentest (Hackbot)' }).click();
+await page.getByRole('radio', { name: 'Web pentest (orchis-redteam-agent)' }).click();
 await page.getByRole('button', { name: 'Continue' }).click();
 const webBox = page.getByRole('checkbox', { name: /portal.flow.test/ });
 await webBox.waitFor();
 await wait(async () => (await webBox.isChecked()) ? true : null);
 check(true, 'S2: aset dari ?asset= sudah terpilih');
 await page.getByRole('button', { name: 'Continue' }).click();
-check(await page.getByText('Web pentest (Hackbot)').isVisible(), 'S2: tinjauan menyebut engine');
+check(await page.getByText('Web pentest (orchis-redteam-agent)').isVisible(), 'S2: tinjauan menyebut engine');
 await page.getByRole('button', { name: 'Launch scan' }).click();
 await page.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
 const scan2 = page.url().split('/').pop();
 await page.getByRole('table').waitFor();
 const body2 = await page.locator('body').textContent();
 check(!/\bnmap\b|\bnuclei\b/i.test(body2), 'S2: detail scan tidak menyebut Nmap atau Nuclei');
-check(await page.getByText('Hackbot', { exact: true }).isVisible(), 'S2: baris engine Hackbot tampil');
+check(await page.getByText('orchis-redteam-agent', { exact: true }).isVisible(), 'S2: baris engine Hackbot tampil');
 await page.screenshot({ path: `${shots}/s2-web-wizard.png`, fullPage: true });
 await wait(async () => (await api('GET', `/scans/${scan2}`)).status === 'finished');
 
@@ -139,6 +140,7 @@ const cur = await api('GET', `/assets/${agentAsset}`);
 await api('PUT', `/organizations/${org.id}/assets`, { assets: [{ id: agentAsset, version: cur.version }], testing_authorized: true });
 await page.goto(`${BASE}/assets/${agentAsset}`);
 await page.getByRole('heading', { name: 'Readiness' }).waitFor();
+await page.locator('.ready__checks > summary').click();
 check(await page.getByText('Agent installed and online').locator('..').locator('.status--ok').isVisible(), 'S3: langkah agent hijau di checklist');
 check(await page.getByText('Approved web URL').locator('..').getByText('○').isVisible(), 'S3: langkah URL masih terbuka untuk aset agent');
 await page.screenshot({ path: `${shots}/s3-checklist-agent.png`, fullPage: true });
@@ -174,6 +176,7 @@ await page.goto(`${BASE}/simulations/${scan4}`);
 check(await see(page.locator('.sims__jobs strong', { hasText: 'orchis-defense-agent' })), 'S4: baris engine orchis-defense-agent tampil');
 check(final4.status === 'incomplete' || final4.status === 'finished', 'S4: orchis-defense-agent selesai dengan banner bila terbatas');
 await page.goto(`${BASE}/findings?org=${org.id}`);
+await page.getByRole('button',{name:'Critical',exact:true}).click();
 await page.getByText('CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4').waitFor();
 check(await see(page.locator('.fnd-def--kev, .fnd-def').first()), 'S4: temuan orchis-defense-agent membawa penanda KEV');
 await page.screenshot({ path: `${shots}/s4-defensebot-findings.png`, fullPage: true });
@@ -188,6 +191,7 @@ const fullBox = page.getByRole('checkbox', { name: /flow-box/ });
 await fullBox.waitFor();
 await tick(fullBox);
 await page.getByRole('button', { name: 'Continue' }).click();
+discoveryGate = new Promise(resolve => { releaseDiscovery = resolve; });
 await page.getByRole('button', { name: 'Launch scan' }).click();
 await page.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
 const scan5 = page.url().split('/').pop();
@@ -195,11 +199,12 @@ const scan5 = page.url().split('/').pop();
 const early = await wait(async () => { const d = await api('GET', `/scans/${scan5}`); return (d.jobs ?? []).some((j) => j.tool === 'nmap' && j.status === 'running') ? d : null; });
 const defJobEarly = (early.jobs ?? []).find((j) => j.tool === 'defensebot');
 check(!!defJobEarly && defJobEarly.status === 'waiting', 'S5: orchis-defense-agent menunggu Nmap pada awal full assessment');
+releaseDiscovery();discoveryGate=undefined;
 await answerCollections(enr.secret, defenseRows);
 const final5 = await wait(async () => { const d = await api('GET', `/scans/${scan5}`); return ['finished', 'incomplete'].includes(d.status) ? d : null; }, 90000);
 check(final5.status === 'finished', 'S5: full assessment selesai');
 await page.goto(`${BASE}/simulations/${scan5}`);
-check(await see(page.locator('.sims__jobs strong', { hasText: 'orchis-defense-agent' })) && await see(page.locator('.sims__jobs strong', { hasText: 'Hackbot' })), 'S5: kedua engine tampil sebagai baris terpisah');
+check(await see(page.locator('.sims__jobs strong', { hasText: 'orchis-defense-agent' })) && await see(page.locator('.sims__jobs strong', { hasText: 'orchis-redteam-agent' })), 'S5: kedua engine tampil sebagai baris terpisah');
 const report5 = (await api('GET', `/reports?assessment_id=${scan5}`)).items[0];
 const snap = await api('GET', `/reports/${report5.id}/export/json`);
 const defFinding = (snap.assets ?? []).flatMap((a) => a.findings ?? []).find((f) => (f.evidence?.method ?? '').startsWith('osv'));
@@ -210,11 +215,13 @@ await page.screenshot({ path: `${shots}/s5-full-assessment.png`, fullPage: true 
 
 // ---------- Skenario 6: retest + triage ----------
 await page.goto(`${BASE}/findings?org=${org.id}`);
+await page.getByRole('button',{name:'Critical',exact:true}).click();
 await page.getByText('CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4').first().click();
 await page.getByRole('button', { name: 'Retest' }).click();
 await page.waitForURL(/\/simulations\/[0-9a-f-]{36}$/);
 check(true, 'S6: retest membuka detail scan baru');
 await page.goto(`${BASE}/findings?org=${org.id}`);
+await page.getByRole('button',{name:'Critical',exact:true}).click();
 await page.getByText('CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4').first().click();
 await page.getByLabel('Triage status').selectOption('accepted_risk');
 await page.getByPlaceholder('Reason').fill('Compensating control reviewed by security');
@@ -228,11 +235,11 @@ await page.waitForTimeout(1500);
 check(!(await page.getByText('CVE-2024-0001 in libssl3t64 3.0.13-0ubuntu3.4').first().isVisible().catch(() => false)), 'S6: risiko diterima disembunyikan dari daftar yang perlu ditangani');
 await page.screenshot({ path: `${shots}/s6-triage.png`, fullPage: true });
 
-// ---------- Skenario 7: dashboard cakupan ----------
-await page.goto(`${BASE}/organizations/${org.id}`);
-await page.getByRole('heading', { name: 'Coverage' }).waitFor();
-check(await see(page.getByText('No agent').first()), 'S7: cakupan menandai aset tanpa agent');
-await page.screenshot({ path: `${shots}/s7-coverage.png`, fullPage: true });
+// ---------- Skenario 7: organisation inventory ----------
+await page.goto(`${BASE}/organizations/${org.id}?tab=assets`);
+await page.getByRole('heading',{name:'Assets',exact:true}).waitFor();
+check((await api('GET',`/assets?organization_id=${org.id}`)).items.length===2,'S7: both web and endpoint assets remain in scope');
+await page.screenshot({path:`${shots}/s7-assets.png`,fullPage:true});
 
 // ---------- Skenario 8: dua bahasa dan dua tema ----------
 // Bilah atas kini memakai toggle bahasa EN|ID (dropdown lama diganti, keputusan desain).

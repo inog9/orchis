@@ -29,7 +29,7 @@ const login = async (page, email, password) => {
   await page.getByRole('button', { name: /sign in/i }).click();
 };
 await login(p, 'admin@orchis.local', 'Orchis-Dev-Pass-1');
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 
 // 1. Settings > Platform: ubah nama; komponen
 await p.getByRole('button', { name: /Platform default/ }).click();
@@ -89,7 +89,7 @@ await e.goto(resetUrl);
 await e.getByRole('heading', { name: 'This link can’t be used' }).waitFor();
 ok(true, 'link yang sudah dipakai tidak bisa dipakai lagi');
 await login(e, 'eve@orchis.test', STRONG);
-await e.waitForURL(BASE + '/organizations');
+await e.waitForURL(BASE+'/overview');await e.goto(BASE+'/organizations');
 await e.getByRole('button', { name: /Acme Red Team/ }).click();
 ok(!(await e.getByRole('menuitem', { name: 'Settings' }).isVisible()), 'Eve (analyst) tidak melihat menu Settings: pengaturan hanya untuk Admin');
 await e.goto(BASE + '/settings/users');
@@ -111,7 +111,7 @@ await a3.getByLabel('Email').fill('nobody-here@orchis.test');
 await a3.getByRole('button', { name: /ask for a reset link/i }).click();
 await a3.getByRole('heading', { name: 'Ask your administrator' }).waitFor();
 ok(true, 'jawaban sama untuk email yang ada dan tidak ada (tidak membocorkan akun)');
-await p.goto(BASE + '/');
+await p.goto(BASE + '/overview');
 await p.getByRole('button', { name: /Notifications, 1 unread/ }).waitFor({ timeout: 30000 });
 ok(true, 'lonceng admin menampilkan 1 notifikasi belum dibaca');
 await p.getByRole('button', { name: /Notifications, 1 unread/ }).click();
@@ -122,7 +122,7 @@ await p.waitForURL('**/settings/users');
 await p.getByRole('button', { name: 'Notifications' }).waitFor();
 ok(true, 'membuka notifikasi membawa admin ke Settings > Users dan menandainya dibaca');
 await p.screenshot({ path: SHOTS + 'settings-users.png' });
-const eveNotif = await e.goto(BASE + '/');
+const eveNotif = await e.goto(BASE + '/overview');
 ok((await e.getByRole('button', { name: /^Notifications/ }).getAttribute('aria-label')) === 'Notifications', 'alert khusus admin tidak sampai ke analyst');
 
 // 5. Admin menonaktifkan Eve: sesinya berakhir
@@ -149,7 +149,7 @@ ok(true, 'akun nonaktif tidak bisa masuk');
 // 6. Profil: token API
 await p.getByRole('button', { name: /Acme Red Team/ }).click();
 await p.getByRole('menuitem', { name: 'Profile' }).click();
-await p.getByRole('heading', { name: 'Profile' }).waitFor();
+await p.locator('#profile-title').waitFor();
 await p.getByRole('button', { name: /new token/i }).click();
 dlg = p.getByRole('dialog');
 await dlg.getByLabel('Name').fill('ci-pipeline');
@@ -174,7 +174,7 @@ ok(true, 'ganti password dengan password sekarang yang salah ditolak di kolomnya
 // 7. Integrations: putar token, jadikan online lewat heartbeat, nonaktifkan
 await p.goto(BASE + '/settings/integrations');
 await p.getByRole('list', { name: 'Nmap recent log' }).waitFor();
-const nmapCard = p.locator('li.card', { hasText: 'Nmap' });
+const nmapCard = p.getByRole('rowgroup').filter({has:p.getByText('Nmap',{exact:true})});
 ok(await nmapCard.getByText('Offline').isVisible(), 'injector yang belum terhubung tampil Offline');
 await nmapCard.getByRole('button', { name: 'Create token' }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Create token' }).click();
@@ -183,9 +183,9 @@ await p.getByRole('button', { name: 'Done' }).click();
 ok(/^oij_/.test(nmapToken), 'token injector tampil sekali');
 ok((await inj(nmapToken, 'heartbeat', { version: '1.0.0' })).status === 200, 'injector (simulasi) check-in dengan token baru');
 await p.reload();
-await p.locator('li.card', { hasText: 'Nmap' }).getByText('Running').waitFor();
+await p.getByRole('rowgroup').filter({has:p.getByText('Nmap',{exact:true})}).getByText('Running').waitFor();
 ok(/Injector connected \(version 1\.0\.0\)/.test(await p.getByRole('list', { name: 'Nmap recent log' }).innerText()), 'log menunjukkan sambungan injector');
-await p.locator('li.card', { hasText: 'Nmap' }).getByRole('button', { name: 'Rotate token' }).click();
+await p.getByRole('rowgroup').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button', { name: 'Rotate token' }).click();
 await p.getByRole('dialog').getByRole('button', { name: 'Rotate token' }).click();
 const rotated = await p.getByTestId('injector-token').innerText();
 await p.getByRole('button', { name: 'Done' }).click();
@@ -194,7 +194,7 @@ await p.screenshot({ path: SHOTS + 'settings-integrations.png' });
 
 // 8. People & Teams
 await p.goto(BASE+'/overview');
-await p.getByRole('heading',{name:'Home',exact:true}).waitFor();
+await p.getByRole('heading',{name:'Overview',exact:true}).waitFor();
 await p.keyboard.press('Control+k');
 await p.getByRole('combobox', { name: 'Search or jump to' }).fill('peo');
 await p.getByRole('option', { name: /People/ }).first().waitFor();
@@ -296,7 +296,7 @@ await p.screenshot({ path: SHOTS + 'mitre.png' });
 const run2 = await (await api('POST', `/api/v1/atomic-tests/${tst.id}/run`)).json();
 await inj(rotated, `executions/${run2.id}/claim`);
 await inj(rotated, `executions/${run2.id}/result`, { exit_code: 1, error: 'boom' });
-await p.goto(BASE + '/');
+await p.goto(BASE + '/overview');
 await p.getByRole('button', { name: /Notifications, 1 unread/ }).waitFor({ timeout: 30000 });
 await p.getByRole('button', { name: /Notifications, 1 unread/ }).click();
 ok(await p.getByRole('dialog', { name: 'Notifications' }).getByText('Scan failed on e2e-host').isVisible(), 'scan gagal membuat alert');

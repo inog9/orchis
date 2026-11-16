@@ -9,7 +9,7 @@ export const navigation = [
             return textUI("pen_overview_nav_hint");
         }, to: '/overview', get group() {
             return textUI("m_87bb59ba2f92");
-        }, icon: LayoutDashboard },
+        }, icon: LayoutDashboard, perm: 'organization.read' },
     { id: 'organizations', get label() {
             return textUI("m_7bd34abba2ae");
         }, get hint() {
@@ -56,3 +56,6 @@ export const navigation = [
 ];
 export function advancedEnabled(me: User | null | undefined) { return me?.features?.advanced === true; }
 export function navigationFor(me: User | null | undefined) { return navigation.filter(n => (!n.perm || can(me, n.perm)) && (n.id !== 'schedules' || ['organization.read','asset.read','simulation.read','finding.read','report.read'].every(p=>can(me,p)))); }
+
+// Keep login and already-signed-in redirects on the first page the account can open.
+export function workspaceStart(me: User): string { return navigationFor(me)[0]?.to ?? '/profile'; }

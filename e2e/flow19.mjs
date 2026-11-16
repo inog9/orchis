@@ -8,16 +8,16 @@ const SHOTS='e2e/shots/roles/';mkdirSync(SHOTS,{recursive:true});
 const browser=await chromium.launch();let checks=0;
 const check=(v,msg)=>{assert(v,msg);checks++;console.log('LULUS: '+msg);};
 async function login(page,email,password){await page.goto(BASE+'/login');await page.getByLabel('Email').fill(email);await page.getByLabel('Password',{exact:true}).fill(password);await page.getByRole('button',{name:'Sign in',exact:true}).click();}
-async function audit(page,label){for(const width of [1280,834,390]){await page.setViewportSize({width,height:900});const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']).analyze();check(!result.violations.length,`${label} axe0 @${width}: ${result.violations.map(v=>v.id)}`);check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label} no overflow @${width}`);await page.screenshot({path:SHOTS+`${label}-${width}.png`,fullPage:true});}}
+async function audit(page,label){for(const width of [1280,834,390]){await page.setViewportSize({width,height:900});const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']).analyze();check(!result.violations.length,`${label} axe0 @${width}: ${result.violations.map(v=>v.id)}`);check(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),`${label} no overflow @${width}`);await page.screenshot({path:SHOTS+`${label}-${width}.png`,fullPage:true});}await page.setViewportSize({width:1280,height:900});}
 try {
- const admin=await browser.newContext();const page=await admin.newPage();await login(page,'admin@orchis.local','Orchis-Dev-Pass-1');await page.waitForURL(BASE+'/organizations');
+ const admin=await browser.newContext();const page=await admin.newPage();await login(page,'admin@orchis.local','Orchis-Dev-Pass-1');await page.waitForURL(BASE+'/overview');await page.goto(BASE+'/organizations');
  const headers={'X-Requested-With':'orchis-web'};
  const roles=await (await admin.request.get(BASE+'/api/v1/roles')).json();assert.deepEqual(roles.items.map(r=>r.key),['admin','analyst','viewer']);checks++;
  for(const role of ['viewer','analyst']){
   const created=await admin.request.post(BASE+'/api/v1/users',{headers,data:{email:`role-${role}@example.test`,display_name:`Role ${role}`,role}});check(created.status()===201,`${role} account created`);const c=await created.json();
   const reset=await admin.request.post(BASE+'/api/v1/auth/reset',{headers,data:{token:c.reset_link.token,password:'Role-Test-Password-42'}});check(reset.status()===204,`${role} password set once`);
   const ctx=await browser.newContext();const p=await ctx.newPage();const failures=[],errors=[];p.on('response',r=>{if(r.status()===403)failures.push(r.url());});p.on('pageerror',e=>errors.push(e.message));
-  await login(p,`role-${role}@example.test`,'Role-Test-Password-42');await p.waitForURL(BASE+(role==='viewer'?'/findings':'/organizations'));
+  await login(p,`role-${role}@example.test`,'Role-Test-Password-42');await p.waitForURL(BASE+(role==='viewer'?'/findings':'/overview'));
   if(role==='viewer'){
    await p.getByRole('heading',{name:'Findings',exact:true}).waitFor();
    assert.deepEqual(await p.getByRole('navigation',{name:'Primary',exact:true}).getByRole('link').evaluateAll(nodes=>nodes.map(n=>new URL(n.href).pathname)),['/findings','/reports']);checks++;

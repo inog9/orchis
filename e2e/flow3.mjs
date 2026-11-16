@@ -24,13 +24,13 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 
 await p.goto(BASE+'/overview');
-// 0. Home kosong: langkah awal, bukan deretan nol
-await p.getByRole('heading', { name: 'Your organisation assessment in 5 steps' }).waitFor();
-ok(await p.getByRole('link', { name: 'Install agents or add assets' }).isVisible(), 'Home kosong menampilkan langkah awal');
-ok(await p.getByText('No data yet').isVisible(), 'postur paparan menyebut "No data yet" saat belum ada temuan');
+// Overview describes the current empty workspace without inventing scan coverage.
+await p.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+ok(await p.getByRole('link',{name:'Add your first asset'}).isVisible(),'empty Overview offers asset setup');
+ok(await p.getByText('No critical findings awaiting triage.',{exact:true}).isVisible(),'empty triage queue does not claim safety');
 await p.screenshot({ path: SHOTS + 'home-empty.png' });
 
 // 1. navigasi aktif + keadaan kosong + injector terhubung
@@ -81,8 +81,10 @@ await p.screenshot({ path: SHOTS + 'atomic-nmap-result.png' });
 // 5. halaman Findings + pencarian lewat Elasticsearch
 await p.getByRole('link', { name: 'Findings' }).click();
 await p.waitForURL('**/findings');
+await p.getByRole('button',{name:'Critical',exact:true}).click();
 const rowsLoc = p.getByRole('list', { name: 'Findings' }).getByRole('listitem');
 await rowsLoc.first().waitFor();
+await rowsLoc.first().waitFor({state:'visible'});
 ok((await rowsLoc.count()) >= 1, 'halaman Findings menampilkan temuan');
 let esOk = false;
 for (let i = 0; i < 30 && !esOk; i++) {
@@ -124,10 +126,11 @@ await p.getByRole('button', { name: /^run$/i }).click();
 await p.locator('.runs__item').nth(1).waitFor({ timeout: 10000 });
 await p.waitForFunction(() => document.querySelectorAll('.runs__item .status--ok').length >= 2, null, { timeout: 60000 });
 await p.getByRole('link', { name: 'Findings' }).click();
+await p.getByRole('button',{name:'Critical',exact:true}).click();
 const seenRow = p.getByRole('list', { name: 'Findings' }).getByRole('listitem').filter({ hasText: `tcp/${TARGET_PORT}` }).filter({ hasText: 'Open port' });
 await seenRow.first().waitFor();
 ok((await seenRow.count()) === 1 && /Seen 2×/.test(await seenRow.first().innerText()), 'menjalankan ulang tidak menggandakan finding: satu baris, "Seen 2×"');
-await p.getByLabel('Filter by severity').selectOption('high');
+await p.getByRole('button',{name:'High',exact:true}).click();
 await p.getByText('E2E exposed .env file').first().waitFor();
 ok((await p.getByRole('list', { name: 'Findings' }).getByRole('listitem').count()) === 1, 'filter severity High hanya menyisakan temuan Nuclei');
 await p.screenshot({ path: SHOTS + 'findings.png' });
@@ -156,29 +159,13 @@ ok(gone, 'proses nmap dihentikan di container setelah dibatalkan (heartbeat memb
 await p.screenshot({ path: SHOTS + 'atomic-canceled.png' });
 ok(await p.getByRole('button', { name: /^run$/i }).isVisible(), 'setelah dibatalkan, tombol Run tersedia lagi');
 
-// 9. Home terisi: angka dan daftar mengikuti data nyata
-await p.goto(BASE+'/overview');
-await p.getByRole('heading', { name: 'Exposure posture' }).waitFor();
-const kpi = (label) => p.locator('.kpi', { hasText: label }).first();
-ok((await kpi('Assets').locator('.kpi__value').innerText()).trim() === '2', 'KPI Assets = 2 (e2e-target dan e2e-blackhole)');
-ok((await kpi('Single tests').locator('.kpi__value').innerText()).trim() === '3', 'KPI Single tests = 3');
-ok((await kpi('Vulnerabilities').locator('.kpi__value').innerText()).trim() === '1', 'KPI Vulnerabilities = 1 (temuan Nuclei)');
-ok((await kpi('Vulnerable endpoints').locator('.kpi__value').innerText()).trim() === '1', 'KPI Vulnerable endpoints = 1');
-ok((await kpi('Open ports').locator('.kpi__value').innerText()).trim() === '1', 'KPI Open ports = 1 (satu port, dua kali terlihat tetap dihitung sekali)');
-ok((await p.getByRole('list', { name: 'Vulnerabilities by severity' }).getByRole('listitem').filter({ hasText: 'Info' }).innerText()).trim().endsWith('0'), 'grafik severity hanya menghitung kerentanan: port terbuka tidak masuk bar Info');
-ok(await p.getByText('Elevated exposure').isVisible(), 'tingkat paparan "Elevated" karena ada temuan High tanpa Critical');
-ok((await p.locator('.get-started, h2:has-text("Get started")').count()) === 0, 'langkah awal hilang setelah ada data');
-const latest = p.getByRole('region', { name: 'Latest single tests' });
-ok((await latest.getByRole('listitem').count()) === 4, 'daftar run terbaru memuat 4 run (nmap x2, nuclei, scan lambat)');
-ok(await latest.getByText('Canceled').first().isVisible(), 'run yang dibatalkan tampil sebagai Canceled di Home');
-const exposed = p.getByRole('region', { name: 'Most exposed assets' });
-ok(await exposed.getByRole('link', { name: 'e2e-target' }).isVisible() && await exposed.getByText('1 High').isVisible(), 'aset paling terpapar: e2e-target dengan 1 High');
-await exposed.getByRole('link', { name: 'e2e-target' }).click();
-await p.waitForURL(/\/assets\/[0-9a-f-]{36}$/);
-ok(true, 'tautan aset paling terpapar membuka detail aset');
-await p.goto(BASE + '/overview');
-await p.getByRole('heading', { name: 'Exposure posture' }).waitFor();
-await p.screenshot({ path: SHOTS + 'home-filled.png' });
+// The Overview uses the same findings and inventory as the detailed views.
+await p.goto(BASE+'/overview');await p.getByRole('heading',{name:'Overview',exact:true}).waitFor();
+const home=await (await api('GET','/api/v1/home')).json();
+ok(home.assets.total===2,'Overview inventory contains both fixture assets');
+ok(await p.getByRole('heading',{name:'Vulnerability landscape'}).isVisible(),'current severity summary displayed');
+ok(await p.getByRole('heading',{name:'Testing authorisation'}).isVisible(),'authorisation is shown separately from audit results');
+await p.screenshot({path:SHOTS+'home-filled.png'});
 
 ok(errors.length === 0, 'tidak ada error konsol/halaman tak terduga' + (errors.length ? ': ' + errors.join(' | ') : ''));
 await b.close();

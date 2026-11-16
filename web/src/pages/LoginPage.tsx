@@ -2,6 +2,7 @@ import { t as textUI, useLocale, fv as formatUI } from "../i18n/runtime";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, TriangleAlert } from 'lucide-react';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { workspaceStart } from '../components/navigation';
 import { ApiError } from '../api/client';
 import { useForgot, useLogin } from '../api/hooks';
 import { LoginHeroPanel } from '../components/login/LoginHeroPanel';
@@ -66,7 +67,7 @@ export function LoginPage() {
     const locked = err?.status === 429;
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        login.mutate({ email, password, remember_me: false }, { onSuccess: () => navigate('/overview', { replace: true }) });
+        login.mutate({ email, password, remember_me: false }, { onSuccess: user => navigate(workspaceStart(user), { replace: true }) });
     };
     if (locked) {
         return (<AuthLayout>
