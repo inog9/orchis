@@ -25,7 +25,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 
 // aset sasaran: BELUM diotorisasi
 const target = await (await api('POST', '/api/v1/assets', { category: 'host', name: 'e2e-target', criticality: 'high',
@@ -183,7 +183,7 @@ ok(gone, 'proses nmap di container dihentikan setelah simulasi dihentikan');
 ok((await p.getByRole('button', { name: 'Pause' }).count()) === 0, 'simulasi yang dihentikan tidak punya kontrol Pause/Stop lagi');
 
 // 8. daftar simulasi dan filter
-await p.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Simulations' }).click();
+await p.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Scans', exact: true }).click();
 await p.waitForURL('**/simulations');
 await p.locator('details').filter({has:p.locator('summary').getByText('Earlier runs',{exact:true})}).locator('summary').click();
 await p.getByRole('table', { name: 'Simulations' }).waitFor();

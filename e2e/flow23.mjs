@@ -14,15 +14,16 @@ const browser=await chromium.launch();const ctx=await browser.newContext({viewpo
 let count=0;const check=(v,m)=>{if(!v)throw new Error(m);count++;console.log('LULUS: '+m)};
 const wait=async(fn,label,ms=120000)=>{const end=Date.now()+ms;while(Date.now()<end){const v=await fn();if(v)return v;await new Promise(r=>setTimeout(r,400))}throw new Error('Timed out: '+label)};
 const api=async(method,path,data)=>{const r=await ctx.request.fetch(BASE+'/api/v1'+path,{method,data,headers:{'X-Requested-With':'orchis-web'}});if(!r.ok())throw new Error(`API ${method} ${path}: ${r.status()}`);return r.status()===204?null:await r.json()};
-const system=(...args)=>{try{return execFileSync('systemctl',args,{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return null}};
-const run=(bin,args)=>{try{execFileSync(bin,args,{stdio:'ignore',timeout:30000})}catch{throw new Error('Owned agent setup command failed')}};
+const privileged=(bin,args)=>process.getuid?.()===0?[bin,args]:['sudo',['-n',bin,...args]];
+const system=(...args)=>{try{const [bin,argv]=privileged('systemctl',args);return execFileSync(bin,argv,{stdio:['ignore','pipe','ignore']}).toString().trim()}catch{return null}};
+const run=(bin,args)=>{try{const [exe,argv]=privileged(bin,args);execFileSync(exe,argv,{stdio:'pipe',timeout:30000})}catch(error){throw new Error(`Owned agent ${args[0]} failed: ${error.stderr?.toString()??error.message}`)}};
 const list=async()=> (await api('GET','/agents')).items;
 const refresh=async()=>{await p.goto(BASE+'/assets/agents');await p.getByRole('heading',{name:'Agents',exact:true}).waitFor();await p.locator('.skeleton').first().waitFor({state:'hidden'}).catch(()=>{})};
 const row=agent=>p.locator(`[data-agent-id="${agent.id}"]`);
 async function manage(agent){await refresh();const r=row(agent);await r.getByRole('button',{name:'Manage',exact:true}).click();return r}
 async function audit(label){for(const width of [1280,834,390]){
  await p.setViewportSize({width,height:900});await p.waitForTimeout(150);
- const axe=await new AxeBuilder({page:p}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']).exclude('ul[role="note"]').analyze();check(axe.violations.length===0,`${label}: axe0 @${width}: ${axe.violations.map(v=>v.id).join(',')}`);
+ const axe=await new AxeBuilder({page:p}).withTags(['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa','best-practice']).exclude('ul[role="note"]').analyze();check(axe.violations.length===0,`${label}: axe0 @${width}: ${axe.violations.map(v=>({id:v.id,nodes:v.nodes.map(n=>({target:n.target,summary:n.failureSummary}))})).join(',')}`);
  check(await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),`${label}: no page overflow @${width}`);
  // Tabel agent sengaja menggulir horizontal (baris min-width 900px dalam .list overflow-x:auto),
  // jadi tombol di luar viewport tetap terjangkau bila wadahnya bisa digulir; dialog tetap wajib pas viewport.

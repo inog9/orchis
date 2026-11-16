@@ -60,9 +60,9 @@ try {
   await p.getByLabel('Email').fill('admin@orchis.local');
   await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
   await p.getByRole('button', { name: /sign in/i }).click();
-  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await p.goto(BASE+'/overview');
-  await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
 
   ok((await api('GET', '/demo/status')).has_demo === false, 'DB baru: status demo kosong');
   ok(await banner.count() === 0, 'DB baru: tanpa banner demo');
@@ -80,11 +80,11 @@ try {
   ok(rejected, 'seed berbeda tanpa purge ditolak CLI');
   ok(demoJSON('demo-seed', { DEMO_SEED: '2' }).counts.assets === 50, 'seed sama diulang tidak menduplikasi');
 
-  await p.goto(BASE + '/');
+  await p.goto(BASE + '/overview');
   await banner.waitFor();
-  await p.getByRole('heading', { name: 'Organisations', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await p.goto(BASE+'/overview');
-  await p.getByRole('heading', { name: 'Home', exact: true }).waitFor();
+  await p.getByRole('heading', { name: 'Overview', exact: true }).waitFor();
   await p.locator('.skeleton').first().waitFor({ state: 'hidden', timeout: 15000 }).catch(() => {});
   ok((await banner.innerText()).includes('synthetic demo data'), 'banner demo tampil dan menjelaskan data sintetis');
   await p.screenshot({ path: SHOTS + 'home-1280.png' });
@@ -215,7 +215,7 @@ try {
   await axe('advanced chains');
 
   // Purge dari banner.
-  await p.goto(BASE + '/');
+  await p.goto(BASE + '/overview');
   await banner.waitFor();
   await banner.getByRole('button', { name: 'Purge demo data' }).click();
   const dlg = p.getByRole('dialog');

@@ -15,6 +15,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: VIEWPORTS[0] });
 const p = await ctx.newPage();
+p.setDefaultTimeout(8000);
 const errors = [];
 const expected = /Failed to load resource: the server responded with a status of (400|401|403|404|409|422)/;
 p.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
@@ -28,7 +29,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 
 const tag = await J('POST', '/api/v1/tags', { name: 'crown-jewel', color: '#E8A557' });
 const web = await J('POST', '/api/v1/assets', { category: 'host', name: 'srv-web-01', platform: 'linux', arch: 'x86_64', criticality: 'critical', is_internet_facing: true, testing_authorized: true, tag_ids: [tag.id], addresses: [{ kind: 'ip', value: '127.0.0.1' }, { kind: 'url', value: 'http://127.0.0.1:18081' }] });
@@ -141,7 +142,7 @@ async function visit(vp, label, path) {
 for (const vp of VIEWPORTS) {
   await p.setViewportSize({ width: vp.width, height: vp.height });
   for (const [label, path] of routes) await visit(vp, label, path);
-  await p.goto(BASE + '/');
+  await p.goto(BASE + '/overview');
   await p.locator('.skeleton').first().waitFor({ state: 'detached', timeout: 8000 }).catch(() => {});
   await p.screenshot({ path: SHOTS + `responsive-home-${vp.name}.png` });
   await p.goto(BASE + `/chains/${sc.id}`);
@@ -172,9 +173,9 @@ for (const vp of VIEWPORTS) {
     ['Personal token form', '/profile', async()=>{await p.getByRole('button',{name:'New token',exact:true}).click();await p.getByRole('dialog').waitFor();}],
     ['Personal token secret dialog', '/profile', async()=>{await p.getByRole('button',{name:'New token',exact:true}).click();const d=p.getByRole('dialog');await d.getByLabel('Name',{exact:true}).fill('Responsive test '+vp.name);await d.getByRole('button',{name:'Create token',exact:true}).click();await p.getByRole('heading',{name:'Copy your token now',exact:true}).waitFor();}],
     ['Remove asset confirmation', `/assets/${web.id}`, async()=>{await p.getByRole('button',{name:'Remove asset',exact:true}).click();await p.getByRole('dialog').waitFor();}],
-    ['Worker disable confirmation', '/settings/integrations', async()=>{await p.locator('.card').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Disable',exact:true}).click();await p.getByRole('dialog').waitFor();}],
-    ['Worker token secret dialog', '/settings/integrations', async()=>{await p.locator('.card').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('dialog').getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('heading',{name:'New token for Nmap',exact:true}).waitFor();}],
-    ['Command palette', '/', async () => { await p.keyboard.press('Control+k'); await p.getByRole('combobox', {name: 'Search or jump to'}).waitFor(); }],
+    ['Worker disable confirmation', '/settings/integrations', async()=>{await p.getByRole('rowgroup').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Disable',exact:true}).click();await p.getByRole('dialog').waitFor();}],
+    ['Worker token secret dialog', '/settings/integrations', async()=>{await p.getByRole('rowgroup').filter({has:p.getByText('Nmap',{exact:true})}).getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('dialog').getByRole('button',{name:'Rotate token',exact:true}).click();await p.getByRole('heading',{name:'New token for Nmap',exact:true}).waitFor();}],
+    ['Command palette', '/overview', async () => { await p.keyboard.press('Control+k'); await p.getByRole('combobox', {name: 'Search or jump to'}).waitFor(); }],
   ];
   dialogCount=dialogs.length;
   for (const [label, path, open] of dialogs) {
@@ -192,7 +193,7 @@ for (const vp of VIEWPORTS) {
     await p.keyboard.press('Escape');
   }
   // menu dan popover
-  await p.goto(BASE + '/');
+  await p.goto(BASE + '/overview');
   await p.getByRole('button', { name: /Notifications/ }).first().click();
   await sleep(300);
   await axe(vp.name, 'Notifications popover');

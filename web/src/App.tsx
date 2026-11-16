@@ -1,5 +1,5 @@
 import { t as textUI, useLocale, fv as formatUI } from "./i18n/runtime";
-import { advancedEnabled } from './components/navigation';
+import { advancedEnabled, workspaceStart } from './components/navigation';
 import { lazy, Suspense } from 'react';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotificationsPage } from './pages/NotificationsPage';
@@ -66,7 +66,7 @@ function Guard({ children, guest = false }: {
       </div>);
     }
     if (guest)
-        return me.data ? <Navigate to="/overview" replace/> : <>{formatUI(children)}</>;
+        return me.data ? <Navigate to={workspaceStart(me.data)} replace/> : <>{formatUI(children)}</>;
     return me.data ? <>{formatUI(children)}</> : <Navigate to="/login" replace state={{ from: loc.pathname }}/>;
 }
 // Flag presentasi saja: API tetap memeriksa permission, scope dan consent yang sama.

@@ -46,7 +46,7 @@ export function TagsPanel() {
       {formatUI(q.isPending ? <span className="skeleton"/> : q.isError ? <div className="state state--error" role="alert"><h2>{textUI("m_cb228d7b7f8e")}</h2><p>{formatUI(describeError(q.error).message)}</p></div>
             : q.data!.length === 0 ? <div className="state"><h2>{textUI("m_b57d852b14d2")}</h2><p>{textUI("m_428256c77597")}</p></div> : (<ul className="list tag-list" aria-label={textUI("m_1331275bc537")} tabIndex={0}>
           {formatUI(q.data!.map((t) => (<li key={t.id} className="tag-row">
-              <span className="tag-chip" style={{ borderColor: t.color, color: t.color }}>{formatUI(t.name)}</span>
+              <span className="tag-chip" style={{ borderColor: t.color }}>{formatUI(t.name)}</span>
               <span className="muted small">{formatUI(t.assets)} {formatUI(t.assets === 1 ? 'asset' : 'assets')}</span>
               <span className="row-actions">
                 {formatUI(can(me, 'asset.write') && <button type="button" className="btn btn--secondary btn--sm" aria-label={textUI("m_fdd9d5053ccc", [t.name])} onClick={() => setEditing(t)}>{textUI("m_464c4ffd019e")}</button>)}

@@ -22,15 +22,22 @@ function reloadStylesheet(original: HTMLLinkElement, attempt: number): Promise<v
         original.replaceWith(replacement);
     });
 }
+function loaded(link: HTMLLinkElement): boolean {
+    // A failed response can still expose an empty CSSStyleSheet in Chromium.
+    // Build stylesheets contain rules; a sheet object alone does not prove they loaded.
+    try { return !link.disabled && !!link.sheet && link.sheet.cssRules.length > 0; }
+    catch { return false; }
+}
 export async function applicationStylesReady(): Promise<boolean> {
-    if (styled())
+    const sheetsNow = () => Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+    if (styled() && sheetsNow().every(loaded))
         return true;
     for (let attempt = 0; attempt < 2; attempt++) {
-        const sheets = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'));
+        const sheets = sheetsNow().filter(sheet => !loaded(sheet));
         if (!sheets.length)
             break;
         await Promise.all(sheets.map(sheet => reloadStylesheet(sheet, attempt)));
-        if (styled())
+        if (styled() && sheetsNow().every(loaded))
             return true;
     }
     return false;

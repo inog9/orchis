@@ -44,7 +44,7 @@ export function OrgCard({ org, metrics, report, reportKnown, canReport, canRun }
       <div className="oc__top">
         <span className="oc__avatar" aria-hidden="true">{initialsOf(org.name)}</span>
         <div className="oc__id">
-          <h3 className="oc__name"><Link className="oc__link" to={`/organizations/${org.id}`}>{formatUI(org.name)}</Link></h3>
+          <h2 className="oc__name"><Link className="oc__link" to={`/organizations/${org.id}`}>{formatUI(org.name)}</Link></h2>
           {org.industry && <span className="oc__chip">{formatUI(cap(org.industry))}</span>}
         </div>
       </div>

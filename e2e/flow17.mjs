@@ -20,17 +20,17 @@ try {
   await page.getByLabel('Email').fill('admin@orchis.local');
   await page.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await page.waitForURL(BASE + '/organizations');
+  await page.waitForURL(BASE+'/overview');await page.goto(BASE+'/organizations');
   await workspaceReady();
   const me = await (await ctx.request.get(BASE + '/api/v1/auth/me')).json();
   check(me.features.advanced === false, 'regresi berjalan dengan fitur lanjutan mati');
   const destinations = await primary().getByRole('link').evaluateAll(links => links.map(link => new URL(link.href).pathname));
-  assert.deepEqual(destinations, ['/organizations', '/simulations', '/findings', '/assets', '/reports', '/settings']);
-  checks++; console.log('LULUS: kontrak enam tujuan menu utama');
+  assert.deepEqual(destinations, ['/overview', '/organizations', '/assets', '/simulations', '/simulations/schedules', '/findings', '/reports', '/settings']);
+  checks++; console.log('LULUS: current workspace destinations include Overview and audit schedules');
 
   await page.goto(BASE + '/');
-  await workspaceReady();
-  check(new URL(page.url()).pathname === '/organizations', 'root menuju Organisations, bukan overview lama');
+  await page.locator('#public-title').waitFor();
+  check(new URL(page.url()).pathname === '/', 'root retains the public product landing page');
 
   // Kontrol negatif: tahan jawaban /me sehingga Shell pasti belum dipasang.
   // Pola goto + langsung Ctrl+K dari flow5 lama kehilangan input pada kondisi ini.
@@ -61,8 +61,8 @@ try {
   await page.keyboard.press('g');
   await page.keyboard.press('m');
   await page.waitForURL(BASE + '/simulations');
-  await page.getByRole('heading', { name: 'Simulations', exact: true }).first().waitFor();
-  check(await primary().getByRole('link', { name: 'Simulations', exact: true }).getAttribute('aria-current') === 'page', 'g lalu m membuka Simulations sesuai menu');
+  await page.getByRole('heading', { name: 'Scans', exact: true }).first().waitFor();
+  check(await primary().getByRole('link', { name: 'Scans', exact: true }).getAttribute('aria-current') === 'page', 'g lalu m membuka Simulations sesuai menu');
   check(errors.length === 0, 'tanpa galat runtime browser');
 } finally {
   await ctx.close();

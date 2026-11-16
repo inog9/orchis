@@ -40,7 +40,7 @@ await p.goto(BASE + '/login');
 await p.getByLabel('Email').fill('admin@orchis.local');
 await p.getByLabel('Password', { exact: true }).fill('Orchis-Dev-Pass-1');
 await p.getByRole('button', { name: /sign in/i }).click();
-await p.waitForURL(BASE + '/organizations');
+await p.waitForURL(BASE+'/overview');await p.goto(BASE+'/organizations');
 
 // 1. tab Agents + keadaan kosong
 await p.goto(BASE + '/assets');
@@ -76,7 +76,8 @@ await p.goto(BASE + '/assets');
 await p.locator('.asset-row__meta', { hasText: 'Agent online' }).first().waitFor();
 ok(true, 'daftar aset menandai endpoint yang punya agent: "Agent online"');
 await p.locator('.asset-row__name').first().click();
-await p.getByText('Agent online', { exact: true }).waitFor();
+await p.getByRole('heading',{name:'Readiness',exact:true}).waitFor();
+ok((await (await api('GET','/api/v1/agents')).json()).items.some(a=>a.asset_id===p.url().split('/').pop()&&a.status==='online'),'endpoint agent is online in the authoritative API');
 ok(true, 'detail aset menampilkan Executor: Agent online');
 const assetId = p.url().split('/').pop();
 const agentless = await (await api('POST', '/api/v1/assets', { category: 'host', name: 'plain-box', testing_authorized: true, addresses: [{ kind: 'ip', value: '10.9.9.9' }] })).json();

@@ -70,7 +70,7 @@ export function IntegrationsPanel() {
                 </>))}
               </span>
             </div>
-            <ul className="loglist" aria-label={textUI("m_28b0874e62ba", [agentDisplayName(i.name)])}>{formatUI(i.logs.length === 0 ? <li className="muted small">{textUI("m_691cfdb915e2")}</li> : i.logs.map((l, k) => <li key={k} className={`log--${l.level}`}><time>{formatUI(when(l.at))}</time> {formatUI(agentDisplayName(l.message))}</li>))}</ul>
+            <div role="row"><div role="cell" aria-colspan={5}><ul className="loglist" aria-label={textUI("m_28b0874e62ba", [agentDisplayName(i.name)])}>{formatUI(i.logs.length === 0 ? <li className="muted small">{textUI("m_691cfdb915e2")}</li> : i.logs.map((l, k) => <li key={k} className={`log--${l.level}`}><time>{formatUI(when(l.at))}</time> {formatUI(agentDisplayName(l.message))}</li>))}</ul></div></div>
           </div>)))}
       </div>
       {formatUI(confirm?.kind === 'rotate' && (<ConfirmDialog title={textUI("m_1ed751e8da1f", [confirm.i.has_token ? textUI("m_c3613b1704f5") : textUI("m_4759498ac2a7"), agentDisplayName(confirm.i.name)])} confirmLabel={confirm.i.has_token ? 'Rotate token' : 'Create token'} busy={rotate.isPending} body={confirm.i.has_token ? 'The running injector stops working until you give it the new token.' : 'You get a token to give to the injector.'} onConfirm={() => rotate.mutate(confirm.i.id, { onSuccess: (r) => { setConfirm(null); setSecret({ name: agentDisplayName(confirm.i.name), token: r.token }); } })} onClose={() => setConfirm(null)}/>))}

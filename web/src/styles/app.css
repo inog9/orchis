@@ -442,7 +442,7 @@ a.kpi__link:hover { background: var(--hover-soft); }
 .tag-list { list-style: none; }
 .tag-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px auto; gap: 16px; align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--ring); }
 .tag-row:last-child { border-bottom: 0; }
-.tag-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border: 1px solid var(--ring); border-radius: var(--radius-ctl); font-size: 12px; width: fit-content; }
+.tag-chip { color: var(--ink); display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border: 1px solid var(--ring); border-radius: var(--radius-ctl); font-size: 12px; width: fit-content; }
 .loglist { list-style: none; display: flex; flex-direction: column; gap: 4px; font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
 .loglist time { color: var(--ink-3); margin-right: 6px; }
 .dock__badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-ctl); background: var(--bronze); color: var(--on-bronze); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
